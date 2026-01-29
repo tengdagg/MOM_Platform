@@ -125,7 +125,7 @@
             <el-input v-model="form.config.fromEmail" placeholder="noreply@example.com" />
           </el-form-item>
           <el-form-item label="发件人名称" prop="config.fromName">
-            <el-input v-model="form.config.fromName" placeholder="iom监控" />
+            <el-input v-model="form.config.fromName" placeholder="mom监控" />
           </el-form-item>
           <el-form-item label="SMTP用户名" prop="config.smtpUser">
             <el-input v-model="form.config.smtpUser" placeholder="user@example.com" />
@@ -428,7 +428,7 @@ onMounted(() => {
   margin-bottom: 12px;
   padding: 16px 20px;
   background: #fff;
-  border-radius: 8px;
+  border-radius: 0;
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
 }
 
@@ -441,15 +441,15 @@ onMounted(() => {
 .page-title-icon {
   width: 48px;
   height: 48px;
-  background: linear-gradient(135deg, #000 0%, #1a1a1a 100%);
-  border-radius: 10px;
+  background: #0a466a;
+  border-radius: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #d4af37;
+  color: #ffffff;
   font-size: 22px;
   flex-shrink: 0;
-  border: 1px solid #d4af37;
+  border: none;
 }
 
 .page-title {
@@ -476,7 +476,7 @@ onMounted(() => {
 /* 表格容器 */
 .table-wrapper {
   background: #fff;
-  border-radius: 12px;
+  border-radius: 0;
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
   overflow: hidden;
 }
@@ -504,7 +504,7 @@ onMounted(() => {
 .action-btn {
   width: 32px;
   height: 32px;
-  border-radius: 6px;
+  border-radius: 0;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -538,7 +538,7 @@ onMounted(() => {
   background-color: #0a466a !important;
   color: #ffffff !important;
   border-color: #0a466a !important;
-  border-radius: 8px;
+  border-radius: 0;
   padding: 10px 20px;
   font-weight: 500;
 }
@@ -556,7 +556,7 @@ onMounted(() => {
 }
 
 :deep(.channel-edit-dialog) {
-  border-radius: 12px;
+  border-radius: 0;
 }
 
 :deep(.channel-edit-dialog .el-dialog__header) {

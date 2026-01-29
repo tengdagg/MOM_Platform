@@ -347,7 +347,7 @@ onMounted(() => {
   margin-bottom: 16px;
   padding: 16px 20px;
   background: #fff;
-  border-radius: 8px;
+  border-radius: 0;
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
 }
 
@@ -360,15 +360,15 @@ onMounted(() => {
 .page-title-icon {
   width: 48px;
   height: 48px;
-  background: linear-gradient(135deg, #000 0%, #1a1a1a 100%);
-  border-radius: 10px;
+  background: #0a466a;
+  border-radius: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #d4af37;
+  color: #ffffff;
   font-size: 22px;
   flex-shrink: 0;
-  border: 1px solid #d4af37;
+  border: none;
 }
 
 .page-title {
@@ -396,7 +396,7 @@ onMounted(() => {
   background-color: #0a466a !important;
   color: #ffffff !important;
   border-color: #0a466a !important;
-  border-radius: 8px;
+  border-radius: 0;
   padding: 10px 20px;
   font-weight: 500;
 }
@@ -425,7 +425,7 @@ onMounted(() => {
   margin-bottom: 16px;
   padding: 12px 16px;
   background: #fff;
-  border-radius: 8px;
+  border-radius: 0;
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
   display: flex;
   gap: 12px;
@@ -445,13 +445,13 @@ onMounted(() => {
 }
 
 .filter-icon {
-  color: #d4af37;
+  color: #ffffff;
 }
 
 /* 表格容器 */
 .table-wrapper {
   background: #fff;
-  border-radius: 12px;
+  border-radius: 0;
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
   overflow: hidden;
 }
@@ -461,7 +461,7 @@ onMounted(() => {
 }
 
 .modern-table :deep(.el-table__body-wrapper) {
-  border-radius: 0 0 12px 12px;
+  border-radius: 0;
 }
 
 .modern-table :deep(.el-table__row) {
@@ -490,7 +490,7 @@ onMounted(() => {
 }
 
 .user-icon {
-  color: #d4af37;
+  color: #ffffff;
   font-size: 16px;
 }
 
@@ -513,7 +513,7 @@ onMounted(() => {
 }
 
 .action-btn {
-  color: #d4af37;
+  color: #ffffff;
   padding: 4px;
 }
 

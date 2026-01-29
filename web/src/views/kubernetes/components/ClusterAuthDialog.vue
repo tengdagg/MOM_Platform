@@ -778,8 +778,8 @@ const handleRemoveExistingRole = async (role: any) => {
   margin-bottom: 20px;
   padding: 16px 20px;
   background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
-  border-radius: 12px;
-  border: 1px solid #d4af37;
+  border-radius: 0;
+  border: none;
 }
 
 .page-info {
@@ -791,13 +791,13 @@ const handleRemoveExistingRole = async (role: any) => {
 .info-icon {
   width: 42px;
   height: 42px;
-  border-radius: 10px;
-  background: linear-gradient(135deg, #000 0%, #1a1a1a 100%);
-  border: 1px solid #d4af37;
+  border-radius: 0;
+  background: #0a466a;
+  border: none;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #d4af37;
+  color: #ffffff;
   font-size: 20px;
   flex-shrink: 0;
 }
@@ -811,7 +811,7 @@ const handleRemoveExistingRole = async (role: any) => {
 .info-title {
   font-size: 16px;
   font-weight: 600;
-  color: #d4af37;
+  color: #ffffff;
 }
 
 .info-desc {
@@ -822,7 +822,7 @@ const handleRemoveExistingRole = async (role: any) => {
 /* 表格容器 */
 .table-wrapper {
   background: #fff;
-  border-radius: 12px;
+  border-radius: 0;
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
   overflow: hidden;
 }
@@ -831,7 +831,7 @@ const handleRemoveExistingRole = async (role: any) => {
   width: 100%;
 
   :deep(.el-table__body-wrapper) {
-    border-radius: 0 0 12px 12px;
+    border-radius: 0;
   }
 
   :deep(.el-table__row) {
@@ -852,12 +852,12 @@ const handleRemoveExistingRole = async (role: any) => {
   width: 36px;
   height: 36px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #000 0%, #1a1a1a 100%);
-  border: 1px solid #d4af37;
+  background: #0a466a;
+  border: none;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #d4af37;
+  color: #ffffff;
   font-size: 16px;
   margin: 0 auto;
 }
@@ -928,7 +928,7 @@ const handleRemoveExistingRole = async (role: any) => {
   font-weight: 500;
 
   &:hover {
-    color: #d4af37;
+    color: #ffffff;
   }
 
   // 当只有图标时的样式
@@ -963,7 +963,7 @@ const handleRemoveExistingRole = async (role: any) => {
   .code-editor-wrapper {
     display: flex;
     border: 1px solid #dcdfe6;
-    border-radius: 8px;
+    border-radius: 0;
     overflow: hidden;
     background-color: #282c34;
   }
@@ -1008,7 +1008,7 @@ const handleRemoveExistingRole = async (role: any) => {
     margin-top: 12px;
     padding: 10px 14px;
     background: #fef0f0;
-    border-radius: 6px;
+    border-radius: 0;
     color: #f56c6c;
     font-size: 13px;
 
@@ -1024,7 +1024,7 @@ const handleRemoveExistingRole = async (role: any) => {
     margin-bottom: 24px;
     padding: 16px;
     background: #f5f7fa;
-    border-radius: 8px;
+    border-radius: 0;
   }
 
   .user-info-header {
@@ -1037,7 +1037,7 @@ const handleRemoveExistingRole = async (role: any) => {
     font-size: 14px;
 
     :deep(.el-icon) {
-      color: #d4af37;
+      color: #ffffff;
       font-size: 18px;
     }
   }
@@ -1073,7 +1073,7 @@ const handleRemoveExistingRole = async (role: any) => {
     padding: 16px;
     background: #fff;
     border: 1px solid #e4e7ed;
-    border-radius: 8px;
+    border-radius: 0;
   }
 
   // 添加新权限区域
@@ -1081,7 +1081,7 @@ const handleRemoveExistingRole = async (role: any) => {
     padding: 16px;
     background: #fff;
     border: 1px solid #e4e7ed;
-    border-radius: 8px;
+    border-radius: 0;
   }
 
   .section-header {
@@ -1094,7 +1094,7 @@ const handleRemoveExistingRole = async (role: any) => {
     font-size: 14px;
 
     :deep(.el-icon) {
-      color: #d4af37;
+      color: #ffffff;
       font-size: 18px;
     }
   }
@@ -1129,7 +1129,7 @@ const handleRemoveExistingRole = async (role: any) => {
   .namespace-permission-item {
     padding: 12px;
     background: #f5f7fa;
-    border-radius: 6px;
+    border-radius: 0;
   }
 
   .namespace-name {
@@ -1151,7 +1151,7 @@ const handleRemoveExistingRole = async (role: any) => {
     gap: 8px;
 
     .role-icon {
-      color: #d4af37;
+      color: #ffffff;
     }
   }
 

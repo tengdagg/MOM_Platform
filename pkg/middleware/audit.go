@@ -27,9 +27,9 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/ydcloud-dy/iom/internal/biz/audit"
-	"github.com/ydcloud-dy/iom/internal/service/rbac"
-	appLogger "github.com/ydcloud-dy/iom/pkg/logger"
+	"github.com/ydcloud-dy/mom/internal/biz/audit"
+	"github.com/ydcloud-dy/mom/internal/service/rbac"
+	appLogger "github.com/ydcloud-dy/mom/pkg/logger"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
 )

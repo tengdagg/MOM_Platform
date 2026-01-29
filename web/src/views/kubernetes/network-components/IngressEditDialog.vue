@@ -818,11 +818,11 @@ defineExpose({
 }
 
 .ingress-tabs :deep(.el-tabs__item.is-active) {
-  color: #d4af37;
+  color: #ffffff;
 }
 
 .ingress-tabs :deep(.el-tabs__active-bar) {
-  background-color: #d4af37;
+  background-color: #ffffff;
 }
 
 .tab-content {
@@ -839,7 +839,7 @@ defineExpose({
   padding: 20px;
   background-color: #fff;
   border: 1px solid #e4e7ed;
-  border-radius: 8px;
+  border-radius: 0;
 }
 
 .rule-header {
@@ -861,7 +861,7 @@ defineExpose({
 }
 
 .rule-title .title-icon {
-  color: #d4af37;
+  color: #ffffff;
   font-size: 18px;
 }
 
@@ -896,8 +896,8 @@ defineExpose({
 .path-card {
   padding: 16px;
   background-color: #fef9e7;
-  border: 1px solid #d4af37;
-  border-radius: 6px;
+  border: none;
+  border-radius: 0;
 }
 
 .path-card-header {
@@ -924,7 +924,7 @@ defineExpose({
   padding: 20px;
   background-color: #fff;
   border: 1px solid #e4e7ed;
-  border-radius: 8px;
+  border-radius: 0;
 }
 
 .tls-header {
@@ -946,7 +946,7 @@ defineExpose({
 }
 
 .tls-title .title-icon {
-  color: #d4af37;
+  color: #ffffff;
   font-size: 18px;
 }
 
@@ -963,7 +963,7 @@ defineExpose({
 
 .host-tag {
   background-color: #fef9e7;
-  border-color: #d4af37;
+  border-color: #ffffff;
   color: #303133;
 }
 
@@ -996,7 +996,7 @@ defineExpose({
   justify-content: center;
   padding: 60px 20px;
   background-color: #fafafa;
-  border-radius: 8px;
+  border-radius: 0;
   border: 1px dashed #dcdfe6;
 }
 
@@ -1050,12 +1050,12 @@ defineExpose({
   padding: 16px;
   background-color: #fff;
   border: 1px solid #e4e7ed;
-  border-radius: 8px;
+  border-radius: 0;
   transition: all 0.3s;
 }
 
 .kv-item:hover {
-  border-color: #d4af37;
+  border-color: #ffffff;
   box-shadow: 0 2px 8px rgba(212, 175, 55, 0.1);
 }
 
@@ -1112,11 +1112,11 @@ defineExpose({
 }
 
 :deep(.el-input__wrapper:hover) {
-  border-color: #d4af37;
+  border-color: #ffffff;
 }
 
 :deep(.el-input__wrapper.is-focus) {
-  border-color: #d4af37;
+  border-color: #ffffff;
   box-shadow: 0 0 0 1px #d4af37;
 }
 
@@ -1149,13 +1149,13 @@ defineExpose({
 
 :deep(.el-input-number__decrease:hover),
 :deep(.el-input-number__increase:hover) {
-  color: #d4af37;
+  color: #ffffff;
 }
 
 /* 按钮样式 */
 :deep(.el-button--primary) {
-  background-color: #d4af37;
-  border-color: #d4af37;
+  background-color: #ffffff;
+  border-color: #ffffff;
   color: #000000;
   font-weight: 500;
 }
@@ -1173,8 +1173,8 @@ defineExpose({
 }
 
 :deep(.el-button--default:hover) {
-  border-color: #d4af37;
-  color: #d4af37;
+  border-color: #ffffff;
+  color: #ffffff;
   background-color: #fff;
 }
 
@@ -1190,7 +1190,7 @@ defineExpose({
 
 /* Primary Link 按钮样式（添加按钮）- 金色文字 */
 :deep(.el-button--primary.is-link) {
-  color: #d4af37;
+  color: #ffffff;
   font-weight: 500;
   background-color: transparent;
 }
@@ -1219,12 +1219,12 @@ defineExpose({
 }
 
 :deep(.el-dialog__title) {
-  color: #d4af37;
+  color: #ffffff;
   font-weight: 500;
 }
 
 :deep(.el-dialog__headerbtn .el-dialog__close) {
-  color: #d4af37;
+  color: #ffffff;
 }
 
 :deep(.el-dialog__headerbtn .el-dialog__close:hover) {

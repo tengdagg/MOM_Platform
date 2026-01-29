@@ -4,7 +4,7 @@
     <div class="brand-section">
       <div class="curved-divider"></div>
       <div class="brand-content">
-        <h1 class="brand-title">iom 运维管理平台</h1>
+        <h1 class="brand-title">mom 运维管理平台</h1>
         <div class="brand-slogan">
           <span>高效</span>
           <span>安全</span>
@@ -327,7 +327,7 @@ onMounted(() => {
 .brand-slogan span {
   padding: 8px 18px;
   background: rgba(255, 255, 255, 0.08);
-  border-radius: 8px;
+  border-radius: 0;
   backdrop-filter: blur(10px);
   border: 1px solid rgba(255, 255, 255, 0.15);
   color: #ffffff;
@@ -395,7 +395,7 @@ onMounted(() => {
   width: 50px;
   height: 3px;
   background: linear-gradient(90deg, #D4AF37, #FFD700, #FFA500);
-  border-radius: 2px;
+  border-radius: 0;
   box-shadow: 0 0 10px rgba(212, 175, 55, 0.4);
 }
 
@@ -410,7 +410,7 @@ onMounted(() => {
 /* 黑白风格输入框 - 金色图标保留 */
 .login-form :deep(.el-input__wrapper) {
   padding: 8px 12px;
-  border-radius: 6px;
+  border-radius: 0;
   background: #ffffff;
   box-shadow: 0 0 0 1px #e0e0e0 inset;
   transition: all 0.3s;
@@ -454,7 +454,7 @@ onMounted(() => {
   width: 110px;
   height: 36px;
   border: 1px solid #e0e0e0;
-  border-radius: 6px;
+  border-radius: 0;
   overflow: hidden;
   cursor: pointer;
   display: flex;
@@ -510,7 +510,7 @@ onMounted(() => {
   height: 40px;
   font-size: 14px;
   font-weight: 500;
-  border-radius: 6px;
+  border-radius: 0;
   background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
   border: 1px solid #D4AF37;
   color: #D4AF37;

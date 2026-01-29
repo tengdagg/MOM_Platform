@@ -24,8 +24,8 @@ import (
 	"strconv"
 
 	"github.com/gin-gonic/gin"
-	"github.com/ydcloud-dy/iom/internal/biz/rbac"
-	"github.com/ydcloud-dy/iom/pkg/response"
+	"github.com/ydcloud-dy/mom/internal/biz/rbac"
+	"github.com/ydcloud-dy/mom/pkg/response"
 )
 
 type MenuService struct {

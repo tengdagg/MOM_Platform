@@ -29,9 +29,9 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/ydcloud-dy/iom/internal/biz/rbac"
-	rbaccustom "github.com/ydcloud-dy/iom/internal/service/rbac"
-	appLogger "github.com/ydcloud-dy/iom/pkg/logger"
+	"github.com/ydcloud-dy/mom/internal/biz/rbac"
+	rbaccustom "github.com/ydcloud-dy/mom/internal/service/rbac"
+	appLogger "github.com/ydcloud-dy/mom/pkg/logger"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
 )
@@ -471,16 +471,16 @@ func (s *UploadServer) registerPluginToBackend(currentDir, pluginName string) er
 	lines := strings.Split(string(content), "\n")
 
 	// 生成导入和注册代码
-	// 导入格式：{pluginName}plugin "github.com/ydcloud-dy/iom/plugins/{pluginName}"
+	// 导入格式：{pluginName}plugin "github.com/ydcloud-dy/mom/plugins/{pluginName}"
 	// 注册格式：pluginMgr.Register({pluginName}plugin.New())
 	pluginAlias := pluginName + "plugin"
-	importStatement := fmt.Sprintf("\t%s \"github.com/ydcloud-dy/iom/plugins/%s\"", pluginAlias, pluginName)
+	importStatement := fmt.Sprintf("\t%s \"github.com/ydcloud-dy/mom/plugins/%s\"", pluginAlias, pluginName)
 
 	// 检查导入和注册是否已存在
 	importExists := false
 	registrationExists := false
 	for _, line := range lines {
-		if strings.Contains(line, fmt.Sprintf("github.com/ydcloud-dy/iom/plugins/%s", pluginName)) {
+		if strings.Contains(line, fmt.Sprintf("github.com/ydcloud-dy/mom/plugins/%s", pluginName)) {
 			importExists = true
 		}
 		if strings.Contains(line, fmt.Sprintf("%s.New()", pluginAlias)) {
@@ -743,8 +743,8 @@ func (s *UploadServer) removePluginImportFromBackend(currentDir, pluginName stri
 		line := lines[i]
 		trimmed := strings.TrimSpace(line)
 
-		// 检查是否是导入行：例如 k8splugin "github.com/ydcloud-dy/iom/plugins/kubernetes"
-		importPattern := fmt.Sprintf("github.com/ydcloud-dy/iom/plugins/%s", pluginName)
+		// 检查是否是导入行：例如 k8splugin "github.com/ydcloud-dy/mom/plugins/kubernetes"
+		importPattern := fmt.Sprintf("github.com/ydcloud-dy/mom/plugins/%s", pluginName)
 		if strings.Contains(line, importPattern) && strings.Contains(line, "\"") {
 			importRemoved = true
 			appLogger.Info("移除后端插件导入",

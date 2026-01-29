@@ -567,7 +567,7 @@ watch(() => props.visible, (newVal) => {
 
 .loading-container .el-icon {
   font-size: 32px;
-  color: #d4af37;
+  color: #ffffff;
 }
 
 .pod-detail-container {
@@ -634,7 +634,7 @@ watch(() => props.visible, (newVal) => {
   margin-top: 16px;
   padding: 12px;
   background: #fafafa;
-  border-radius: 8px;
+  border-radius: 0;
 }
 
 .tags-section label,
@@ -669,7 +669,7 @@ watch(() => props.visible, (newVal) => {
   font-size: 12px;
   padding: 6px 10px;
   background: #ffffff;
-  border-radius: 4px;
+  border-radius: 0;
   align-items: center;
 }
 
@@ -699,7 +699,7 @@ watch(() => props.visible, (newVal) => {
 
 .conditions-table {
   width: 100%;
-  border-radius: 8px;
+  border-radius: 0;
   overflow: hidden;
 }
 
@@ -721,7 +721,7 @@ watch(() => props.visible, (newVal) => {
 
 .detail-tabs :deep(.el-tabs__header) {
   background: #fafafa;
-  border-radius: 8px 8px 0 0;
+  border-radius: 0;
   padding: 0 16px;
 }
 
@@ -737,7 +737,7 @@ watch(() => props.visible, (newVal) => {
 
 .container-item {
   border: 1px solid #e8e8e8;
-  border-radius: 8px;
+  border-radius: 0;
   padding: 20px;
   background: #ffffff;
 }
@@ -766,7 +766,7 @@ watch(() => props.visible, (newVal) => {
 .container-section {
   padding: 16px;
   background: #fafafa;
-  border-radius: 8px;
+  border-radius: 0;
 }
 
 .section-label {
@@ -800,10 +800,10 @@ watch(() => props.visible, (newVal) => {
 .info-row code {
   padding: 3px 8px;
   background: #f5f5f5;
-  border-radius: 4px;
+  border-radius: 0;
   font-family: 'Courier New', monospace;
   font-size: 12px;
-  color: #d4af37;
+  color: #ffffff;
   word-break: break-all;
 }
 
@@ -818,7 +818,7 @@ watch(() => props.visible, (newVal) => {
   padding: 2px 8px;
   background: #e8f4fd;
   border: 1px solid #b3d8ff;
-  border-radius: 4px;
+  border-radius: 0;
   font-size: 12px;
   color: #409eff;
   font-family: 'Courier New', monospace;
@@ -827,7 +827,7 @@ watch(() => props.visible, (newVal) => {
 .event-item {
   padding: 12px;
   background: #ffffff;
-  border-radius: 8px;
+  border-radius: 0;
   border: 1px solid #e8e8e8;
 }
 
@@ -858,7 +858,7 @@ watch(() => props.visible, (newVal) => {
 
 .volumes-table {
   width: 100%;
-  border-radius: 8px;
+  border-radius: 0;
   overflow: hidden;
 }
 
@@ -875,7 +875,7 @@ watch(() => props.visible, (newVal) => {
 .owner-item {
   padding: 16px;
   background: #fafafa;
-  border-radius: 8px;
+  border-radius: 0;
   border: 1px solid #e8e8e8;
 }
 </style>

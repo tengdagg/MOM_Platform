@@ -145,7 +145,7 @@ onMounted(() => {
     font-weight: 500;
     padding: 10px 20px;
     font-size: 14px;
-    border-radius: 6px;
+    border-radius: 0;
     cursor: pointer;
     transition: all 0.3s ease;
 

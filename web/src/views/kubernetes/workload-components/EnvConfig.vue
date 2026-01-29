@@ -566,8 +566,8 @@ const updateEnvs = () => {
   justify-content: space-between;
   padding: 12px 20px;
   background: #d4af37;
-  border: 1px solid #d4af37;
-  border-radius: 12px 12px 0 0;
+  border: none;
+  border-radius: 0;
   margin-bottom: 0;
 }
 
@@ -582,21 +582,21 @@ const updateEnvs = () => {
 
 .env-header-title .el-icon {
   font-size: 18px;
-  color: #d4af37;
+  color: #ffffff;
   display: flex;
   align-items: center;
   justify-content: center;
   width: 32px;
   height: 32px;
   background: #ffffff;
-  border-radius: 6px;
+  border-radius: 0;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
 .env-header .el-button {
   background: #ffffff;
-  border: 1px solid #d4af37;
-  color: #d4af37;
+  border: none;
+  color: #ffffff;
   font-weight: 500;
 }
 
@@ -609,14 +609,14 @@ const updateEnvs = () => {
 .env-table-wrapper {
   border: 1px solid #e8e8e8;
   border-top: none;
-  border-radius: 0 0 12px 12px;
+  border-radius: 0;
   padding: 20px;
   background: #ffffff;
 }
 
 .env-table {
   background: #fff;
-  border-radius: 8px;
+  border-radius: 0;
 }
 
 .env-table :deep(.el-table__header-wrapper) {
@@ -659,7 +659,7 @@ const updateEnvs = () => {
 }
 
 .env-resource {
-  color: #d4af37;
+  color: #ffffff;
   font-weight: 600;
 }
 
@@ -688,17 +688,17 @@ const updateEnvs = () => {
 :deep(.el-input__wrapper) {
   background: #fafafa;
   border: 1px solid #e0e0e0;
-  border-radius: 8px;
+  border-radius: 0;
   transition: all 0.3s ease;
 }
 
 :deep(.el-input__wrapper:hover) {
-  border-color: #d4af37;
+  border-color: #ffffff;
   box-shadow: 0 0 0 3px rgba(212, 175, 55, 0.1);
 }
 
 :deep(.el-input__wrapper.is-focus) {
-  border-color: #d4af37;
+  border-color: #ffffff;
   box-shadow: 0 0 0 4px rgba(212, 175, 55, 0.15);
 }
 
@@ -712,7 +712,7 @@ const updateEnvs = () => {
 }
 
 :deep(.el-tabs__item.is-active) {
-  color: #d4af37;
+  color: #ffffff;
 }
 
 :deep(.el-tabs__active-bar) {

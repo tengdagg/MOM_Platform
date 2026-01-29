@@ -497,7 +497,7 @@ watch(() => props.attached, (newVal) => {
 /* 工具栏 */
 .toolbar {
   background: #f8f9fa;
-  border-radius: 8px;
+  border-radius: 0;
   padding: 16px;
   border: 1px solid #e9ecef;
 }
@@ -547,7 +547,7 @@ watch(() => props.attached, (newVal) => {
 /* 帮助折叠面板 */
 .help-collapse {
   border: 1px solid #e4e7ed;
-  border-radius: 6px;
+  border-radius: 0;
 }
 
 .help-collapse :deep(.el-collapse-item__header) {
@@ -567,7 +567,7 @@ watch(() => props.attached, (newVal) => {
   margin: 12px 0;
   padding: 12px;
   background: #f5f7fa;
-  border-radius: 4px;
+  border-radius: 0;
 }
 
 .help-section h4 {
@@ -584,7 +584,7 @@ watch(() => props.attached, (newVal) => {
 .help-content .tip {
   background: #fdf6ec;
   padding: 8px 12px;
-  border-radius: 4px;
+  border-radius: 0;
   border-left: 3px solid #e6a23c;
   margin-top: 12px;
 }
@@ -593,7 +593,7 @@ watch(() => props.attached, (newVal) => {
 .data-section {
   background: #fff;
   border: 1px solid #ebeef5;
-  border-radius: 8px;
+  border-radius: 0;
   overflow: hidden;
 }
 
@@ -674,7 +674,7 @@ watch(() => props.attached, (newVal) => {
 /* 原始输出折叠面板 */
 .raw-output-collapse {
   border: 1px solid #e4e7ed;
-  border-radius: 6px;
+  border-radius: 0;
 }
 
 .raw-output-collapse :deep(.el-collapse-item__header) {

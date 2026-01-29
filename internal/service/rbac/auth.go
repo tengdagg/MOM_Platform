@@ -24,7 +24,7 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
-	"github.com/ydcloud-dy/iom/internal/biz/rbac"
+	"github.com/ydcloud-dy/mom/internal/biz/rbac"
 )
 
 type JwtClaims struct {

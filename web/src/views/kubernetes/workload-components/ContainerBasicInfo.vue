@@ -65,7 +65,7 @@ const update = () => {
 .el-row {
   padding: 20px;
   background: #ffffff;
-  border-radius: 10px;
+  border-radius: 0;
   border: 1px solid #e8e8e8;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 }
@@ -89,27 +89,27 @@ const update = () => {
 .el-input :deep(.el-input__wrapper) {
   background: #fafafa;
   border: 1px solid #e0e0e0;
-  border-radius: 8px;
+  border-radius: 0;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
   transition: all 0.3s ease;
 }
 
 .el-input :deep(.el-input__wrapper:hover) {
-  border-color: #d4af37;
+  border-color: #ffffff;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05), 0 0 0 3px rgba(212, 175, 55, 0.1);
 }
 
 .el-input :deep(.el-input__wrapper.is-focus) {
-  border-color: #d4af37;
+  border-color: #ffffff;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05), 0 0 0 4px rgba(212, 175, 55, 0.15);
 }
 
 .el-input :deep(.el-input__prefix) {
-  color: #d4af37;
+  color: #ffffff;
 }
 
 .el-input :deep(.el-input__prefix-inner) {
-  color: #d4af37;
+  color: #ffffff;
 }
 
 .el-select :deep(.el-input__wrapper) {

@@ -59,7 +59,7 @@ Monitor 监控中心插件提供全面的域名监控、SSL 证书监控、告�
 
 ### 通过管理界面启用
 
-1. 登录 iom 系统
+1. 登录 mom 系统
 2. 进入「插件管理」-「插件列表」
 3. 找到「Monitor」插件
 4. 点击「启用」按钮
@@ -366,5 +366,5 @@ Monitor 插件使用以下数据库表：
 - [Let's Encrypt 文档](https://letsencrypt.org/docs/)
 - [钉钉机器人开发](https://open.dingtalk.com/document/robots/custom-robot-access)
 - [企业微信 API](https://developer.work.weixin.qq.com/document/)
-- [iom 主文档](../../README.md)
+- [mom 主文档](../../README.md)
 - [部署指南](../deployment.md)

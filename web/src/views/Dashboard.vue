@@ -522,7 +522,7 @@ onMounted(() => {
 }
 
 .stat-card {
-  border-radius: 6px;
+  border-radius: 0;
   overflow: hidden;
 }
 
@@ -538,7 +538,7 @@ onMounted(() => {
 .stat-icon {
   width: 44px;
   height: 44px;
-  border-radius: 8px;
+  border-radius: 0;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -571,7 +571,7 @@ onMounted(() => {
 }
 
 .chart-card {
-  border-radius: 6px;
+  border-radius: 0;
   height: 100%;
 }
 
@@ -606,7 +606,7 @@ onMounted(() => {
 }
 
 .quick-access-card {
-  border-radius: 6px;
+  border-radius: 0;
 }
 
 .quick-access-card :deep(.el-card__header) {
@@ -630,7 +630,7 @@ onMounted(() => {
   align-items: center;
   justify-content: center;
   padding: 14px;
-  border-radius: 6px;
+  border-radius: 0;
   background-color: #f5f7fa;
   cursor: pointer;
   transition: all 0.3s;

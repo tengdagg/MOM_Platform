@@ -1,4 +1,4 @@
-# iom 数据库初始化指南
+# mom 数据库初始化指南
 
 <p align="center">
   <img src="https://img.shields.io/badge/Database-MySQL%208.0+-4479A1?style=flat&logo=mysql" alt="MySQL">
@@ -10,7 +10,7 @@
 
 ## 概述
 
-本文档介绍如何为 iom 项目初始化数据库。所有必要的表结构和初始化数据都包含在 `migrations/init.sql` 文件中。
+本文档介绍如何为 mom 项目初始化数据库。所有必要的表结构和初始化数据都包含在 `migrations/init.sql` 文件中。
 
 ---
 
@@ -19,22 +19,22 @@
 ### 1. 创建数据库
 
 ```bash
-mysql -u root -p -e "CREATE DATABASE iom CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+mysql -u root -p -e "CREATE DATABASE mom CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
 ```
 
 ### 2. 执行初始化脚本
 
 ```bash
-mysql -u root -p iom < migrations/init.sql
+mysql -u root -p mom < migrations/init.sql
 ```
 
 ### 3. 验证初始化
 
 ```sql
-USE iom;
+USE mom;
 SHOW TABLES;
 -- 应该看到 33 个表
-SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'iom';
+SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'mom';
 ```
 
 ---
@@ -156,7 +156,7 @@ SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'iom';
 
 | 用户名 | 密码 | 角色 | 邮箱 |
 |:-------|:-----|:-----|:-----|
-| admin | 123456 | 管理员 | admin@iom.io |
+| admin | 123456 | 管理员 | admin@mom.io |
 
 > ⚠️ **重要**: 生产环境请立即修改默认密码！
 
@@ -179,7 +179,7 @@ database:
   driver: mysql
   host: 127.0.0.1
   port: 3306
-  database: iom
+  database: mom
   username: root
   password: "your-password"
   charset: utf8mb4
@@ -195,26 +195,26 @@ database:
 
 ```bash
 # 删除并重建数据库
-mysql -u root -p -e "DROP DATABASE IF EXISTS iom; CREATE DATABASE iom CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+mysql -u root -p -e "DROP DATABASE IF EXISTS mom; CREATE DATABASE mom CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
 
 # 重新导入初始化脚本
-mysql -u root -p iom < migrations/init.sql
+mysql -u root -p mom < migrations/init.sql
 ```
 
 ### 备份数据库
 
 ```bash
 # 完整备份
-mysqldump -u root -p iom > iom_backup_$(date +%Y%m%d).sql
+mysqldump -u root -p mom > mom_backup_$(date +%Y%m%d).sql
 
 # 仅备份数据（不含结构）
-mysqldump -u root -p --no-create-info iom > iom_data_$(date +%Y%m%d).sql
+mysqldump -u root -p --no-create-info mom > mom_data_$(date +%Y%m%d).sql
 ```
 
 ### 恢复数据库
 
 ```bash
-mysql -u root -p iom < iom_backup.sql
+mysql -u root -p mom < mom_backup.sql
 ```
 
 ### 重置管理员密码
@@ -319,7 +319,7 @@ SET FOREIGN_KEY_CHECKS = 1;
 **A:** 确保数据库和连接都使用 `utf8mb4`：
 
 ```sql
-ALTER DATABASE iom CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+ALTER DATABASE mom CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 ```
 
 ### Q: 自动迁移失败？
@@ -348,7 +348,7 @@ SHOW CREATE TABLE sys_user;
 
 ## 相关文档
 
-- [iom 主文档](../README.md)
+- [mom 主文档](../README.md)
 - [部署指南](../docs/deployment.md)
 - [Kubernetes 插件](../docs/plugins/kubernetes.md)
 - [任务中心插件](../docs/plugins/task.md)
@@ -362,4 +362,4 @@ SHOW CREATE TABLE sys_user;
 
 1. 查看应用日志获取详细错误信息
 2. 检查 MySQL 服务状态和连接配置
-3. 提交 Issue: [GitHub Issues](https://github.com/ydcloud-dy/iom/issues)
+3. 提交 Issue: [GitHub Issues](https://github.com/ydcloud-dy/mom/issues)

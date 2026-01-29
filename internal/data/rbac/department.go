@@ -21,7 +21,7 @@ package rbac
 
 import (
 	"context"
-	"github.com/ydcloud-dy/iom/internal/biz/rbac"
+	"github.com/ydcloud-dy/mom/internal/biz/rbac"
 	"gorm.io/gorm"
 )
 

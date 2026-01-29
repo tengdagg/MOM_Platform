@@ -24,7 +24,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	appError "github.com/ydcloud-dy/iom/pkg/error"
+	appError "github.com/ydcloud-dy/mom/pkg/error"
 )
 
 // Response 统一响应结构

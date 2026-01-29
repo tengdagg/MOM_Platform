@@ -26,7 +26,7 @@ import (
 	"strings"
 	"time"
 
-	sshclient "github.com/ydcloud-dy/iom/pkg/ssh"
+	sshclient "github.com/ydcloud-dy/mom/pkg/ssh"
 )
 
 // SystemInfo 系统信息

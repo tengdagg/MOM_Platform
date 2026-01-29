@@ -23,9 +23,9 @@ import (
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 
-	"github.com/ydcloud-dy/iom/internal/plugin"
-	"github.com/ydcloud-dy/iom/plugins/task/model"
-	"github.com/ydcloud-dy/iom/plugins/task/server"
+	"github.com/ydcloud-dy/mom/internal/plugin"
+	"github.com/ydcloud-dy/mom/plugins/task/model"
+	"github.com/ydcloud-dy/mom/plugins/task/server"
 )
 
 // Plugin 任务中心插件实现

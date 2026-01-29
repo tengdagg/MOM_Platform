@@ -744,7 +744,7 @@ onMounted(() => {
   min-width: 220px;
   background: #fafafa;
   border: 1px solid #e6e6e6;
-  border-radius: 4px;
+  border-radius: 0;
   display: flex;
   flex-direction: column;
 }
@@ -756,7 +756,7 @@ onMounted(() => {
   color: #303133;
   border-bottom: 1px solid #e6e6e6;
   background-color: #fff;
-  border-radius: 4px 4px 0 0;
+  border-radius: 0;
 }
 
 .dept-tree {
@@ -804,7 +804,7 @@ onMounted(() => {
   margin-bottom: 12px;
   background-color: #f0f9ff;
   border: 1px solid #b3d8ff;
-  border-radius: 4px;
+  border-radius: 0;
   font-size: 13px;
 }
 

@@ -761,7 +761,7 @@ info:
     name: Apache 2.0
     url: http://www.apache.org/licenses/LICENSE-2.0.html
   termsOfService: http://swagger.io/terms/
-  title: iom API
+  title: mom API
   version: "1.0"
 paths:
   /api/v1/asset-groups:
@@ -5906,7 +5906,7 @@ paths:
     post:
       consumes:
       - application/json
-      description: 创建 iom 平台使用的默认集群角色
+      description: 创建 mom 平台使用的默认集群角色
       parameters:
       - description: 集群ID
         in: query

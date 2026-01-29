@@ -121,7 +121,7 @@ const handleRefresh = () => {
   text-align: center;
   padding: 60px 40px;
   background: #fff;
-  border-radius: 24px;
+  border-radius: 0;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.1);
   max-width: 480px;
   width: 90%;
@@ -152,7 +152,7 @@ const handleRefresh = () => {
 
 .lock-icon {
   font-size: 48px;
-  color: #d4af37;
+  color: #ffffff;
 }
 
 .icon-ring {
@@ -212,7 +212,7 @@ const handleRefresh = () => {
   gap: 16px;
   padding: 16px 20px;
   background: #f8f9fa;
-  border-radius: 12px;
+  border-radius: 0;
   margin-bottom: 24px;
 }
 
@@ -256,7 +256,7 @@ const handleRefresh = () => {
 }
 
 .tip-item .el-icon {
-  color: #d4af37;
+  color: #ffffff;
 }
 
 /* 操作按钮 */

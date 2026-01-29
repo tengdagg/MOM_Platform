@@ -2676,7 +2676,7 @@ onMounted(() => {
   gap: 16px;
   padding: 20px;
   background: #fff;
-  border-radius: 8px;
+  border-radius: 0;
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
   transition: all 0.3s ease;
 }
@@ -2689,7 +2689,7 @@ onMounted(() => {
 .stat-icon {
   width: 64px;
   height: 64px;
-  border-radius: 12px;
+  border-radius: 0;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -2704,26 +2704,26 @@ onMounted(() => {
 
 .stat-icon-blue {
   background: linear-gradient(135deg, #0a466a 0%, #0d5a87 100%);
-  color: #d4af37;
-  border: 1px solid #d4af37;
+  color: #ffffff;
+  border: none;
 }
 
 .stat-icon-green {
   background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
-  color: #d4af37;
-  border: 1px solid #d4af37;
+  color: #ffffff;
+  border: none;
 }
 
 .stat-orange {
   background: linear-gradient(135deg, #0a466a 0%, #0d5a87 100%);
-  color: #d4af37;
-  border: 1px solid #d4af37;
+  color: #ffffff;
+  border: none;
 }
 
 .stat-icon-purple {
   background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
-  color: #d4af37;
-  border: 1px solid #d4af37;
+  color: #ffffff;
+  border: none;
 }
 
 .stat-content {
@@ -2739,7 +2739,7 @@ onMounted(() => {
 .stat-value {
   font-size: 28px;
   font-weight: 700;
-  color: #d4af37;
+  color: #ffffff;
   line-height: 1;
 }
 
@@ -2751,7 +2751,7 @@ onMounted(() => {
   margin-bottom: 12px;
   padding: 16px 20px;
   background: #fff;
-  border-radius: 8px;
+  border-radius: 0;
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
 }
 
@@ -2764,15 +2764,15 @@ onMounted(() => {
 .page-title-icon {
   width: 48px;
   height: 48px;
-  background: linear-gradient(135deg, #000 0%, #1a1a1a 100%);
-  border-radius: 10px;
+  background: #0a466a;
+  border-radius: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #d4af37;
+  color: #ffffff;
   font-size: 22px;
   flex-shrink: 0;
-  border: 1px solid #d4af37;
+  border: none;
 }
 
 .page-title {
@@ -2804,7 +2804,7 @@ onMounted(() => {
   background-color: #0a466a !important;
   color: #ffffff !important;
   border-color: #0a466a !important;
-  border-radius: 8px;
+  border-radius: 0;
   padding: 10px 20px;
   font-weight: 500;
 }
@@ -2819,7 +2819,7 @@ onMounted(() => {
   margin-bottom: 12px;
   padding: 12px 16px;
   background: #fff;
-  border-radius: 8px;
+  border-radius: 0;
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
   display: flex;
   gap: 16px;
@@ -2845,7 +2845,7 @@ onMounted(() => {
   border: none;
   font-weight: 600;
   padding: 12px 24px;
-  border-radius: 8px;
+  border-radius: 0;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   display: inline-flex;
   align-items: center;
@@ -2886,7 +2886,7 @@ onMounted(() => {
       margin-bottom: 15px;
       padding: 15px;
       border: 1px solid #dcdfe6;
-      border-radius: 8px;
+      border-radius: 0;
       transition: all 0.3s;
 
       &:hover {
@@ -2897,8 +2897,8 @@ onMounted(() => {
 
     .code-block-wrapper {
       display: flex;
-      border: 1px solid #d4af37;
-      border-radius: 6px;
+      border: none;
+      border-radius: 0;
       overflow: hidden;
       background-color: #000000;
       margin-top: 10px;
@@ -2926,7 +2926,7 @@ onMounted(() => {
     .code-textarea {
       flex: 1;
       background-color: #000000;
-      color: #d4af37;
+      color: #ffffff;
       border: none;
       outline: none;
       padding: 16px;
@@ -2951,7 +2951,7 @@ onMounted(() => {
   width: 100%;
   height: calc(100vh - 200px);
   background-color: #000000;
-  border-radius: 4px;
+  border-radius: 0;
   overflow: hidden;
 }
 
@@ -2982,13 +2982,13 @@ onMounted(() => {
 }
 
 .search-icon {
-  color: #d4af37;
+  color: #ffffff;
 }
 
 /* 表格容器 */
 .table-wrapper {
   background: #fff;
-  border-radius: 12px;
+  border-radius: 0;
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
   overflow-x: hidden;
   width: 100%;
@@ -2996,7 +2996,7 @@ onMounted(() => {
 
 /* 搜索框样式优化 */
 .search-bar :deep(.el-input__wrapper) {
-  border-radius: 8px;
+  border-radius: 0;
   border: 1px solid #dcdfe6;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
   transition: all 0.3s ease;
@@ -3004,23 +3004,23 @@ onMounted(() => {
 }
 
 .search-bar :deep(.el-input__wrapper:hover) {
-  border-color: #d4af37;
+  border-color: #ffffff;
   box-shadow: 0 2px 8px rgba(212, 175, 55, 0.15);
 }
 
 .search-bar :deep(.el-input__wrapper.is-focus) {
-  border-color: #d4af37;
+  border-color: #ffffff;
   box-shadow: 0 2px 12px rgba(212, 175, 55, 0.25);
 }
 
 .search-bar :deep(.el-select .el-input__wrapper) {
-  border-radius: 8px;
+  border-radius: 0;
   border: 1px solid #dcdfe6;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
 }
 
 .cluster-select :deep(.el-input__wrapper) {
-  border-radius: 8px;
+  border-radius: 0;
 }
 
 /* 表头图标 */
@@ -3035,7 +3035,7 @@ onMounted(() => {
 }
 
 .header-icon-blue {
-  color: #d4af37;
+  color: #ffffff;
 }
 
 /* 现代表格 */
@@ -3044,7 +3044,7 @@ onMounted(() => {
 }
 
 .modern-table :deep(.el-table__body-wrapper) {
-  border-radius: 0 0 12px 12px;
+  border-radius: 0;
   overflow-x: hidden !important;
 }
 
@@ -3066,7 +3066,7 @@ onMounted(() => {
 }
 
 .modern-table :deep(.el-tag) {
-  border-radius: 6px;
+  border-radius: 0;
   padding: 4px 10px;
   font-weight: 500;
 }
@@ -3081,17 +3081,17 @@ onMounted(() => {
 .node-icon-wrapper {
   width: 36px;
   height: 36px;
-  border-radius: 8px;
+  border-radius: 0;
   background: linear-gradient(135deg, #0a466a 0%, #0d5a87 100%);
   display: flex;
   align-items: center;
   justify-content: center;
-  border: 1px solid #d4af37;
+  border: none;
   flex-shrink: 0;
 }
 
 .node-icon {
-  color: #d4af37;
+  color: #ffffff;
 }
 
 .node-name-content {
@@ -3128,21 +3128,21 @@ onMounted(() => {
   justify-content: center;
   gap: 4px;
   padding: 6px 14px;
-  border-radius: 16px;
+  border-radius: 0;
   font-size: 13px;
   font-weight: 500;
 }
 
 .role-master {
   background: transparent;
-  color: #d4af37;
-  border: 1px solid #d4af37;
+  color: #ffffff;
+  border: none;
 }
 
 .role-control-plane {
   background: transparent;
-  color: #d4af37;
-  border: 1px solid #d4af37;
+  color: #ffffff;
+  border: none;
 }
 
 .role-worker {
@@ -3161,7 +3161,7 @@ onMounted(() => {
 }
 
 .version-icon {
-  color: #d4af37;
+  color: #ffffff;
 }
 
 /* 时间单元格 */
@@ -3174,7 +3174,7 @@ onMounted(() => {
 }
 
 .age-icon {
-  color: #d4af37;
+  color: #ffffff;
 }
 
 /* 资源单元格 */
@@ -3187,7 +3187,7 @@ onMounted(() => {
 .resource-icon {
   width: 28px;
   height: 28px;
-  border-radius: 6px;
+  border-radius: 0;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -3195,14 +3195,14 @@ onMounted(() => {
 
 .resource-icon-cpu {
   background: linear-gradient(135deg, #0a466a 0%, #0d5a87 100%);
-  color: #d4af37;
-  border: 1px solid #d4af37;
+  color: #ffffff;
+  border: none;
 }
 
 .resource-icon-memory {
   background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
-  color: #d4af37;
-  border: 1px solid #d4af37;
+  color: #ffffff;
+  border: none;
 }
 
 .resource-value {
@@ -3222,7 +3222,7 @@ onMounted(() => {
 .pod-count {
   font-size: 18px;
   font-weight: 600;
-  color: #d4af37;
+  color: #ffffff;
 }
 
 .pod-label {
@@ -3247,7 +3247,7 @@ onMounted(() => {
 }
 
 .taint-icon {
-  color: #d4af37;
+  color: #ffffff;
   font-size: 20px;
   transition: all 0.3s;
 }
@@ -3256,7 +3256,7 @@ onMounted(() => {
   position: absolute;
   top: -6px;
   right: -6px;
-  background-color: #d4af37;
+  background-color: #ffffff;
   color: #000;
   font-size: 10px;
   font-weight: 600;
@@ -3264,9 +3264,9 @@ onMounted(() => {
   height: 16px;
   line-height: 16px;
   padding: 0 4px;
-  border-radius: 8px;
+  border-radius: 0;
   text-align: center;
-  border: 1px solid #d4af37;
+  border: none;
   z-index: 1;
 }
 
@@ -3297,7 +3297,7 @@ onMounted(() => {
 }
 
 .label-icon {
-  color: #d4af37;
+  color: #ffffff;
   font-size: 20px;
   transition: all 0.3s;
 }
@@ -3306,7 +3306,7 @@ onMounted(() => {
   position: absolute;
   top: -6px;
   right: -6px;
-  background-color: #d4af37;
+  background-color: #ffffff;
   color: #000;
   font-size: 10px;
   font-weight: 600;
@@ -3314,9 +3314,9 @@ onMounted(() => {
   height: 16px;
   line-height: 16px;
   padding: 0 4px;
-  border-radius: 8px;
+  border-radius: 0;
   text-align: center;
-  border: 1px solid #d4af37;
+  border: none;
   z-index: 1;
 }
 
@@ -3336,7 +3336,7 @@ onMounted(() => {
   align-items: center;
   gap: 4px;
   font-size: 13px;
-  color: #d4af37;
+  color: #ffffff;
 }
 
 .action-btn:hover {
@@ -3357,7 +3357,7 @@ onMounted(() => {
 }
 
 .action-dropdown-menu :deep(.el-dropdown-menu__item .el-icon) {
-  color: #d4af37;
+  color: #ffffff;
   font-size: 16px;
 }
 
@@ -3371,11 +3371,11 @@ onMounted(() => {
 
 .action-dropdown-menu :deep(.el-dropdown-menu__item:hover) {
   background-color: #f5f5f5;
-  color: #d4af37;
+  color: #ffffff;
 }
 
 .action-dropdown-menu :deep(.el-dropdown-menu__item:hover .el-icon) {
-  color: #d4af37;
+  color: #ffffff;
 }
 
 .action-dropdown-menu :deep(.el-dropdown-menu__item.danger-item:hover) {
@@ -3398,7 +3398,7 @@ onMounted(() => {
 
 /* 状态标签 */
 .status-tag {
-  border-radius: 8px;
+  border-radius: 0;
   padding: 6px 14px;
   font-weight: 500;
 }
@@ -3406,14 +3406,14 @@ onMounted(() => {
 /* 标签弹窗 */
 .label-dialog :deep(.el-dialog__header) {
   background: linear-gradient(135deg, #0a466a 0%, #0d5a87 100%);
-  color: #d4af37;
-  border-radius: 12px 12px 0 0;
+  color: #ffffff;
+  border-radius: 0;
   padding: 20px 28px;
   border-bottom: 2px solid #d4af37;
 }
 
 .label-dialog :deep(.el-dialog__title) {
-  color: #d4af37;
+  color: #ffffff;
   font-size: 18px;
   font-weight: 600;
   letter-spacing: 0.5px;
@@ -3442,8 +3442,8 @@ onMounted(() => {
   justify-content: space-between;
   padding: 16px 20px;
   background: linear-gradient(135deg, #0a466a 0%, #0d5a87 100%);
-  border-radius: 8px;
-  border: 1px solid #d4af37;
+  border-radius: 0;
+  border: none;
 }
 
 .label-edit-info {
@@ -3451,7 +3451,7 @@ onMounted(() => {
   align-items: center;
   gap: 10px;
   font-size: 15px;
-  color: #d4af37;
+  color: #ffffff;
   font-weight: 500;
 }
 
@@ -3461,10 +3461,10 @@ onMounted(() => {
 
 .label-edit-count {
   font-size: 14px;
-  color: #d4af37;
+  color: #ffffff;
   padding: 6px 14px;
   background: rgba(212, 175, 55, 0.15);
-  border-radius: 20px;
+  border-radius: 0;
   font-weight: 500;
 }
 
@@ -3473,7 +3473,7 @@ onMounted(() => {
   overflow-y: auto;
   padding: 12px;
   background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
-  border-radius: 8px;
+  border-radius: 0;
   border: 1px solid #e0e0e0;
 }
 
@@ -3484,13 +3484,13 @@ onMounted(() => {
   margin-bottom: 12px;
   padding: 16px;
   background: #fff;
-  border-radius: 8px;
+  border-radius: 0;
   border: 1px solid #e0e0e0;
   transition: all 0.3s;
 }
 
 .label-edit-row:hover {
-  border-color: #d4af37;
+  border-color: #ffffff;
   box-shadow: 0 4px 12px rgba(212, 175, 55, 0.15);
   transform: translateY(-2px);
 }
@@ -3503,8 +3503,8 @@ onMounted(() => {
   align-items: center;
   justify-content: center;
   background: linear-gradient(135deg, #0a466a 0%, #0d5a87 100%);
-  color: #d4af37;
-  border-radius: 6px;
+  color: #ffffff;
+  border-radius: 0;
   font-weight: 600;
   font-size: 14px;
 }
@@ -3543,17 +3543,17 @@ onMounted(() => {
 .label-edit-input :deep(.el-input__wrapper) {
   background: #fafbfc;
   border: 1px solid #d0d0d0;
-  border-radius: 6px;
+  border-radius: 0;
   transition: all 0.3s;
 }
 
 .label-edit-input :deep(.el-input__wrapper:hover) {
-  border-color: #d4af37;
+  border-color: #ffffff;
   background: #fff;
 }
 
 .label-edit-input :deep(.el-input__wrapper.is-focus) {
-  border-color: #d4af37;
+  border-color: #ffffff;
   background: #fff;
   box-shadow: 0 0 0 3px rgba(212, 175, 55, 0.1);
 }
@@ -3589,7 +3589,7 @@ onMounted(() => {
 
 .empty-labels .empty-icon {
   font-size: 48px;
-  color: #d4af37;
+  color: #ffffff;
   margin-bottom: 16px;
   opacity: 0.5;
 }
@@ -3610,7 +3610,7 @@ onMounted(() => {
   height: 44px;
   font-size: 15px;
   border: 2px dashed #d4af37;
-  border-radius: 8px;
+  border-radius: 0;
   transition: all 0.3s;
 }
 
@@ -3623,8 +3623,8 @@ onMounted(() => {
 
 .dialog-footer .edit-btn {
   background: linear-gradient(135deg, #0a466a 0%, #0d5a87 100%);
-  border-color: #d4af37;
-  color: #d4af37;
+  border-color: #ffffff;
+  color: #ffffff;
 }
 
 .dialog-footer .edit-btn:hover {
@@ -3636,8 +3636,8 @@ onMounted(() => {
 
 .dialog-footer .save-btn {
   background: linear-gradient(135deg, #0a466a 0%, #0d5a87 100%);
-  border-color: #d4af37;
-  color: #d4af37;
+  border-color: #ffffff;
+  color: #ffffff;
   min-width: 120px;
 }
 
@@ -3719,13 +3719,13 @@ onMounted(() => {
 /* 污点弹窗 */
 .taint-dialog :deep(.el-dialog__header) {
   background: linear-gradient(135deg, #0a466a 0%, #0d5a87 100%);
-  color: #d4af37;
-  border-radius: 8px 8px 0 0;
+  color: #ffffff;
+  border-radius: 0;
   padding: 20px 24px;
 }
 
 .taint-dialog :deep(.el-dialog__title) {
-  color: #d4af37;
+  color: #ffffff;
   font-size: 16px;
   font-weight: 600;
 }
@@ -3747,8 +3747,8 @@ onMounted(() => {
   justify-content: space-between;
   padding: 16px 20px;
   background: linear-gradient(135deg, #0a466a 0%, #0d5a87 100%);
-  border-radius: 8px;
-  border: 1px solid #d4af37;
+  border-radius: 0;
+  border: none;
 }
 
 .taint-edit-info {
@@ -3756,7 +3756,7 @@ onMounted(() => {
   align-items: center;
   gap: 10px;
   font-size: 15px;
-  color: #d4af37;
+  color: #ffffff;
   font-weight: 500;
 }
 
@@ -3766,10 +3766,10 @@ onMounted(() => {
 
 .taint-edit-count {
   font-size: 14px;
-  color: #d4af37;
+  color: #ffffff;
   padding: 6px 14px;
   background: rgba(212, 175, 55, 0.15);
-  border-radius: 20px;
+  border-radius: 0;
   font-weight: 500;
 }
 
@@ -3778,7 +3778,7 @@ onMounted(() => {
   overflow-y: auto;
   padding: 12px;
   background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
-  border-radius: 8px;
+  border-radius: 0;
   border: 1px solid #e0e0e0;
 }
 
@@ -3789,13 +3789,13 @@ onMounted(() => {
   margin-bottom: 12px;
   padding: 16px;
   background: #fff;
-  border-radius: 8px;
+  border-radius: 0;
   border: 1px solid #e0e0e0;
   transition: all 0.3s;
 }
 
 .taint-edit-row:hover {
-  border-color: #d4af37;
+  border-color: #ffffff;
   box-shadow: 0 4px 12px rgba(212, 175, 55, 0.15);
   transform: translateY(-2px);
 }
@@ -3808,8 +3808,8 @@ onMounted(() => {
   align-items: center;
   justify-content: center;
   background: linear-gradient(135deg, #0a466a 0%, #0d5a87 100%);
-  color: #d4af37;
-  border-radius: 6px;
+  color: #ffffff;
+  border-radius: 0;
   font-weight: 600;
   font-size: 14px;
 }
@@ -3849,17 +3849,17 @@ onMounted(() => {
 .taint-edit-input :deep(.el-input__wrapper) {
   background: #fafbfc;
   border: 1px solid #d0d0d0;
-  border-radius: 6px;
+  border-radius: 0;
   transition: all 0.3s;
 }
 
 .taint-edit-input :deep(.el-input__wrapper:hover) {
-  border-color: #d4af37;
+  border-color: #ffffff;
   background: #fff;
 }
 
 .taint-edit-input :deep(.el-input__wrapper.is-focus) {
-  border-color: #d4af37;
+  border-color: #ffffff;
   background: #fff;
   box-shadow: 0 0 0 2px rgba(212, 175, 55, 0.1);
 }
@@ -3885,11 +3885,11 @@ onMounted(() => {
 .taint-effect-select :deep(.el-input__wrapper) {
   background: #fafbfc;
   border: 1px solid #d0d0d0;
-  border-radius: 6px;
+  border-radius: 0;
 }
 
 .taint-effect-select :deep(.el-input__wrapper:hover) {
-  border-color: #d4af37;
+  border-color: #ffffff;
   background: #fff;
 }
 
@@ -3916,7 +3916,7 @@ onMounted(() => {
 
 .empty-taints .empty-icon {
   font-size: 48px;
-  color: #d4af37;
+  color: #ffffff;
   opacity: 0.5;
 }
 
@@ -3936,7 +3936,7 @@ onMounted(() => {
   height: 44px;
   font-size: 15px;
   border: 2px dashed #d4af37;
-  border-radius: 8px;
+  border-radius: 0;
   transition: all 0.3s;
 }
 
@@ -4046,13 +4046,13 @@ onMounted(() => {
 /* YAML 编辑弹窗 */
 .yaml-dialog :deep(.el-dialog__header) {
   background: linear-gradient(135deg, #0a466a 0%, #0d5a87 100%);
-  color: #d4af37;
-  border-radius: 8px 8px 0 0;
+  color: #ffffff;
+  border-radius: 0;
   padding: 20px 24px;
 }
 
 .yaml-dialog :deep(.el-dialog__title) {
-  color: #d4af37;
+  color: #ffffff;
   font-size: 16px;
   font-weight: 600;
 }
@@ -4068,8 +4068,8 @@ onMounted(() => {
 
 .yaml-editor-wrapper {
   display: flex;
-  border: 1px solid #d4af37;
-  border-radius: 6px;
+  border: none;
+  border-radius: 0;
   overflow: hidden;
   background-color: #000000;
 }
@@ -4096,7 +4096,7 @@ onMounted(() => {
 .yaml-textarea {
   flex: 1;
   background-color: #000000;
-  color: #d4af37;
+  color: #ffffff;
   border: none;
   outline: none;
   padding: 16px;
@@ -4124,7 +4124,7 @@ onMounted(() => {
   width: 100%;
   height: 500px;
   background-color: #000000;
-  border-radius: 4px;
+  border-radius: 0;
   overflow: hidden;
 }
 
@@ -4136,7 +4136,7 @@ onMounted(() => {
   padding: 16px 24px;
   margin-bottom: 16px;
   background: #ffffff;
-  border-radius: 12px;
+  border-radius: 0;
   border: 1px solid #e0e0e0;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
   animation: slideDown 0.3s ease-out;
@@ -4170,7 +4170,7 @@ onMounted(() => {
   background: #ffffff;
   width: 20px;
   height: 20px;
-  border-radius: 4px;
+  border-radius: 0;
 }
 
 .batch-actions-left :deep(.el-checkbox__inner:hover) {
@@ -4180,12 +4180,12 @@ onMounted(() => {
 
 .batch-actions-left :deep(.el-checkbox__input.is-checked .el-checkbox__inner) {
   background: #d4af37;
-  border-color: #d4af37;
+  border-color: #ffffff;
 }
 
 .batch-actions-left :deep(.el-checkbox__input.is-indeterminate .el-checkbox__inner) {
   background: #d4af37;
-  border-color: #d4af37;
+  border-color: #ffffff;
 }
 
 .batch-actions-left :deep(.el-checkbox__input.is-checked .el-checkbox__inner::after) {
@@ -4204,7 +4204,7 @@ onMounted(() => {
   padding: 8px 16px;
   background: #ffffff;
   border: 2px solid #d4af37;
-  border-radius: 8px;
+  border-radius: 0;
   display: inline-flex;
   align-items: center;
   gap: 8px;
@@ -4241,7 +4241,7 @@ onMounted(() => {
 }
 
 .batch-actions-right .el-button {
-  border-radius: 8px;
+  border-radius: 0;
   font-weight: 600;
   font-size: 14px;
   padding: 10px 18px;
@@ -4297,7 +4297,7 @@ onMounted(() => {
 
 /* 自定义复选框样式 */
 .modern-table :deep(.el-checkbox__inner) {
-  border-radius: 4px;
+  border-radius: 0;
   border: 2px solid #d4af37;
   background: transparent;
   width: 18px;
@@ -4312,12 +4312,12 @@ onMounted(() => {
 
 .modern-table :deep(.el-checkbox__input.is-checked .el-checkbox__inner) {
   background: linear-gradient(135deg, #d4af37 0%, #c9a227 100%);
-  border-color: #d4af37;
+  border-color: #ffffff;
 }
 
 .modern-table :deep(.el-checkbox__input.is-indeterminate .el-checkbox__inner) {
   background: linear-gradient(135deg, #d4af37 0%, #c9a227 100%);
-  border-color: #d4af37;
+  border-color: #ffffff;
 }
 
 .modern-table :deep(.el-checkbox__input.is-checked .el-checkbox__inner::after) {
@@ -4341,14 +4341,14 @@ onMounted(() => {
 /* 批量标签对话框 */
 .batch-label-dialog :deep(.el-dialog__header) {
   background: linear-gradient(135deg, #0a466a 0%, #0d5a87 100%);
-  color: #d4af37;
-  border-radius: 8px 8px 0 0;
+  color: #ffffff;
+  border-radius: 0;
   padding: 20px 24px;
   border-bottom: 1px solid #d4af37;
 }
 
 .batch-label-dialog :deep(.el-dialog__title) {
-  color: #d4af37;
+  color: #ffffff;
   font-size: 16px;
   font-weight: 600;
 }
@@ -4383,14 +4383,14 @@ onMounted(() => {
 /* 批量污点对话框 */
 .batch-taint-dialog :deep(.el-dialog__header) {
   background: linear-gradient(135deg, #0a466a 0%, #0d5a87 100%);
-  color: #d4af37;
-  border-radius: 8px 8px 0 0;
+  color: #ffffff;
+  border-radius: 0;
   padding: 20px 24px;
   border-bottom: 1px solid #d4af37;
 }
 
 .batch-taint-dialog :deep(.el-dialog__title) {
-  color: #d4af37;
+  color: #ffffff;
   font-size: 16px;
   font-weight: 600;
 }
@@ -4418,14 +4418,14 @@ onMounted(() => {
 /* 批量操作结果对话框 */
 .batch-result-dialog :deep(.el-dialog__header) {
   background: linear-gradient(135deg, #0a466a 0%, #0d5a87 100%);
-  color: #d4af37;
-  border-radius: 8px 8px 0 0;
+  color: #ffffff;
+  border-radius: 0;
   padding: 20px 24px;
   border-bottom: 1px solid #d4af37;
 }
 
 .batch-result-dialog :deep(.el-dialog__title) {
-  color: #d4af37;
+  color: #ffffff;
   font-size: 16px;
   font-weight: 600;
 }

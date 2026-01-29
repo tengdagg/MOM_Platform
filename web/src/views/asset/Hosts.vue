@@ -2623,7 +2623,7 @@ onMounted(() => {
   margin-bottom: 10px;
   padding: 12px 16px;
   background: #fff;
-  border-radius: 6px;
+  border-radius: 0;
   box-shadow: 0 1px 8px rgba(0, 0, 0, 0.04);
   flex-shrink: 0;
 }
@@ -2637,15 +2637,15 @@ onMounted(() => {
 .page-title-icon {
   width: 36px;
   height: 36px;
-  background: linear-gradient(135deg, #000 0%, #1a1a1a 100%);
-  border-radius: 8px;
+  background: #0a466a;
+  border-radius: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #d4af37;
+  color: #ffffff;
   font-size: 16px;
   flex-shrink: 0;
-  border: 1px solid #d4af37;
+  border: none;
 }
 
 .page-title {
@@ -2685,7 +2685,7 @@ onMounted(() => {
 .left-panel {
   width: 200px;
   background: #fff;
-  border-radius: 6px;
+  border-radius: 0;
   box-shadow: 0 1px 8px rgba(0, 0, 0, 0.04);
   display: flex;
   flex-direction: column;
@@ -2711,7 +2711,7 @@ onMounted(() => {
 
 .panel-icon {
   font-size: 14px;
-  color: #d4af37;
+  color: #ffffff;
 }
 
 .panel-actions {
@@ -2732,7 +2732,7 @@ onMounted(() => {
 }
 
 .group-search :deep(.el-input__wrapper) {
-  border-radius: 20px;
+  border-radius: 0;
 }
 
 .tree-container {
@@ -2745,7 +2745,7 @@ onMounted(() => {
 }
 
 .group-tree :deep(.el-tree-node__content) {
-  border-radius: 6px;
+  border-radius: 0;
   padding: 6px 8px;
   transition: all 0.2s ease;
 }
@@ -2818,7 +2818,7 @@ onMounted(() => {
 .filter-bar {
   padding: 10px 14px;
   background: #fff;
-  border-radius: 6px 6px 0 0;
+  border-radius: 0;
   box-shadow: 0 1px 8px rgba(0, 0, 0, 0.04);
   display: flex;
   justify-content: space-between;
@@ -2843,21 +2843,21 @@ onMounted(() => {
 }
 
 .filter-bar :deep(.el-input__wrapper) {
-  border-radius: 8px;
+  border-radius: 0;
   border: 1px solid #dcdfe6;
   transition: all 0.3s ease;
 }
 
 .filter-bar :deep(.el-input__wrapper:hover) {
-  border-color: #d4af37;
+  border-color: #ffffff;
 }
 
 .filter-bar :deep(.el-input__wrapper.is-focus) {
-  border-color: #d4af37;
+  border-color: #ffffff;
 }
 
 .search-icon {
-  color: #d4af37;
+  color: #ffffff;
 }
 
 .reset-btn {
@@ -2889,7 +2889,7 @@ onMounted(() => {
 .table-wrapper {
   flex: 1;
   background: #fff;
-  border-radius: 0 0 8px 8px;
+  border-radius: 0;
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
   overflow: hidden;
   display: flex;
@@ -2931,7 +2931,7 @@ onMounted(() => {
 .host-avatar {
   width: 36px;
   height: 36px;
-  border-radius: 8px;
+  border-radius: 0;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -2999,7 +2999,7 @@ onMounted(() => {
   gap: 6px;
   padding: 4px 8px;
   background: #f5f7fa;
-  border-radius: 6px;
+  border-radius: 0;
   width: fit-content;
 }
 
@@ -3025,7 +3025,7 @@ onMounted(() => {
   gap: 6px;
   padding: 4px 8px;
   background: #f5f7fa;
-  border-radius: 6px;
+  border-radius: 0;
   width: fit-content;
   max-width: 100%;
 }
@@ -3142,7 +3142,7 @@ onMounted(() => {
 .action-btn {
   width: 28px;
   height: 28px;
-  border-radius: 6px;
+  border-radius: 0;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -3187,7 +3187,7 @@ onMounted(() => {
 .host-avatar {
   width: 36px;
   height: 36px;
-  border-radius: 8px;
+  border-radius: 0;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -3255,7 +3255,7 @@ onMounted(() => {
   gap: 6px;
   padding: 4px 8px;
   background: #f5f7fa;
-  border-radius: 6px;
+  border-radius: 0;
   width: fit-content;
 }
 
@@ -3281,7 +3281,7 @@ onMounted(() => {
   gap: 6px;
   padding: 4px 8px;
   background: #f5f7fa;
-  border-radius: 6px;
+  border-radius: 0;
   width: fit-content;
   max-width: 100%;
 }
@@ -3384,7 +3384,7 @@ onMounted(() => {
   background-color: #0a466a !important;
   color: #ffffff !important;
   border-color: #0a466a !important;
-  border-radius: 8px;
+  border-radius: 0;
   padding: 10px 20px;
   font-weight: 500;
 }
@@ -3407,7 +3407,7 @@ onMounted(() => {
 :deep(.credential-dialog),
 :deep(.cloud-account-dialog),
 :deep(.group-edit-dialog) {
-  border-radius: 12px;
+  border-radius: 0;
 }
 
 :deep(.host-import-dialog .el-dialog__header),
@@ -3440,7 +3440,7 @@ onMounted(() => {
 }
 
 :deep(.el-tag) {
-  border-radius: 4px;
+  border-radius: 0;
   padding: 2px 8px;
   font-weight: 500;
   height: auto;
@@ -3475,7 +3475,7 @@ onMounted(() => {
   gap: 10px;
   padding: 10px;
   background: #f5f7fa;
-  border-radius: 6px;
+  border-radius: 0;
 }
 
 /* 云主机导入样式 */
@@ -3491,7 +3491,7 @@ onMounted(() => {
   margin-bottom: 16px;
   padding: 12px;
   background: #f5f7fa;
-  border-radius: 6px;
+  border-radius: 0;
 }
 
 .import-summary {
@@ -3504,7 +3504,7 @@ onMounted(() => {
   margin-top: 20px;
   padding: 16px;
   background: #f5f7fa;
-  border-radius: 6px;
+  border-radius: 0;
 }
 
 .host-list-preview h4 {
@@ -3515,7 +3515,7 @@ onMounted(() => {
 
 /* 新的表格样式 */
 .host-table {
-  border-radius: 0 0 8px 8px;
+  border-radius: 0;
 }
 
 .host-table :deep(.el-table__header-wrapper) {
@@ -3661,7 +3661,7 @@ onMounted(() => {
 /* 终端按钮样式 */
 /* 主机详情对话框样式 */
 .host-detail-dialog {
-  border-radius: 12px;
+  border-radius: 0;
 }
 
 .host-detail-content {
@@ -3679,7 +3679,7 @@ onMounted(() => {
 .info-card {
   background: #fff;
   border: 1px solid #e4e7ed;
-  border-radius: 12px;
+  border-radius: 0;
   overflow: hidden;
 }
 
@@ -3695,7 +3695,7 @@ onMounted(() => {
 .info-icon {
   width: 40px;
   height: 40px;
-  border-radius: 10px;
+  border-radius: 0;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -3790,7 +3790,7 @@ onMounted(() => {
 .remark-section {
   background: #fff;
   border: 1px solid #e4e7ed;
-  border-radius: 12px;
+  border-radius: 0;
   overflow: hidden;
 }
 
@@ -3835,7 +3835,7 @@ onMounted(() => {
   background-color: #1a1a1a !important;
   color: #ffffff !important;
   border-color: #1a1a1a !important;
-  border-radius: 8px;
+  border-radius: 0;
   padding: 10px 20px;
   font-weight: 500;
   margin-right: 12px;
@@ -3856,7 +3856,7 @@ onMounted(() => {
 /* 终端视图 */
 .terminal-view {
   background: #fff;
-  border-radius: 8px;
+  border-radius: 0;
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
   overflow: hidden;
 }
@@ -3881,7 +3881,7 @@ onMounted(() => {
 
 .terminal-view-title .el-icon {
   font-size: 20px;
-  color: #d4af37;
+  color: #ffffff;
 }
 
 .terminal-current-group {
@@ -3955,7 +3955,7 @@ onMounted(() => {
 
 .terminal-host-panel-content::-webkit-scrollbar-thumb {
   background: #424242;
-  border-radius: 4px;
+  border-radius: 0;
 }
 
 .terminal-host-panel-content::-webkit-scrollbar-thumb:hover {
@@ -4001,7 +4001,7 @@ onMounted(() => {
   gap: 10px;
   padding: 10px 12px;
   background: #2d2d30;
-  border-radius: 6px;
+  border-radius: 0;
   cursor: pointer;
   transition: all 0.2s ease;
 }
@@ -4196,7 +4196,7 @@ onMounted(() => {
 .host-avatar-lg {
   width: 72px;
   height: 72px;
-  border-radius: 16px;
+  border-radius: 0;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -4210,7 +4210,7 @@ onMounted(() => {
   content: '';
   position: absolute;
   inset: 0;
-  border-radius: 16px;
+  border-radius: 0;
   padding: 2px;
   background: linear-gradient(135deg, rgba(255, 255, 255, 0.3), transparent);
   -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
@@ -4268,7 +4268,7 @@ onMounted(() => {
 .resource-card {
   background: #fafbfc;
   border: 1px solid #e8e8e8;
-  border-radius: 10px;
+  border-radius: 0;
   padding: 16px;
   transition: all 0.3s ease;
 }
@@ -4366,7 +4366,7 @@ onMounted(() => {
   gap: 16px;
   padding: 12px;
   background: #f8f9fa;
-  border-radius: 8px;
+  border-radius: 0;
   margin-top: 16px;
 }
 

@@ -578,7 +578,7 @@ watch(() => props.visible, (visible) => {
   .breadcrumb-card {
     background: #ffffff;
     padding: 20px;
-    border-radius: 8px;
+    border-radius: 0;
     margin-bottom: 20px;
     border: 1px solid #e4e7ed;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
@@ -648,7 +648,7 @@ watch(() => props.visible, (visible) => {
 
         :deep(.el-input__wrapper) {
           background: #f5f7fa;
-          border-radius: 6px;
+          border-radius: 0;
           border: 1px solid #e4e7ed;
           box-shadow: none;
           transition: all 0.3s;
@@ -695,7 +695,7 @@ watch(() => props.visible, (visible) => {
     }
 
     .toolbar-btn {
-      border-radius: 8px;
+      border-radius: 0;
       padding: 10px 20px;
       font-weight: 500;
       transition: all 0.3s;
@@ -707,7 +707,7 @@ watch(() => props.visible, (visible) => {
     }
 
     .upload-btn {
-      border-radius: 8px;
+      border-radius: 0;
       padding: 10px 24px;
       font-weight: 500;
       background-color: #303133;
@@ -729,7 +729,7 @@ watch(() => props.visible, (visible) => {
     margin-bottom: 20px;
     padding: 16px;
     background: #f5f7fa;
-    border-radius: 8px;
+    border-radius: 0;
     border: 1px solid #e4e7ed;
 
     .upload-info {
@@ -800,7 +800,7 @@ watch(() => props.visible, (visible) => {
   // 文件列表
   .file-list-container {
     .file-table {
-      border-radius: 12px;
+      border-radius: 0;
       overflow: hidden;
       box-shadow: 0 2px 12px rgba(0, 0, 0, 0.05);
 
@@ -879,7 +879,7 @@ watch(() => props.visible, (visible) => {
         background: #f4f4f5;
         color: #606266;
         border: 1px solid #e4e7ed;
-        border-radius: 6px;
+        border-radius: 0;
         padding: 4px 10px;
       }
 

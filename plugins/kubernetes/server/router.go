@@ -23,7 +23,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 
-	"github.com/ydcloud-dy/iom/plugins/kubernetes/service"
+	"github.com/ydcloud-dy/mom/plugins/kubernetes/service"
 )
 
 // RegisterRoutes 注册路由

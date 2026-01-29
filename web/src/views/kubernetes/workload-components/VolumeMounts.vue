@@ -139,8 +139,8 @@ const updateMounts = () => {
   justify-content: space-between;
   padding: 12px 20px;
   background: #d4af37;
-  border: 1px solid #d4af37;
-  border-radius: 12px 12px 0 0;
+  border: none;
+  border-radius: 0;
   margin-bottom: 0;
 }
 
@@ -156,24 +156,24 @@ const updateMounts = () => {
 
 .mount-header-title .el-icon {
   font-size: 18px;
-  color: #d4af37;
+  color: #ffffff;
   display: flex;
   align-items: center;
   justify-content: center;
   width: 32px;
   height: 32px;
   background: #ffffff;
-  border-radius: 6px;
-  color: #d4af37;
+  border-radius: 0;
+  color: #ffffff;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
 .mount-header .el-button {
   font-weight: 500;
-  border-radius: 8px;
+  border-radius: 0;
   background: #ffffff;
-  border: 1px solid #d4af37;
-  color: #d4af37;
+  border: none;
+  color: #ffffff;
 }
 
 .mount-header .el-button:hover {
@@ -185,14 +185,14 @@ const updateMounts = () => {
 .mount-table-wrapper {
   border: 1px solid #e8e8e8;
   border-top: none;
-  border-radius: 0 0 12px 12px;
+  border-radius: 0;
   padding: 20px;
   background: #ffffff;
 }
 
 .mount-table {
   background: #ffffff;
-  border-radius: 8px;
+  border-radius: 0;
   overflow: hidden;
 }
 
@@ -228,29 +228,29 @@ const updateMounts = () => {
 .mount-table :deep(.el-input__wrapper) {
   background: #fafafa;
   border: 1px solid #e0e0e0;
-  border-radius: 6px;
+  border-radius: 0;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
   transition: all 0.3s ease;
 }
 
 .mount-table :deep(.el-input__wrapper:hover) {
-  border-color: #d4af37;
+  border-color: #ffffff;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05), 0 0 0 3px rgba(212, 175, 55, 0.1);
 }
 
 .mount-table :deep(.el-input__wrapper.is-focus) {
-  border-color: #d4af37;
+  border-color: #ffffff;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05), 0 0 0 4px rgba(212, 175, 55, 0.15);
 }
 
 .mount-table :deep(.el-select .el-input__wrapper) {
   background: #fafafa;
   border: 1px solid #e0e0e0;
-  border-radius: 6px;
+  border-radius: 0;
 }
 
 .mount-table :deep(.el-switch) {
-  --el-switch-on-color: #d4af37;
+  --el-switch-on-color: #ffffff;
 }
 
 :deep(.el-empty) {

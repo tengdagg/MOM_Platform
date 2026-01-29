@@ -244,7 +244,7 @@ watch(() => props.attached, (newVal) => {
 /* 表格 */
 .table-section {
   background: #fff;
-  border-radius: 6px;
+  border-radius: 0;
   border: 1px solid #ebeef5;
   overflow: hidden;
 }

@@ -98,14 +98,14 @@ const update = () => {
 .resource-group {
   padding: 20px;
   background: linear-gradient(135deg, #ffffff 0%, #fafafa 100%);
-  border-radius: 12px;
+  border-radius: 0;
   border: 1px solid #e8e8e8;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
   transition: all 0.3s ease;
 }
 
 .resource-group:hover {
-  border-color: #d4af37;
+  border-color: #ffffff;
   box-shadow: 0 2px 8px rgba(212, 175, 55, 0.15);
 }
 
@@ -128,7 +128,7 @@ const update = () => {
   width: 4px;
   height: 18px;
   background: #d4af37;
-  border-radius: 2px;
+  border-radius: 0;
   box-shadow: 0 0 8px rgba(212, 175, 55, 0.4);
 }
 
@@ -145,18 +145,18 @@ const update = () => {
 .resource-group :deep(.el-input__wrapper) {
   background: #fafafa;
   border: 1px solid #e0e0e0;
-  border-radius: 8px;
+  border-radius: 0;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
   transition: all 0.3s ease;
 }
 
 .resource-group :deep(.el-input__wrapper:hover) {
-  border-color: #d4af37;
+  border-color: #ffffff;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05), 0 0 0 3px rgba(212, 175, 55, 0.1);
 }
 
 .resource-group :deep(.el-input__wrapper.is-focus) {
-  border-color: #d4af37;
+  border-color: #ffffff;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05), 0 0 0 4px rgba(212, 175, 55, 0.15);
 }
 </style>

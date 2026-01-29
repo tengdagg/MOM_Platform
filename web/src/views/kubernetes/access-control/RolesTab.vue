@@ -317,14 +317,14 @@ defineExpose({
 <style scoped>
 .roles-tab { width: 100%; }
 
-.table-wrapper { background: #fff; border-radius: 8px; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06); overflow: hidden; }
+.table-wrapper { background: #fff; border-radius: 0; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06); overflow: hidden; }
 .modern-table { width: 100%; }
 .modern-table :deep(.el-table__row:hover) { background-color: #f8fafc !important; }
 .name-cell { display: flex; align-items: center; gap: 10px; }
-.name-icon-wrapper { width: 32px; height: 32px; border-radius: 6px; background: linear-gradient(135deg, #000 0%, #1a1a1a 100%); display: flex; align-items: center; justify-content: center; border: 1px solid #d4af37; flex-shrink: 0; }
-.name-icon { color: #d4af37; font-size: 14px; }
+.name-icon-wrapper { width: 32px; height: 32px; border-radius: 0; background: #0a466a; display: flex; align-items: center; justify-content: center; border: none; flex-shrink: 0; }
+.name-icon { color: #ffffff; font-size: 14px; }
 .name-text { font-weight: 600; color: #303133; }
-.action-btn { color: #d4af37; margin: 0 4px; }
+.action-btn { color: #ffffff; margin: 0 4px; }
 .action-btn.danger { color: #f56c6c; }
 .action-btn:hover { transform: scale(1.1); }
 .pagination-wrapper { display: flex; justify-content: flex-end; padding: 16px 20px; border-top: 1px solid #f0f0f0; }
@@ -332,13 +332,13 @@ defineExpose({
 /* YAML 编辑弹窗 */
 .yaml-dialog :deep(.el-dialog__header) {
   background: linear-gradient(135deg, #0a466a 0%, #0d5a87 100%);
-  color: #d4af37;
-  border-radius: 8px 8px 0 0;
+  color: #ffffff;
+  border-radius: 0;
   padding: 20px 24px;
 }
 
 .yaml-dialog :deep(.el-dialog__title) {
-  color: #d4af37;
+  color: #ffffff;
   font-size: 16px;
   font-weight: 600;
 }
@@ -350,8 +350,8 @@ defineExpose({
 
 .yaml-editor-wrapper {
   display: flex;
-  border: 1px solid #d4af37;
-  border-radius: 6px;
+  border: none;
+  border-radius: 0;
   overflow: hidden;
   background-color: #000000;
 }
@@ -378,7 +378,7 @@ defineExpose({
 .yaml-textarea {
   flex: 1;
   background-color: #000000;
-  color: #d4af37;
+  color: #ffffff;
   border: none;
   outline: none;
   padding: 16px;
@@ -407,7 +407,7 @@ defineExpose({
   background-color: #0a466a !important;
   color: #ffffff !important;
   border-color: #0a466a !important;
-  border-radius: 8px;
+  border-radius: 0;
   padding: 10px 20px;
   font-weight: 500;
 }

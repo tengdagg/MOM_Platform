@@ -338,7 +338,7 @@ onMounted(() => {
   margin-bottom: 12px;
   padding: 16px 20px;
   background: #fff;
-  border-radius: 8px;
+  border-radius: 0;
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
 }
 
@@ -351,15 +351,15 @@ onMounted(() => {
 .page-title-icon {
   width: 48px;
   height: 48px;
-  background: linear-gradient(135deg, #000 0%, #1a1a1a 100%);
-  border-radius: 10px;
+  background: #0a466a;
+  border-radius: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #d4af37;
+  color: #ffffff;
   font-size: 22px;
   flex-shrink: 0;
-  border: 1px solid #d4af37;
+  border: none;
 }
 
 .page-title {
@@ -395,7 +395,7 @@ onMounted(() => {
   background-color: #0a466a !important;
   color: #ffffff !important;
   border-color: #0a466a !important;
-  border-radius: 8px;
+  border-radius: 0;
   padding: 10px 20px;
   font-weight: 500;
 }
@@ -406,7 +406,7 @@ onMounted(() => {
 }
 
 .search-icon {
-  color: #d4af37;
+  color: #ffffff;
 }
 
 /* 操作栏 */
@@ -416,7 +416,7 @@ onMounted(() => {
   margin-bottom: 12px;
   padding: 12px 20px;
   background: #fff;
-  border-radius: 8px;
+  border-radius: 0;
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
 }
 
@@ -437,7 +437,7 @@ onMounted(() => {
   margin-bottom: 12px;
   padding: 12px 20px;
   background: #fff;
-  border-radius: 8px;
+  border-radius: 0;
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
   overflow-x: auto;
 }
@@ -449,7 +449,7 @@ onMounted(() => {
   padding: 10px 16px;
   background: #1a1a1a;
   border: 1px solid #1a1a1a;
-  border-radius: 8px;
+  border-radius: 0;
   cursor: pointer;
   transition: all 0.3s ease;
   white-space: nowrap;
@@ -467,7 +467,7 @@ onMounted(() => {
 .type-tab.active {
   background: #d4af37;
   color: #1a1a1a;
-  border-color: #d4af37;
+  border-color: #ffffff;
   box-shadow: 0 4px 12px rgba(212, 175, 55, 0.4);
   font-weight: 600;
 }
@@ -478,12 +478,12 @@ onMounted(() => {
 
 .type-icon {
   font-size: 18px;
-  color: #d4af37;
+  color: #ffffff;
   transition: color 0.3s ease;
 }
 
 .type-tab:not(.active) .type-icon {
-  color: #d4af37;
+  color: #ffffff;
 }
 
 .type-label {
@@ -499,7 +499,7 @@ onMounted(() => {
 /* 内容区域 */
 .content-wrapper {
   background: #fff;
-  border-radius: 8px;
+  border-radius: 0;
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
   padding: 16px;
   min-height: 400px;

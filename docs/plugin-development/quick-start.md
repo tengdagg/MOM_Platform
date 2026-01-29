@@ -1,6 +1,6 @@
 # 插件开发快速开始
 
-本文档将指导你在 5 分钟内创建一个简单的 iom 插件。
+本文档将指导你在 5 分钟内创建一个简单的 mom 插件。
 
 ---
 
@@ -30,8 +30,8 @@ package example
 
 import (
     "github.com/gin-gonic/gin"
-    "github.com/ydcloud-dy/iom/internal/plugin"
-    "github.com/ydcloud-dy/iom/plugins/example/server"
+    "github.com/ydcloud-dy/mom/internal/plugin"
+    "github.com/ydcloud-dy/mom/plugins/example/server"
     "gorm.io/gorm"
 )
 
@@ -149,7 +149,7 @@ func getStatus(c *gin.Context) {
 ```go
 import (
     // ... 其他导入
-    exampleplugin "github.com/ydcloud-dy/iom/plugins/example"
+    exampleplugin "github.com/ydcloud-dy/mom/plugins/example"
 )
 
 // 在 NewHTTPServer() 函数中，找到插件注册部分
@@ -364,7 +364,7 @@ curl http://localhost:9876/api/v1/plugins/example/status
 
 ## 完成
 
-恭喜！你已经成功创建了一个 iom 插件。
+恭喜！你已经成功创建了一个 mom 插件。
 
 ### 下一步
 

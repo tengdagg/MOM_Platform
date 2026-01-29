@@ -21,7 +21,7 @@ package asset
 
 import (
 	"context"
-	"github.com/ydcloud-dy/iom/internal/biz/asset"
+	"github.com/ydcloud-dy/mom/internal/biz/asset"
 	"gorm.io/gorm"
 )
 

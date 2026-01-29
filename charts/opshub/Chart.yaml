@@ -1,18 +1,18 @@
 apiVersion: v2
-name: iom
-description: iom - 现代化、插件化的云原生运维管理平台
+name: mom
+description: mom - 现代化、插件化的云原生运维管理平台
 type: application
 version: 1.0.0
 appVersion: "1.0.0"
 keywords:
-  - iom
+  - mom
   - devops
   - kubernetes
   - operations
   - management
-home: https://github.com/ydcloud-dy/iom
+home: https://github.com/ydcloud-dy/mom
 sources:
-  - https://github.com/ydcloud-dy/iom
+  - https://github.com/ydcloud-dy/mom
 maintainers:
-  - name: iom Team
-    email: support@iom.io
+  - name: mom Team
+    email: support@mom.io

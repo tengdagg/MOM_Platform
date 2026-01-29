@@ -32,8 +32,8 @@ import (
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/client-go/kubernetes"
 
-	"github.com/ydcloud-dy/iom/plugins/kubernetes/biz"
-	"github.com/ydcloud-dy/iom/plugins/kubernetes/model"
+	"github.com/ydcloud-dy/mom/plugins/kubernetes/biz"
+	"github.com/ydcloud-dy/mom/plugins/kubernetes/model"
 )
 
 // RoleBindingService 角色绑定服务
@@ -89,31 +89,31 @@ func (s *RoleBindingService) BindUserRole(ctx context.Context, clusterID, userID
 		return fmt.Errorf("获取用户信息失败: %w", err)
 	}
 
-	// ServiceAccount 名称格式: iom-{username}
-	saName := fmt.Sprintf("iom-%s", user.Username)
+	// ServiceAccount 名称格式: mom-{username}
+	saName := fmt.Sprintf("mom-%s", user.Username)
 
-	// 确保 iom 认证命名空间存在
-	if err := s.ensureiomAuthNamespace(ctx, clientset); err != nil {
+	// 确保 mom 认证命名空间存在
+	if err := s.ensuremomAuthNamespace(ctx, clientset); err != nil {
 		return fmt.Errorf("确保命名空间存在失败: %w", err)
 	}
 
 	// 确保用户有 ServiceAccount（用于 kubeconfig 凭据）
-	if err := s.ensureServiceAccount(ctx, clientset, saName, iomAuthNamespace); err != nil {
+	if err := s.ensureServiceAccount(ctx, clientset, saName, momAuthNamespace); err != nil {
 		return fmt.Errorf("确保ServiceAccount存在失败: %w", err)
 	}
 
 	// 确保用户在数据库中有凭据记录（这样才能通过 GetClientsetForUser 访问集群）
-	if err := s.ensureUserKubeConfigRecord(clusterID, userID, saName, iomAuthNamespace); err != nil {
+	if err := s.ensureUserKubeConfigRecord(clusterID, userID, saName, momAuthNamespace); err != nil {
 		return fmt.Errorf("确保用户凭据记录存在失败: %w", err)
 	}
 
 	// 在 K8s 中创建 ClusterRoleBinding 或 RoleBinding
 	if roleType == "ClusterRole" {
-		if err := s.createClusterRoleBinding(ctx, clientset, roleName, saName, iomAuthNamespace); err != nil {
+		if err := s.createClusterRoleBinding(ctx, clientset, roleName, saName, momAuthNamespace); err != nil {
 			return fmt.Errorf("创建ClusterRoleBinding失败: %w", err)
 		}
 	} else {
-		if err := s.createRoleBinding(ctx, clientset, roleName, roleNamespace, saName, iomAuthNamespace); err != nil {
+		if err := s.createRoleBinding(ctx, clientset, roleName, roleNamespace, saName, momAuthNamespace); err != nil {
 			return fmt.Errorf("创建RoleBinding失败: %w", err)
 		}
 	}
@@ -130,7 +130,7 @@ func (s *RoleBindingService) BindUserRole(ctx context.Context, clusterID, userID
 
 	if err := s.db.Create(&binding).Error; err != nil {
 		// 数据库创建失败，尝试回滚 K8s 绑定
-		_ = s.rollbackK8sBinding(ctx, clientset, roleType, roleName, roleNamespace, saName, iomAuthNamespace)
+		_ = s.rollbackK8sBinding(ctx, clientset, roleType, roleName, roleNamespace, saName, momAuthNamespace)
 		return fmt.Errorf("创建角色绑定失败: %w", err)
 	}
 
@@ -160,7 +160,7 @@ func (s *RoleBindingService) UnbindUserRole(ctx context.Context, clusterID, user
 	}
 
 	// ServiceAccount 名称
-	saName := fmt.Sprintf("iom-%s", user.Username)
+	saName := fmt.Sprintf("mom-%s", user.Username)
 
 	// 确定角色类型
 	var roleType string
@@ -183,7 +183,7 @@ func (s *RoleBindingService) UnbindUserRole(ctx context.Context, clusterID, user
 
 	// 删除 K8s 绑定
 	if roleType == "ClusterRole" {
-		bindingName := fmt.Sprintf("iom-%s-%s", roleName, saName)
+		bindingName := fmt.Sprintf("mom-%s-%s", roleName, saName)
 		if err := clientset.RbacV1().ClusterRoleBindings().Delete(ctx, bindingName, metav1.DeleteOptions{}); err != nil {
 			// 忽略不存在的错误
 			if !strings.Contains(err.Error(), "not found") {
@@ -191,7 +191,7 @@ func (s *RoleBindingService) UnbindUserRole(ctx context.Context, clusterID, user
 			}
 		}
 	} else {
-		bindingName := fmt.Sprintf("iom-%s-%s", roleName, saName)
+		bindingName := fmt.Sprintf("mom-%s-%s", roleName, saName)
 		if err := clientset.RbacV1().RoleBindings(roleNamespace).Delete(ctx, bindingName, metav1.DeleteOptions{}); err != nil {
 			// 忽略不存在的错误
 			if !strings.Contains(err.Error(), "not found") {
@@ -314,7 +314,7 @@ func (s *RoleBindingService) GetAvailableUsers(ctx context.Context, keyword stri
 	return users, total, nil
 }
 
-// GetClusterCredentialUsers 获取集群的凭据用户列表（返回所有iom开头的ServiceAccount）
+// GetClusterCredentialUsers 获取集群的凭据用户列表（返回所有mom开头的ServiceAccount）
 func (s *RoleBindingService) GetClusterCredentialUsers(ctx context.Context, clusterID uint64, currentUserID uint64) ([]map[string]interface{}, error) {
 	// 获取集群信息
 	cluster, err := s.clusterBiz.GetCluster(ctx, uint(clusterID))
@@ -332,7 +332,7 @@ func (s *RoleBindingService) GetClusterCredentialUsers(ctx context.Context, clus
 	saMap := make(map[string]corev1.ServiceAccount)
 
 	// 从新命名空间获取
-	newSas, err := clientset.CoreV1().ServiceAccounts(iomAuthNamespace).List(ctx, metav1.ListOptions{})
+	newSas, err := clientset.CoreV1().ServiceAccounts(momAuthNamespace).List(ctx, metav1.ListOptions{})
 	if err == nil {
 		for _, sa := range newSas.Items {
 			saMap[sa.Name] = sa
@@ -350,23 +350,23 @@ func (s *RoleBindingService) GetClusterCredentialUsers(ctx context.Context, clus
 		}
 	}
 
-	// 过滤出 iom- 开头的 ServiceAccount，并从数据库查询用户信息
+	// 过滤出 mom- 开头的 ServiceAccount，并从数据库查询用户信息
 	credentialUsers := make([]map[string]interface{}, 0)
 
 	for _, sa := range saMap {
 		saName := sa.Name
-		// 检查是否是 iom- 开头的 ServiceAccount
-		if !strings.HasPrefix(saName, "iom-") {
+		// 检查是否是 mom- 开头的 ServiceAccount
+		if !strings.HasPrefix(saName, "mom-") {
 			continue
 		}
 
-		// 解析格式: iom-{username}-{suffix} 或 iom-{username}
+		// 解析格式: mom-{username}-{suffix} 或 mom-{username}
 		parts := strings.SplitN(saName, "-", 2)
 		if len(parts) != 2 {
 			continue
 		}
 
-		// 提取 username (iom 之后的部分)
+		// 提取 username (mom 之后的部分)
 		username := parts[1]
 
 		// 从数据库查询用户信息
@@ -486,7 +486,7 @@ func (s *RoleBindingService) ensureServiceAccount(ctx context.Context, clientset
 		ObjectMeta: metav1.ObjectMeta{
 			Name: saName,
 			Annotations: map[string]string{
-				"description": "Created by iom for user authentication",
+				"description": "Created by mom for user authentication",
 			},
 		},
 	}
@@ -503,8 +503,8 @@ func (s *RoleBindingService) ensureServiceAccount(ctx context.Context, clientset
 func (s *RoleBindingService) createClusterRoleBinding(ctx context.Context, clientset *kubernetes.Clientset, roleName, saName, saNamespace string) error {
 	crbClient := clientset.RbacV1().ClusterRoleBindings()
 
-	// 绑定名称格式: iom-{roleName}-{saName}
-	bindingName := fmt.Sprintf("iom-%s-%s", roleName, saName)
+	// 绑定名称格式: mom-{roleName}-{saName}
+	bindingName := fmt.Sprintf("mom-%s-%s", roleName, saName)
 
 	// 检查是否已存在
 	_, err := crbClient.Get(ctx, bindingName, metav1.GetOptions{})
@@ -517,10 +517,10 @@ func (s *RoleBindingService) createClusterRoleBinding(ctx context.Context, clien
 		ObjectMeta: metav1.ObjectMeta{
 			Name: bindingName,
 			Labels: map[string]string{
-				"iom.ydcloud-dy.com/managed-by": "iom",
+				"mom.ydcloud-dy.com/managed-by": "mom",
 			},
 			Annotations: map[string]string{
-				"description": "Created by iom",
+				"description": "Created by mom",
 			},
 		},
 		Subjects: []rbacv1.Subject{
@@ -548,8 +548,8 @@ func (s *RoleBindingService) createClusterRoleBinding(ctx context.Context, clien
 func (s *RoleBindingService) createRoleBinding(ctx context.Context, clientset *kubernetes.Clientset, roleName, roleNamespace, saName, saNamespace string) error {
 	rbClient := clientset.RbacV1().RoleBindings(roleNamespace)
 
-	// 绑定名称格式: iom-{roleName}-{saName}
-	bindingName := fmt.Sprintf("iom-%s-%s", roleName, saName)
+	// 绑定名称格式: mom-{roleName}-{saName}
+	bindingName := fmt.Sprintf("mom-%s-%s", roleName, saName)
 
 	// 检查是否已存在
 	_, err := rbClient.Get(ctx, bindingName, metav1.GetOptions{})
@@ -562,10 +562,10 @@ func (s *RoleBindingService) createRoleBinding(ctx context.Context, clientset *k
 		ObjectMeta: metav1.ObjectMeta{
 			Name: bindingName,
 			Labels: map[string]string{
-				"iom.ydcloud-dy.com/managed-by": "iom",
+				"mom.ydcloud-dy.com/managed-by": "mom",
 			},
 			Annotations: map[string]string{
-				"description": "Created by iom",
+				"description": "Created by mom",
 			},
 		},
 		Subjects: []rbacv1.Subject{
@@ -592,21 +592,21 @@ func (s *RoleBindingService) createRoleBinding(ctx context.Context, clientset *k
 // rollbackK8sBinding 回滚 K8s 绑定（用于数据库操作失败时）
 func (s *RoleBindingService) rollbackK8sBinding(ctx context.Context, clientset *kubernetes.Clientset, roleType, roleName, roleNamespace, saName, saNamespace string) error {
 	if roleType == "ClusterRole" {
-		bindingName := fmt.Sprintf("iom-%s-%s", roleName, saName)
+		bindingName := fmt.Sprintf("mom-%s-%s", roleName, saName)
 		_ = clientset.RbacV1().ClusterRoleBindings().Delete(ctx, bindingName, metav1.DeleteOptions{})
 	} else {
-		bindingName := fmt.Sprintf("iom-%s-%s", roleName, saName)
+		bindingName := fmt.Sprintf("mom-%s-%s", roleName, saName)
 		_ = clientset.RbacV1().RoleBindings(roleNamespace).Delete(ctx, bindingName, metav1.DeleteOptions{})
 	}
 	return nil
 }
 
-// ensureiomAuthNamespace 确保 iom 认证命名空间存在
-func (s *RoleBindingService) ensureiomAuthNamespace(ctx context.Context, clientset *kubernetes.Clientset) error {
+// ensuremomAuthNamespace 确保 mom 认证命名空间存在
+func (s *RoleBindingService) ensuremomAuthNamespace(ctx context.Context, clientset *kubernetes.Clientset) error {
 	nsClient := clientset.CoreV1().Namespaces()
 
 	// 检查命名空间是否已存在
-	_, err := nsClient.Get(ctx, iomAuthNamespace, metav1.GetOptions{})
+	_, err := nsClient.Get(ctx, momAuthNamespace, metav1.GetOptions{})
 	if err == nil {
 		// 已存在，直接返回
 		return nil
@@ -619,15 +619,15 @@ func (s *RoleBindingService) ensureiomAuthNamespace(ctx context.Context, clients
 	// 创建新的命名空间
 	ns := &corev1.Namespace{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: iomAuthNamespace,
+			Name: momAuthNamespace,
 			Labels: map[string]string{
-				"name":                                 "iom-auth",
-				"iom.ydcloud-dy.com/purpose":        "authentication",
-				"iom.ydcloud-dy.com/managed-by":     "iom",
-				"iom.ydcloud-dy.com/namespace-type": "system",
+				"name":                                 "mom-auth",
+				"mom.ydcloud-dy.com/purpose":        "authentication",
+				"mom.ydcloud-dy.com/managed-by":     "mom",
+				"mom.ydcloud-dy.com/namespace-type": "system",
 			},
 			Annotations: map[string]string{
-				"description": "iom user authentication namespace - managed by iom, do not modify manually",
+				"description": "mom user authentication namespace - managed by mom, do not modify manually",
 			},
 		},
 	}

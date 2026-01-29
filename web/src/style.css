@@ -40,6 +40,7 @@ a {
   color: #646cff;
   text-decoration: inherit;
 }
+
 a:hover {
   color: #535bf2;
 }
@@ -67,7 +68,7 @@ h3 {
 }
 
 button {
-  border-radius: 4px;
+  border-radius: 0;
   border: 1px solid transparent;
   padding: 0.4em 1em;
   font-size: 14px;
@@ -89,21 +90,126 @@ button {
 }
 
 /* Element Plus 全局尺寸覆盖 */
-.el-button {
+
+/* 全局移除圆角 */
+.el-button,
+.el-button--primary,
+.el-button--success,
+.el-button--warning,
+.el-button--danger,
+.el-button--info,
+.el-button--default {
   --el-button-size: 32px;
+  border-radius: 0 !important;
+}
+
+/* 输入框圆角移除 */
+.el-input__wrapper,
+.el-input__inner,
+.el-textarea__inner {
+  border-radius: 0 !important;
+}
+
+/* 选择器圆角移除 */
+.el-select .el-input__wrapper,
+.el-select-dropdown,
+.el-select-dropdown__wrap {
+  border-radius: 0 !important;
+}
+
+/* 卡片和容器圆角移除 */
+.el-card,
+.el-card__body,
+.el-card__header {
+  border-radius: 0 !important;
+}
+
+/* 对话框圆角移除 */
+.el-dialog,
+.el-dialog__header,
+.el-dialog__body,
+.el-dialog__footer {
+  border-radius: 0 !important;
+}
+
+/* 弹出层圆角移除 */
+.el-popover,
+.el-popper,
+.el-dropdown-menu {
+  border-radius: 0 !important;
+}
+
+/* 消息和通知圆角移除 */
+.el-message,
+.el-notification,
+.el-message-box {
+  border-radius: 0 !important;
+}
+
+/* 标签圆角移除 */
+.el-tag {
+  border-radius: 0 !important;
+}
+
+/* 分页按钮圆角移除 */
+.el-pager li,
+.el-pagination button {
+  border-radius: 0 !important;
+}
+
+/* 警告框圆角移除 */
+.el-alert {
+  border-radius: 0 !important;
+}
+
+/* 表格圆角移除 */
+.el-table,
+.el-table__header-wrapper,
+.el-table__body-wrapper {
+  border-radius: 0 !important;
+}
+
+/* 页面组件圆角移除 */
+.page-header,
+.search-bar,
+.filter-bar,
+.stat-card,
+.left-panel,
+.table-wrapper,
+.panel-header,
+.panel-body {
+  border-radius: 0 !important;
 }
 
 .el-input {
   --el-input-height: 32px;
 }
 
+.el-input__wrapper {
+  border-radius: 0 !important;
+}
+
 .el-select {
   --el-select-height: 32px;
+}
+
+.el-select .el-input__wrapper {
+  border-radius: 0 !important;
 }
 
 .el-table {
   --el-table-header-font-size: 13px;
   --el-table-font-size: 13px;
+}
+
+/* 表格表头不加粗 */
+.el-table th.el-table__cell {
+  font-weight: normal !important;
+  padding: 8px 0;
+}
+
+.el-table td.el-table__cell {
+  padding: 8px 0;
 }
 
 .el-form-item {
@@ -113,25 +219,22 @@ button {
 
 .el-dialog {
   --el-dialog-padding-primary: 16px;
+  border-radius: 0 !important;
 }
 
 .el-card {
   --el-card-padding: 16px;
-}
-
-/* 紧凑表格样式 */
-.el-table th.el-table__cell {
-  padding: 8px 0;
-}
-
-.el-table td.el-table__cell {
-  padding: 8px 0;
+  border-radius: 0 !important;
 }
 
 /* 紧凑分页样式 */
 .el-pagination {
   --el-pagination-button-height: 28px;
   --el-pagination-font-size: 13px;
+}
+
+.el-pager li {
+  border-radius: 0 !important;
 }
 
 /* 紧凑标签页 */
@@ -148,9 +251,14 @@ button {
 /* 紧凑消息提示 */
 .el-message {
   --el-message-padding: 12px 16px;
+  border-radius: 0 !important;
 }
 
 /* 紧凑下拉菜单 */
+.el-dropdown-menu {
+  border-radius: 0 !important;
+}
+
 .el-dropdown-menu__item {
   padding: 8px 16px;
   font-size: 13px;
@@ -164,17 +272,21 @@ button {
 .page-header {
   padding: 12px 16px !important;
   margin-bottom: 10px !important;
+  border-radius: 0 !important;
 }
 
 .page-title-icon {
   width: 36px !important;
   height: 36px !important;
   font-size: 16px !important;
-  border-radius: 8px !important;
+  border-radius: 6px !important;
+  background-color: #0a466a !important;
+  color: #ffffff !important;
 }
 
 .page-title {
   font-size: 15px !important;
+  font-weight: normal !important;
   margin: 0 !important;
 }
 
@@ -196,14 +308,14 @@ button {
 .stat-card {
   padding: 12px 14px !important;
   gap: 10px !important;
-  border-radius: 6px !important;
+  border-radius: 0 !important;
 }
 
 .stat-icon {
   width: 40px !important;
   height: 40px !important;
   font-size: 18px !important;
-  border-radius: 8px !important;
+  border-radius: 6px !important;
 }
 
 .stat-label {
@@ -213,6 +325,7 @@ button {
 
 .stat-value {
   font-size: 18px !important;
+  font-weight: normal !important;
 }
 
 /* 搜索栏 */
@@ -220,7 +333,7 @@ button {
 .filter-bar {
   padding: 10px 14px !important;
   margin-bottom: 10px !important;
-  border-radius: 6px !important;
+  border-radius: 0 !important;
 }
 
 .search-input,
@@ -232,6 +345,7 @@ button {
 .left-panel {
   width: 220px !important;
   min-width: 220px !important;
+  border-radius: 0 !important;
 }
 
 .panel-header {
@@ -240,6 +354,7 @@ button {
 
 .panel-title {
   font-size: 13px !important;
+  font-weight: normal !important;
   gap: 6px !important;
 }
 
@@ -253,7 +368,7 @@ button {
 
 /* 表格容器 */
 .table-wrapper {
-  border-radius: 6px !important;
+  border-radius: 0 !important;
 }
 
 /* 分页 */
@@ -269,6 +384,7 @@ button {
 
 .section-title {
   font-size: 13px !important;
+  font-weight: normal !important;
   margin-bottom: 12px !important;
   padding-left: 6px !important;
 }
@@ -290,6 +406,7 @@ button {
 
 .el-dialog__title {
   font-size: 15px !important;
+  font-weight: normal !important;
 }
 
 .el-dialog__body {
@@ -298,6 +415,15 @@ button {
 
 .el-dialog__footer {
   padding: 10px 16px !important;
+}
+
+/* 弹出层圆角移除 */
+.el-popover.el-popper {
+  border-radius: 0 !important;
+}
+
+.el-select__popper {
+  border-radius: 0 !important;
 }
 
 /* 树形节点 */
@@ -327,6 +453,7 @@ button {
 /* 描述列表 */
 .el-descriptions__label {
   font-size: 13px !important;
+  font-weight: normal !important;
 }
 
 .el-descriptions__content {
@@ -334,8 +461,13 @@ button {
 }
 
 /* 警告提示 */
+.el-alert {
+  border-radius: 0 !important;
+}
+
 .el-alert__title {
   font-size: 13px !important;
+  font-weight: normal !important;
 }
 
 .el-alert__description {
@@ -353,6 +485,7 @@ button {
   padding: 0 6px !important;
   height: 22px !important;
   line-height: 20px !important;
+  border-radius: 0 !important;
 }
 
 /* 选择器下拉 */
@@ -394,8 +527,8 @@ button {
   border-color: #0a466a !important;
 }
 
-.el-checkbox__input.is-checked + .el-checkbox__label,
-.el-radio__input.is-checked + .el-radio__label {
+.el-checkbox__input.is-checked+.el-checkbox__label,
+.el-radio__input.is-checked+.el-radio__label {
   color: #0a466a !important;
 }
 
@@ -475,7 +608,7 @@ button {
 }
 
 /* 树形控件选中 */
-.el-tree-node.is-current > .el-tree-node__content {
+.el-tree-node.is-current>.el-tree-node__content {
   background-color: rgba(10, 70, 106, 0.1) !important;
 }
 

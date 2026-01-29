@@ -105,10 +105,10 @@ const saving = ref(false)
 
 const config = reactive({
   // 基础配置
-  systemName: 'iom',
+  systemName: 'mom',
   systemLogo: '',
   systemDescription: '运维管理平台',
-  copyright: '© 2025 iom. All rights reserved.',
+  copyright: '© 2025 mom. All rights reserved.',
 
   // 安全配置
   passwordMinLength: 6,

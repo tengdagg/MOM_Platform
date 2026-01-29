@@ -539,7 +539,7 @@ watch(() => props.attached, (newVal) => {
 .toolbar {
   padding: 16px;
   background: #f8f9fa;
-  border-radius: 6px;
+  border-radius: 0;
   border: 1px solid #e9ecef;
 }
 
@@ -582,7 +582,7 @@ watch(() => props.attached, (newVal) => {
 .progress-section {
   padding: 24px;
   background: #fff;
-  border-radius: 6px;
+  border-radius: 0;
   border: 1px solid #ebeef5;
   text-align: center;
 }
@@ -597,7 +597,7 @@ watch(() => props.attached, (newVal) => {
 .flame-graph-section {
   background: #fff;
   border: 1px solid #ebeef5;
-  border-radius: 6px;
+  border-radius: 0;
   overflow: hidden;
 }
 
@@ -635,7 +635,7 @@ watch(() => props.attached, (newVal) => {
 .empty-state {
   padding: 40px 20px;
   background: #fff;
-  border-radius: 6px;
+  border-radius: 0;
   border: 1px solid #ebeef5;
 }
 
@@ -650,7 +650,7 @@ watch(() => props.attached, (newVal) => {
   margin: 24px auto 0;
   padding: 20px;
   background: #f8f9fa;
-  border-radius: 6px;
+  border-radius: 0;
 }
 
 .event-type-guide h4 {

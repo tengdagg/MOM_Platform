@@ -6,11 +6,11 @@ services:
   # MySQL 数据库
   mysql:
     image: swr.cn-north-4.myhuaweicloud.com/ddn-k8s/docker.io/mysql:8.0.44
-    container_name: iom-mysql
+    container_name: mom-mysql
     restart: unless-stopped
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-123456}
-      MYSQL_DATABASE: ${MYSQL_DATABASE:-iom}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-mom}
       TZ: Asia/Shanghai
     ports:
       - "${MYSQL_PORT:-3306}:3306"
@@ -20,12 +20,12 @@ services:
       - ./migrations/init.sql:/docker-entrypoint-initdb.d/init.sql
     command: --default-authentication-plugin=mysql_native_password --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
     networks:
-      - iom-network
+      - mom-network
 
   # Redis 缓存
   redis:
     image: swr.cn-north-4.myhuaweicloud.com/ddn-k8s/docker.io/redis:7-alpine
-    container_name: iom-redis
+    container_name: mom-redis
     restart: unless-stopped
     ports:
       - "${REDIS_PORT:-6379}:6379"
@@ -33,29 +33,29 @@ services:
       - redis-data:/data
     command: redis-server --appendonly yes
     networks:
-      - iom-network
+      - mom-network
 
   # 后端服务 (开发模式)
   backend:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: iom-backend
+    container_name: mom-backend
     restart: unless-stopped
     ports:
       - "${BACKEND_PORT:-9876}:9876"
     environment:
-      iom_SERVER_MODE: ${iom_SERVER_MODE:-debug}
-      iom_SERVER_HTTP_PORT: 9876
-      iom_SERVER_JWT_SECRET: ${iom_SERVER_JWT_SECRET:-your-secret-key-change-in-production}
-      iom_DATABASE_HOST: mysql
-      iom_DATABASE_PORT: 3306
-      iom_DATABASE_DATABASE: ${MYSQL_DATABASE:-iom}
-      iom_DATABASE_USERNAME: ${MYSQL_USERNAME:-root}
-      iom_DATABASE_PASSWORD: ${MYSQL_ROOT_PASSWORD:-123456}
-      iom_REDIS_HOST: redis
-      iom_REDIS_PORT: 6379
-      iom_REDIS_PASSWORD: ""
+      mom_SERVER_MODE: ${mom_SERVER_MODE:-debug}
+      mom_SERVER_HTTP_PORT: 9876
+      mom_SERVER_JWT_SECRET: ${mom_SERVER_JWT_SECRET:-your-secret-key-change-in-production}
+      mom_DATABASE_HOST: mysql
+      mom_DATABASE_PORT: 3306
+      mom_DATABASE_DATABASE: ${MYSQL_DATABASE:-mom}
+      mom_DATABASE_USERNAME: ${MYSQL_USERNAME:-root}
+      mom_DATABASE_PASSWORD: ${MYSQL_ROOT_PASSWORD:-123456}
+      mom_REDIS_HOST: redis
+      mom_REDIS_PORT: 6379
+      mom_REDIS_PASSWORD: ""
     depends_on:
       - mysql
       - redis
@@ -63,12 +63,12 @@ services:
       - ./config:/app/config
       - ./logs:/app/logs
     networks:
-      - iom-network
+      - mom-network
 
   # 前端服务
   frontend:
     image: swr.cn-north-4.myhuaweicloud.com/ddn-k8s/docker.io/node:18-alpine
-    container_name: iom-frontend
+    container_name: mom-frontend
     working_dir: /app
     restart: unless-stopped
     ports:
@@ -82,7 +82,7 @@ services:
     depends_on:
       - backend
     networks:
-      - iom-network
+      - mom-network
 
 volumes:
   mysql-data:
@@ -91,5 +91,5 @@ volumes:
     driver: local
 
 networks:
-  iom-network:
+  mom-network:
     driver: bridge

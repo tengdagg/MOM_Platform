@@ -655,7 +655,7 @@ onMounted(() => {
 
   .header-content {
     background: #fff;
-    border-radius: 12px;
+    border-radius: 0;
     padding: 24px;
     box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
     margin-bottom: 20px;
@@ -738,7 +738,7 @@ onMounted(() => {
   background-color: #0a466a !important;
   color: #d4af37 !important;
   border-color: #d4af37 !important;
-  border-radius: 6px;
+  border-radius: 0;
   padding: 8px 16px;
   font-weight: 500;
   display: flex;
@@ -766,7 +766,7 @@ onMounted(() => {
   gap: 16px;
   padding: 20px;
   background: #fff;
-  border-radius: 8px;
+  border-radius: 0;
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
   border: 1px solid #e0e0e0;
   overflow: hidden;
@@ -776,13 +776,13 @@ onMounted(() => {
 .stat-card:hover {
   transform: translateY(-2px);
   box-shadow: 0 4px 20px rgba(212, 175, 55, 0.2);
-  border-color: #d4af37;
+  border-color: #ffffff;
 }
 
 .stat-icon {
   width: 56px;
   height: 56px;
-  border-radius: 12px;
+  border-radius: 0;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -792,26 +792,26 @@ onMounted(() => {
 
 .stat-icon-cpu {
   background: linear-gradient(135deg, #0a466a 0%, #0d5a87 100%);
-  color: #d4af37;
-  border: 1px solid #d4af37;
+  color: #ffffff;
+  border: none;
 }
 
 .stat-icon-memory {
   background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
-  color: #d4af37;
-  border: 1px solid #d4af37;
+  color: #ffffff;
+  border: none;
 }
 
 .stat-icon-pod {
   background: linear-gradient(135deg, #0a466a 0%, #0d5a87 100%);
-  color: #d4af37;
-  border: 1px solid #d4af37;
+  color: #ffffff;
+  border: none;
 }
 
 .stat-icon-uptime {
   background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
-  color: #d4af37;
-  border: 1px solid #d4af37;
+  color: #ffffff;
+  border: none;
 }
 
 .stat-content {
@@ -827,7 +827,7 @@ onMounted(() => {
 .stat-value {
   font-size: 26px;
   font-weight: 700;
-  color: #d4af37;
+  color: #ffffff;
   line-height: 1.2;
 }
 
@@ -862,7 +862,7 @@ onMounted(() => {
 
 .info-card {
   background: #fff;
-  border-radius: 8px;
+  border-radius: 0;
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
   border: 1px solid #e0e0e0;
   overflow: hidden;
@@ -944,7 +944,7 @@ onMounted(() => {
 .tag-item {
   padding: 8px 12px;
   background: #fafafa;
-  border-radius: 4px;
+  border-radius: 0;
   font-size: 13px;
   font-family: 'Monaco', 'Menlo', monospace;
   line-height: 1.6;
@@ -952,7 +952,7 @@ onMounted(() => {
 }
 
 .tag-key {
-  color: #d4af37;
+  color: #ffffff;
   font-weight: 600;
   margin-right: 6px;
 }
@@ -970,7 +970,7 @@ onMounted(() => {
 
 /* 污点样式 */
 .taint-key {
-  color: #d4af37;
+  color: #ffffff;
   font-weight: 600;
   margin-right: 6px;
 }
@@ -986,7 +986,7 @@ onMounted(() => {
 
 .taint-effect {
   padding: 2px 8px;
-  border-radius: 4px;
+  border-radius: 0;
   font-size: 12px;
   font-weight: 500;
 }
@@ -1009,13 +1009,13 @@ onMounted(() => {
 /* 污点编辑弹窗 */
 .taint-edit-dialog :deep(.el-dialog__header) {
   background: linear-gradient(135deg, #0a466a 0%, #0d5a87 100%);
-  color: #d4af37;
-  border-radius: 8px 8px 0 0;
+  color: #ffffff;
+  border-radius: 0;
   padding: 20px 24px;
 }
 
 .taint-edit-dialog :deep(.el-dialog__title) {
-  color: #d4af37;
+  color: #ffffff;
   font-size: 16px;
   font-weight: 600;
 }
@@ -1037,7 +1037,7 @@ onMounted(() => {
   margin-bottom: 12px;
   padding: 8px;
   background: #f8fafc;
-  border-radius: 6px;
+  border-radius: 0;
   transition: all 0.3s;
 }
 
@@ -1076,7 +1076,7 @@ onMounted(() => {
 /* 区块卡片 */
 .section-card {
   background: #fff;
-  border-radius: 8px;
+  border-radius: 0;
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
   border: 1px solid #e0e0e0;
   margin-bottom: 20px;
@@ -1118,7 +1118,7 @@ onMounted(() => {
 .search-input :deep(.el-input__wrapper) {
   background-color: #f5f7fa;
   border-color: #dcdfe6;
-  border-radius: 6px;
+  border-radius: 0;
 }
 
 .search-input :deep(.el-input__wrapper:hover) {
@@ -1270,7 +1270,7 @@ onMounted(() => {
 .pagination-wrapper :deep(.el-pager li) {
   background: #fff;
   border: 1px solid #dcdfe6;
-  border-radius: 4px;
+  border-radius: 0;
 }
 
 .pagination-wrapper :deep(.el-pager li.is-active) {
@@ -1286,7 +1286,7 @@ onMounted(() => {
 .pagination-wrapper :deep(.btn-next) {
   background: #fff;
   border: 1px solid #dcdfe6;
-  border-radius: 4px;
+  border-radius: 0;
 }
 
 .pagination-wrapper :deep(.btn-prev:hover),

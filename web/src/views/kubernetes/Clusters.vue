@@ -1328,13 +1328,13 @@ const handleDelete = async (row: Cluster) => {
           <i class="el-icon-warning" style="margin-right: 4px;"></i>
           确定要删除集群 <strong>"${row.name}"</strong> 吗？
         </p>
-        <div style="padding: 12px; background: #fef0f0; border-left: 3px solid #f56c6c; margin-bottom: 8px; border-radius: 4px;">
+        <div style="padding: 12px; background: #fef0f0; border-left: 3px solid #f56c6c; margin-bottom: 8px; border-radius: 0;">
           <p style="margin: 0 0 8px 0; color: #606266; font-size: 14px;"><strong>删除集群将同时清理以下资源：</strong></p>
           <ul style="margin: 0; padding-left: 20px; color: #909399; font-size: 13px;">
             <li>所有用户的集群访问凭据（ServiceAccount）</li>
             <li>所有用户的角色绑定（ClusterRoleBinding 和 RoleBinding）</li>
             <li>所有默认集群角色（ClusterRole）</li>
-            <li>所有命名空间中的 iom 管理的 RoleBinding</li>
+            <li>所有命名空间中的 mom 管理的 RoleBinding</li>
             <li>数据库中的所有集群相关数据</li>
           </ul>
         </div>
@@ -1574,12 +1574,12 @@ const getCurrentUsername = () => {
   if (userStr) {
     try {
       const user = JSON.parse(userStr)
-      return user.username || 'iom-user'
+      return user.username || 'mom-user'
     } catch {
-      return 'iom-user'
+      return 'mom-user'
     }
   }
-  return 'iom-user'
+  return 'mom-user'
 }
 
 // 复制生成的kubeconfig
@@ -1699,7 +1699,7 @@ watch(paginatedClusterList, () => {
   gap: 10px;
   padding: 12px 14px;
   background: #fff;
-  border-radius: 6px;
+  border-radius: 0;
   box-shadow: 0 1px 8px rgba(0, 0, 0, 0.04);
   transition: all 0.3s ease;
 }
@@ -1712,7 +1712,7 @@ watch(paginatedClusterList, () => {
 .stat-icon {
   width: 40px;
   height: 40px;
-  border-radius: 8px;
+  border-radius: 0;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1722,26 +1722,26 @@ watch(paginatedClusterList, () => {
 
 .stat-icon-blue {
   background: linear-gradient(135deg, #0a466a 0%, #0d5a87 100%);
-  color: #d4af37;
-  border: 1px solid #d4af37;
+  color: #ffffff;
+  border: none;
 }
 
 .stat-icon-green {
   background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
-  color: #d4af37;
-  border: 1px solid #d4af37;
+  color: #ffffff;
+  border: none;
 }
 
 .stat-orange {
   background: linear-gradient(135deg, #0a466a 0%, #0d5a87 100%);
-  color: #d4af37;
-  border: 1px solid #d4af37;
+  color: #ffffff;
+  border: none;
 }
 
 .stat-icon-purple {
   background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
-  color: #d4af37;
-  border: 1px solid #d4af37;
+  color: #ffffff;
+  border: none;
 }
 
 .stat-content {
@@ -1757,7 +1757,7 @@ watch(paginatedClusterList, () => {
 .stat-value {
   font-size: 18px;
   font-weight: 700;
-  color: #d4af37;
+  color: #ffffff;
   line-height: 1;
 }
 
@@ -1769,7 +1769,7 @@ watch(paginatedClusterList, () => {
   margin-bottom: 10px;
   padding: 12px 16px;
   background: #fff;
-  border-radius: 6px;
+  border-radius: 0;
   box-shadow: 0 1px 8px rgba(0, 0, 0, 0.04);
 }
 
@@ -1782,15 +1782,15 @@ watch(paginatedClusterList, () => {
 .page-title-icon {
   width: 36px;
   height: 36px;
-  background: linear-gradient(135deg, #000 0%, #1a1a1a 100%);
-  border-radius: 8px;
+  background: #0a466a;
+  border-radius: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #d4af37;
+  color: #ffffff;
   font-size: 16px;
   flex-shrink: 0;
-  border: 1px solid #d4af37;
+  border: none;
 }
 
 .page-title {
@@ -1821,7 +1821,7 @@ watch(paginatedClusterList, () => {
   font-weight: 500;
   padding: 7px 14px;
   font-size: 13px;
-  border-radius: 6px;
+  border-radius: 0;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   box-shadow: 0 2px 6px rgba(103, 194, 58, 0.2);
 
@@ -1846,7 +1846,7 @@ watch(paginatedClusterList, () => {
   margin-bottom: 16px;
   background: #fff;
   border: 2px solid rgba(212, 175, 55, 0.3);
-  border-radius: 12px;
+  border-radius: 0;
   box-shadow: 0 2px 12px rgba(212, 175, 55, 0.15);
   animation: slideIn 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
@@ -1895,7 +1895,7 @@ watch(paginatedClusterList, () => {
   background: #ffffff;
   width: 22px;
   height: 22px;
-  border-radius: 4px;
+  border-radius: 0;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -1911,12 +1911,12 @@ watch(paginatedClusterList, () => {
 
 .batch-actions-left :deep(.el-checkbox__input.is-checked .el-checkbox__inner) {
   background: #d4af37;
-  border-color: #d4af37;
+  border-color: #ffffff;
 }
 
 .batch-actions-left :deep(.el-checkbox__input.is-indeterminate .el-checkbox__inner) {
   background: #d4af37;
-  border-color: #d4af37;
+  border-color: #ffffff;
 }
 
 .batch-actions-left :deep(.el-checkbox__input.is-checked .el-checkbox__inner::after) {
@@ -1957,7 +1957,7 @@ watch(paginatedClusterList, () => {
 }
 
 .batch-actions-right .el-button {
-  border-radius: 8px;
+  border-radius: 0;
   font-weight: 600;
   font-size: 14px;
   padding: 10px 18px;
@@ -2002,7 +2002,7 @@ watch(paginatedClusterList, () => {
 .modern-table :deep(.el-checkbox__inner) {
   border: 2px solid #d4af37;
   background: #ffffff;
-  border-radius: 4px;
+  border-radius: 0;
 }
 
 .modern-table :deep(.el-checkbox__inner:hover) {
@@ -2011,12 +2011,12 @@ watch(paginatedClusterList, () => {
 
 .modern-table :deep(.el-checkbox__input.is-checked .el-checkbox__inner) {
   background: #d4af37;
-  border-color: #d4af37;
+  border-color: #ffffff;
 }
 
 .modern-table :deep(.el-checkbox__input.is-indeterminate .el-checkbox__inner) {
   background: #d4af37;
-  border-color: #d4af37;
+  border-color: #ffffff;
 }
 
 .modern-table :deep(.el-checkbox__input.is-checked .el-checkbox__inner::after) {
@@ -2033,7 +2033,7 @@ watch(paginatedClusterList, () => {
   margin-bottom: 10px;
   padding: 10px 14px;
   background: #fff;
-  border-radius: 6px;
+  border-radius: 0;
   box-shadow: 0 1px 8px rgba(0, 0, 0, 0.04);
   display: flex;
   justify-content: space-between;
@@ -2084,7 +2084,7 @@ watch(paginatedClusterList, () => {
 /* 表格容器 */
 .table-wrapper {
   background: #fff;
-  border-radius: 6px;
+  border-radius: 0;
   box-shadow: 0 1px 8px rgba(0, 0, 0, 0.04);
   overflow: hidden;
 }
@@ -2103,7 +2103,7 @@ watch(paginatedClusterList, () => {
 }
 
 .modern-table :deep(.el-table__body-wrapper) {
-  border-radius: 0 0 12px 12px;
+  border-radius: 0;
 }
 
 .modern-table :deep(.el-table__row) {
@@ -2129,14 +2129,14 @@ watch(paginatedClusterList, () => {
 }
 
 .modern-table :deep(.el-tag) {
-  border-radius: 6px;
+  border-radius: 0;
   padding: 4px 10px;
   font-weight: 500;
 }
 
 /* 搜索框样式优化 */
 .search-bar :deep(.el-input__wrapper) {
-  border-radius: 8px;
+  border-radius: 0;
   border: 1px solid #dcdfe6;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
   transition: all 0.3s ease;
@@ -2144,23 +2144,23 @@ watch(paginatedClusterList, () => {
 }
 
 .search-bar :deep(.el-input__wrapper:hover) {
-  border-color: #d4af37;
+  border-color: #ffffff;
   box-shadow: 0 2px 8px rgba(212, 175, 55, 0.15);
 }
 
 .search-bar :deep(.el-input__wrapper.is-focus) {
-  border-color: #d4af37;
+  border-color: #ffffff;
   box-shadow: 0 2px 12px rgba(212, 175, 55, 0.25);
 }
 
 .search-bar :deep(.el-select .el-input__wrapper) {
-  border-radius: 8px;
+  border-radius: 0;
   border: 1px solid #dcdfe6;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
 }
 
 .search-icon {
-  color: #d4af37;
+  color: #ffffff;
 }
 
 /* 表头图标 */
@@ -2175,11 +2175,11 @@ watch(paginatedClusterList, () => {
 }
 
 .header-icon-blue {
-  color: #d4af37;
+  color: #ffffff;
 }
 
 .header-icon-purple {
-  color: #d4af37;
+  color: #ffffff;
 }
 
 /* 操作按钮 */
@@ -2192,7 +2192,7 @@ watch(paginatedClusterList, () => {
 .action-btn {
   width: 32px;
   height: 32px;
-  border-radius: 6px;
+  border-radius: 0;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -2232,7 +2232,7 @@ watch(paginatedClusterList, () => {
   background-color: #0a466a !important;
   color: #ffffff !important;
   border-color: #0a466a !important;
-  border-radius: 6px;
+  border-radius: 0;
   padding: 7px 14px;
   font-size: 13px;
   font-weight: 500;
@@ -2268,7 +2268,7 @@ watch(paginatedClusterList, () => {
   display: flex;
   width: 100%;
   border: 1px solid #dcdfe6;
-  border-radius: 4px;
+  border-radius: 0;
   overflow: hidden;
   background-color: #282c34;
 }
@@ -2323,7 +2323,7 @@ watch(paginatedClusterList, () => {
   margin-top: 8px;
   padding: 8px 12px;
   background-color: #f4f4f5;
-  border-radius: 4px;
+  border-radius: 0;
   font-size: 12px;
   color: #606266;
 }
@@ -2406,13 +2406,13 @@ watch(paginatedClusterList, () => {
 
 .tab-icon {
   font-size: 16px;
-  color: #d4af37;
+  color: #ffffff;
 }
 
 :deep(.el-tabs__item) {
   &.is-active {
     .tab-icon {
-      color: #d4af37;
+      color: #ffffff;
     }
   }
 }

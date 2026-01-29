@@ -457,7 +457,7 @@ onMounted(() => {
   margin-bottom: 12px;
   padding: 16px 20px;
   background: #fff;
-  border-radius: 8px;
+  border-radius: 0;
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
   flex-shrink: 0;
 }
@@ -471,15 +471,15 @@ onMounted(() => {
 .page-title-icon {
   width: 48px;
   height: 48px;
-  background: linear-gradient(135deg, #000 0%, #1a1a1a 100%);
-  border-radius: 10px;
+  background: #0a466a;
+  border-radius: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #d4af37;
+  color: #ffffff;
   font-size: 22px;
   flex-shrink: 0;
-  border: 1px solid #d4af37;
+  border: none;
 }
 
 .page-title {
@@ -507,7 +507,7 @@ onMounted(() => {
 .filter-bar {
   padding: 12px 16px;
   background: #fff;
-  border-radius: 8px;
+  border-radius: 0;
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
   display: flex;
   justify-content: space-between;
@@ -532,21 +532,21 @@ onMounted(() => {
 }
 
 .filter-bar :deep(.el-input__wrapper) {
-  border-radius: 8px;
+  border-radius: 0;
   border: 1px solid #dcdfe6;
   transition: all 0.3s ease;
 }
 
 .filter-bar :deep(.el-input__wrapper:hover) {
-  border-color: #d4af37;
+  border-color: #ffffff;
 }
 
 .filter-bar :deep(.el-input__wrapper.is-focus) {
-  border-color: #d4af37;
+  border-color: #ffffff;
 }
 
 .search-icon {
-  color: #d4af37;
+  color: #ffffff;
 }
 
 .reset-btn {
@@ -564,7 +564,7 @@ onMounted(() => {
 .table-wrapper {
   flex: 1;
   background: #fff;
-  border-radius: 8px;
+  border-radius: 0;
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
   overflow: hidden;
   display: flex;
@@ -636,7 +636,7 @@ onMounted(() => {
 .action-btn {
   width: 28px;
   height: 28px;
-  border-radius: 6px;
+  border-radius: 0;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -676,7 +676,7 @@ onMounted(() => {
   background-color: #0a466a !important;
   color: #ffffff !important;
   border-color: #0a466a !important;
-  border-radius: 8px;
+  border-radius: 0;
   padding: 10px 20px;
   font-weight: 500;
 }
@@ -694,7 +694,7 @@ onMounted(() => {
 }
 
 :deep(.credential-dialog) {
-  border-radius: 12px;
+  border-radius: 0;
 }
 
 :deep(.credential-dialog .el-dialog__header) {
@@ -712,7 +712,7 @@ onMounted(() => {
 }
 
 :deep(.el-tag) {
-  border-radius: 6px;
+  border-radius: 0;
   padding: 4px 10px;
   font-weight: 500;
 }

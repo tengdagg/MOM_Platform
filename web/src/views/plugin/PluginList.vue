@@ -298,7 +298,7 @@ onMounted(async () => {
   align-items: flex-start;
   padding: 16px 20px;
   background: #fff;
-  border-radius: 8px;
+  border-radius: 0;
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
 }
 
@@ -311,13 +311,13 @@ onMounted(async () => {
 .page-title-icon {
   width: 48px;
   height: 48px;
-  border-radius: 10px;
-  background: linear-gradient(135deg, #000 0%, #1a1a1a 100%);
-  border: 1px solid #d4af37;
+  border-radius: 0;
+  background: #0a466a;
+  border: none;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #d4af37;
+  color: #ffffff;
   font-size: 22px;
   flex-shrink: 0;
 }
@@ -360,7 +360,7 @@ onMounted(async () => {
 
 .stat-card {
   background: #fff;
-  border-radius: 8px;
+  border-radius: 0;
   padding: 20px;
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
   display: flex;
@@ -370,26 +370,26 @@ onMounted(async () => {
   .stat-icon {
     width: 56px;
     height: 56px;
-    border-radius: 10px;
+    border-radius: 0;
     display: flex;
     align-items: center;
     justify-content: center;
     font-size: 28px;
 
     &.total {
-      background: linear-gradient(135deg, #000 0%, #1a1a1a 100%);
-      border: 1px solid #d4af37;
-      color: #d4af37;
+      background: #0a466a;
+      border: none;
+      color: #ffffff;
     }
 
     &.enabled {
-      background: linear-gradient(135deg, #000 0%, #1a1a1a 100%);
+      background: #0a466a;
       border: 1px solid #67c23a;
       color: #67c23a;
     }
 
     &.disabled {
-      background: linear-gradient(135deg, #000 0%, #1a1a1a 100%);
+      background: #0a466a;
       border: 1px solid #909399;
       color: #909399;
     }
@@ -415,7 +415,7 @@ onMounted(async () => {
 
 .table-container {
   background: #fff;
-  border-radius: 8px;
+  border-radius: 0;
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
   overflow: hidden;
 
@@ -427,13 +427,13 @@ onMounted(async () => {
     .plugin-icon {
       width: 40px;
       height: 40px;
-      border-radius: 8px;
-      background: linear-gradient(135deg, #000 0%, #1a1a1a 100%);
-      border: 1px solid #d4af37;
+      border-radius: 0;
+      background: #0a466a;
+      border: none;
       display: flex;
       align-items: center;
       justify-content: center;
-      color: #d4af37;
+      color: #ffffff;
       font-size: 20px;
       flex-shrink: 0;
     }

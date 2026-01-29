@@ -209,7 +209,7 @@ watch(() => props.modelValue, (newVal) => {
 .advanced-settings {
   background: #fff;
   border: 1px solid #e4e7ed;
-  border-radius: 6px;
+  border-radius: 0;
   padding: 16px;
 }
 
@@ -223,7 +223,7 @@ watch(() => props.modelValue, (newVal) => {
   color: #303133;
   margin-bottom: 16px;
   padding: 8px;
-  border-radius: 4px;
+  border-radius: 0;
   transition: background-color 0.3s;
 }
 

@@ -26,8 +26,8 @@ import (
 	"strconv"
 
 	"github.com/gin-gonic/gin"
-	assetbiz "github.com/ydcloud-dy/iom/internal/biz/asset"
-	"github.com/ydcloud-dy/iom/pkg/response"
+	assetbiz "github.com/ydcloud-dy/mom/internal/biz/asset"
+	"github.com/ydcloud-dy/mom/pkg/response"
 	"gorm.io/gorm"
 )
 

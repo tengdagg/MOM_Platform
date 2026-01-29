@@ -401,7 +401,7 @@ watch(() => props.attached, (newVal) => {
   flex-wrap: wrap;
   padding: 12px 16px;
   background: #f8f9fa;
-  border-radius: 6px;
+  border-radius: 0;
   border: 1px solid #e9ecef;
 }
 
@@ -430,7 +430,7 @@ watch(() => props.attached, (newVal) => {
   flex-shrink: 0;
   background: #fff;
   border: 1px solid #ebeef5;
-  border-radius: 6px;
+  border-radius: 0;
   display: flex;
   flex-direction: column;
 }
@@ -508,7 +508,7 @@ watch(() => props.attached, (newVal) => {
   flex: 1;
   background: #fff;
   border: 1px solid #ebeef5;
-  border-radius: 6px;
+  border-radius: 0;
   display: flex;
   flex-direction: column;
   overflow: hidden;

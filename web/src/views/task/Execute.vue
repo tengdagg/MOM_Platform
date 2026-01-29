@@ -639,7 +639,7 @@ watch(showTemplateDialog, (newValue) => {
 .page-header {
   padding: 16px 20px;
   background: #fff;
-  border-radius: 8px;
+  border-radius: 0;
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
 }
 
@@ -652,13 +652,13 @@ watch(showTemplateDialog, (newValue) => {
 .page-title-icon {
   width: 48px;
   height: 48px;
-  border-radius: 10px;
-  background: linear-gradient(135deg, #000 0%, #1a1a1a 100%);
-  border: 1px solid #d4af37;
+  border-radius: 0;
+  background: #0a466a;
+  border: none;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #d4af37;
+  color: #ffffff;
   font-size: 22px;
   flex-shrink: 0;
 }
@@ -680,7 +680,7 @@ watch(showTemplateDialog, (newValue) => {
 
 .main-card {
   background: #fff;
-  border-radius: 8px;
+  border-radius: 0;
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
   padding: 24px;
 }
@@ -769,7 +769,7 @@ watch(showTemplateDialog, (newValue) => {
 
 .log-card {
   background: #fff;
-  border-radius: 8px;
+  border-radius: 0;
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
 }
 
@@ -780,7 +780,7 @@ watch(showTemplateDialog, (newValue) => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  border-radius: 8px 8px 0 0;
+  border-radius: 0;
 
   .log-title {
     font-size: 16px;
@@ -794,7 +794,7 @@ watch(showTemplateDialog, (newValue) => {
   padding: 16px 20px;
   overflow-y: auto;
   background: #1e1e1e;
-  border-radius: 0 0 8px 8px;
+  border-radius: 0;
 
   .empty-log {
     text-align: center;
@@ -811,7 +811,7 @@ watch(showTemplateDialog, (newValue) => {
 
 .log-item {
   background: #2d2d2d;
-  border-radius: 6px;
+  border-radius: 0;
   overflow: hidden;
   border-left: 3px solid #909399;
 
@@ -844,7 +844,7 @@ watch(showTemplateDialog, (newValue) => {
 
   .log-status-badge {
     padding: 2px 8px;
-    border-radius: 4px;
+    border-radius: 0;
     font-size: 11px;
     font-weight: 500;
 

@@ -855,11 +855,11 @@ defineExpose({
 }
 
 .service-tabs :deep(.el-tabs__item.is-active) {
-  color: #d4af37;
+  color: #ffffff;
 }
 
 .service-tabs :deep(.el-tabs__active-bar) {
-  background-color: #d4af37;
+  background-color: #ffffff;
 }
 
 .tab-content {
@@ -880,7 +880,7 @@ defineExpose({
   margin-bottom: 20px;
   padding: 20px;
   border: 1px solid #dcdfe6;
-  border-radius: 8px;
+  border-radius: 0;
   background-color: #fafafa;
 }
 
@@ -890,7 +890,7 @@ defineExpose({
   align-items: center;
   margin-bottom: 16px;
   font-weight: 500;
-  color: #d4af37;
+  color: #ffffff;
 }
 
 .field-group {
@@ -940,11 +940,11 @@ defineExpose({
 }
 
 :deep(.el-input__wrapper:hover) {
-  border-color: #d4af37;
+  border-color: #ffffff;
 }
 
 :deep(.el-input__wrapper.is-focus) {
-  border-color: #d4af37;
+  border-color: #ffffff;
   box-shadow: 0 0 0 1px #d4af37;
 }
 
@@ -977,7 +977,7 @@ defineExpose({
 
 :deep(.el-input-number__decrease:hover),
 :deep(.el-input-number__increase:hover) {
-  color: #d4af37;
+  color: #ffffff;
 }
 
 /* 单选框样式 */
@@ -986,12 +986,12 @@ defineExpose({
 }
 
 :deep(.el-radio.is-checked .el-radio__inner) {
-  border-color: #d4af37;
+  border-color: #ffffff;
   background: #d4af37;
 }
 
 :deep(.el-radio__input.is-checked .el-radio__inner) {
-  border-color: #d4af37;
+  border-color: #ffffff;
   background: #d4af37;
 }
 
@@ -1003,8 +1003,8 @@ defineExpose({
 
 /* 按钮样式 */
 :deep(.el-button--primary) {
-  background-color: #d4af37;
-  border-color: #d4af37;
+  background-color: #ffffff;
+  border-color: #ffffff;
   color: #000000;
   font-weight: 500;
 }
@@ -1022,8 +1022,8 @@ defineExpose({
 }
 
 :deep(.el-button--default:hover) {
-  border-color: #d4af37;
-  color: #d4af37;
+  border-color: #ffffff;
+  color: #ffffff;
   background-color: #fff;
 }
 
@@ -1039,7 +1039,7 @@ defineExpose({
 
 /* Primary Link 按钮样式（添加按钮）- 金色文字 */
 :deep(.el-button--primary.is-link) {
-  color: #d4af37;
+  color: #ffffff;
   font-weight: 500;
   background-color: transparent;
 }
@@ -1068,12 +1068,12 @@ defineExpose({
 }
 
 :deep(.el-dialog__title) {
-  color: #d4af37;
+  color: #ffffff;
   font-weight: 500;
 }
 
 :deep(.el-dialog__headerbtn .el-dialog__close) {
-  color: #d4af37;
+  color: #ffffff;
 }
 
 :deep(.el-dialog__headerbtn .el-dialog__close:hover) {
@@ -1131,7 +1131,7 @@ defineExpose({
   justify-content: center;
   padding: 60px 20px;
   background-color: #fafafa;
-  border-radius: 8px;
+  border-radius: 0;
   border: 1px dashed #dcdfe6;
 }
 
@@ -1153,12 +1153,12 @@ defineExpose({
   padding: 16px;
   background-color: #fff;
   border: 1px solid #e4e7ed;
-  border-radius: 8px;
+  border-radius: 0;
   transition: all 0.3s;
 }
 
 .selector-item:hover {
-  border-color: #d4af37;
+  border-color: #ffffff;
   box-shadow: 0 2px 8px rgba(212, 175, 55, 0.1);
 }
 
@@ -1203,19 +1203,19 @@ defineExpose({
   padding: 24px;
   background-color: #fff;
   border: 2px solid #e4e7ed;
-  border-radius: 12px;
+  border-radius: 0;
   cursor: pointer;
   transition: all 0.3s ease;
 }
 
 .affinity-type-card:hover {
-  border-color: #d4af37;
+  border-color: #ffffff;
   box-shadow: 0 4px 20px rgba(212, 175, 55, 0.15);
   transform: translateY(-2px);
 }
 
 .affinity-type-card.is-selected {
-  border-color: #d4af37;
+  border-color: #ffffff;
   background-color: #fff;
   box-shadow: 0 4px 20px rgba(212, 175, 55, 0.2);
 }
@@ -1227,9 +1227,9 @@ defineExpose({
   align-items: center;
   justify-content: center;
   background-color: #fef9e7;
-  border-radius: 12px;
+  border-radius: 0;
   flex-shrink: 0;
-  color: #d4af37;
+  color: #ffffff;
   font-size: 28px;
   border: 2px solid #d4af37;
 }
@@ -1264,7 +1264,7 @@ defineExpose({
   display: flex;
   align-items: center;
   justify-content: center;
-  background-color: #d4af37;
+  background-color: #ffffff;
   border-radius: 50%;
   color: #fff;
   font-size: 20px;
@@ -1280,7 +1280,7 @@ defineExpose({
   padding: 24px;
   background-color: #fff;
   border: 2px solid #d4af37;
-  border-radius: 12px;
+  border-radius: 0;
   box-shadow: 0 4px 20px rgba(212, 175, 55, 0.15);
 }
 
@@ -1302,8 +1302,8 @@ defineExpose({
   display: flex;
   align-items: center;
   justify-content: center;
-  background-color: #d4af37;
-  border-radius: 10px;
+  background-color: #ffffff;
+  border-radius: 0;
   color: #fff;
   font-size: 24px;
   flex-shrink: 0;
@@ -1340,8 +1340,8 @@ defineExpose({
   gap: 24px;
   padding: 20px;
   background-color: #fff;
-  border-radius: 10px;
-  border: 1px solid #d4af37;
+  border-radius: 0;
+  border: none;
 }
 
 .timeout-config-card .timeout-input {
@@ -1353,7 +1353,7 @@ defineExpose({
   padding: 8px 16px;
   background-color: #fff;
   border: 2px solid #d4af37;
-  border-radius: 8px;
+  border-radius: 0;
   font-size: 16px;
   font-weight: 600;
   color: #303133;
@@ -1362,7 +1362,7 @@ defineExpose({
 .timeout-config-card .timeout-input :deep(.el-input__inner) {
   font-size: 18px;
   font-weight: 700;
-  color: #d4af37;
+  color: #ffffff;
   text-align: center;
 }
 
@@ -1379,14 +1379,14 @@ defineExpose({
   gap: 12px;
   padding: 10px 16px;
   background-color: #fef9e7;
-  border-radius: 6px;
-  border: 1px solid #d4af37;
+  border-radius: 0;
+  border: none;
 }
 
 .timeout-config-card .conversion-label {
   font-size: 14px;
   font-weight: 600;
-  color: #d4af37;
+  color: #ffffff;
   min-width: 24px;
 }
 
@@ -1401,13 +1401,13 @@ defineExpose({
   gap: 12px;
   padding: 16px 20px;
   background-color: #fef9e7;
-  border-radius: 10px;
+  border-radius: 0;
   border: 1px dashed #d4af37;
 }
 
 .timeout-config-card .info-icon {
   font-size: 24px;
-  color: #d4af37;
+  color: #ffffff;
   flex-shrink: 0;
   margin-top: 2px;
 }
@@ -1441,7 +1441,7 @@ defineExpose({
   padding: 20px;
   background-color: #fff;
   border: 1px solid #e4e7ed;
-  border-radius: 8px;
+  border-radius: 0;
 }
 
 .ip-section-header {
@@ -1460,8 +1460,8 @@ defineExpose({
   align-items: center;
   justify-content: center;
   background-color: #fef9e7;
-  border-radius: 8px;
-  color: #d4af37;
+  border-radius: 0;
+  color: #ffffff;
   font-size: 20px;
   flex-shrink: 0;
 }
@@ -1503,12 +1503,12 @@ defineExpose({
   color: #909399;
   padding: 8px 12px;
   background-color: #f5f7fa;
-  border-radius: 4px;
+  border-radius: 0;
 }
 
 .ip-hint .el-icon {
   font-size: 14px;
-  color: #d4af37;
+  color: #ffffff;
 }
 
 .ip-hint span {
@@ -1548,12 +1548,12 @@ defineExpose({
   padding: 16px;
   background-color: #fff;
   border: 1px solid #e4e7ed;
-  border-radius: 8px;
+  border-radius: 0;
   transition: all 0.3s;
 }
 
 .kv-item:hover {
-  border-color: #d4af37;
+  border-color: #ffffff;
   box-shadow: 0 2px 8px rgba(212, 175, 55, 0.1);
 }
 

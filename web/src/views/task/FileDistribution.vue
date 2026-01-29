@@ -422,7 +422,7 @@ onMounted(() => {
 .page-header {
   padding: 16px 20px;
   background: #fff;
-  border-radius: 8px;
+  border-radius: 0;
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
   display: flex;
   align-items: center;
@@ -438,13 +438,13 @@ onMounted(() => {
 .page-title-icon {
   width: 48px;
   height: 48px;
-  border-radius: 10px;
-  background: linear-gradient(135deg, #000 0%, #1a1a1a 100%);
-  border: 1px solid #d4af37;
+  border-radius: 0;
+  background: #0a466a;
+  border: none;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #d4af37;
+  color: #ffffff;
   font-size: 22px;
   flex-shrink: 0;
 }
@@ -483,7 +483,7 @@ onMounted(() => {
   width: 400px;
   min-width: 400px;
   background: #fff;
-  border-radius: 8px;
+  border-radius: 0;
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
   display: flex;
   flex-direction: column;
@@ -492,7 +492,7 @@ onMounted(() => {
 
 .section-card {
   background: #fff;
-  border-radius: 8px;
+  border-radius: 0;
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
   padding: 20px;
 }
@@ -519,7 +519,7 @@ onMounted(() => {
     width: 100%;
     padding: 40px;
     border: 2px dashed #dcdfe6;
-    border-radius: 8px;
+    border-radius: 0;
     background: #fafafa;
     transition: all 0.3s;
 
@@ -571,7 +571,7 @@ onMounted(() => {
   gap: 12px;
   padding: 12px;
   background: #f5f7fa;
-  border-radius: 4px;
+  border-radius: 0;
 
   .file-icon {
     font-size: 20px;
@@ -629,7 +629,7 @@ onMounted(() => {
   justify-content: center;
   padding: 20px;
   background: #fff;
-  border-radius: 8px;
+  border-radius: 0;
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
 }
 
@@ -694,7 +694,7 @@ onMounted(() => {
 
 .log-item {
   padding: 12px;
-  border-radius: 4px;
+  border-radius: 0;
   border-left: 3px solid transparent;
 
   .log-time {

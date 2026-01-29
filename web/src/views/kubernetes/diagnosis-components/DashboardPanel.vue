@@ -405,7 +405,7 @@ watch(() => props.attached, (newVal) => {
 .section {
   background: #fff;
   border: 1px solid #ebeef5;
-  border-radius: 4px;
+  border-radius: 0;
   overflow: hidden;
 }
 
@@ -455,7 +455,7 @@ watch(() => props.attached, (newVal) => {
 .memory-card {
   padding: 12px 16px;
   background: #f8f9fa;
-  border-radius: 6px;
+  border-radius: 0;
   border: 1px solid #e9ecef;
 }
 
@@ -509,7 +509,7 @@ watch(() => props.attached, (newVal) => {
   max-width: 250px;
   padding: 12px 16px;
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  border-radius: 6px;
+  border-radius: 0;
   color: #fff;
 }
 
@@ -552,7 +552,7 @@ watch(() => props.attached, (newVal) => {
   justify-content: space-between;
   padding: 8px 12px;
   background: #f8f9fa;
-  border-radius: 4px;
+  border-radius: 0;
   font-size: 13px;
 }
 
@@ -576,7 +576,7 @@ watch(() => props.attached, (newVal) => {
   background: #1e1e1e;
   max-height: 300px;
   overflow: auto;
-  border-radius: 4px;
+  border-radius: 0;
 }
 
 .output-content pre {

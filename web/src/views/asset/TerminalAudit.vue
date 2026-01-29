@@ -319,7 +319,7 @@ onMounted(() => {
   margin-bottom: 12px;
   padding: 16px 20px;
   background: #fff;
-  border-radius: 8px;
+  border-radius: 0;
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
 }
 
@@ -332,15 +332,15 @@ onMounted(() => {
 .page-title-icon {
   width: 48px;
   height: 48px;
-  background: linear-gradient(135deg, #000 0%, #1a1a1a 100%);
-  border-radius: 10px;
+  background: #0a466a;
+  border-radius: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #d4af37;
+  color: #ffffff;
   font-size: 22px;
   flex-shrink: 0;
-  border: 1px solid #d4af37;
+  border: none;
 }
 
 .page-title {
@@ -363,7 +363,7 @@ onMounted(() => {
   margin-bottom: 12px;
   padding: 12px 16px;
   background: #fff;
-  border-radius: 8px;
+  border-radius: 0;
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
   display: flex;
   justify-content: space-between;
@@ -398,7 +398,7 @@ onMounted(() => {
 }
 
 .search-bar :deep(.el-input__wrapper) {
-  border-radius: 8px;
+  border-radius: 0;
   border: 1px solid #dcdfe6;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
   transition: all 0.3s ease;
@@ -406,23 +406,23 @@ onMounted(() => {
 }
 
 .search-bar :deep(.el-input__wrapper:hover) {
-  border-color: #d4af37;
+  border-color: #ffffff;
   box-shadow: 0 2px 8px rgba(212, 175, 55, 0.15);
 }
 
 .search-bar :deep(.el-input__wrapper.is-focus) {
-  border-color: #d4af37;
+  border-color: #ffffff;
   box-shadow: 0 2px 12px rgba(212, 175, 55, 0.25);
 }
 
 .search-icon {
-  color: #d4af37;
+  color: #ffffff;
 }
 
 /* 表格容器 */
 .table-wrapper {
   background: #fff;
-  border-radius: 12px;
+  border-radius: 0;
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
   overflow: hidden;
 }
@@ -432,7 +432,7 @@ onMounted(() => {
 }
 
 .modern-table :deep(.el-table__body-wrapper) {
-  border-radius: 0 0 12px 12px;
+  border-radius: 0;
 }
 
 .modern-table :deep(.el-table__row) {
@@ -511,7 +511,7 @@ onMounted(() => {
 .action-btn {
   width: 32px;
   height: 32px;
-  border-radius: 6px;
+  border-radius: 0;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -541,14 +541,14 @@ onMounted(() => {
   padding: 12px 20px;
   background: #fff;
   border-top: 1px solid #f0f0f0;
-  border-radius: 0 0 12px 12px;
+  border-radius: 0;
   display: flex;
   justify-content: flex-end;
 }
 
 /* 播放对话框样式 */
 :deep(.terminal-player-dialog) {
-  border-radius: 12px;
+  border-radius: 0;
 }
 
 :deep(.terminal-player-dialog .el-dialog__header) {
@@ -568,7 +568,7 @@ onMounted(() => {
 
 /* 标签样式 */
 :deep(.el-tag) {
-  border-radius: 6px;
+  border-radius: 0;
   padding: 4px 10px;
   font-weight: 500;
 }

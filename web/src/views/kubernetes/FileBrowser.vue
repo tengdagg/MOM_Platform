@@ -399,7 +399,7 @@ watch(() => props.visible, (newVal) => {
 :deep(.el-dialog) {
   background: #fff;
   border: 1px solid #e0e0e0;
-  border-radius: 8px;
+  border-radius: 0;
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
 }
 
@@ -407,7 +407,7 @@ watch(() => props.visible, (newVal) => {
   background: #fff;
   border-bottom: 1px solid #e0e0e0;
   padding: 16px 20px;
-  border-radius: 8px 8px 0 0;
+  border-radius: 0;
 }
 
 :deep(.el-dialog__title) {
@@ -442,7 +442,7 @@ watch(() => props.visible, (newVal) => {
   font-size: 14px;
   color: #606266;
   background: #f5f5f5;
-  border-radius: 8px;
+  border-radius: 0;
 }
 
 .loading-container .el-icon {
@@ -461,7 +461,7 @@ watch(() => props.visible, (newVal) => {
   padding: 12px 16px;
   background: #f5f5f5;
   border: 1px solid #e0e0e0;
-  border-radius: 6px;
+  border-radius: 0;
 }
 
 .breadcrumb-container :deep(.el-breadcrumb) {
@@ -495,7 +495,7 @@ watch(() => props.visible, (newVal) => {
   padding: 6px 12px;
   background: #fff;
   border: 1px solid #dcdfe6;
-  border-radius: 4px;
+  border-radius: 0;
   display: inline-block;
 }
 
@@ -544,7 +544,7 @@ watch(() => props.visible, (newVal) => {
 /* 文件列表容器 */
 .file-list-container {
   border: 1px solid #e0e0e0;
-  border-radius: 8px;
+  border-radius: 0;
   overflow: hidden;
   background: #fff;
 }
@@ -622,7 +622,7 @@ watch(() => props.visible, (newVal) => {
   padding: 3px 8px;
   background: #f5f5f5;
   border: 1px solid #e0e0e0;
-  border-radius: 3px;
+  border-radius: 0;
   color: #606266;
 }
 

@@ -1,19 +1,19 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ include "iom.fullname" . }}-backend
+  name: {{ include "mom.fullname" . }}-backend
   namespace: {{ .Release.Namespace }}
   labels:
-    {{- include "iom.backend.labels" . | nindent 4 }}
+    {{- include "mom.backend.labels" . | nindent 4 }}
 spec:
   replicas: {{ .Values.backend.replicaCount }}
   selector:
     matchLabels:
-      {{- include "iom.backend.selectorLabels" . | nindent 6 }}
+      {{- include "mom.backend.selectorLabels" . | nindent 6 }}
   template:
     metadata:
       labels:
-        {{- include "iom.backend.selectorLabels" . | nindent 8 }}
+        {{- include "mom.backend.selectorLabels" . | nindent 8 }}
     spec:
       {{- with .Values.global.imagePullSecrets }}
       imagePullSecrets:
@@ -27,7 +27,7 @@ spec:
             - sh
             - -c
             - |
-              until nc -z {{ include "iom.mysql.host" . }} {{ include "iom.mysql.port" . }}; do
+              until nc -z {{ include "mom.mysql.host" . }} {{ include "mom.mysql.port" . }}; do
                 echo "Waiting for MySQL..."
                 sleep 2
               done
@@ -39,7 +39,7 @@ spec:
             - sh
             - -c
             - |
-              until nc -z {{ include "iom.redis.host" . }} {{ include "iom.redis.port" . }}; do
+              until nc -z {{ include "mom.redis.host" . }} {{ include "mom.redis.port" . }}; do
                 echo "Waiting for Redis..."
                 sleep 2
               done
@@ -53,44 +53,44 @@ spec:
               containerPort: {{ .Values.server.httpPort }}
               protocol: TCP
           env:
-            - name: iom_SERVER_MODE
+            - name: mom_SERVER_MODE
               value: {{ .Values.server.mode | quote }}
-            - name: iom_SERVER_HTTP_PORT
+            - name: mom_SERVER_HTTP_PORT
               value: {{ .Values.server.httpPort | quote }}
-            - name: iom_SERVER_JWT_SECRET
+            - name: mom_SERVER_JWT_SECRET
               valueFrom:
                 secretKeyRef:
-                  name: {{ include "iom.fullname" . }}-secrets
+                  name: {{ include "mom.fullname" . }}-secrets
                   key: jwt-secret
-            - name: iom_SERVER_JWT_EXPIRE
+            - name: mom_SERVER_JWT_EXPIRE
               value: {{ .Values.server.jwtExpire | quote }}
-            - name: iom_DATABASE_HOST
-              value: {{ include "iom.mysql.host" . | quote }}
-            - name: iom_DATABASE_PORT
-              value: {{ include "iom.mysql.port" . | quote }}
-            - name: iom_DATABASE_DATABASE
-              value: {{ include "iom.mysql.database" . | quote }}
-            - name: iom_DATABASE_USERNAME
+            - name: mom_DATABASE_HOST
+              value: {{ include "mom.mysql.host" . | quote }}
+            - name: mom_DATABASE_PORT
+              value: {{ include "mom.mysql.port" . | quote }}
+            - name: mom_DATABASE_DATABASE
+              value: {{ include "mom.mysql.database" . | quote }}
+            - name: mom_DATABASE_USERNAME
               {{- if .Values.mysql.enabled }}
               value: "root"
               {{- else }}
               value: {{ .Values.externalDatabase.username | quote }}
               {{- end }}
-            - name: iom_DATABASE_PASSWORD
+            - name: mom_DATABASE_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: {{ include "iom.fullname" . }}-secrets
+                  name: {{ include "mom.fullname" . }}-secrets
                   key: mysql-password
-            - name: iom_REDIS_HOST
-              value: {{ include "iom.redis.host" . | quote }}
-            - name: iom_REDIS_PORT
-              value: {{ include "iom.redis.port" . | quote }}
-            - name: iom_REDIS_PASSWORD
+            - name: mom_REDIS_HOST
+              value: {{ include "mom.redis.host" . | quote }}
+            - name: mom_REDIS_PORT
+              value: {{ include "mom.redis.port" . | quote }}
+            - name: mom_REDIS_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: {{ include "iom.fullname" . }}-secrets
+                  name: {{ include "mom.fullname" . }}-secrets
                   key: redis-password
-            - name: iom_REDIS_DB
+            - name: mom_REDIS_DB
               {{- if .Values.redis.enabled }}
               value: "0"
               {{- else }}
@@ -132,10 +132,10 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ include "iom.fullname" . }}-backend
+  name: {{ include "mom.fullname" . }}-backend
   namespace: {{ .Release.Namespace }}
   labels:
-    {{- include "iom.backend.labels" . | nindent 4 }}
+    {{- include "mom.backend.labels" . | nindent 4 }}
 spec:
   type: {{ .Values.backend.service.type }}
   ports:
@@ -144,4 +144,4 @@ spec:
       protocol: TCP
       name: http
   selector:
-    {{- include "iom.backend.selectorLabels" . | nindent 4 }}
+    {{- include "mom.backend.selectorLabels" . | nindent 4 }}

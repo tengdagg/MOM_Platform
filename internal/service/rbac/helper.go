@@ -24,8 +24,8 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	appError "github.com/ydcloud-dy/iom/pkg/error"
-	"github.com/ydcloud-dy/iom/pkg/response"
+	appError "github.com/ydcloud-dy/mom/pkg/error"
+	"github.com/ydcloud-dy/mom/pkg/response"
 )
 
 // ErrorResponse 错误响应辅助函数

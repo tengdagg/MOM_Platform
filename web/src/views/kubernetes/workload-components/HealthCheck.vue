@@ -168,7 +168,7 @@ const handleStartupChange = (enabled: boolean) => {
 .probe-item {
   background: #f8f9fa;
   border: 1px solid #e4e7ed;
-  border-radius: 8px;
+  border-radius: 0;
   padding: 20px;
   transition: all 0.3s;
 }

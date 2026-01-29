@@ -464,7 +464,7 @@ defineExpose({
 /* 基本信息区域 */
 .info-section {
   background: #fff;
-  border-radius: 8px;
+  border-radius: 0;
   padding: 20px;
   margin-bottom: 20px;
   border: 1px solid #e8e8e8;
@@ -548,7 +548,7 @@ defineExpose({
 
 .annotations-container {
   background: #f5f7fa;
-  border-radius: 6px;
+  border-radius: 0;
   padding: 12px;
   max-height: 120px;
   overflow-y: auto;
@@ -589,7 +589,7 @@ defineExpose({
 /* Tab区域 */
 .detail-tabs {
   background: #fff;
-  border-radius: 8px;
+  border-radius: 0;
   padding: 16px;
   border: 1px solid #e8e8e8;
 }
@@ -625,7 +625,7 @@ defineExpose({
 }
 
 .name-icon {
-  color: #d4af37;
+  color: #ffffff;
   font-size: 16px;
 }
 
@@ -649,7 +649,7 @@ defineExpose({
 }
 
 .action-btn {
-  color: #d4af37;
+  color: #ffffff;
 }
 
 .action-btn:hover {

@@ -29,7 +29,7 @@ import (
 	"io"
 	"time"
 
-	"github.com/ydcloud-dy/iom/internal/biz/asset"
+	"github.com/ydcloud-dy/mom/internal/biz/asset"
 	"gorm.io/gorm"
 )
 
@@ -184,7 +184,7 @@ type credentialRepo struct {
 // NewCredentialRepo 创建凭证仓库
 func NewCredentialRepo(db *gorm.DB) asset.CredentialRepo {
 	// AES-256要求密钥长度必须是32字节（256位）
-	encryptionKey := []byte("iom-encrypt-key-32bytes-long!!@@")
+	encryptionKey := []byte("mom-encrypt-key-32bytes-long!!@@")
 	return &credentialRepo{
 		db:            db,
 		encryptionKey: encryptionKey,

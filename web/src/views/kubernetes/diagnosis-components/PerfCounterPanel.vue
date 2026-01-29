@@ -322,7 +322,7 @@ watch(searchText, () => {
 /* 表格 */
 .table-section {
   background: #fff;
-  border-radius: 6px;
+  border-radius: 0;
   border: 1px solid #ebeef5;
   overflow: hidden;
 }
@@ -365,7 +365,7 @@ watch(searchText, () => {
   background: #1e1e1e;
   max-height: 300px;
   overflow: auto;
-  border-radius: 4px;
+  border-radius: 0;
 }
 
 .output-content pre {

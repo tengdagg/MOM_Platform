@@ -32,8 +32,8 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 
-	"github.com/ydcloud-dy/iom/plugins/kubernetes/data/models"
-	"github.com/ydcloud-dy/iom/plugins/kubernetes/data/repository"
+	"github.com/ydcloud-dy/mom/plugins/kubernetes/data/models"
+	"github.com/ydcloud-dy/mom/plugins/kubernetes/data/repository"
 )
 
 // ClusterBiz 集群业务逻辑层
@@ -252,7 +252,7 @@ func (b *ClusterBiz) GetClusterClientset(ctx context.Context, id uint) (*kuberne
 }
 
 // 加密密钥（实际生产环境应该从配置中心获取）
-const encryptionKey = "iom-k8s-encrypt-key-32byte!!@@!!"
+const encryptionKey = "mom-k8s-encrypt-key-32byte!!@@!!"
 
 // encryptKubeConfig 加密 kubeconfig
 func encryptKubeConfig(plainText string) (string, error) {

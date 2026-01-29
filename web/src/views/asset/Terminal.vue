@@ -653,7 +653,7 @@ onBeforeUnmount(() => {
   background: #3c3c3c;
   border: 1px solid #4e4e4e;
   box-shadow: none;
-  border-radius: 6px;
+  border-radius: 0;
 }
 
 .search-input :deep(.el-input__wrapper:hover) {
@@ -692,7 +692,7 @@ onBeforeUnmount(() => {
 
 .sidebar-content::-webkit-scrollbar-thumb {
   background: #4e4e4e;
-  border-radius: 4px;
+  border-radius: 0;
 }
 
 .sidebar-content::-webkit-scrollbar-thumb:hover {
@@ -709,7 +709,7 @@ onBeforeUnmount(() => {
   height: auto;
   padding: 4px 0;
   background: transparent;
-  border-radius: 4px;
+  border-radius: 0;
   transition: background-color 0.2s ease;
 }
 
@@ -727,7 +727,7 @@ onBeforeUnmount(() => {
   gap: 8px;
   flex: 1;
   padding: 4px 8px;
-  border-radius: 4px;
+  border-radius: 0;
 }
 
 .node-icon {
@@ -829,7 +829,7 @@ onBeforeUnmount(() => {
   height: 36px;
   line-height: 34px;
   margin-right: 4px;
-  border-radius: 6px 6px 0 0;
+  border-radius: 0;
   background: #3c3c3c;
   transition: all 0.2s ease;
   font-size: 12px;

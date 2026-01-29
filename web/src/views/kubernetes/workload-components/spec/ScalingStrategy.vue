@@ -176,7 +176,7 @@ watch(() => props.formData, (newVal) => {
   margin: 0 !important;
   padding: 12px 24px;
   border: 1px solid #e4e7ed;
-  border-radius: 6px;
+  border-radius: 0;
   background: #fff;
   transition: all 0.3s;
   display: flex;
@@ -251,7 +251,7 @@ watch(() => props.formData, (newVal) => {
 }
 
 .grid-input :deep(.el-input__wrapper) {
-  border-radius: 6px;
+  border-radius: 0;
   border: 1px solid #e4e7ed;
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
   transition: all 0.3s;

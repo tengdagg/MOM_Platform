@@ -20,7 +20,7 @@
 package repository
 
 import (
-	"github.com/ydcloud-dy/iom/plugins/monitor/model"
+	"github.com/ydcloud-dy/mom/plugins/monitor/model"
 	"gorm.io/gorm"
 )
 

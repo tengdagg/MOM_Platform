@@ -329,7 +329,7 @@ watch(() => props.attached, (newVal) => {
 .info-card {
   background: #fff;
   border: 1px solid #ebeef5;
-  border-radius: 8px;
+  border-radius: 0;
   overflow: hidden;
 }
 
@@ -399,7 +399,7 @@ watch(() => props.attached, (newVal) => {
   background: #1e1e1e;
   max-height: 300px;
   overflow: auto;
-  border-radius: 4px;
+  border-radius: 0;
 }
 
 .output-content pre {

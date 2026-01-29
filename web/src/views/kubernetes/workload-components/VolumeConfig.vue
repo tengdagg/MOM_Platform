@@ -406,7 +406,7 @@ const removeSecretItem = (volume: Volume, idx: number) => {
 <style scoped>
 .volume-panel {
   background: #ffffff;
-  border-radius: 4px;
+  border-radius: 0;
   overflow: hidden;
 }
 
@@ -432,8 +432,8 @@ const removeSecretItem = (volume: Volume, idx: number) => {
 
 .panel-header .el-button {
   background: #ffffff;
-  border: 1px solid #d4af37;
-  color: #d4af37;
+  border: none;
+  color: #ffffff;
   font-weight: 500;
 }
 
@@ -457,14 +457,14 @@ const removeSecretItem = (volume: Volume, idx: number) => {
 .volume-item {
   background: #ffffff;
   border: 1px solid #e8e8e8;
-  border-radius: 10px;
+  border-radius: 0;
   overflow: hidden;
   transition: all 0.3s ease;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 }
 
 .volume-item:hover {
-  border-color: #d4af37;
+  border-color: #ffffff;
   box-shadow: 0 4px 12px rgba(212, 175, 55, 0.15);
 }
 
@@ -536,25 +536,25 @@ const removeSecretItem = (volume: Volume, idx: number) => {
 .form-row :deep(.el-input__wrapper) {
   background: #fafafa;
   border: 1px solid #e0e0e0;
-  border-radius: 8px;
+  border-radius: 0;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
   transition: all 0.3s ease;
 }
 
 .form-row :deep(.el-input__wrapper:hover) {
-  border-color: #d4af37;
+  border-color: #ffffff;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05), 0 0 0 3px rgba(212, 175, 55, 0.1);
 }
 
 .form-row :deep(.el-input__wrapper.is-focus) {
-  border-color: #d4af37;
+  border-color: #ffffff;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05), 0 0 0 4px rgba(212, 175, 55, 0.15);
 }
 
 .form-row :deep(.el-select .el-input__wrapper) {
   background: #fafafa;
   border: 1px solid #e0e0e0;
-  border-radius: 8px;
+  border-radius: 0;
 }
 
 .select-with-refresh {
@@ -575,12 +575,12 @@ const removeSecretItem = (volume: Volume, idx: number) => {
   gap: 10px;
   padding: 10px;
   background: #fafafa;
-  border-radius: 8px;
+  border-radius: 0;
   border: 1px solid #e8e8e8;
 }
 
 .arrow {
-  color: #d4af37;
+  color: #ffffff;
   font-weight: 600;
   font-size: 16px;
 }
@@ -591,12 +591,12 @@ const removeSecretItem = (volume: Volume, idx: number) => {
   color: #999;
   font-size: 13px;
   background: #fafafa;
-  border-radius: 8px;
+  border-radius: 0;
   border: 1px dashed #e0e0e0;
 }
 
 .form-row :deep(.el-switch) {
-  --el-switch-on-color: #d4af37;
+  --el-switch-on-color: #ffffff;
 }
 
 .empty-tip {
@@ -605,7 +605,7 @@ const removeSecretItem = (volume: Volume, idx: number) => {
   color: #999;
   font-size: 14px;
   background: #fafafa;
-  border-radius: 10px;
+  border-radius: 0;
   border: 1px dashed #e0e0e0;
 }
 </style>

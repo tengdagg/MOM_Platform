@@ -723,7 +723,7 @@ onMounted(() => {
 
   .header-content {
     background: #fff;
-    border-radius: 12px;
+    border-radius: 0;
     padding: 24px;
     box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
   }
@@ -738,7 +738,7 @@ onMounted(() => {
       font-weight: 500;
       padding: 12px 24px;
       font-size: 14px;
-      border-radius: 8px;
+      border-radius: 0;
       transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
       display: inline-flex;
       align-items: center;
@@ -792,7 +792,7 @@ onMounted(() => {
     .status-tag {
       font-size: 14px;
       padding: 8px 16px;
-      border-radius: 20px;
+      border-radius: 0;
     }
   }
 
@@ -825,7 +825,7 @@ onMounted(() => {
   .stat-card {
     position: relative;
     background: #fff;
-    border-radius: 12px;
+    border-radius: 0;
     padding: 24px;
     display: flex;
     align-items: center;
@@ -853,7 +853,7 @@ onMounted(() => {
     .stat-icon-wrapper {
       width: 64px;
       height: 64px;
-      border-radius: 12px;
+      border-radius: 0;
       display: flex;
       align-items: center;
       justify-content: center;
@@ -893,7 +893,7 @@ onMounted(() => {
 
 /* 卡片通用样式 */
 .modern-card {
-  border-radius: 12px;
+  border-radius: 0;
   border: none;
   margin-bottom: 20px;
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
@@ -934,7 +934,7 @@ onMounted(() => {
       color: #909399;
       background: #f5f7fa;
       padding: 4px 12px;
-      border-radius: 12px;
+      border-radius: 0;
     }
   }
 }
@@ -958,14 +958,14 @@ onMounted(() => {
 
   .search-button {
     background-color: #0a466a;
-    color: #d4af37;
-    border: 1px solid #d4af37;
-    border-radius: 8px;
+    color: #ffffff;
+    border: none;
+    border-radius: 0;
     padding: 10px 20px;
     font-weight: 500;
 
     &:hover {
-      background-color: #d4af37;
+      background-color: #ffffff;
       color: #000;
     }
   }
@@ -973,7 +973,7 @@ onMounted(() => {
 
 /* 节点名称链接样式 */
 .node-name-link {
-  color: #d4af37;
+  color: #ffffff;
   font-weight: 500;
   cursor: pointer;
 }
@@ -1031,7 +1031,7 @@ onMounted(() => {
       .detail-text {
         padding: 4px 12px;
         background: #f5f7fa;
-        border-radius: 4px;
+        border-radius: 0;
       }
     }
   }
@@ -1082,7 +1082,7 @@ onMounted(() => {
     gap: 6px;
     padding: 12px;
     background: #f5f7fa;
-    border-radius: 8px;
+    border-radius: 0;
 
     &.full-width {
       grid-column: 1 / -1;
@@ -1131,7 +1131,7 @@ onMounted(() => {
       background: linear-gradient(135deg, #0a466a 0%, #083a56 100%);
       color: #D4AF37;
       padding: 16px;
-      border-radius: 8px;
+      border-radius: 0;
       transition: all 0.3s;
       border: 1px solid rgba(212, 175, 55, 0.2);
 
@@ -1165,7 +1165,7 @@ onMounted(() => {
       align-items: center;
       padding: 16px;
       background: #fafafa;
-      border-radius: 8px;
+      border-radius: 0;
       border-left: 3px solid #D4AF37;
       transition: all 0.3s;
 
@@ -1210,7 +1210,7 @@ onMounted(() => {
       align-items: center;
       padding: 16px;
       background: #fafafa;
-      border-radius: 8px;
+      border-radius: 0;
       border-left: 3px solid #D4AF37;
       transition: all 0.3s;
 

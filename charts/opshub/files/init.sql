@@ -17,9 +17,9 @@
 -- IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 -- CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
--- iom Database Initialization Script
+-- mom Database Initialization Script
 -- 创建数据库的所有必要表和初始化数据
--- 执行前请确保数据库已创建: CREATE DATABASE iom CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+-- 执行前请确保数据库已创建: CREATE DATABASE mom CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 SET NAMES utf8mb4;
 SET FOREIGN_KEY_CHECKS = 0;
@@ -806,7 +806,7 @@ SET FOREIGN_KEY_CHECKS = 1;
 -- 密码: 123456
 -- 警告: 生产环境请立即修改默认密码!
 INSERT INTO `sys_user` (`id`, `username`, `password`, `real_name`, `email`, `status`, `department_id`, `created_at`, `updated_at`)
-VALUES (1, 'admin', '$2a$10$RLkgoedTSa0dYj3ujbXMcunSED3c6GLvfdKYsmpz0l0YFZbVrSBqW', '系统管理员', 'admin@iom.io', 1, 1, NOW(), NOW());
+VALUES (1, 'admin', '$2a$10$RLkgoedTSa0dYj3ujbXMcunSED3c6GLvfdKYsmpz0l0YFZbVrSBqW', '系统管理员', 'admin@mom.io', 1, 1, NOW(), NOW());
 
 -- 关联admin用户到admin角色
 INSERT INTO `sys_user_role` (`user_id`, `role_id`) VALUES (1, 1);

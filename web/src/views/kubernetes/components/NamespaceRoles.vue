@@ -276,7 +276,7 @@ defineExpose({
     margin-bottom: 20px;
     padding: 16px;
     background: #f5f5f5;
-    border-radius: 8px;
+    border-radius: 0;
   }
 
   .role-name-link {

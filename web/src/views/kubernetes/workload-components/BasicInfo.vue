@@ -110,7 +110,7 @@ const emit = defineEmits<{
 <style scoped>
 .info-panel {
   background: #ffffff;
-  border-radius: 12px;
+  border-radius: 0;
   border: 1px solid #e8e8e8;
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
   overflow: hidden;
@@ -140,7 +140,7 @@ const emit = defineEmits<{
   width: 36px;
   height: 36px;
   background: #d4af37;
-  border-radius: 8px;
+  border-radius: 0;
   color: #ffffff;
   box-shadow: 0 2px 8px rgba(212, 175, 55, 0.3);
 }
@@ -174,18 +174,18 @@ const emit = defineEmits<{
 .form-row .el-input :deep(.el-input__wrapper) {
   background: #fafafa;
   border: 1px solid #e0e0e0;
-  border-radius: 8px;
+  border-radius: 0;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
   transition: all 0.3s ease;
 }
 
 .form-row .el-input :deep(.el-input__wrapper:hover) {
-  border-color: #d4af37;
+  border-color: #ffffff;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05), 0 0 0 3px rgba(212, 175, 55, 0.1);
 }
 
 .form-row .el-input :deep(.el-input__wrapper.is-focus) {
-  border-color: #d4af37;
+  border-color: #ffffff;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05), 0 0 0 4px rgba(212, 175, 55, 0.15);
 }
 
@@ -196,7 +196,7 @@ const emit = defineEmits<{
 .form-row .el-input-number :deep(.el-input__wrapper) {
   background: #fafafa;
   border: 1px solid #e0e0e0;
-  border-radius: 8px;
+  border-radius: 0;
 }
 
 .form-tip {
@@ -210,7 +210,7 @@ const emit = defineEmits<{
   margin-bottom: 24px;
   padding: 16px;
   background: linear-gradient(135deg, #fafafa 0%, #f5f5f5 100%);
-  border-radius: 10px;
+  border-radius: 0;
   border: 1px solid #e8e8e8;
 }
 
@@ -252,13 +252,13 @@ const emit = defineEmits<{
   gap: 10px;
   padding: 10px;
   background: #ffffff;
-  border-radius: 8px;
+  border-radius: 0;
   border: 1px solid #e8e8e8;
   transition: all 0.3s ease;
 }
 
 .key-value-row:hover {
-  border-color: #d4af37;
+  border-color: #ffffff;
   box-shadow: 0 2px 8px rgba(212, 175, 55, 0.15);
 }
 
@@ -273,7 +273,7 @@ const emit = defineEmits<{
 }
 
 .separator {
-  color: #d4af37;
+  color: #ffffff;
   font-weight: 600;
   font-size: 16px;
 }
@@ -284,7 +284,7 @@ const emit = defineEmits<{
   color: #999;
   font-size: 13px;
   background: #ffffff;
-  border-radius: 8px;
+  border-radius: 0;
   border: 1px dashed #e0e0e0;
 }
 </style>

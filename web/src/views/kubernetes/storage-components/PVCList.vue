@@ -448,7 +448,7 @@ defineExpose({
   background-color: #0a466a !important;
   color: #ffffff !important;
   border-color: #0a466a !important;
-  border-radius: 8px;
+  border-radius: 0;
   font-weight: 500;
 }
 
@@ -465,7 +465,7 @@ defineExpose({
   margin-bottom: 12px;
   padding: 12px 20px;
   background: #fff;
-  border-radius: 8px;
+  border-radius: 0;
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
 }
 
@@ -489,12 +489,12 @@ defineExpose({
 }
 
 .search-icon {
-  color: #d4af37;
+  color: #ffffff;
 }
 
 .table-wrapper {
   background: #fff;
-  border-radius: 8px;
+  border-radius: 0;
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
 }
 
@@ -507,15 +507,15 @@ defineExpose({
 .name-icon {
   width: 36px;
   height: 36px;
-  background: linear-gradient(135deg, #000 0%, #1a1a1a 100%);
-  border-radius: 8px;
+  background: #0a466a;
+  border-radius: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #d4af37;
+  color: #ffffff;
   font-size: 18px;
   flex-shrink: 0;
-  border: 1px solid #d4af37;
+  border: none;
 }
 
 .name-text {
@@ -535,7 +535,7 @@ defineExpose({
 }
 
 .header-icon-blue {
-  color: #d4af37;
+  color: #ffffff;
 }
 
 .namespace-text {
@@ -547,7 +547,7 @@ defineExpose({
   font-size: 12px;
   padding: 2px 6px;
   background: #f0f0f0;
-  border-radius: 3px;
+  border-radius: 0;
   color: #606266;
   margin-bottom: 4px;
   display: inline-block;
@@ -561,7 +561,7 @@ defineExpose({
 }
 
 .action-btn {
-  color: #d4af37;
+  color: #ffffff;
   transition: all 0.3s;
 }
 
@@ -579,8 +579,8 @@ defineExpose({
 
 .yaml-editor-wrapper {
   display: flex;
-  border: 1px solid #d4af37;
-  border-radius: 6px;
+  border: none;
+  border-radius: 0;
   overflow: hidden;
   background-color: #000000;
 }
@@ -607,7 +607,7 @@ defineExpose({
 .yaml-textarea {
   flex: 1;
   background-color: #000000;
-  color: #d4af37;
+  color: #ffffff;
   border: none;
   outline: none;
   padding: 16px;

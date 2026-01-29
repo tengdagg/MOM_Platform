@@ -10,7 +10,7 @@ database:
   driver: mysql
   host: 172.20.200.28
   port: 4000
-  database: iom_platform
+  database: mom_platform
   username: root
   password: "Telling123pass"
   max_idle_conns: 10

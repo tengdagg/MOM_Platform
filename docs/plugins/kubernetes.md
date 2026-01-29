@@ -10,7 +10,7 @@
 
 ## 概述
 
-Kubernetes 插件是 iom 的核心插件，提供完整的多集群 Kubernetes 管理能力，支持集群管理、工作负载、网络配置、存储管理、终端审计、应用诊断等功能。
+Kubernetes 插件是 mom 的核心插件，提供完整的多集群 Kubernetes 管理能力，支持集群管理、工作负载、网络配置、存储管理、终端审计、应用诊断等功能。
 
 ---
 
@@ -124,7 +124,7 @@ Kubernetes 插件是 iom 的核心插件，提供完整的多集群 Kubernetes �
 
 ### 通过管理界面启用
 
-1. 登录 iom 系统
+1. 登录 mom 系统
 2. 进入「插件管理」-「插件列表」
 3. 找到「Kubernetes」插件
 4. 点击「启用」按钮
@@ -325,5 +325,5 @@ kubectl --kubeconfig=/path/to/config cluster-info
 - [Kubernetes 官方文档](https://kubernetes.io/docs/)
 - [kubectl 命令参考](https://kubernetes.io/docs/reference/kubectl/)
 - [Arthas 用户指南](https://arthas.aliyun.com/doc/)
-- [iom 主文档](../../README.md)
+- [mom 主文档](../../README.md)
 - [部署指南](../deployment.md)

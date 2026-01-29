@@ -203,7 +203,7 @@ const getSchedulingTypeLabel = (type: string) => {
   margin: 0 !important;
   padding: 12px 24px;
   border: 1px solid #e4e7ed;
-  border-radius: 6px;
+  border-radius: 0;
   background: #fff;
   transition: all 0.3s;
   display: flex;
@@ -264,7 +264,7 @@ const getSchedulingTypeLabel = (type: string) => {
 .match-rule-item {
   background: #f8f9fa;
   border: 1px solid #e4e7ed;
-  border-radius: 8px;
+  border-radius: 0;
   padding: 20px;
   transition: all 0.3s;
 }

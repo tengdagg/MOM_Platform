@@ -512,7 +512,7 @@ onMounted(() => {
 .page-header {
   padding: 16px 20px;
   background: #fff;
-  border-radius: 8px;
+  border-radius: 0;
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
 }
 
@@ -525,13 +525,13 @@ onMounted(() => {
 .page-title-icon {
   width: 48px;
   height: 48px;
-  border-radius: 10px;
-  background: linear-gradient(135deg, #000 0%, #1a1a1a 100%);
-  border: 1px solid #d4af37;
+  border-radius: 0;
+  background: #0a466a;
+  border: none;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #d4af37;
+  color: #ffffff;
   font-size: 22px;
   flex-shrink: 0;
 }
@@ -553,7 +553,7 @@ onMounted(() => {
 
 .search-card {
   background: #fff;
-  border-radius: 8px;
+  border-radius: 0;
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
   padding: 20px;
 }
@@ -579,7 +579,7 @@ onMounted(() => {
 
 .template-list-card {
   background: #fff;
-  border-radius: 8px;
+  border-radius: 0;
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
   flex: 1;
   display: flex;

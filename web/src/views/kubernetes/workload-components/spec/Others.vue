@@ -103,7 +103,7 @@ const props = defineProps<{
 
 .info-panel {
   background: #fff;
-  border-radius: 4px;
+  border-radius: 0;
   overflow: hidden;
 }
 
@@ -164,7 +164,7 @@ const props = defineProps<{
 .config-form-section {
   padding: 20px;
   background: #f8f9fa;
-  border-radius: 8px;
+  border-radius: 0;
   border: 1px solid #e4e7ed;
 }
 

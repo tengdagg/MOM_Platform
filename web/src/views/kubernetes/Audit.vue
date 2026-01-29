@@ -406,7 +406,7 @@ onMounted(() => {
   margin-bottom: 16px;
   padding: 16px 20px;
   background: #fff;
-  border-radius: 8px;
+  border-radius: 0;
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
 }
 
@@ -419,15 +419,15 @@ onMounted(() => {
 .page-title-icon {
   width: 48px;
   height: 48px;
-  background: linear-gradient(135deg, #000 0%, #1a1a1a 100%);
-  border-radius: 10px;
+  background: #0a466a;
+  border-radius: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #d4af37;
+  color: #ffffff;
   font-size: 22px;
   flex-shrink: 0;
-  border: 1px solid #d4af37;
+  border: none;
 }
 
 .page-title {
@@ -455,7 +455,7 @@ onMounted(() => {
   background-color: #0a466a !important;
   color: #ffffff !important;
   border-color: #0a466a !important;
-  border-radius: 8px;
+  border-radius: 0;
   padding: 10px 20px;
   font-weight: 500;
 }
@@ -470,7 +470,7 @@ onMounted(() => {
   margin-bottom: 16px;
   padding: 12px 16px;
   background: #fff;
-  border-radius: 8px;
+  border-radius: 0;
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
   display: flex;
   gap: 16px;
@@ -481,13 +481,13 @@ onMounted(() => {
 }
 
 .search-icon {
-  color: #d4af37;
+  color: #ffffff;
 }
 
 /* 表格容器 */
 .table-wrapper {
   background: #fff;
-  border-radius: 12px;
+  border-radius: 0;
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
   overflow: hidden;
 }
@@ -497,7 +497,7 @@ onMounted(() => {
 }
 
 .modern-table :deep(.el-table__body-wrapper) {
-  border-radius: 0 0 12px 12px;
+  border-radius: 0;
 }
 
 .modern-table :deep(.el-table__row) {
@@ -526,13 +526,13 @@ onMounted(() => {
 }
 
 .cluster-icon, .pod-icon, .user-icon {
-  color: #d4af37;
+  color: #ffffff;
   font-size: 16px;
 }
 
 .pod-name {
   font-weight: 600;
-  color: #d4af37;
+  color: #ffffff;
 }
 
 .duration-text {
@@ -549,7 +549,7 @@ onMounted(() => {
 }
 
 .action-btn {
-  color: #d4af37;
+  color: #ffffff;
   padding: 4px;
 }
 
@@ -577,13 +577,13 @@ onMounted(() => {
 /* 播放弹窗 */
 .play-dialog :deep(.el-dialog__header) {
   background: linear-gradient(135deg, #0a466a 0%, #0d5a87 100%);
-  color: #d4af37;
-  border-radius: 8px 8px 0 0;
+  color: #ffffff;
+  border-radius: 0;
   padding: 20px 24px;
 }
 
 .play-dialog :deep(.el-dialog__title) {
-  color: #d4af37;
+  color: #ffffff;
   font-size: 16px;
   font-weight: 600;
 }
@@ -605,8 +605,8 @@ onMounted(() => {
   gap: 20px;
   padding: 20px;
   background: rgba(255, 255, 255, 0.95);
-  border-radius: 8px;
-  border: 1px solid #d4af37;
+  border-radius: 0;
+  border: none;
 }
 
 .info-item {
@@ -616,7 +616,7 @@ onMounted(() => {
 }
 
 .info-label {
-  color: #d4af37;
+  color: #ffffff;
   font-weight: 600;
   font-size: 15px;
   min-width: 60px;
@@ -630,8 +630,8 @@ onMounted(() => {
 
 .player-wrapper {
   background: #000;
-  border-radius: 8px;
-  border: 1px solid #d4af37;
+  border-radius: 0;
+  border: none;
   overflow: hidden;
   min-height: 400px;
   aspect-ratio: 16/9;

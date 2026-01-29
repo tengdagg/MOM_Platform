@@ -29,8 +29,8 @@ import (
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 
-	"github.com/ydcloud-dy/iom/plugins/kubernetes/data/models"
-	"github.com/ydcloud-dy/iom/plugins/kubernetes/service"
+	"github.com/ydcloud-dy/mom/plugins/kubernetes/data/models"
+	"github.com/ydcloud-dy/mom/plugins/kubernetes/service"
 )
 
 // ClusterHandler 集群 HTTP 处理器
@@ -434,9 +434,9 @@ func (h *ClusterHandler) RevokeKubeConfig(c *gin.Context) {
 	}
 
 	// 确保请求的用户名与当前登录用户匹配
-	// req.Username 应该是完整的 ServiceAccount 名称（如 iom-dujie-45h2d）
+	// req.Username 应该是完整的 ServiceAccount 名称（如 mom-dujie-45h2d）
 	// 我们需要验证这个 ServiceAccount 是否属于当前用户
-	expectedPrefix := "iom-" + username.(string)
+	expectedPrefix := "mom-" + username.(string)
 	if !strings.HasPrefix(req.Username, expectedPrefix) {
 		c.JSON(http.StatusForbidden, gin.H{
 			"code":    403,

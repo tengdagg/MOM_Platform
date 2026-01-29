@@ -32,8 +32,8 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
 	"golang.org/x/crypto/ssh"
-	assetbiz "github.com/ydcloud-dy/iom/internal/biz/asset"
-	appLogger "github.com/ydcloud-dy/iom/pkg/logger"
+	assetbiz "github.com/ydcloud-dy/mom/internal/biz/asset"
+	appLogger "github.com/ydcloud-dy/mom/pkg/logger"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
 )

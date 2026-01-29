@@ -300,7 +300,7 @@ const handleBackToList = () => {
   align-items: flex-start;
   padding: 16px 20px;
   background: #fff;
-  border-radius: 8px;
+  border-radius: 0;
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
 }
 
@@ -313,13 +313,13 @@ const handleBackToList = () => {
 .page-title-icon {
   width: 48px;
   height: 48px;
-  border-radius: 10px;
-  background: linear-gradient(135deg, #000 0%, #1a1a1a 100%);
-  border: 1px solid #d4af37;
+  border-radius: 0;
+  background: #0a466a;
+  border: none;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #d4af37;
+  color: #ffffff;
   font-size: 22px;
   flex-shrink: 0;
 }
@@ -343,7 +343,7 @@ const handleBackToList = () => {
 .upload-panel,
 .log-panel {
   background: #fff;
-  border-radius: 8px;
+  border-radius: 0;
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
   overflow: hidden;
 
@@ -426,7 +426,7 @@ const handleBackToList = () => {
     :deep(.el-upload-dragger) {
       padding: 60px 40px;
       border: 2px dashed #dcdfe6;
-      border-radius: 8px;
+      border-radius: 0;
       background: #fafafa;
       transition: all 0.3s;
 
@@ -469,7 +469,7 @@ const handleBackToList = () => {
   .file-info-card {
     padding: 16px;
     background: #f0f9ff;
-    border-radius: 8px;
+    border-radius: 0;
     border: 1px solid #b3d8ff;
 
     .file-info-header {
@@ -528,7 +528,7 @@ const handleBackToList = () => {
   .log-item {
     padding: 10px 12px;
     margin-bottom: 8px;
-    border-radius: 4px;
+    border-radius: 0;
     font-size: 13px;
     display: flex;
     gap: 12px;

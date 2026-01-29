@@ -987,7 +987,7 @@ onMounted(() => {
   margin-bottom: 16px;
   padding: 16px 20px;
   background: #fff;
-  border-radius: 8px;
+  border-radius: 0;
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
 }
 
@@ -1000,15 +1000,15 @@ onMounted(() => {
 .page-title-icon {
   width: 48px;
   height: 48px;
-  background: linear-gradient(135deg, #000 0%, #1a1a1a 100%);
-  border-radius: 10px;
+  background: #0a466a;
+  border-radius: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #d4af37;
+  color: #ffffff;
   font-size: 22px;
   flex-shrink: 0;
-  border: 1px solid #d4af37;
+  border: none;
 }
 
 .page-title {
@@ -1040,7 +1040,7 @@ onMounted(() => {
   background-color: #0a466a !important;
   color: #ffffff !important;
   border-color: #0a466a !important;
-  border-radius: 8px;
+  border-radius: 0;
   padding: 10px 20px;
   font-weight: 500;
 }
@@ -1058,7 +1058,7 @@ onMounted(() => {
 .progress-card {
   padding: 24px;
   background: #fff;
-  border-radius: 8px;
+  border-radius: 0;
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
 }
 
@@ -1081,7 +1081,7 @@ onMounted(() => {
   width: 32px;
   height: 32px;
   border: 3px solid #f0f0f0;
-  border-top-color: #d4af37;
+  border-top-color: #ffffff;
   border-radius: 50%;
   animation: spin 1s linear infinite;
 }
@@ -1110,13 +1110,13 @@ onMounted(() => {
 .progress-text {
   font-size: 14px;
   font-weight: 600;
-  color: #d4af37;
+  color: #ffffff;
 }
 
 /* 空状态 */
 .empty-state {
   background: #fff;
-  border-radius: 8px;
+  border-radius: 0;
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
   padding: 60px 40px;
 }
@@ -1131,12 +1131,12 @@ onMounted(() => {
   width: 100px;
   height: 100px;
   margin: 0 auto 24px;
-  background: linear-gradient(135deg, #000 0%, #1a1a1a 100%);
+  background: #0a466a;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #d4af37;
+  color: #ffffff;
   font-size: 48px;
   border: 2px solid #d4af37;
 }
@@ -1169,14 +1169,14 @@ onMounted(() => {
   gap: 8px;
   padding: 8px 16px;
   background: #f5f7fa;
-  border-radius: 20px;
+  border-radius: 0;
   font-size: 13px;
   color: #606266;
 }
 
 .feature-item .el-icon {
   font-size: 16px;
-  color: #d4af37;
+  color: #ffffff;
 }
 
 .start-btn {
@@ -1188,7 +1188,7 @@ onMounted(() => {
 /* 结果部分 */
 .result-section {
   background: #fff;
-  border-radius: 8px;
+  border-radius: 0;
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
   padding: 20px;
 }
@@ -1207,7 +1207,7 @@ onMounted(() => {
   gap: 16px;
   padding: 16px;
   background: #f8f9fa;
-  border-radius: 8px;
+  border-radius: 0;
   transition: all 0.3s ease;
 }
 
@@ -1220,7 +1220,7 @@ onMounted(() => {
   grid-row: span 1;
   justify-content: center;
   padding: 20px;
-  background: linear-gradient(135deg, #000 0%, #1a1a1a 100%);
+  background: #0a466a;
 }
 
 .score-circle {
@@ -1283,7 +1283,7 @@ onMounted(() => {
 .stat-icon {
   width: 48px;
   height: 48px;
-  border-radius: 10px;
+  border-radius: 0;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1298,8 +1298,8 @@ onMounted(() => {
 
 .stat-icon-blue {
   background: linear-gradient(135deg, #0a466a 0%, #0d5a87 100%);
-  color: #d4af37;
-  border: 1px solid #d4af37;
+  color: #ffffff;
+  border: none;
 }
 
 .stat-icon-green {
@@ -1360,11 +1360,11 @@ onMounted(() => {
   }
 
   :deep(.el-tabs__item.is-active) {
-    color: #d4af37;
+    color: #ffffff;
   }
 
   :deep(.el-tabs__active-bar) {
-    background-color: #d4af37;
+    background-color: #ffffff;
   }
 }
 
@@ -1379,7 +1379,7 @@ onMounted(() => {
   margin-bottom: 24px;
   padding: 20px;
   background: #f5f7fa;
-  border-radius: 8px;
+  border-radius: 0;
 }
 
 .summary-item {
@@ -1427,7 +1427,7 @@ onMounted(() => {
   margin-bottom: 24px;
   padding: 16px;
   background: #f5f7fa;
-  border-radius: 8px;
+  border-radius: 0;
 }
 
 .info-item {

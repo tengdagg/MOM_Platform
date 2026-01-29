@@ -529,7 +529,7 @@ onMounted(async () => {
   margin-bottom: 12px;
   padding: 16px 20px;
   background: #fff;
-  border-radius: 8px;
+  border-radius: 0;
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
 }
 
@@ -542,15 +542,15 @@ onMounted(async () => {
 .page-title-icon {
   width: 48px;
   height: 48px;
-  background: linear-gradient(135deg, #000 0%, #1a1a1a 100%);
-  border-radius: 10px;
+  background: #0a466a;
+  border-radius: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #d4af37;
+  color: #ffffff;
   font-size: 22px;
   flex-shrink: 0;
-  border: 1px solid #d4af37;
+  border: none;
 }
 
 .page-title {
@@ -573,7 +573,7 @@ onMounted(async () => {
   margin-bottom: 12px;
   padding: 16px 20px;
   background: #fff;
-  border-radius: 8px;
+  border-radius: 0;
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
   display: flex;
   justify-content: space-between;
@@ -617,9 +617,9 @@ onMounted(async () => {
 }
 
 .attach-btn {
-  background: linear-gradient(135deg, #000 0%, #1a1a1a 100%);
-  border-color: #d4af37;
-  color: #d4af37;
+  background: #0a466a;
+  border-color: #ffffff;
+  color: #ffffff;
 }
 
 .attach-btn:hover {
@@ -636,7 +636,7 @@ onMounted(async () => {
 
 /* 选择器样式 */
 .selector-bar :deep(.el-select .el-input__wrapper) {
-  border-radius: 6px;
+  border-radius: 0;
   border: 1px solid #dcdfe6;
   box-shadow: none;
   transition: all 0.3s ease;
@@ -644,18 +644,18 @@ onMounted(async () => {
 }
 
 .selector-bar :deep(.el-select .el-input__wrapper:hover) {
-  border-color: #d4af37;
+  border-color: #ffffff;
 }
 
 .selector-bar :deep(.el-select .el-input.is-focus .el-input__wrapper) {
-  border-color: #d4af37;
+  border-color: #ffffff;
   box-shadow: 0 0 0 2px rgba(212, 175, 55, 0.15);
 }
 
 /* 内容区域 */
 .content-wrapper {
   background: #fff;
-  border-radius: 8px;
+  border-radius: 0;
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
   overflow: hidden;
 }
@@ -687,16 +687,16 @@ onMounted(async () => {
 }
 
 :deep(.diagnosis-tabs .el-tabs__item:hover) {
-  color: #d4af37;
+  color: #ffffff;
 }
 
 :deep(.diagnosis-tabs .el-tabs__item.is-active) {
-  color: #d4af37;
+  color: #ffffff;
   font-weight: 600;
 }
 
 :deep(.diagnosis-tabs .el-tabs__active-bar) {
-  background-color: #d4af37;
+  background-color: #ffffff;
   height: 3px;
 }
 

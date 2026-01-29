@@ -37,9 +37,9 @@ import (
 	"github.com/tencentcloud/tencentcloud-sdk-go/tencentcloud/common/profile"
 	"github.com/tencentcloud/tencentcloud-sdk-go/tencentcloud/cvm/v20170312"
 	"github.com/xuri/excelize/v2"
-	"github.com/ydcloud-dy/iom/pkg/collector"
-	sshclient "github.com/ydcloud-dy/iom/pkg/ssh"
-	"github.com/ydcloud-dy/iom/pkg/utils"
+	"github.com/ydcloud-dy/mom/pkg/collector"
+	sshclient "github.com/ydcloud-dy/mom/pkg/ssh"
+	"github.com/ydcloud-dy/mom/pkg/utils"
 )
 
 type HostUseCase struct {

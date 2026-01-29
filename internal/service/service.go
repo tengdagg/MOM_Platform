@@ -21,8 +21,8 @@ package service
 
 import (
 	"github.com/gin-gonic/gin"
-	"github.com/ydcloud-dy/iom/internal/biz"
-	"github.com/ydcloud-dy/iom/pkg/response"
+	"github.com/ydcloud-dy/mom/internal/biz"
+	"github.com/ydcloud-dy/mom/pkg/response"
 )
 
 // Service 服务层

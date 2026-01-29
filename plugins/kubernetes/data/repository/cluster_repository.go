@@ -30,7 +30,7 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 
-	"github.com/ydcloud-dy/iom/plugins/kubernetes/data/models"
+	"github.com/ydcloud-dy/mom/plugins/kubernetes/data/models"
 )
 
 // ClusterRepository 集群数据访问层
@@ -174,7 +174,7 @@ func (r *ClusterRepository) GetClientset(cluster *models.Cluster) (*kubernetes.C
 }
 
 // 加密密钥（必须与 biz 包中的密钥相同）
-const encryptionKey = "iom-k8s-encrypt-key-32byte!!@@!!"
+const encryptionKey = "mom-k8s-encrypt-key-32byte!!@@!!"
 
 // decryptKubeConfig 解密 kubeconfig（内部使用）
 func decryptKubeConfig(cipherText string) (string, error) {

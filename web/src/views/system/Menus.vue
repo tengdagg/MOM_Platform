@@ -323,7 +323,7 @@ const getIconComponent = (iconName: string) => {
 }
 
 // 插件菜单排序存储 key
-const PLUGIN_MENU_SORT_KEY = 'iom_plugin_menu_sort'
+const PLUGIN_MENU_SORT_KEY = 'mom_plugin_menu_sort'
 
 const menuList = ref<any[]>([])
 const menuTreeOptions = ref<any[]>([])
@@ -837,7 +837,7 @@ onMounted(() => {
   margin-bottom: 12px;
   padding: 16px 20px;
   background: #fff;
-  border-radius: 8px;
+  border-radius: 0;
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
 }
 
@@ -850,15 +850,15 @@ onMounted(() => {
 .page-title-icon {
   width: 48px;
   height: 48px;
-  background: linear-gradient(135deg, #000 0%, #1a1a1a 100%);
-  border-radius: 10px;
+  background: #0a466a;
+  border-radius: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #d4af37;
+  color: #ffffff;
   font-size: 22px;
   flex-shrink: 0;
-  border: 1px solid #d4af37;
+  border: none;
 }
 
 .page-title {
@@ -887,7 +887,7 @@ onMounted(() => {
   margin-bottom: 12px;
   padding: 12px 16px;
   background: #fff;
-  border-radius: 8px;
+  border-radius: 0;
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
   display: flex;
   justify-content: space-between;
@@ -923,7 +923,7 @@ onMounted(() => {
 
 /* 搜索框样式 */
 .search-bar :deep(.el-input__wrapper) {
-  border-radius: 8px;
+  border-radius: 0;
   border: 1px solid #dcdfe6;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
   transition: all 0.3s ease;
@@ -931,23 +931,23 @@ onMounted(() => {
 }
 
 .search-bar :deep(.el-input__wrapper:hover) {
-  border-color: #d4af37;
+  border-color: #ffffff;
   box-shadow: 0 2px 8px rgba(212, 175, 55, 0.15);
 }
 
 .search-bar :deep(.el-input__wrapper.is-focus) {
-  border-color: #d4af37;
+  border-color: #ffffff;
   box-shadow: 0 2px 12px rgba(212, 175, 55, 0.25);
 }
 
 .search-icon {
-  color: #d4af37;
+  color: #ffffff;
 }
 
 /* 表格容器 */
 .table-wrapper {
   background: #fff;
-  border-radius: 12px;
+  border-radius: 0;
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
   overflow: hidden;
 }
@@ -957,7 +957,7 @@ onMounted(() => {
 }
 
 .modern-table :deep(.el-table__body-wrapper) {
-  border-radius: 0 0 12px 12px;
+  border-radius: 0;
 }
 
 .modern-table :deep(.el-table__row) {
@@ -1007,12 +1007,12 @@ onMounted(() => {
 }
 
 .header-icon-gold {
-  color: #d4af37;
+  color: #ffffff;
 }
 
 /* 菜单类型标签 */
 .menu-type-tag {
-  border-radius: 6px;
+  border-radius: 0;
   font-size: 12px;
   padding: 4px 10px;
   font-weight: 500;
@@ -1046,7 +1046,7 @@ onMounted(() => {
 .action-btn {
   width: 32px;
   height: 32px;
-  border-radius: 6px;
+  border-radius: 0;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1080,7 +1080,7 @@ onMounted(() => {
   background-color: #0a466a !important;
   color: #ffffff !important;
   border-color: #0a466a !important;
-  border-radius: 8px;
+  border-radius: 0;
   padding: 10px 20px;
   font-weight: 500;
 }
@@ -1106,7 +1106,7 @@ onMounted(() => {
 }
 
 :deep(.menu-edit-dialog) {
-  border-radius: 12px;
+  border-radius: 0;
 }
 
 :deep(.menu-edit-dialog .el-dialog__header) {
@@ -1125,18 +1125,18 @@ onMounted(() => {
 
 /* 标签样式 */
 :deep(.el-tag) {
-  border-radius: 6px;
+  border-radius: 0;
   padding: 4px 10px;
   font-weight: 500;
 }
 
 /* 输入框样式 */
 :deep(.el-input__wrapper) {
-  border-radius: 6px;
+  border-radius: 0;
 }
 
 :deep(.el-select .el-input__wrapper) {
-  border-radius: 6px;
+  border-radius: 0;
 }
 
 :deep(.el-input-number) {

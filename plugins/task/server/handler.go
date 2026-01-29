@@ -35,9 +35,9 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/pkg/sftp"
-	assetbiz "github.com/ydcloud-dy/iom/internal/biz/asset"
-	"github.com/ydcloud-dy/iom/pkg/response"
-	"github.com/ydcloud-dy/iom/plugins/task/model"
+	assetbiz "github.com/ydcloud-dy/mom/internal/biz/asset"
+	"github.com/ydcloud-dy/mom/pkg/response"
+	"github.com/ydcloud-dy/mom/plugins/task/model"
 	"golang.org/x/crypto/ssh"
 	"gorm.io/gorm"
 )
@@ -49,7 +49,7 @@ type Handler struct {
 
 func NewHandler(db *gorm.DB) *Handler {
 	// 使用与凭证仓库相同的加密密钥
-	encryptionKey := []byte("iom-encrypt-key-32bytes-long!!@@")
+	encryptionKey := []byte("mom-encrypt-key-32bytes-long!!@@")
 	return &Handler{
 		db:            db,
 		encryptionKey: encryptionKey,

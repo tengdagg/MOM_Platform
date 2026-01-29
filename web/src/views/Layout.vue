@@ -254,7 +254,7 @@ const buildPluginMenus = async (authorizedPaths: Set<string>) => {
     enabledPluginNames = new Set(installedPlugins.map(p => p.name))
   }
 
-  const PLUGIN_MENU_SORT_KEY = 'iom_plugin_menu_sort'
+  const PLUGIN_MENU_SORT_KEY = 'mom_plugin_menu_sort'
   const customSort: Map<string, number> = (() => {
     try {
       const stored = localStorage.getItem(PLUGIN_MENU_SORT_KEY)
@@ -531,7 +531,7 @@ onMounted(async () => {
 
 .el-menu-vertical::-webkit-scrollbar-thumb {
   background-color: rgba(255, 255, 255, 0.2);
-  border-radius: 2px;
+  border-radius: 0;
 }
 
 .el-menu-vertical::-webkit-scrollbar-thumb:hover {
@@ -811,7 +811,7 @@ onMounted(async () => {
   align-items: center;
   gap: 10px;
   padding: 6px 12px;
-  border-radius: 8px;
+  border-radius: 0;
   cursor: pointer;
   transition: all 0.2s ease;
 }

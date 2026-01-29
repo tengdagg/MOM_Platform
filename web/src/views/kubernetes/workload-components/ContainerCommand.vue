@@ -159,7 +159,7 @@ const removeArg = (index: number) => {
   gap: 12px;
   padding: 18px;
   background: #ffffff;
-  border-radius: 10px;
+  border-radius: 0;
   border: 1px solid #e8e8e8;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 }
@@ -184,20 +184,20 @@ const removeArg = (index: number) => {
 .command-item .el-input :deep(.el-input__wrapper) {
   background: #fafafa;
   border: 1px solid #e0e0e0;
-  border-radius: 8px;
+  border-radius: 0;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
   transition: all 0.3s ease;
 }
 
 .command-item .el-input :deep(.el-input__wrapper:hover) {
-  border-color: #d4af37;
+  border-color: #ffffff;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05), 0 0 0 3px rgba(212, 175, 55, 0.1);
 }
 
 .command-item .el-input :deep(.el-input-group__prepend) {
   background: #f5f5f5;
   border: 1px solid #e0e0e0;
-  color: #d4af37;
+  color: #ffffff;
   font-weight: 600;
 }
 
@@ -208,7 +208,7 @@ const removeArg = (index: number) => {
 }
 
 .add-btn {
-  border-radius: 6px;
+  border-radius: 0;
   font-weight: 500;
   background: #d4af37;
   border: none;
@@ -226,7 +226,7 @@ const removeArg = (index: number) => {
   gap: 12px;
   padding: 16px;
   background: linear-gradient(135deg, #fafafa 0%, #f5f5f5 100%);
-  border-radius: 8px;
+  border-radius: 0;
   border: 1px solid #e8e8e8;
 }
 
@@ -245,6 +245,6 @@ const removeArg = (index: number) => {
 
 .checkbox-group :deep(.el-checkbox__input.is-checked .el-checkbox__inner) {
   background: #d4af37;
-  border-color: #d4af37;
+  border-color: #ffffff;
 }
 </style>

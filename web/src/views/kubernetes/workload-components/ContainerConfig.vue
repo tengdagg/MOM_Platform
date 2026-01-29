@@ -289,7 +289,7 @@ const updateContainerProbe = (type: 'containers' | 'initContainers', index: numb
 
 .container-section {
   background: #ffffff;
-  border-radius: 4px;
+  border-radius: 0;
   overflow: hidden;
 }
 
@@ -311,10 +311,10 @@ const updateContainerProbe = (type: 'containers' | 'initContainers', index: numb
 
 .section-header .el-button {
   font-weight: 500;
-  border-radius: 8px;
+  border-radius: 0;
   background: #ffffff;
-  border: 1px solid #d4af37;
-  color: #d4af37;
+  border: none;
+  color: #ffffff;
 }
 
 .section-header .el-button:hover {
@@ -336,7 +336,7 @@ const updateContainerProbe = (type: 'containers' | 'initContainers', index: numb
 }
 
 .container-title .el-icon {
-  color: #d4af37;
+  color: #ffffff;
   font-size: 18px;
 }
 
@@ -357,7 +357,7 @@ const updateContainerProbe = (type: 'containers' | 'initContainers', index: numb
 
 .container-detail :deep(.el-tabs__header) {
   background: #ffffff;
-  border-radius: 8px;
+  border-radius: 0;
   margin-bottom: 16px;
   border: 1px solid #e8e8e8;
 }
@@ -377,11 +377,11 @@ const updateContainerProbe = (type: 'containers' | 'initContainers', index: numb
 }
 
 .container-detail :deep(.el-tabs__item:hover) {
-  color: #d4af37;
+  color: #ffffff;
 }
 
 .container-detail :deep(.el-tabs__item.is-active) {
-  color: #d4af37;
+  color: #ffffff;
   background: transparent;
 }
 
@@ -396,7 +396,7 @@ const updateContainerProbe = (type: 'containers' | 'initContainers', index: numb
 
 .container-detail :deep(.el-collapse-item__header) {
   background: #ffffff;
-  border-radius: 8px;
+  border-radius: 0;
   margin-bottom: 12px;
   padding: 16px 20px;
   border: 1px solid #e8e8e8;
@@ -406,7 +406,7 @@ const updateContainerProbe = (type: 'containers' | 'initContainers', index: numb
 }
 
 .container-detail :deep(.el-collapse-item__header:hover) {
-  border-color: #d4af37;
+  border-color: #ffffff;
   background: #fafafa;
 }
 

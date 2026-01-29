@@ -28,10 +28,10 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/xuri/excelize/v2"
-	"github.com/ydcloud-dy/iom/internal/biz/asset"
-	"github.com/ydcloud-dy/iom/internal/biz/rbac"
-	rbacService "github.com/ydcloud-dy/iom/internal/service/rbac"
-	"github.com/ydcloud-dy/iom/pkg/response"
+	"github.com/ydcloud-dy/mom/internal/biz/asset"
+	"github.com/ydcloud-dy/mom/internal/biz/rbac"
+	rbacService "github.com/ydcloud-dy/mom/internal/service/rbac"
+	"github.com/ydcloud-dy/mom/pkg/response"
 )
 
 type HostService struct {

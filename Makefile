@@ -1,7 +1,7 @@
 .PHONY: all build run clean test help swagger
 
 # 变量定义
-APP_NAME=iom
+APP_NAME=mom
 BUILD_DIR=bin
 CONFIG_FILE=config/config.yaml
 GO_FILES=$(shell find . -name '*.go' -type f)

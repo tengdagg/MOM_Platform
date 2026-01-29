@@ -372,7 +372,7 @@ watch(() => props.attached, (newVal) => {
   align-items: center;
   padding: 12px 16px;
   background: #f8f9fa;
-  border-radius: 6px;
+  border-radius: 0;
   border: 1px solid #e9ecef;
 }
 
@@ -418,7 +418,7 @@ watch(() => props.attached, (newVal) => {
 /* 表格 */
 .table-section {
   background: #fff;
-  border-radius: 6px;
+  border-radius: 0;
   border: 1px solid #ebeef5;
   overflow: hidden;
 }
@@ -449,7 +449,7 @@ watch(() => props.attached, (newVal) => {
 
 .stack-content {
   background: #1e1e1e;
-  border-radius: 6px;
+  border-radius: 0;
   padding: 16px;
   max-height: 500px;
   overflow: auto;

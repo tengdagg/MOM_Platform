@@ -1,14 +1,14 @@
 {{/*
 Expand the name of the chart.
 */}}
-{{- define "iom.name" -}}
+{{- define "mom.name" -}}
 {{- default .Chart.Name .Values.nameOverride | trunc 63 | trimSuffix "-" }}
 {{- end }}
 
 {{/*
 Create a default fully qualified app name.
 */}}
-{{- define "iom.fullname" -}}
+{{- define "mom.fullname" -}}
 {{- if .Values.fullnameOverride }}
 {{- .Values.fullnameOverride | trunc 63 | trimSuffix "-" }}
 {{- else }}
@@ -24,16 +24,16 @@ Create a default fully qualified app name.
 {{/*
 Create chart name and version as used by the chart label.
 */}}
-{{- define "iom.chart" -}}
+{{- define "mom.chart" -}}
 {{- printf "%s-%s" .Chart.Name .Chart.Version | replace "+" "_" | trunc 63 | trimSuffix "-" }}
 {{- end }}
 
 {{/*
 Common labels
 */}}
-{{- define "iom.labels" -}}
-helm.sh/chart: {{ include "iom.chart" . }}
-{{ include "iom.selectorLabels" . }}
+{{- define "mom.labels" -}}
+helm.sh/chart: {{ include "mom.chart" . }}
+{{ include "mom.selectorLabels" . }}
 {{- if .Chart.AppVersion }}
 app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
 {{- end }}
@@ -43,69 +43,69 @@ app.kubernetes.io/managed-by: {{ .Release.Service }}
 {{/*
 Selector labels
 */}}
-{{- define "iom.selectorLabels" -}}
-app.kubernetes.io/name: {{ include "iom.name" . }}
+{{- define "mom.selectorLabels" -}}
+app.kubernetes.io/name: {{ include "mom.name" . }}
 app.kubernetes.io/instance: {{ .Release.Name }}
 {{- end }}
 
 {{/*
 Backend labels
 */}}
-{{- define "iom.backend.labels" -}}
-{{ include "iom.labels" . }}
+{{- define "mom.backend.labels" -}}
+{{ include "mom.labels" . }}
 app.kubernetes.io/component: backend
 {{- end }}
 
-{{- define "iom.backend.selectorLabels" -}}
-{{ include "iom.selectorLabels" . }}
+{{- define "mom.backend.selectorLabels" -}}
+{{ include "mom.selectorLabels" . }}
 app.kubernetes.io/component: backend
 {{- end }}
 
 {{/*
 Frontend labels
 */}}
-{{- define "iom.frontend.labels" -}}
-{{ include "iom.labels" . }}
+{{- define "mom.frontend.labels" -}}
+{{ include "mom.labels" . }}
 app.kubernetes.io/component: frontend
 {{- end }}
 
-{{- define "iom.frontend.selectorLabels" -}}
-{{ include "iom.selectorLabels" . }}
+{{- define "mom.frontend.selectorLabels" -}}
+{{ include "mom.selectorLabels" . }}
 app.kubernetes.io/component: frontend
 {{- end }}
 
 {{/*
 MySQL labels
 */}}
-{{- define "iom.mysql.labels" -}}
-{{ include "iom.labels" . }}
+{{- define "mom.mysql.labels" -}}
+{{ include "mom.labels" . }}
 app.kubernetes.io/component: mysql
 {{- end }}
 
-{{- define "iom.mysql.selectorLabels" -}}
-{{ include "iom.selectorLabels" . }}
+{{- define "mom.mysql.selectorLabels" -}}
+{{ include "mom.selectorLabels" . }}
 app.kubernetes.io/component: mysql
 {{- end }}
 
 {{/*
 Redis labels
 */}}
-{{- define "iom.redis.labels" -}}
-{{ include "iom.labels" . }}
+{{- define "mom.redis.labels" -}}
+{{ include "mom.labels" . }}
 app.kubernetes.io/component: redis
 {{- end }}
 
-{{- define "iom.redis.selectorLabels" -}}
-{{ include "iom.selectorLabels" . }}
+{{- define "mom.redis.selectorLabels" -}}
+{{ include "mom.selectorLabels" . }}
 app.kubernetes.io/component: redis
 {{- end }}
 
 {{/*
 MySQL host
 */}}
-{{- define "iom.mysql.host" -}}
+{{- define "mom.mysql.host" -}}
 {{- if .Values.mysql.enabled }}
-{{- printf "%s-mysql" (include "iom.fullname" .) }}
+{{- printf "%s-mysql" (include "mom.fullname" .) }}
 {{- else }}
 {{- .Values.externalDatabase.host }}
 {{- end }}
@@ -114,7 +114,7 @@ MySQL host
 {{/*
 MySQL port
 */}}
-{{- define "iom.mysql.port" -}}
+{{- define "mom.mysql.port" -}}
 {{- if .Values.mysql.enabled }}
 {{- printf "3306" }}
 {{- else }}
@@ -125,7 +125,7 @@ MySQL port
 {{/*
 MySQL database
 */}}
-{{- define "iom.mysql.database" -}}
+{{- define "mom.mysql.database" -}}
 {{- if .Values.mysql.enabled }}
 {{- .Values.mysql.auth.database }}
 {{- else }}
@@ -136,9 +136,9 @@ MySQL database
 {{/*
 Redis host
 */}}
-{{- define "iom.redis.host" -}}
+{{- define "mom.redis.host" -}}
 {{- if .Values.redis.enabled }}
-{{- printf "%s-redis" (include "iom.fullname" .) }}
+{{- printf "%s-redis" (include "mom.fullname" .) }}
 {{- else }}
 {{- .Values.externalRedis.host }}
 {{- end }}
@@ -147,7 +147,7 @@ Redis host
 {{/*
 Redis port
 */}}
-{{- define "iom.redis.port" -}}
+{{- define "mom.redis.port" -}}
 {{- if .Values.redis.enabled }}
 {{- printf "6379" }}
 {{- else }}
@@ -158,9 +158,9 @@ Redis port
 {{/*
 Create the name of the service account to use
 */}}
-{{- define "iom.serviceAccountName" -}}
+{{- define "mom.serviceAccountName" -}}
 {{- if .Values.serviceAccount.create }}
-{{- default (include "iom.fullname" .) .Values.serviceAccount.name }}
+{{- default (include "mom.fullname" .) .Values.serviceAccount.name }}
 {{- else }}
 {{- default "default" .Values.serviceAccount.name }}
 {{- end }}
@@ -169,7 +169,7 @@ Create the name of the service account to use
 {{/*
 Return the proper image name
 */}}
-{{- define "iom.image" -}}
+{{- define "mom.image" -}}
 {{- $registryName := .imageRoot.registry -}}
 {{- $repositoryName := .imageRoot.repository -}}
 {{- $tag := .imageRoot.tag | toString -}}

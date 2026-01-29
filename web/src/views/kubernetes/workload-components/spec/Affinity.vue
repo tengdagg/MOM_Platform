@@ -245,7 +245,7 @@ const emit = defineEmits<{
 .affinity-config-container {
   background: #f8f9fa;
   border: 1px solid #e4e7ed;
-  border-radius: 8px;
+  border-radius: 0;
   overflow: hidden;
   margin-bottom: 20px;
   flex: 1;
@@ -310,7 +310,7 @@ const emit = defineEmits<{
   margin: 0 !important;
   padding: 10px 20px;
   border: 1px solid #e4e7ed;
-  border-radius: 6px;
+  border-radius: 0;
   background: #fff;
   transition: all 0.3s;
 }
@@ -334,7 +334,7 @@ const emit = defineEmits<{
   padding: 8px 12px;
   background: #e7f3ff;
   border-left: 3px solid #409eff;
-  border-radius: 4px;
+  border-radius: 0;
   font-size: 12px;
   color: #606266;
   line-height: 1.5;
@@ -357,7 +357,7 @@ const emit = defineEmits<{
 .expression-config-row {
   background: #f8f9fa;
   padding: 20px;
-  border-radius: 8px;
+  border-radius: 0;
   border: 1px solid #e4e7ed;
   transition: all 0.3s;
 }
@@ -399,7 +399,7 @@ const emit = defineEmits<{
   gap: 12px;
   padding: 12px 16px;
   background: #f8f9fa;
-  border-radius: 6px;
+  border-radius: 0;
   border: 1px solid #e4e7ed;
 }
 
@@ -440,7 +440,7 @@ const emit = defineEmits<{
 .affinity-rule-card {
   background: #f8f9fa;
   border: 1px solid #e4e7ed;
-  border-radius: 8px;
+  border-radius: 0;
   overflow: hidden;
   transition: all 0.3s;
 }
@@ -512,7 +512,7 @@ const emit = defineEmits<{
   gap: 12px;
   padding: 8px 12px;
   background: #fff;
-  border-radius: 6px;
+  border-radius: 0;
   margin-bottom: 8px;
   font-family: 'Monaco', 'Menlo', monospace;
   font-size: 13px;
@@ -542,7 +542,7 @@ const emit = defineEmits<{
   padding: 4px 12px;
   background: #fff;
   border: 1px solid #e4e7ed;
-  border-radius: 4px;
+  border-radius: 0;
   font-size: 12px;
   color: #606266;
   font-family: 'Monaco', 'Menlo', monospace;

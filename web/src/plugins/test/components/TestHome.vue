@@ -118,7 +118,7 @@ const toggleColor = () => {
     .color-block {
       margin-top: 20px;
       padding: 40px;
-      border-radius: 8px;
+      border-radius: 0;
       color: white;
       font-size: 18px;
       font-weight: 600;

@@ -30,8 +30,8 @@ import (
 	"github.com/xuri/excelize/v2"
 	"gorm.io/gorm"
 
-	"github.com/ydcloud-dy/iom/plugins/kubernetes/model"
-	"github.com/ydcloud-dy/iom/plugins/kubernetes/service"
+	"github.com/ydcloud-dy/mom/plugins/kubernetes/model"
+	"github.com/ydcloud-dy/mom/plugins/kubernetes/service"
 )
 
 // InspectionHandler 巡检处理器

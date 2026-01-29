@@ -2,7 +2,7 @@ package test
 
 import (
 	"github.com/gin-gonic/gin"
-	"github.com/ydcloud-dy/iom/internal/plugin"
+	"github.com/ydcloud-dy/mom/internal/plugin"
 	"gorm.io/gorm"
 )
 

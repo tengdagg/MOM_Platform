@@ -89,7 +89,7 @@ func Load(configPath string) (*Config, error) {
 	v.SetConfigType("yaml")
 
 	// 环境变量前缀
-	v.SetEnvPrefix("iom")
+	v.SetEnvPrefix("mom")
 	v.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 	v.AutomaticEnv()
 

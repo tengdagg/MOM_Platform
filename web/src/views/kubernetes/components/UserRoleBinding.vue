@@ -525,12 +525,12 @@ const loadRoles = async () => {
 
     // 分离集群角色和命名空间角色（都是 ClusterRole，通过标签区分）
     allClusterRoles.value = (allClusterRolesList || []).filter(role =>
-      !role.labels || role.labels['iom.ydcloud-dy.com/namespace-role'] !== 'true'
+      !role.labels || role.labels['mom.ydcloud-dy.com/namespace-role'] !== 'true'
     )
 
     // 命名空间角色：带有 namespace-role=true 标签的 ClusterRole
     allNamespaceRoles.value = (allClusterRolesList || []).filter(role =>
-      role.labels && role.labels['iom.ydcloud-dy.com/namespace-role'] === 'true'
+      role.labels && role.labels['mom.ydcloud-dy.com/namespace-role'] === 'true'
     )
 
     // 加载可用的API组
@@ -760,7 +760,7 @@ watch(() => props.cluster, (newCluster) => {
   display: flex;
   height: 600px;
   gap: 0;
-  border-radius: 12px;
+  border-radius: 0;
   overflow: hidden;
   border: 1px solid #e4e7ed;
 }
@@ -807,10 +807,10 @@ watch(() => props.cluster, (newCluster) => {
 
   &:hover {
     background: rgba(212, 175, 55, 0.1);
-    color: #d4af37;
+    color: #ffffff;
 
     .el-icon {
-      color: #d4af37;
+      color: #ffffff;
     }
   }
 
@@ -821,7 +821,7 @@ watch(() => props.cluster, (newCluster) => {
     padding-left: 17px;
 
     .el-icon {
-      color: #d4af37;
+      color: #ffffff;
     }
   }
 }
@@ -855,7 +855,7 @@ watch(() => props.cluster, (newCluster) => {
       color: #303133;
 
       .el-icon {
-        color: #d4af37;
+        color: #ffffff;
         font-size: 20px;
       }
     }
@@ -868,8 +868,8 @@ watch(() => props.cluster, (newCluster) => {
     /* 黑金风格按钮 */
     :deep(.el-button--primary) {
       background: linear-gradient(135deg, #0a466a 0%, #0d5a87 100%);
-      border: 1px solid #d4af37;
-      color: #d4af37;
+      border: none;
+      color: #ffffff;
 
       &:hover {
         background: linear-gradient(135deg, #1a1a1a 0%, #3a3a3a 100%);
@@ -889,8 +889,8 @@ watch(() => props.cluster, (newCluster) => {
       color: #606266;
 
       &:hover {
-        border-color: #d4af37;
-        color: #d4af37;
+        border-color: #ffffff;
+        color: #ffffff;
         background: rgba(212, 175, 55, 0.05);
       }
     }
@@ -928,7 +928,7 @@ watch(() => props.cluster, (newCluster) => {
     margin-bottom: 12px;
 
     .el-icon {
-      color: #d4af37;
+      color: #ffffff;
       font-size: 18px;
     }
 
@@ -948,13 +948,13 @@ watch(() => props.cluster, (newCluster) => {
 
     :deep(.el-input__wrapper),
     :deep(.el-select) {
-      border-radius: 6px;
+      border-radius: 0;
     }
   }
 
   .rule-preview {
     background: linear-gradient(135deg, #f5f7fa 0%, rgba(212, 175, 55, 0.08) 100%);
-    border-radius: 8px;
+    border-radius: 0;
     padding: 16px;
     border: 1px solid rgba(212, 175, 55, 0.3);
     margin-top: 20px;
@@ -969,7 +969,7 @@ watch(() => props.cluster, (newCluster) => {
       margin-bottom: 12px;
 
       .el-icon {
-        color: #d4af37;
+        color: #ffffff;
       }
     }
 
@@ -1005,8 +1005,8 @@ watch(() => props.cluster, (newCluster) => {
     /* 黑金风格按钮 */
     :deep(.el-button--primary) {
       background: linear-gradient(135deg, #0a466a 0%, #0d5a87 100%);
-      border: 1px solid #d4af37;
-      color: #d4af37;
+      border: none;
+      color: #ffffff;
       font-weight: 500;
 
       &:hover {
@@ -1034,8 +1034,8 @@ watch(() => props.cluster, (newCluster) => {
       color: #606266;
 
       &:hover {
-        border-color: #d4af37;
-        color: #d4af37;
+        border-color: #ffffff;
+        color: #ffffff;
         background: rgba(212, 175, 55, 0.05);
       }
     }
@@ -1056,13 +1056,13 @@ watch(() => props.cluster, (newCluster) => {
 
 .role-card {
   background: #fff;
-  border-radius: 8px;
+  border-radius: 0;
   padding: 16px;
   border: 1px solid #e4e7ed;
   transition: all 0.2s ease;
 
   &:hover {
-    border-color: #d4af37;
+    border-color: #ffffff;
     box-shadow: 0 2px 12px rgba(212, 175, 55, 0.15);
   }
 }
@@ -1089,7 +1089,7 @@ watch(() => props.cluster, (newCluster) => {
     :deep(.el-button--primary) {
       background: transparent;
       border: none;
-      color: #d4af37;
+      color: #ffffff;
       padding: 4px 8px;
 
       &:hover {
@@ -1160,7 +1160,7 @@ watch(() => props.cluster, (newCluster) => {
       }
 
       .el-icon {
-        color: #d4af37;
+        color: #ffffff;
         font-size: 16px;
       }
 
@@ -1192,7 +1192,7 @@ watch(() => props.cluster, (newCluster) => {
       margin-bottom: 16px;
 
       .el-icon {
-        color: #d4af37;
+        color: #ffffff;
         font-size: 18px;
       }
     }
@@ -1206,7 +1206,7 @@ watch(() => props.cluster, (newCluster) => {
 
   .rule-item {
     background: #f5f7fa;
-    border-radius: 6px;
+    border-radius: 0;
     padding: 12px;
     border: 1px solid #e4e7ed;
   }

@@ -788,7 +788,7 @@ onMounted(() => {
   margin-bottom: 12px;
   padding: 16px 20px;
   background: #fff;
-  border-radius: 8px;
+  border-radius: 0;
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
 }
 
@@ -801,15 +801,15 @@ onMounted(() => {
 .page-title-icon {
   width: 48px;
   height: 48px;
-  background: linear-gradient(135deg, #000 0%, #1a1a1a 100%);
-  border-radius: 10px;
+  background: #0a466a;
+  border-radius: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #d4af37;
+  color: #ffffff;
   font-size: 22px;
   flex-shrink: 0;
-  border: 1px solid #d4af37;
+  border: none;
 }
 
 .page-title {
@@ -838,7 +838,7 @@ onMounted(() => {
   margin-bottom: 12px;
   padding: 12px 16px;
   background: #fff;
-  border-radius: 8px;
+  border-radius: 0;
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
   display: flex;
   justify-content: space-between;
@@ -873,7 +873,7 @@ onMounted(() => {
 }
 
 .search-bar :deep(.el-input__wrapper) {
-  border-radius: 8px;
+  border-radius: 0;
   border: 1px solid #dcdfe6;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
   transition: all 0.3s ease;
@@ -881,24 +881,24 @@ onMounted(() => {
 }
 
 .search-bar :deep(.el-input__wrapper:hover) {
-  border-color: #d4af37;
+  border-color: #ffffff;
   box-shadow: 0 2px 8px rgba(212, 175, 55, 0.15);
 }
 
 .search-bar :deep(.el-input__wrapper.is-focus) {
-  border-color: #d4af37;
+  border-color: #ffffff;
   box-shadow: 0 2px 12px rgba(212, 175, 55, 0.25);
 }
 
 .search-icon {
-  color: #d4af37;
+  color: #ffffff;
 }
 
 /* 表格容器 */
 .table-wrapper {
   flex: 1;
   background: #fff;
-  border-radius: 12px;
+  border-radius: 0;
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
   overflow: hidden;
 }
@@ -908,7 +908,7 @@ onMounted(() => {
 }
 
 .modern-table :deep(.el-table__body-wrapper) {
-  border-radius: 0 0 12px 12px;
+  border-radius: 0;
 }
 
 .modern-table :deep(.el-table__row) {
@@ -933,7 +933,7 @@ onMounted(() => {
   background-color: #0a466a !important;
   color: #ffffff !important;
   border-color: #0a466a !important;
-  border-radius: 8px;
+  border-radius: 0;
   padding: 10px 20px;
   font-weight: 500;
 }
@@ -944,7 +944,7 @@ onMounted(() => {
 
 /* 对话框样式 */
 :deep(.account-dialog) {
-  border-radius: 12px;
+  border-radius: 0;
 }
 
 :deep(.account-dialog .el-dialog__header) {
@@ -978,7 +978,7 @@ onMounted(() => {
   gap: 8px;
   padding: 10px 16px;
   border: 2px solid #e4e7ed;
-  border-radius: 8px;
+  border-radius: 0;
   cursor: pointer;
   transition: all 0.3s ease;
   background: #fafbfc;
@@ -987,18 +987,18 @@ onMounted(() => {
 }
 
 .provider-option:hover {
-  border-color: #d4af37;
+  border-color: #ffffff;
   background: #fffaf0;
 }
 
 .provider-option.active {
-  border-color: #d4af37;
+  border-color: #ffffff;
   background: linear-gradient(135deg, #fffaf0 0%, #fef5e7 100%);
 }
 
 .provider-short {
   padding: 4px 10px;
-  border-radius: 6px;
+  border-radius: 0;
   font-size: 12px;
   font-weight: 700;
   color: #fff;
@@ -1023,7 +1023,7 @@ onMounted(() => {
 }
 
 .provider-option.active .provider-name {
-  color: #d4af37;
+  color: #ffffff;
   font-weight: 600;
 }
 
@@ -1051,19 +1051,19 @@ onMounted(() => {
 
 .account-form :deep(.el-input__wrapper),
 .account-form :deep(.el-textarea__inner) {
-  border-radius: 8px;
+  border-radius: 0;
   border: 1px solid #dcdfe6;
   transition: all 0.3s ease;
 }
 
 .account-form :deep(.el-input__wrapper:hover),
 .account-form :deep(.el-textarea__inner:hover) {
-  border-color: #d4af37;
+  border-color: #ffffff;
 }
 
 .account-form :deep(.el-input__wrapper.is-focus),
 .account-form :deep(.el-textarea__inner:focus) {
-  border-color: #d4af37;
+  border-color: #ffffff;
   box-shadow: 0 2px 8px rgba(212, 175, 55, 0.2);
 }
 
@@ -1080,7 +1080,7 @@ onMounted(() => {
 
 /* 导入对话框样式 */
 :deep(.import-dialog) {
-  border-radius: 12px;
+  border-radius: 0;
 }
 
 :deep(.import-dialog .el-dialog__header) {
@@ -1122,7 +1122,7 @@ onMounted(() => {
 
 .instances-list {
   background: #fafbfc;
-  border-radius: 12px;
+  border-radius: 0;
   padding: 16px;
 }
 
@@ -1147,7 +1147,7 @@ onMounted(() => {
 }
 
 .instances-count strong {
-  color: #d4af37;
+  color: #ffffff;
   font-size: 18px;
 }
 
@@ -1163,16 +1163,16 @@ onMounted(() => {
 
 .cloud-hosts-table {
   background: #fff;
-  border-radius: 8px;
+  border-radius: 0;
   overflow: hidden;
 }
 
 .cloud-hosts-table :deep(.el-table__header-wrapper) {
-  border-radius: 8px 8px 0 0;
+  border-radius: 0;
 }
 
 .cloud-hosts-table :deep(.el-table__body-wrapper) {
-  border-radius: 0 0 8px 8px;
+  border-radius: 0;
 }
 
 .cloud-hosts-table :deep(.el-table__row) {
@@ -1190,7 +1190,7 @@ onMounted(() => {
 }
 
 .instance-icon {
-  color: #d4af37;
+  color: #ffffff;
   font-size: 16px;
 }
 
@@ -1200,7 +1200,7 @@ onMounted(() => {
   color: #606266;
   background: #f5f7fa;
   padding: 2px 8px;
-  border-radius: 4px;
+  border-radius: 0;
 }
 
 .ip-list {

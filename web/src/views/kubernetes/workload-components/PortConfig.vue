@@ -126,7 +126,7 @@ const updatePorts = () => {
 
 .port-item-card {
   border: 1px solid #e8e8e8;
-  border-radius: 12px;
+  border-radius: 0;
   overflow: hidden;
   background: #ffffff;
   transition: all 0.3s ease;
@@ -134,7 +134,7 @@ const updatePorts = () => {
 }
 
 .port-item-card:hover {
-  border-color: #d4af37;
+  border-color: #ffffff;
   box-shadow: 0 4px 16px rgba(212, 175, 55, 0.15);
 }
 
@@ -163,7 +163,7 @@ const updatePorts = () => {
   padding: 4px 12px;
   background: #d4af37;
   color: #1a1a1a;
-  border-radius: 6px;
+  border-radius: 0;
   font-size: 12px;
   font-weight: 600;
   box-shadow: 0 2px 6px rgba(212, 175, 55, 0.3);
@@ -205,18 +205,18 @@ const updatePorts = () => {
 .port-card-body :deep(.el-input__wrapper) {
   background: #fafafa;
   border: 1px solid #e0e0e0;
-  border-radius: 8px;
+  border-radius: 0;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
   transition: all 0.3s ease;
 }
 
 .port-card-body :deep(.el-input__wrapper:hover) {
-  border-color: #d4af37;
+  border-color: #ffffff;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05), 0 0 0 3px rgba(212, 175, 55, 0.1);
 }
 
 .port-card-body :deep(.el-input__wrapper.is-focus) {
-  border-color: #d4af37;
+  border-color: #ffffff;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05), 0 0 0 4px rgba(212, 175, 55, 0.15);
 }
 
@@ -227,20 +227,20 @@ const updatePorts = () => {
 .port-card-body :deep(.el-input-number .el-input__wrapper) {
   background: #fafafa;
   border: 1px solid #e0e0e0;
-  border-radius: 8px;
+  border-radius: 0;
 }
 
 .port-card-body :deep(.el-select .el-input__wrapper) {
   background: #fafafa;
   border: 1px solid #e0e0e0;
-  border-radius: 8px;
+  border-radius: 0;
 }
 
 .empty-ports {
   padding: 60px 20px;
   text-align: center;
   background: #ffffff;
-  border-radius: 12px;
+  border-radius: 0;
   border: 1px dashed #e0e0e0;
 }
 
@@ -257,7 +257,7 @@ const updatePorts = () => {
 }
 
 .add-port-section .el-button {
-  border-radius: 8px;
+  border-radius: 0;
   font-weight: 500;
   background: #d4af37;
   border: none;
