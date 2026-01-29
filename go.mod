@@ -1,4 +1,4 @@
-module github.com/ydcloud-dy/opshub
+module github.com/ydcloud-dy/iom
 
 go 1.25.0
 
@@ -19,7 +19,7 @@ require (
 	github.com/tencentcloud/tencentcloud-sdk-go/tencentcloud/common v1.3.34
 	github.com/tencentcloud/tencentcloud-sdk-go/tencentcloud/cvm v1.3.30
 	github.com/xuri/excelize/v2 v2.10.0
-	github.com/ydcloud-dy/opshub/plugins/kubernetes v0.0.0-00010101000000-000000000000
+	github.com/ydcloud-dy/iom/plugins/kubernetes v0.0.0-00010101000000-000000000000
 	go.uber.org/zap v1.27.1
 	golang.org/x/crypto v0.46.0
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1
@@ -27,7 +27,7 @@ require (
 	gorm.io/gorm v1.31.1
 )
 
-replace github.com/ydcloud-dy/opshub/plugins/kubernetes => ./plugins/kubernetes
+replace github.com/ydcloud-dy/iom/plugins/kubernetes => ./plugins/kubernetes
 
 require (
 	filippo.io/edwards25519 v1.1.0 // indirect

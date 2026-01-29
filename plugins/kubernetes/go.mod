@@ -1,15 +1,15 @@
-module github.com/ydcloud-dy/opshub/plugins/kubernetes
+module github.com/ydcloud-dy/iom/plugins/kubernetes
 
 go 1.25.0
 
-replace github.com/ydcloud-dy/opshub => ../../
+replace github.com/ydcloud-dy/iom => ../../
 
 require (
 	github.com/gin-gonic/gin v1.11.0
 	github.com/golang-jwt/jwt/v5 v5.3.0
 	github.com/gorilla/websocket v1.5.4-0.20250319132907-e064f32e3674
 	github.com/xuri/excelize/v2 v2.10.0
-	github.com/ydcloud-dy/opshub v0.0.0-00010101000000-000000000000
+	github.com/ydcloud-dy/iom v0.0.0-00010101000000-000000000000
 	gorm.io/gorm v1.31.1
 	k8s.io/api v0.35.0
 	k8s.io/apimachinery v0.35.0

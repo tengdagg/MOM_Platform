@@ -21,11 +21,11 @@ package rbac
 
 import (
 	"github.com/gin-gonic/gin"
-	auditbiz "github.com/ydcloud-dy/opshub/internal/biz/audit"
-	auditdata "github.com/ydcloud-dy/opshub/internal/data/audit"
-	rbacService "github.com/ydcloud-dy/opshub/internal/service/rbac"
-	rbacdata "github.com/ydcloud-dy/opshub/internal/data/rbac"
-	rbacbiz "github.com/ydcloud-dy/opshub/internal/biz/rbac"
+	auditbiz "github.com/ydcloud-dy/iom/internal/biz/audit"
+	auditdata "github.com/ydcloud-dy/iom/internal/data/audit"
+	rbacService "github.com/ydcloud-dy/iom/internal/service/rbac"
+	rbacdata "github.com/ydcloud-dy/iom/internal/data/rbac"
+	rbacbiz "github.com/ydcloud-dy/iom/internal/biz/rbac"
 	"gorm.io/gorm"
 )
 

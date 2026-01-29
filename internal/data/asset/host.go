@@ -29,7 +29,7 @@ import (
 	"io"
 	"time"
 
-	"github.com/ydcloud-dy/opshub/internal/biz/asset"
+	"github.com/ydcloud-dy/iom/internal/biz/asset"
 	"gorm.io/gorm"
 )
 
@@ -177,16 +177,16 @@ func (r *hostRepo) CountByCredentialID(ctx context.Context, credentialID uint) (
 
 // credentialRepo 凭证仓库
 type credentialRepo struct {
-	db           *gorm.DB
+	db            *gorm.DB
 	encryptionKey []byte
 }
 
 // NewCredentialRepo 创建凭证仓库
 func NewCredentialRepo(db *gorm.DB) asset.CredentialRepo {
 	// AES-256要求密钥长度必须是32字节（256位）
-	encryptionKey := []byte("opshub-enc-key-32-bytes-long!!!!")
+	encryptionKey := []byte("iom-encrypt-key-32bytes-long!!@@")
 	return &credentialRepo{
-		db:           db,
+		db:            db,
 		encryptionKey: encryptionKey,
 	}
 }

@@ -1,19 +1,19 @@
 #!/bin/bash
-# OpsHub 镜像构建脚本
+# iom 镜像构建脚本
 # 使用方法: ./build-images.sh [组织名] [版本号]
 
 set -e
 
 # 配置
 SWR_REGION="swr.cn-east-3.myhuaweicloud.com"
-SWR_ORG="${1:-opshub}"  # 默认组织名，请修改为你的组织名
+SWR_ORG="${1:-iom}"  # 默认组织名，请修改为你的组织名
 VERSION="${2:-latest}"
 
-BACKEND_IMAGE="${SWR_REGION}/${SWR_ORG}/opshub-backend:${VERSION}"
-FRONTEND_IMAGE="${SWR_REGION}/${SWR_ORG}/opshub-frontend:${VERSION}"
+BACKEND_IMAGE="${SWR_REGION}/${SWR_ORG}/iom-backend:${VERSION}"
+FRONTEND_IMAGE="${SWR_REGION}/${SWR_ORG}/iom-frontend:${VERSION}"
 
 echo "================================================"
-echo "OpsHub 镜像构建"
+echo "iom 镜像构建"
 echo "================================================"
 echo "后端镜像: ${BACKEND_IMAGE}"
 echo "前端镜像: ${FRONTEND_IMAGE}"
@@ -49,11 +49,11 @@ echo "================================================"
 echo ""
 echo "backend:"
 echo "  image:"
-echo "    repository: ${SWR_REGION}/${SWR_ORG}/opshub-backend"
+echo "    repository: ${SWR_REGION}/${SWR_ORG}/iom-backend"
 echo "    tag: ${VERSION}"
 echo ""
 echo "frontend:"
 echo "  image:"
-echo "    repository: ${SWR_REGION}/${SWR_ORG}/opshub-frontend"
+echo "    repository: ${SWR_REGION}/${SWR_ORG}/iom-frontend"
 echo "    tag: ${VERSION}"
 echo ""

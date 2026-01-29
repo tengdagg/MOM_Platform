@@ -20,13 +20,14 @@
  */
 
 :root {
-  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  font-size: 14px;
   line-height: 1.5;
   font-weight: 400;
 
-  color-scheme: light dark;
-  color: rgba(255, 255, 255, 0.87);
-  background-color: #242424;
+  color-scheme: light;
+  color: #303133;
+  background-color: #f5f7fa;
 
   font-synthesis: none;
   text-rendering: optimizeLegibility;
@@ -45,56 +46,318 @@ a:hover {
 
 body {
   margin: 0;
-  display: flex;
-  place-items: center;
   min-width: 320px;
   min-height: 100vh;
+  font-size: 14px;
 }
 
 h1 {
-  font-size: 3.2em;
-  line-height: 1.1;
+  font-size: 1.5em;
+  line-height: 1.3;
+}
+
+h2 {
+  font-size: 1.25em;
+  line-height: 1.3;
+}
+
+h3 {
+  font-size: 1.1em;
+  line-height: 1.3;
 }
 
 button {
-  border-radius: 8px;
+  border-radius: 4px;
   border: 1px solid transparent;
-  padding: 0.6em 1.2em;
-  font-size: 1em;
+  padding: 0.4em 1em;
+  font-size: 14px;
   font-weight: 500;
   font-family: inherit;
-  background-color: #1a1a1a;
   cursor: pointer;
-  transition: border-color 0.25s;
-}
-button:hover {
-  border-color: #646cff;
-}
-button:focus,
-button:focus-visible {
-  outline: 4px auto -webkit-focus-ring-color;
+  transition: all 0.2s;
 }
 
 .card {
-  padding: 2em;
+  padding: 1em;
 }
 
 #app {
-  max-width: 1280px;
-  margin: 0 auto;
-  padding: 2rem;
-  text-align: center;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  text-align: left;
 }
 
-@media (prefers-color-scheme: light) {
-  :root {
-    color: #213547;
-    background-color: #ffffff;
-  }
-  a:hover {
-    color: #747bff;
-  }
-  button {
-    background-color: #f9f9f9;
-  }
+/* Element Plus 全局尺寸覆盖 */
+.el-button {
+  --el-button-size: 32px;
+}
+
+.el-input {
+  --el-input-height: 32px;
+}
+
+.el-select {
+  --el-select-height: 32px;
+}
+
+.el-table {
+  --el-table-header-font-size: 13px;
+  --el-table-font-size: 13px;
+}
+
+.el-form-item {
+  --el-form-label-font-size: 13px;
+  margin-bottom: 16px;
+}
+
+.el-dialog {
+  --el-dialog-padding-primary: 16px;
+}
+
+.el-card {
+  --el-card-padding: 16px;
+}
+
+/* 紧凑表格样式 */
+.el-table th.el-table__cell {
+  padding: 8px 0;
+}
+
+.el-table td.el-table__cell {
+  padding: 8px 0;
+}
+
+/* 紧凑分页样式 */
+.el-pagination {
+  --el-pagination-button-height: 28px;
+  --el-pagination-font-size: 13px;
+}
+
+/* 紧凑标签页 */
+.el-tabs__item {
+  font-size: 13px;
+  padding: 0 16px;
+}
+
+/* 紧凑面包屑 */
+.el-breadcrumb {
+  font-size: 13px;
+}
+
+/* 紧凑消息提示 */
+.el-message {
+  --el-message-padding: 12px 16px;
+}
+
+/* 紧凑下拉菜单 */
+.el-dropdown-menu__item {
+  padding: 8px 16px;
+  font-size: 13px;
+}
+
+/* ================================
+   内容区页面通用紧凑样式
+   ================================ */
+
+/* 页面头部区域 */
+.page-header {
+  padding: 12px 16px !important;
+  margin-bottom: 10px !important;
+}
+
+.page-title-icon {
+  width: 36px !important;
+  height: 36px !important;
+  font-size: 16px !important;
+  border-radius: 8px !important;
+}
+
+.page-title {
+  font-size: 15px !important;
+  margin: 0 !important;
+}
+
+.page-subtitle {
+  font-size: 12px !important;
+  margin: 2px 0 0 0 !important;
+}
+
+.page-title-group {
+  gap: 10px !important;
+}
+
+/* 统计卡片 */
+.stats-grid {
+  gap: 12px !important;
+  margin-bottom: 10px !important;
+}
+
+.stat-card {
+  padding: 12px 14px !important;
+  gap: 10px !important;
+  border-radius: 6px !important;
+}
+
+.stat-icon {
+  width: 40px !important;
+  height: 40px !important;
+  font-size: 18px !important;
+  border-radius: 8px !important;
+}
+
+.stat-label {
+  font-size: 12px !important;
+  margin-bottom: 4px !important;
+}
+
+.stat-value {
+  font-size: 18px !important;
+}
+
+/* 搜索栏 */
+.search-bar,
+.filter-bar {
+  padding: 10px 14px !important;
+  margin-bottom: 10px !important;
+  border-radius: 6px !important;
+}
+
+.search-input,
+.filter-input {
+  font-size: 13px !important;
+}
+
+/* 左侧面板 */
+.left-panel {
+  width: 220px !important;
+  min-width: 220px !important;
+}
+
+.panel-header {
+  padding: 10px 12px !important;
+}
+
+.panel-title {
+  font-size: 13px !important;
+  gap: 6px !important;
+}
+
+.panel-icon {
+  font-size: 14px !important;
+}
+
+.panel-body {
+  padding: 8px 10px !important;
+}
+
+/* 表格容器 */
+.table-wrapper {
+  border-radius: 6px !important;
+}
+
+/* 分页 */
+.pagination-wrapper {
+  padding: 10px 14px !important;
+}
+
+/* 表单区域标题 */
+.form-section {
+  margin-bottom: 16px !important;
+  padding-bottom: 14px !important;
+}
+
+.section-title {
+  font-size: 13px !important;
+  margin-bottom: 12px !important;
+  padding-left: 6px !important;
+}
+
+/* 操作按钮 */
+.header-actions {
+  gap: 8px !important;
+}
+
+.header-actions .el-button {
+  padding: 8px 14px !important;
+  font-size: 13px !important;
+}
+
+/* 对话框 */
+.el-dialog__header {
+  padding: 12px 16px !important;
+}
+
+.el-dialog__title {
+  font-size: 15px !important;
+}
+
+.el-dialog__body {
+  padding: 14px 16px !important;
+}
+
+.el-dialog__footer {
+  padding: 10px 16px !important;
+}
+
+/* 树形节点 */
+.tree-node {
+  font-size: 13px !important;
+}
+
+.node-label {
+  font-size: 13px !important;
+}
+
+.node-count {
+  font-size: 11px !important;
+}
+
+/* 标签页 */
+.el-tabs__header {
+  margin-bottom: 12px !important;
+}
+
+.el-tabs__item {
+  font-size: 13px !important;
+  height: 36px !important;
+  line-height: 36px !important;
+}
+
+/* 描述列表 */
+.el-descriptions__label {
+  font-size: 13px !important;
+}
+
+.el-descriptions__content {
+  font-size: 13px !important;
+}
+
+/* 警告提示 */
+.el-alert__title {
+  font-size: 13px !important;
+}
+
+.el-alert__description {
+  font-size: 12px !important;
+}
+
+/* 空状态 */
+.el-empty__description {
+  font-size: 13px !important;
+}
+
+/* 标签 */
+.el-tag {
+  font-size: 12px !important;
+  padding: 0 6px !important;
+  height: 22px !important;
+  line-height: 20px !important;
+}
+
+/* 选择器下拉 */
+.el-select-dropdown__item {
+  font-size: 13px !important;
+  height: 30px !important;
+  line-height: 30px !important;
 }

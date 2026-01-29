@@ -40,10 +40,8 @@ installPlugins().then(() => {
   app.use(router)
   app.use(ElementPlus, {
     locale: zhCn,
+    size: 'default', // 使用默认尺寸
   })
 
   app.mount('#app')
-
-  // 全局字体大小调整
-  document.documentElement.style.fontSize = '20px'
 })

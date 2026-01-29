@@ -5,7 +5,7 @@ import router from '@/router'
 class PluginManagerImpl {
   private plugins: Map<string, Plugin> = new Map()
   private installedPlugins: Set<string> = new Set()
-  private STORAGE_KEY = 'opshub_installed_plugins'
+  private STORAGE_KEY = 'iom_installed_plugins'
 
   constructor() {
     // 从 localStorage 恢复已安装插件列表

@@ -33,7 +33,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 
-	"github.com/ydcloud-dy/opshub/plugins/kubernetes/model"
+	"github.com/ydcloud-dy/iom/plugins/kubernetes/model"
 )
 
 // InspectionService 巡检服务

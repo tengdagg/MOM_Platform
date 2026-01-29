@@ -28,9 +28,9 @@ var cfgFile string
 
 // Cmd represents the base command when called without any subcommands
 var Cmd = &cobra.Command{
-	Use:   "opshub",
+	Use:   "iom",
 	Short: "运维管理平台",
-	Long:  `OpsHub 是一个基于 Gin 的运维管理平台后端服务`,
+	Long:  `iom 是一个基于 Gin 的运维管理平台后端服务`,
 	Run: func(cmd *cobra.Command, args []string) {
 		cmd.Help()
 	},

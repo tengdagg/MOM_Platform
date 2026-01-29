@@ -23,7 +23,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/ydcloud-dy/opshub/internal/biz/audit"
+	"github.com/ydcloud-dy/iom/internal/biz/audit"
 	"gorm.io/gorm"
 )
 

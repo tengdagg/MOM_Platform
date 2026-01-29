@@ -36,16 +36,16 @@ import (
 	"k8s.io/api/core/v1"
 	authenticationv1 "k8s.io/api/authentication/v1"
 
-	rbacBiz "github.com/ydcloud-dy/opshub/internal/biz/rbac"
-	rbacData "github.com/ydcloud-dy/opshub/internal/data/rbac"
-	"github.com/ydcloud-dy/opshub/plugins/kubernetes/biz"
-	"github.com/ydcloud-dy/opshub/plugins/kubernetes/data/models"
-	"github.com/ydcloud-dy/opshub/plugins/kubernetes/model"
+	rbacBiz "github.com/ydcloud-dy/iom/internal/biz/rbac"
+	rbacData "github.com/ydcloud-dy/iom/internal/data/rbac"
+	"github.com/ydcloud-dy/iom/plugins/kubernetes/biz"
+	"github.com/ydcloud-dy/iom/plugins/kubernetes/data/models"
+	"github.com/ydcloud-dy/iom/plugins/kubernetes/model"
 )
 
 const (
-	// OpsHubAuthNamespace OpsHub 认证专用命名空间
-	OpsHubAuthNamespace = "opshub-auth"
+	// iomAuthNamespace iom 认证专用命名空间
+	iomAuthNamespace = "iom-auth"
 )
 
 // ClusterService 集群服务层
@@ -169,8 +169,8 @@ func (s *ClusterService) DeleteCluster(ctx context.Context, id uint) error {
 		wg.Add(1)
 		go func(kc model.UserKubeConfig) {
 			defer wg.Done()
-			// 获取用户名（从 ServiceAccount 提取，格式为 opshub-{username}）
-			username := strings.TrimPrefix(kc.ServiceAccount, "opshub-")
+			// 获取用户名（从 ServiceAccount 提取，格式为 iom-{username}）
+			username := strings.TrimPrefix(kc.ServiceAccount, "iom-")
 
 			// 清理 K8s 中的 ServiceAccount 和 RoleBinding
 			if err := s.cleanupClusterK8sResources(ctx, id, kc.ServiceAccount, username); err != nil {
@@ -241,7 +241,7 @@ func (s *ClusterService) cleanupClusterK8sResources(ctx context.Context, cluster
 
 	// 1. 删除 RoleBinding
 	// 尝试删除命名空间级别的 RoleBinding
-	if err := clientset.RbacV1().RoleBindings(OpsHubAuthNamespace).Delete(ctx, serviceAccount, metav1.DeleteOptions{}); err != nil {
+	if err := clientset.RbacV1().RoleBindings(iomAuthNamespace).Delete(ctx, serviceAccount, metav1.DeleteOptions{}); err != nil {
 		// 忽略不存在的错误
 		_ = err
 	}
@@ -253,7 +253,7 @@ func (s *ClusterService) cleanupClusterK8sResources(ctx context.Context, cluster
 	}
 
 	// 2. 删除 ServiceAccount
-	if err := clientset.CoreV1().ServiceAccounts(OpsHubAuthNamespace).Delete(ctx, serviceAccount, metav1.DeleteOptions{}); err != nil {
+	if err := clientset.CoreV1().ServiceAccounts(iomAuthNamespace).Delete(ctx, serviceAccount, metav1.DeleteOptions{}); err != nil {
 		if !k8serrors.IsNotFound(err) {
 			return fmt.Errorf("删除 ServiceAccount 失败: %w", err)
 		}
@@ -270,7 +270,7 @@ func (s *ClusterService) cleanupDefaultRoles(ctx context.Context, clusterID uint
 	}
 
 	// 使用 DeleteCollection 批量删除（一次 API 调用）
-	labelSelector := "opshub.ydcloud-dy.com/managed-by=opshub"
+	labelSelector := "iom.ydcloud-dy.com/managed-by=iom"
 	err = clientset.RbacV1().ClusterRoles().DeleteCollection(ctx, metav1.DeleteOptions{}, metav1.ListOptions{
 		LabelSelector: labelSelector,
 	})
@@ -288,7 +288,7 @@ func (s *ClusterService) cleanupAllRoleBindings(ctx context.Context, clusterID u
 		return fmt.Errorf("获取集群 clientset 失败: %w", err)
 	}
 
-	labelSelector := "opshub.ydcloud-dy.com/managed-by=opshub"
+	labelSelector := "iom.ydcloud-dy.com/managed-by=iom"
 	var wg sync.WaitGroup
 	errChan := make(chan error, 10)
 
@@ -348,7 +348,7 @@ func (s *ClusterService) cleanupAllRoleBindings(ctx context.Context, clusterID u
 
 		var deleteWg sync.WaitGroup
 		for _, crb := range allCRBs.Items {
-			if strings.HasPrefix(crb.Name, "opshub-") {
+			if strings.HasPrefix(crb.Name, "iom-") {
 				deleteWg.Add(1)
 				go func(name string) {
 					defer deleteWg.Done()
@@ -385,7 +385,7 @@ func (s *ClusterService) cleanupAllRoleBindings(ctx context.Context, clusterID u
 
 				var deleteWg sync.WaitGroup
 				for _, rb := range allRBs.Items {
-					if strings.HasPrefix(rb.Name, "opshub-") {
+					if strings.HasPrefix(rb.Name, "iom-") {
 						deleteWg.Add(1)
 						go func(ns, name string) {
 							defer deleteWg.Done()
@@ -812,7 +812,7 @@ func (s *ClusterService) GenerateUserKubeConfig(ctx context.Context, clusterID u
 		ClusterID:      uint64(clusterID),
 		UserID:         uint64(userID),
 		ServiceAccount: uniqueUsername,
-		Namespace:      OpsHubAuthNamespace,
+		Namespace:      iomAuthNamespace,
 		IsActive:       true,
 		CreatedBy:      uint64(userID),
 	}
@@ -881,7 +881,7 @@ func (s *ClusterService) generateKubeConfigForServiceAccount(clientset *kubernet
 
 	// 尝试从新命名空间获取 token
 	expiration := int64(86400 * 365) // 1年有效期
-	tr, err := clientset.CoreV1().ServiceAccounts(OpsHubAuthNamespace).CreateToken(ctx, saName, &authenticationv1.TokenRequest{
+	tr, err := clientset.CoreV1().ServiceAccounts(iomAuthNamespace).CreateToken(ctx, saName, &authenticationv1.TokenRequest{
 		Spec: authenticationv1.TokenRequestSpec{
 			ExpirationSeconds: &expiration,
 		},
@@ -905,7 +905,7 @@ func (s *ClusterService) generateKubeConfigForServiceAccount(clientset *kubernet
 			targetNamespace = "default"
 		}
 	} else {
-		targetNamespace = OpsHubAuthNamespace
+		targetNamespace = iomAuthNamespace
 	}
 
 	// 如果通过 TokenRequest 成功获取了 token
@@ -954,9 +954,9 @@ func (s *ClusterService) generateKubeConfigForServiceAccount(clientset *kubernet
 // findServiceAccountNamespace 查找 ServiceAccount 所在的命名空间
 func (s *ClusterService) findServiceAccountNamespace(ctx context.Context, clientset *kubernetes.Clientset, saName string) string {
 	// 先检查新命名空间
-	_, err := clientset.CoreV1().ServiceAccounts(OpsHubAuthNamespace).Get(ctx, saName, metav1.GetOptions{})
+	_, err := clientset.CoreV1().ServiceAccounts(iomAuthNamespace).Get(ctx, saName, metav1.GetOptions{})
 	if err == nil {
-		return OpsHubAuthNamespace
+		return iomAuthNamespace
 	}
 
 	// 再检查旧命名空间
@@ -983,8 +983,8 @@ func (s *ClusterService) RevokeUserKubeConfig(ctx context.Context, clusterID uin
 		// ClusterRoleBinding 可能不存在（普通用户没有），继续删除 ServiceAccount
 	}
 
-	// 删除 ServiceAccount - 在 opshub-auth namespace 中
-	err = clientset.CoreV1().ServiceAccounts(OpsHubAuthNamespace).Delete(ctx, username, metav1.DeleteOptions{})
+	// 删除 ServiceAccount - 在 iom-auth namespace 中
+	err = clientset.CoreV1().ServiceAccounts(iomAuthNamespace).Delete(ctx, username, metav1.DeleteOptions{})
 	if err != nil {
 		return fmt.Errorf("删除 ServiceAccount 失败: %w", err)
 	}
@@ -1011,16 +1011,16 @@ func (s *ClusterService) RevokeUserKubeConfig(ctx context.Context, clusterID uin
 func (s *ClusterService) createKubeConfigForUser(clientset *kubernetes.Clientset, cluster *models.Cluster, username string) (string, string, error) {
 	ctx := context.TODO()
 
-	// 确保 OpsHub 认证命名空间存在
-	if err := s.ensureOpsHubAuthNamespace(ctx, clientset); err != nil {
+	// 确保 iom 认证命名空间存在
+	if err := s.ensureiomAuthNamespace(ctx, clientset); err != nil {
 		return "", "", fmt.Errorf("确保命名空间存在失败: %w", err)
 	}
 
-	// ServiceAccount名称直接使用 opshub-{username}
-	saName := fmt.Sprintf("opshub-%s", username)
+	// ServiceAccount名称直接使用 iom-{username}
+	saName := fmt.Sprintf("iom-%s", username)
 
 	// 检查ServiceAccount是否已存在
-	_, err := clientset.CoreV1().ServiceAccounts(OpsHubAuthNamespace).Get(ctx, saName, metav1.GetOptions{})
+	_, err := clientset.CoreV1().ServiceAccounts(iomAuthNamespace).Get(ctx, saName, metav1.GetOptions{})
 	if err != nil {
 		// ServiceAccount不存在，创建新的
 		if k8serrors.IsNotFound(err) {
@@ -1028,12 +1028,12 @@ func (s *ClusterService) createKubeConfigForUser(clientset *kubernetes.Clientset
 				ObjectMeta: metav1.ObjectMeta{
 					Name: saName,
 					Labels: map[string]string{
-						"opshub.ydcloud-dy.com/created-by": "opshub",
-						"opshub.ydcloud-dy.com/username":  username,
+						"iom.ydcloud-dy.com/created-by": "iom",
+						"iom.ydcloud-dy.com/username":  username,
 					},
 				},
 			}
-			_, err = clientset.CoreV1().ServiceAccounts(OpsHubAuthNamespace).Create(ctx, sa, metav1.CreateOptions{})
+			_, err = clientset.CoreV1().ServiceAccounts(iomAuthNamespace).Create(ctx, sa, metav1.CreateOptions{})
 			if err != nil {
 				return "", "", fmt.Errorf("创建 ServiceAccount 失败: %w", err)
 			}
@@ -1049,7 +1049,7 @@ func (s *ClusterService) createKubeConfigForUser(clientset *kubernetes.Clientset
 	// 使用 ServiceAccount 的 Token 创建请求
 	// 通过创建 TokenRequest API 获取临时 token
 	expiration := int64(86400 * 365) // 1年有效期
-	tr, err := clientset.CoreV1().ServiceAccounts(OpsHubAuthNamespace).CreateToken(ctx, saName, &authenticationv1.TokenRequest{
+	tr, err := clientset.CoreV1().ServiceAccounts(iomAuthNamespace).CreateToken(ctx, saName, &authenticationv1.TokenRequest{
 		Spec: authenticationv1.TokenRequestSpec{
 			ExpirationSeconds: &expiration,
 		},
@@ -1058,7 +1058,7 @@ func (s *ClusterService) createKubeConfigForUser(clientset *kubernetes.Clientset
 	if err != nil {
 		// 如果 TokenRequest 失败，尝试查找现有的 Secret
 		var secretName string
-		secrets, err := clientset.CoreV1().Secrets(OpsHubAuthNamespace).List(ctx, metav1.ListOptions{})
+		secrets, err := clientset.CoreV1().Secrets(iomAuthNamespace).List(ctx, metav1.ListOptions{})
 		if err == nil {
 			for _, secret := range secrets.Items {
 				if strings.HasPrefix(secret.Name, saName+"-token") {
@@ -1072,7 +1072,7 @@ func (s *ClusterService) createKubeConfigForUser(clientset *kubernetes.Clientset
 			return "", "", fmt.Errorf("获取 Token 失败且未找到现有 Secret: %w", err)
 		}
 
-		secret, err := clientset.CoreV1().Secrets(OpsHubAuthNamespace).Get(ctx, secretName, metav1.GetOptions{})
+		secret, err := clientset.CoreV1().Secrets(iomAuthNamespace).Get(ctx, secretName, metav1.GetOptions{})
 		if err != nil {
 			return "", "", fmt.Errorf("获取 Secret 失败: %w", err)
 		}
@@ -1295,7 +1295,7 @@ func (s *ClusterService) RevokeCredentialFully(ctx context.Context, clusterID ui
 			// 检查是否有 Subject 引用了这个 ServiceAccount（支持两个命名空间）
 			for _, subject := range crb.Subjects {
 				if subject.Kind == "ServiceAccount" && subject.Name == serviceAccount &&
-					(subject.Namespace == OpsHubAuthNamespace || subject.Namespace == "default") {
+					(subject.Namespace == iomAuthNamespace || subject.Namespace == "default") {
 					_ = clientset.RbacV1().ClusterRoleBindings().Delete(ctx, crb.Name, metav1.DeleteOptions{})
 					break
 				}
@@ -1315,7 +1315,7 @@ func (s *ClusterService) RevokeCredentialFully(ctx context.Context, clusterID ui
 				// 检查是否有 Subject 引用了这个 ServiceAccount（支持两个命名空间）
 				for _, subject := range rb.Subjects {
 					if subject.Kind == "ServiceAccount" && subject.Name == serviceAccount &&
-						(subject.Namespace == OpsHubAuthNamespace || subject.Namespace == "default") {
+						(subject.Namespace == iomAuthNamespace || subject.Namespace == "default") {
 						_ = clientset.RbacV1().RoleBindings(ns.Name).Delete(ctx, rb.Name, metav1.DeleteOptions{})
 						break
 					}
@@ -1326,7 +1326,7 @@ func (s *ClusterService) RevokeCredentialFully(ctx context.Context, clusterID ui
 
 	// 3. 删除 ServiceAccount（先尝试新命名空间，再尝试旧命名空间）
 	deleted := false
-	err = clientset.CoreV1().ServiceAccounts(OpsHubAuthNamespace).Delete(ctx, serviceAccount, metav1.DeleteOptions{})
+	err = clientset.CoreV1().ServiceAccounts(iomAuthNamespace).Delete(ctx, serviceAccount, metav1.DeleteOptions{})
 	if err == nil {
 		deleted = true
 	} else if !k8serrors.IsNotFound(err) {
@@ -1368,12 +1368,12 @@ func (s *ClusterService) RevokeCredentialFully(ctx context.Context, clusterID ui
 	return nil
 }
 
-// ensureOpsHubAuthNamespace 确保 OpsHub 认证命名空间存在
-func (s *ClusterService) ensureOpsHubAuthNamespace(ctx context.Context, clientset *kubernetes.Clientset) error {
+// ensureiomAuthNamespace 确保 iom 认证命名空间存在
+func (s *ClusterService) ensureiomAuthNamespace(ctx context.Context, clientset *kubernetes.Clientset) error {
 	nsClient := clientset.CoreV1().Namespaces()
 
 	// 检查命名空间是否已存在
-	_, err := nsClient.Get(ctx, OpsHubAuthNamespace, metav1.GetOptions{})
+	_, err := nsClient.Get(ctx, iomAuthNamespace, metav1.GetOptions{})
 	if err == nil {
 		// 已存在，直接返回
 		return nil
@@ -1386,15 +1386,15 @@ func (s *ClusterService) ensureOpsHubAuthNamespace(ctx context.Context, clientse
 	// 创建新的命名空间
 	ns := &v1.Namespace{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: OpsHubAuthNamespace,
+			Name: iomAuthNamespace,
 			Labels: map[string]string{
-				"name":                                 "opshub-auth",
-				"opshub.ydcloud-dy.com/purpose":        "authentication",
-				"opshub.ydcloud-dy.com/managed-by":     "opshub",
-				"opshub.ydcloud-dy.com/namespace-type": "system",
+				"name":                                 "iom-auth",
+				"iom.ydcloud-dy.com/purpose":        "authentication",
+				"iom.ydcloud-dy.com/managed-by":     "iom",
+				"iom.ydcloud-dy.com/namespace-type": "system",
 			},
 			Annotations: map[string]string{
-				"description": "OpsHub user authentication namespace - managed by OpsHub, do not modify manually",
+				"description": "iom user authentication namespace - managed by iom, do not modify manually",
 			},
 		},
 	}

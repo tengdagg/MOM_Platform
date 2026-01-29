@@ -1,19 +1,19 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ include "opshub.fullname" . }}-frontend
+  name: {{ include "iom.fullname" . }}-frontend
   namespace: {{ .Release.Namespace }}
   labels:
-    {{- include "opshub.frontend.labels" . | nindent 4 }}
+    {{- include "iom.frontend.labels" . | nindent 4 }}
 spec:
   replicas: {{ .Values.frontend.replicaCount }}
   selector:
     matchLabels:
-      {{- include "opshub.frontend.selectorLabels" . | nindent 6 }}
+      {{- include "iom.frontend.selectorLabels" . | nindent 6 }}
   template:
     metadata:
       labels:
-        {{- include "opshub.frontend.selectorLabels" . | nindent 8 }}
+        {{- include "iom.frontend.selectorLabels" . | nindent 8 }}
     spec:
       {{- with .Values.global.imagePullSecrets }}
       imagePullSecrets:
@@ -52,7 +52,7 @@ spec:
       volumes:
         - name: nginx-config
           configMap:
-            name: {{ include "opshub.fullname" . }}-nginx-config
+            name: {{ include "iom.fullname" . }}-nginx-config
       {{- with .Values.frontend.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}
@@ -69,10 +69,10 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ include "opshub.fullname" . }}-frontend
+  name: {{ include "iom.fullname" . }}-frontend
   namespace: {{ .Release.Namespace }}
   labels:
-    {{- include "opshub.frontend.labels" . | nindent 4 }}
+    {{- include "iom.frontend.labels" . | nindent 4 }}
 spec:
   type: {{ .Values.frontend.service.type }}
   ports:
@@ -81,4 +81,4 @@ spec:
       protocol: TCP
       name: http
   selector:
-    {{- include "opshub.frontend.selectorLabels" . | nindent 4 }}
+    {{- include "iom.frontend.selectorLabels" . | nindent 4 }}

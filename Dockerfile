@@ -20,7 +20,7 @@ COPY . .
 # Download dependencies
 RUN go mod download
 # Build the application
-RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o opshub main.go
+RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o iom main.go
 
 # Runtime stage
 FROM swr.cn-north-4.myhuaweicloud.com/ddn-k8s/docker.io/selectdb/alpine:latest
@@ -37,7 +37,7 @@ ENV TZ=Asia/Shanghai
 WORKDIR /app
 
 # Copy the binary from builder
-COPY --from=builder /build/opshub .
+COPY --from=builder /build/iom .
 
 # Copy config template as default config
 COPY config/config.yaml.example config/config.yaml
@@ -49,4 +49,4 @@ RUN mkdir -p logs
 EXPOSE 9876
 
 # Run the application
-CMD ["./opshub", "server"]
+CMD ["./iom", "server"]

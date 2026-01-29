@@ -28,9 +28,9 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/ydcloud-dy/opshub/plugins/monitor/model"
-	"github.com/ydcloud-dy/opshub/plugins/monitor/repository"
-	"github.com/ydcloud-dy/opshub/plugins/monitor/service"
+	"github.com/ydcloud-dy/iom/plugins/monitor/model"
+	"github.com/ydcloud-dy/iom/plugins/monitor/repository"
+	"github.com/ydcloud-dy/iom/plugins/monitor/service"
 	"gorm.io/gorm"
 )
 

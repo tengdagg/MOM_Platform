@@ -23,14 +23,14 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/ydcloud-dy/opshub/cmd/root"
-	_ "github.com/ydcloud-dy/opshub/cmd/config"  // 注册配置命令
-	_ "github.com/ydcloud-dy/opshub/cmd/server"  // 注册服务命令
-	_ "github.com/ydcloud-dy/opshub/cmd/version" // 注册版本命令
-	_ "github.com/ydcloud-dy/opshub/docs"        // 导入 Swagger 生成的文档
+	"github.com/ydcloud-dy/iom/cmd/root"
+	_ "github.com/ydcloud-dy/iom/cmd/config"  // 注册配置命令
+	_ "github.com/ydcloud-dy/iom/cmd/server"  // 注册服务命令
+	_ "github.com/ydcloud-dy/iom/cmd/version" // 注册版本命令
+	_ "github.com/ydcloud-dy/iom/docs"        // 导入 Swagger 生成的文档
 )
 
-// @title           OpsHub API
+// @title           iom API
 // @version         1.0
 // @description     运维管理平台 API 文档
 // @termsOfService  http://swagger.io/terms/

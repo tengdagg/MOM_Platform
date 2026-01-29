@@ -31,7 +31,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"gorm.io/gorm"
 
-	"github.com/ydcloud-dy/opshub/plugins/kubernetes/service"
+	"github.com/ydcloud-dy/iom/plugins/kubernetes/service"
 )
 
 // RoleHandler 角色处理器
@@ -105,8 +105,8 @@ func (h *RoleHandler) ListClusterRoles(c *gin.Context) {
 	// 返回平台管理的所有角色（内置角色 + 用户自建角色）
 	roleList := make([]map[string]interface{}, 0)
 	for _, role := range roles.Items {
-		// 显示带有 opshub 管理标签的角色（包括 default-role=true 和 custom-role=true）
-		if role.Labels["opshub.ydcloud-dy.com/managed-by"] == "opshub" {
+		// 显示带有 iom 管理标签的角色（包括 default-role=true 和 custom-role=true）
+		if role.Labels["iom.ydcloud-dy.com/managed-by"] == "iom" {
 			convertedRole := convertClusterRole(role)
 			roleList = append(roleList, convertedRole)
 		}
@@ -264,8 +264,8 @@ func (h *RoleHandler) ListNamespaceRoles(c *gin.Context) {
 	// 返回平台管理的所有角色（内置角色 + 用户自建角色）
 	roleList := make([]map[string]interface{}, 0)
 	for _, role := range roles.Items {
-		// 显示带有 opshub 管理标签的角色（包括 default-role=true 和 custom-role=true）
-		if role.Labels["opshub.ydcloud-dy.com/managed-by"] == "opshub" {
+		// 显示带有 iom 管理标签的角色（包括 default-role=true 和 custom-role=true）
+		if role.Labels["iom.ydcloud-dy.com/managed-by"] == "iom" {
 			convertedRole := convertNamespaceRole(role, namespace)
 			roleList = append(roleList, convertedRole)
 		}
@@ -362,7 +362,7 @@ func (h *RoleHandler) GetRoleDetail(c *gin.Context) {
 
 // CreateDefaultClusterRoles 创建默认的集群角色
 // @Summary 创建默认集群角色
-// @Description 创建 OpsHub 平台使用的默认集群角色
+// @Description 创建 iom 平台使用的默认集群角色
 // @Tags Kubernetes/Role
 // @Accept json
 // @Produce json
@@ -476,8 +476,8 @@ func getDefaultClusterRoles() []rbacv1.ClusterRole {
 			ObjectMeta: metav1.ObjectMeta{
 				Name: "cluster-owner",
 				Labels: map[string]string{
-					"opshub.ydcloud-dy.com/managed-by": "opshub",
-					"opshub.ydcloud-dy.com/default-role": "true",
+					"iom.ydcloud-dy.com/managed-by": "iom",
+					"iom.ydcloud-dy.com/default-role": "true",
 				},
 			},
 			Rules: []rbacv1.PolicyRule{
@@ -497,8 +497,8 @@ func getDefaultClusterRoles() []rbacv1.ClusterRole {
 			ObjectMeta: metav1.ObjectMeta{
 				Name: "cluster-viewer",
 				Labels: map[string]string{
-					"opshub.ydcloud-dy.com/managed-by": "opshub",
-					"opshub.ydcloud-dy.com/default-role": "true",
+					"iom.ydcloud-dy.com/managed-by": "iom",
+					"iom.ydcloud-dy.com/default-role": "true",
 				},
 			},
 			Rules: []rbacv1.PolicyRule{
@@ -514,8 +514,8 @@ func getDefaultClusterRoles() []rbacv1.ClusterRole {
 			ObjectMeta: metav1.ObjectMeta{
 				Name: "manage-appmarket",
 				Labels: map[string]string{
-					"opshub.ydcloud-dy.com/managed-by": "opshub",
-					"opshub.ydcloud-dy.com/default-role": "true",
+					"iom.ydcloud-dy.com/managed-by": "iom",
+					"iom.ydcloud-dy.com/default-role": "true",
 				},
 			},
 			Rules: []rbacv1.PolicyRule{
@@ -531,8 +531,8 @@ func getDefaultClusterRoles() []rbacv1.ClusterRole {
 			ObjectMeta: metav1.ObjectMeta{
 				Name: "manage-cluster-rbac",
 				Labels: map[string]string{
-					"opshub.ydcloud-dy.com/managed-by": "opshub",
-					"opshub.ydcloud-dy.com/default-role": "true",
+					"iom.ydcloud-dy.com/managed-by": "iom",
+					"iom.ydcloud-dy.com/default-role": "true",
 				},
 			},
 			Rules: []rbacv1.PolicyRule{
@@ -548,8 +548,8 @@ func getDefaultClusterRoles() []rbacv1.ClusterRole {
 			ObjectMeta: metav1.ObjectMeta{
 				Name: "manage-cluster-storage",
 				Labels: map[string]string{
-					"opshub.ydcloud-dy.com/managed-by": "opshub",
-					"opshub.ydcloud-dy.com/default-role": "true",
+					"iom.ydcloud-dy.com/managed-by": "iom",
+					"iom.ydcloud-dy.com/default-role": "true",
 				},
 			},
 			Rules: []rbacv1.PolicyRule{
@@ -570,8 +570,8 @@ func getDefaultClusterRoles() []rbacv1.ClusterRole {
 			ObjectMeta: metav1.ObjectMeta{
 				Name: "manage-crd",
 				Labels: map[string]string{
-					"opshub.ydcloud-dy.com/managed-by": "opshub",
-					"opshub.ydcloud-dy.com/default-role": "true",
+					"iom.ydcloud-dy.com/managed-by": "iom",
+					"iom.ydcloud-dy.com/default-role": "true",
 				},
 			},
 			Rules: []rbacv1.PolicyRule{
@@ -587,8 +587,8 @@ func getDefaultClusterRoles() []rbacv1.ClusterRole {
 			ObjectMeta: metav1.ObjectMeta{
 				Name: "manage-namespaces",
 				Labels: map[string]string{
-					"opshub.ydcloud-dy.com/managed-by": "opshub",
-					"opshub.ydcloud-dy.com/default-role": "true",
+					"iom.ydcloud-dy.com/managed-by": "iom",
+					"iom.ydcloud-dy.com/default-role": "true",
 				},
 			},
 			Rules: []rbacv1.PolicyRule{
@@ -604,8 +604,8 @@ func getDefaultClusterRoles() []rbacv1.ClusterRole {
 			ObjectMeta: metav1.ObjectMeta{
 				Name: "manage-nodes",
 				Labels: map[string]string{
-					"opshub.ydcloud-dy.com/managed-by": "opshub",
-					"opshub.ydcloud-dy.com/default-role": "true",
+					"iom.ydcloud-dy.com/managed-by": "iom",
+					"iom.ydcloud-dy.com/default-role": "true",
 				},
 			},
 			Rules: []rbacv1.PolicyRule{
@@ -621,8 +621,8 @@ func getDefaultClusterRoles() []rbacv1.ClusterRole {
 			ObjectMeta: metav1.ObjectMeta{
 				Name: "view-cluster-rbac",
 				Labels: map[string]string{
-					"opshub.ydcloud-dy.com/managed-by": "opshub",
-					"opshub.ydcloud-dy.com/default-role": "true",
+					"iom.ydcloud-dy.com/managed-by": "iom",
+					"iom.ydcloud-dy.com/default-role": "true",
 				},
 			},
 			Rules: []rbacv1.PolicyRule{
@@ -638,8 +638,8 @@ func getDefaultClusterRoles() []rbacv1.ClusterRole {
 			ObjectMeta: metav1.ObjectMeta{
 				Name: "view-cluster-storage",
 				Labels: map[string]string{
-					"opshub.ydcloud-dy.com/managed-by": "opshub",
-					"opshub.ydcloud-dy.com/default-role": "true",
+					"iom.ydcloud-dy.com/managed-by": "iom",
+					"iom.ydcloud-dy.com/default-role": "true",
 				},
 			},
 			Rules: []rbacv1.PolicyRule{
@@ -660,8 +660,8 @@ func getDefaultClusterRoles() []rbacv1.ClusterRole {
 			ObjectMeta: metav1.ObjectMeta{
 				Name: "view-crd",
 				Labels: map[string]string{
-					"opshub.ydcloud-dy.com/managed-by": "opshub",
-					"opshub.ydcloud-dy.com/default-role": "true",
+					"iom.ydcloud-dy.com/managed-by": "iom",
+					"iom.ydcloud-dy.com/default-role": "true",
 				},
 			},
 			Rules: []rbacv1.PolicyRule{
@@ -677,8 +677,8 @@ func getDefaultClusterRoles() []rbacv1.ClusterRole {
 			ObjectMeta: metav1.ObjectMeta{
 				Name: "view-events",
 				Labels: map[string]string{
-					"opshub.ydcloud-dy.com/managed-by": "opshub",
-					"opshub.ydcloud-dy.com/default-role": "true",
+					"iom.ydcloud-dy.com/managed-by": "iom",
+					"iom.ydcloud-dy.com/default-role": "true",
 				},
 			},
 			Rules: []rbacv1.PolicyRule{
@@ -694,8 +694,8 @@ func getDefaultClusterRoles() []rbacv1.ClusterRole {
 			ObjectMeta: metav1.ObjectMeta{
 				Name: "view-namespaces",
 				Labels: map[string]string{
-					"opshub.ydcloud-dy.com/managed-by": "opshub",
-					"opshub.ydcloud-dy.com/default-role": "true",
+					"iom.ydcloud-dy.com/managed-by": "iom",
+					"iom.ydcloud-dy.com/default-role": "true",
 				},
 			},
 			Rules: []rbacv1.PolicyRule{
@@ -711,8 +711,8 @@ func getDefaultClusterRoles() []rbacv1.ClusterRole {
 			ObjectMeta: metav1.ObjectMeta{
 				Name: "view-nodes",
 				Labels: map[string]string{
-					"opshub.ydcloud-dy.com/managed-by": "opshub",
-					"opshub.ydcloud-dy.com/default-role": "true",
+					"iom.ydcloud-dy.com/managed-by": "iom",
+					"iom.ydcloud-dy.com/default-role": "true",
 				},
 			},
 			Rules: []rbacv1.PolicyRule{
@@ -844,9 +844,9 @@ func getDefaultNamespaceRoles() []rbacv1.ClusterRole {
 			ObjectMeta: metav1.ObjectMeta{
 				Name: "namespace-owner",
 				Labels: map[string]string{
-					"opshub.ydcloud-dy.com/managed-by":      "opshub",
-					"opshub.ydcloud-dy.com/default-role":   "true",
-					"opshub.ydcloud-dy.com/namespace-role": "true",
+					"iom.ydcloud-dy.com/managed-by":      "iom",
+					"iom.ydcloud-dy.com/default-role":   "true",
+					"iom.ydcloud-dy.com/namespace-role": "true",
 				},
 			},
 			Rules: []rbacv1.PolicyRule{
@@ -862,9 +862,9 @@ func getDefaultNamespaceRoles() []rbacv1.ClusterRole {
 			ObjectMeta: metav1.ObjectMeta{
 				Name: "namespace-viewer",
 				Labels: map[string]string{
-					"opshub.ydcloud-dy.com/managed-by":      "opshub",
-					"opshub.ydcloud-dy.com/default-role":   "true",
-					"opshub.ydcloud-dy.com/namespace-role": "true",
+					"iom.ydcloud-dy.com/managed-by":      "iom",
+					"iom.ydcloud-dy.com/default-role":   "true",
+					"iom.ydcloud-dy.com/namespace-role": "true",
 				},
 			},
 			Rules: []rbacv1.PolicyRule{
@@ -880,9 +880,9 @@ func getDefaultNamespaceRoles() []rbacv1.ClusterRole {
 			ObjectMeta: metav1.ObjectMeta{
 				Name: "manage-workload",
 				Labels: map[string]string{
-					"opshub.ydcloud-dy.com/managed-by":      "opshub",
-					"opshub.ydcloud-dy.com/default-role":   "true",
-					"opshub.ydcloud-dy.com/namespace-role": "true",
+					"iom.ydcloud-dy.com/managed-by":      "iom",
+					"iom.ydcloud-dy.com/default-role":   "true",
+					"iom.ydcloud-dy.com/namespace-role": "true",
 				},
 			},
 			Rules: []rbacv1.PolicyRule{
@@ -908,9 +908,9 @@ func getDefaultNamespaceRoles() []rbacv1.ClusterRole {
 			ObjectMeta: metav1.ObjectMeta{
 				Name: "manage-config",
 				Labels: map[string]string{
-					"opshub.ydcloud-dy.com/managed-by":    "opshub",
-					"opshub.ydcloud-dy.com/default-role": "true",
-					"opshub.ydcloud-dy.com/namespace-role": "true",
+					"iom.ydcloud-dy.com/managed-by":    "iom",
+					"iom.ydcloud-dy.com/default-role": "true",
+					"iom.ydcloud-dy.com/namespace-role": "true",
 				},
 			},
 			Rules: []rbacv1.PolicyRule{
@@ -926,9 +926,9 @@ func getDefaultNamespaceRoles() []rbacv1.ClusterRole {
 			ObjectMeta: metav1.ObjectMeta{
 				Name: "manage-rbac",
 				Labels: map[string]string{
-					"opshub.ydcloud-dy.com/managed-by":    "opshub",
-					"opshub.ydcloud-dy.com/default-role": "true",
-					"opshub.ydcloud-dy.com/namespace-role": "true",
+					"iom.ydcloud-dy.com/managed-by":    "iom",
+					"iom.ydcloud-dy.com/default-role": "true",
+					"iom.ydcloud-dy.com/namespace-role": "true",
 				},
 			},
 			Rules: []rbacv1.PolicyRule{
@@ -944,9 +944,9 @@ func getDefaultNamespaceRoles() []rbacv1.ClusterRole {
 			ObjectMeta: metav1.ObjectMeta{
 				Name: "manage-service-discovery",
 				Labels: map[string]string{
-					"opshub.ydcloud-dy.com/managed-by":    "opshub",
-					"opshub.ydcloud-dy.com/default-role": "true",
-					"opshub.ydcloud-dy.com/namespace-role": "true",
+					"iom.ydcloud-dy.com/managed-by":    "iom",
+					"iom.ydcloud-dy.com/default-role": "true",
+					"iom.ydcloud-dy.com/namespace-role": "true",
 				},
 			},
 			Rules: []rbacv1.PolicyRule{
@@ -967,9 +967,9 @@ func getDefaultNamespaceRoles() []rbacv1.ClusterRole {
 			ObjectMeta: metav1.ObjectMeta{
 				Name: "manage-storage",
 				Labels: map[string]string{
-					"opshub.ydcloud-dy.com/managed-by":    "opshub",
-					"opshub.ydcloud-dy.com/default-role": "true",
-					"opshub.ydcloud-dy.com/namespace-role": "true",
+					"iom.ydcloud-dy.com/managed-by":    "iom",
+					"iom.ydcloud-dy.com/default-role": "true",
+					"iom.ydcloud-dy.com/namespace-role": "true",
 				},
 			},
 			Rules: []rbacv1.PolicyRule{
@@ -985,9 +985,9 @@ func getDefaultNamespaceRoles() []rbacv1.ClusterRole {
 			ObjectMeta: metav1.ObjectMeta{
 				Name: "view-workload",
 				Labels: map[string]string{
-					"opshub.ydcloud-dy.com/managed-by":    "opshub",
-					"opshub.ydcloud-dy.com/default-role": "true",
-					"opshub.ydcloud-dy.com/namespace-role": "true",
+					"iom.ydcloud-dy.com/managed-by":    "iom",
+					"iom.ydcloud-dy.com/default-role": "true",
+					"iom.ydcloud-dy.com/namespace-role": "true",
 				},
 			},
 			Rules: []rbacv1.PolicyRule{
@@ -1013,9 +1013,9 @@ func getDefaultNamespaceRoles() []rbacv1.ClusterRole {
 			ObjectMeta: metav1.ObjectMeta{
 				Name: "view-config",
 				Labels: map[string]string{
-					"opshub.ydcloud-dy.com/managed-by":    "opshub",
-					"opshub.ydcloud-dy.com/default-role": "true",
-					"opshub.ydcloud-dy.com/namespace-role": "true",
+					"iom.ydcloud-dy.com/managed-by":    "iom",
+					"iom.ydcloud-dy.com/default-role": "true",
+					"iom.ydcloud-dy.com/namespace-role": "true",
 				},
 			},
 			Rules: []rbacv1.PolicyRule{
@@ -1031,9 +1031,9 @@ func getDefaultNamespaceRoles() []rbacv1.ClusterRole {
 			ObjectMeta: metav1.ObjectMeta{
 				Name: "view-rbac",
 				Labels: map[string]string{
-					"opshub.ydcloud-dy.com/managed-by":    "opshub",
-					"opshub.ydcloud-dy.com/default-role": "true",
-					"opshub.ydcloud-dy.com/namespace-role": "true",
+					"iom.ydcloud-dy.com/managed-by":    "iom",
+					"iom.ydcloud-dy.com/default-role": "true",
+					"iom.ydcloud-dy.com/namespace-role": "true",
 				},
 			},
 			Rules: []rbacv1.PolicyRule{
@@ -1049,9 +1049,9 @@ func getDefaultNamespaceRoles() []rbacv1.ClusterRole {
 			ObjectMeta: metav1.ObjectMeta{
 				Name: "view-service-discovery",
 				Labels: map[string]string{
-					"opshub.ydcloud-dy.com/managed-by":    "opshub",
-					"opshub.ydcloud-dy.com/default-role": "true",
-					"opshub.ydcloud-dy.com/namespace-role": "true",
+					"iom.ydcloud-dy.com/managed-by":    "iom",
+					"iom.ydcloud-dy.com/default-role": "true",
+					"iom.ydcloud-dy.com/namespace-role": "true",
 				},
 			},
 			Rules: []rbacv1.PolicyRule{
@@ -1072,9 +1072,9 @@ func getDefaultNamespaceRoles() []rbacv1.ClusterRole {
 			ObjectMeta: metav1.ObjectMeta{
 				Name: "view-storage",
 				Labels: map[string]string{
-					"opshub.ydcloud-dy.com/managed-by":    "opshub",
-					"opshub.ydcloud-dy.com/default-role": "true",
-					"opshub.ydcloud-dy.com/namespace-role": "true",
+					"iom.ydcloud-dy.com/managed-by":    "iom",
+					"iom.ydcloud-dy.com/default-role": "true",
+					"iom.ydcloud-dy.com/namespace-role": "true",
 				},
 			},
 			Rules: []rbacv1.PolicyRule{
@@ -1144,7 +1144,7 @@ func (h *RoleHandler) DeleteRole(c *gin.Context) {
 		role, err := clientset.RbacV1().ClusterRoles().Get(c.Request.Context(), name, metav1.GetOptions{})
 		if err == nil {
 			// 检查是否为代码中定义的默认角色
-			if role.Labels["opshub.ydcloud-dy.com/default-role"] == "true" {
+			if role.Labels["iom.ydcloud-dy.com/default-role"] == "true" {
 				c.JSON(http.StatusForbidden, gin.H{
 					"code":    403,
 					"message": "平台默认角色不能删除",
@@ -1159,7 +1159,7 @@ func (h *RoleHandler) DeleteRole(c *gin.Context) {
 		role, err := clientset.RbacV1().Roles(namespace).Get(c.Request.Context(), name, metav1.GetOptions{})
 		if err == nil {
 			// 检查是否为代码中定义的默认角色
-			if role.Labels["opshub.ydcloud-dy.com/default-role"] == "true" {
+			if role.Labels["iom.ydcloud-dy.com/default-role"] == "true" {
 				c.JSON(http.StatusForbidden, gin.H{
 					"code":    403,
 					"message": "平台默认角色不能删除",
@@ -1199,7 +1199,7 @@ func convertClusterRole(role rbacv1.ClusterRole) map[string]interface{} {
 	// 判断是否为自定义角色（可删除）
 	// 1. 有 default-role=true 标签的（代码中定义的平台默认角色）不可删除
 	// 2. 有 custom-role=true 标签的（用户在平台上创建的角色）可以删除
-	isCustom := role.Labels["opshub.ydcloud-dy.com/custom-role"] == "true"
+	isCustom := role.Labels["iom.ydcloud-dy.com/custom-role"] == "true"
 
 	return map[string]interface{}{
 		"name":      role.Name,
@@ -1225,7 +1225,7 @@ func convertNamespaceRole(role rbacv1.Role, namespace string) map[string]interfa
 	// 判断是否为自定义角色（可删除）
 	// 1. 有 default-role=true 标签的（代码中定义的平台默认角色）不可删除
 	// 2. 有 custom-role=true 标签的（用户在平台上创建的角色）可以删除
-	isCustom := role.Labels["opshub.ydcloud-dy.com/custom-role"] == "true"
+	isCustom := role.Labels["iom.ydcloud-dy.com/custom-role"] == "true"
 
 	return map[string]interface{}{
 		"name":      role.Name,
@@ -1400,8 +1400,8 @@ func (h *RoleHandler) CreateRole(c *gin.Context) {
 			ObjectMeta: metav1.ObjectMeta{
 				Name: req.Name,
 				Labels: map[string]string{
-					"opshub.ydcloud-dy.com/managed-by":  "opshub",
-					"opshub.ydcloud-dy.com/custom-role": "true",
+					"iom.ydcloud-dy.com/managed-by":  "iom",
+					"iom.ydcloud-dy.com/custom-role": "true",
 				},
 			},
 			Rules: rules,
@@ -1422,8 +1422,8 @@ func (h *RoleHandler) CreateRole(c *gin.Context) {
 				Name:      req.Name,
 				Namespace: req.Namespace,
 				Labels: map[string]string{
-					"opshub.ydcloud-dy.com/managed-by":  "opshub",
-					"opshub.ydcloud-dy.com/custom-role": "true",
+					"iom.ydcloud-dy.com/managed-by":  "iom",
+					"iom.ydcloud-dy.com/custom-role": "true",
 				},
 			},
 			Rules: rules,

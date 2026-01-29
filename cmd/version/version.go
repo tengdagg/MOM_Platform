@@ -23,7 +23,7 @@ import (
 	"fmt"
 
 	"github.com/spf13/cobra"
-	"github.com/ydcloud-dy/opshub/cmd/root"
+	"github.com/ydcloud-dy/iom/cmd/root"
 )
 
 var (
@@ -40,10 +40,10 @@ var (
 var Cmd = &cobra.Command{
 	Use:   "version",
 	Short: "显示版本信息",
-	Long:  `显示 OpsHub 的版本信息`,
+	Long:  `显示 iom 的版本信息`,
 	Run: func(cmd *cobra.Command, args []string) {
 		fmt.Println("========================================")
-		fmt.Println("           OpsHub 运维管理平台")
+		fmt.Println("           iom 运维管理平台")
 		fmt.Println("========================================")
 		fmt.Printf("版本号:     %s\n", Version)
 		fmt.Printf("Git提交:    %s\n", GitCommit)

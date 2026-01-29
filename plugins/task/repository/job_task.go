@@ -23,7 +23,7 @@ import (
 	"context"
 	"encoding/json"
 
-	"github.com/ydcloud-dy/opshub/plugins/task/model"
+	"github.com/ydcloud-dy/iom/plugins/task/model"
 	"gorm.io/gorm"
 )
 

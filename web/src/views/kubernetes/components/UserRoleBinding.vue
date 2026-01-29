@@ -525,12 +525,12 @@ const loadRoles = async () => {
 
     // 分离集群角色和命名空间角色（都是 ClusterRole，通过标签区分）
     allClusterRoles.value = (allClusterRolesList || []).filter(role =>
-      !role.labels || role.labels['opshub.ydcloud-dy.com/namespace-role'] !== 'true'
+      !role.labels || role.labels['iom.ydcloud-dy.com/namespace-role'] !== 'true'
     )
 
     // 命名空间角色：带有 namespace-role=true 标签的 ClusterRole
     allNamespaceRoles.value = (allClusterRolesList || []).filter(role =>
-      role.labels && role.labels['opshub.ydcloud-dy.com/namespace-role'] === 'true'
+      role.labels && role.labels['iom.ydcloud-dy.com/namespace-role'] === 'true'
     )
 
     // 加载可用的API组

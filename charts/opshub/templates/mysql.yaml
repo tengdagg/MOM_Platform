@@ -2,10 +2,10 @@
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: {{ include "opshub.fullname" . }}-mysql-pvc
+  name: {{ include "iom.fullname" . }}-mysql-pvc
   namespace: {{ .Release.Namespace }}
   labels:
-    {{- include "opshub.mysql.labels" . | nindent 4 }}
+    {{- include "iom.mysql.labels" . | nindent 4 }}
 spec:
   accessModes:
     {{- toYaml .Values.mysql.persistence.accessModes | nindent 4 }}
@@ -19,20 +19,20 @@ spec:
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
-  name: {{ include "opshub.fullname" . }}-mysql
+  name: {{ include "iom.fullname" . }}-mysql
   namespace: {{ .Release.Namespace }}
   labels:
-    {{- include "opshub.mysql.labels" . | nindent 4 }}
+    {{- include "iom.mysql.labels" . | nindent 4 }}
 spec:
-  serviceName: {{ include "opshub.fullname" . }}-mysql
+  serviceName: {{ include "iom.fullname" . }}-mysql
   replicas: 1
   selector:
     matchLabels:
-      {{- include "opshub.mysql.selectorLabels" . | nindent 6 }}
+      {{- include "iom.mysql.selectorLabels" . | nindent 6 }}
   template:
     metadata:
       labels:
-        {{- include "opshub.mysql.selectorLabels" . | nindent 8 }}
+        {{- include "iom.mysql.selectorLabels" . | nindent 8 }}
     spec:
       {{- with .Values.global.imagePullSecrets }}
       imagePullSecrets:
@@ -50,7 +50,7 @@ spec:
             - name: MYSQL_ROOT_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: {{ include "opshub.fullname" . }}-secrets
+                  name: {{ include "iom.fullname" . }}-secrets
                   key: mysql-root-password
             - name: MYSQL_DATABASE
               value: {{ .Values.mysql.auth.database | quote }}
@@ -83,10 +83,10 @@ spec:
       volumes:
         - name: mysql-data
           persistentVolumeClaim:
-            claimName: {{ include "opshub.fullname" . }}-mysql-pvc
+            claimName: {{ include "iom.fullname" . }}-mysql-pvc
         - name: mysql-init
           configMap:
-            name: {{ include "opshub.fullname" . }}-mysql-init
+            name: {{ include "iom.fullname" . }}-mysql-init
       {{- with .Values.mysql.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}
@@ -99,10 +99,10 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ include "opshub.fullname" . }}-mysql
+  name: {{ include "iom.fullname" . }}-mysql
   namespace: {{ .Release.Namespace }}
   labels:
-    {{- include "opshub.mysql.labels" . | nindent 4 }}
+    {{- include "iom.mysql.labels" . | nindent 4 }}
 spec:
   type: ClusterIP
   clusterIP: None
@@ -112,5 +112,5 @@ spec:
       protocol: TCP
       name: mysql
   selector:
-    {{- include "opshub.mysql.selectorLabels" . | nindent 4 }}
+    {{- include "iom.mysql.selectorLabels" . | nindent 4 }}
 {{- end }}

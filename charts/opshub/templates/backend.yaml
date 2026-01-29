@@ -1,19 +1,19 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ include "opshub.fullname" . }}-backend
+  name: {{ include "iom.fullname" . }}-backend
   namespace: {{ .Release.Namespace }}
   labels:
-    {{- include "opshub.backend.labels" . | nindent 4 }}
+    {{- include "iom.backend.labels" . | nindent 4 }}
 spec:
   replicas: {{ .Values.backend.replicaCount }}
   selector:
     matchLabels:
-      {{- include "opshub.backend.selectorLabels" . | nindent 6 }}
+      {{- include "iom.backend.selectorLabels" . | nindent 6 }}
   template:
     metadata:
       labels:
-        {{- include "opshub.backend.selectorLabels" . | nindent 8 }}
+        {{- include "iom.backend.selectorLabels" . | nindent 8 }}
     spec:
       {{- with .Values.global.imagePullSecrets }}
       imagePullSecrets:
@@ -27,7 +27,7 @@ spec:
             - sh
             - -c
             - |
-              until nc -z {{ include "opshub.mysql.host" . }} {{ include "opshub.mysql.port" . }}; do
+              until nc -z {{ include "iom.mysql.host" . }} {{ include "iom.mysql.port" . }}; do
                 echo "Waiting for MySQL..."
                 sleep 2
               done
@@ -39,7 +39,7 @@ spec:
             - sh
             - -c
             - |
-              until nc -z {{ include "opshub.redis.host" . }} {{ include "opshub.redis.port" . }}; do
+              until nc -z {{ include "iom.redis.host" . }} {{ include "iom.redis.port" . }}; do
                 echo "Waiting for Redis..."
                 sleep 2
               done
@@ -53,44 +53,44 @@ spec:
               containerPort: {{ .Values.server.httpPort }}
               protocol: TCP
           env:
-            - name: OPSHUB_SERVER_MODE
+            - name: iom_SERVER_MODE
               value: {{ .Values.server.mode | quote }}
-            - name: OPSHUB_SERVER_HTTP_PORT
+            - name: iom_SERVER_HTTP_PORT
               value: {{ .Values.server.httpPort | quote }}
-            - name: OPSHUB_SERVER_JWT_SECRET
+            - name: iom_SERVER_JWT_SECRET
               valueFrom:
                 secretKeyRef:
-                  name: {{ include "opshub.fullname" . }}-secrets
+                  name: {{ include "iom.fullname" . }}-secrets
                   key: jwt-secret
-            - name: OPSHUB_SERVER_JWT_EXPIRE
+            - name: iom_SERVER_JWT_EXPIRE
               value: {{ .Values.server.jwtExpire | quote }}
-            - name: OPSHUB_DATABASE_HOST
-              value: {{ include "opshub.mysql.host" . | quote }}
-            - name: OPSHUB_DATABASE_PORT
-              value: {{ include "opshub.mysql.port" . | quote }}
-            - name: OPSHUB_DATABASE_DATABASE
-              value: {{ include "opshub.mysql.database" . | quote }}
-            - name: OPSHUB_DATABASE_USERNAME
+            - name: iom_DATABASE_HOST
+              value: {{ include "iom.mysql.host" . | quote }}
+            - name: iom_DATABASE_PORT
+              value: {{ include "iom.mysql.port" . | quote }}
+            - name: iom_DATABASE_DATABASE
+              value: {{ include "iom.mysql.database" . | quote }}
+            - name: iom_DATABASE_USERNAME
               {{- if .Values.mysql.enabled }}
               value: "root"
               {{- else }}
               value: {{ .Values.externalDatabase.username | quote }}
               {{- end }}
-            - name: OPSHUB_DATABASE_PASSWORD
+            - name: iom_DATABASE_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: {{ include "opshub.fullname" . }}-secrets
+                  name: {{ include "iom.fullname" . }}-secrets
                   key: mysql-password
-            - name: OPSHUB_REDIS_HOST
-              value: {{ include "opshub.redis.host" . | quote }}
-            - name: OPSHUB_REDIS_PORT
-              value: {{ include "opshub.redis.port" . | quote }}
-            - name: OPSHUB_REDIS_PASSWORD
+            - name: iom_REDIS_HOST
+              value: {{ include "iom.redis.host" . | quote }}
+            - name: iom_REDIS_PORT
+              value: {{ include "iom.redis.port" . | quote }}
+            - name: iom_REDIS_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: {{ include "opshub.fullname" . }}-secrets
+                  name: {{ include "iom.fullname" . }}-secrets
                   key: redis-password
-            - name: OPSHUB_REDIS_DB
+            - name: iom_REDIS_DB
               {{- if .Values.redis.enabled }}
               value: "0"
               {{- else }}
@@ -132,10 +132,10 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ include "opshub.fullname" . }}-backend
+  name: {{ include "iom.fullname" . }}-backend
   namespace: {{ .Release.Namespace }}
   labels:
-    {{- include "opshub.backend.labels" . | nindent 4 }}
+    {{- include "iom.backend.labels" . | nindent 4 }}
 spec:
   type: {{ .Values.backend.service.type }}
   ports:
@@ -144,4 +144,4 @@ spec:
       protocol: TCP
       name: http
   selector:
-    {{- include "opshub.backend.selectorLabels" . | nindent 4 }}
+    {{- include "iom.backend.selectorLabels" . | nindent 4 }}

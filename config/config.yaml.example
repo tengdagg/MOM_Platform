@@ -10,7 +10,7 @@ database:
   driver: mysql
   host: mysql
   port: 3306
-  database: opshub
+  database: iom
   username: root
   password: "your-password"
   max_idle_conns: 10

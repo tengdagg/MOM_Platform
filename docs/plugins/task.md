@@ -60,7 +60,7 @@ Task 任务中心插件提供强大的任务编排与执行能力，支持脚本
 
 ### 通过管理界面启用
 
-1. 登录 OpsHub 系统
+1. 登录 iom 系统
 2. 进入「插件管理」-「插件列表」
 3. 找到「Task」插件
 4. 点击「启用」按钮
@@ -354,5 +354,5 @@ Task 插件使用以下数据库表：
 - [Shell 脚本教程](https://www.gnu.org/software/bash/manual/)
 - [Python 文档](https://docs.python.org/)
 - [Ansible 文档](https://docs.ansible.com/)
-- [OpsHub 主文档](../../README.md)
+- [iom 主文档](../../README.md)
 - [部署指南](../deployment.md)

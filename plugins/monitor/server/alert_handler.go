@@ -24,7 +24,7 @@ import (
 	"strconv"
 
 	"github.com/gin-gonic/gin"
-	"github.com/ydcloud-dy/opshub/plugins/monitor/model"
+	"github.com/ydcloud-dy/iom/plugins/monitor/model"
 	"gorm.io/gorm"
 )
 

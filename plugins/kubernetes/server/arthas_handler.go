@@ -38,7 +38,7 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/remotecommand"
 
-	"github.com/ydcloud-dy/opshub/plugins/kubernetes/service"
+	"github.com/ydcloud-dy/iom/plugins/kubernetes/service"
 )
 
 // ArthasHandler Arthas诊断处理器

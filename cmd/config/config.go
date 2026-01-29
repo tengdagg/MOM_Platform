@@ -24,13 +24,13 @@ import (
 	"os"
 
 	"github.com/spf13/cobra"
-	"github.com/ydcloud-dy/opshub/cmd/root"
+	"github.com/ydcloud-dy/iom/cmd/root"
 )
 
 var Cmd = &cobra.Command{
 	Use:   "config",
 	Short: "配置管理",
-	Long:  `管理 OpsHub 配置文件`,
+	Long:  `管理 iom 配置文件`,
 }
 
 var validateCmd = &cobra.Command{

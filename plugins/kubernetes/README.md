@@ -1,6 +1,6 @@
 # Kubernetes 插件
 
-OpsHub Kubernetes 集群管理插件
+iom Kubernetes 集群管理插件
 
 ## 目录结构
 
@@ -98,7 +98,7 @@ plugins/kubernetes/
 
 ```go
 import (
-    k8splugin "github.com/ydcloud-dy/opshub/plugins/kubernetes"
+    k8splugin "github.com/ydcloud-dy/iom/plugins/kubernetes"
 )
 
 func NewHTTPServer(conf *conf.Config, svc *service.Service, db *gorm.DB) *HTTPServer {
@@ -121,7 +121,7 @@ func NewHTTPServer(conf *conf.Config, svc *service.Service, db *gorm.DB) *HTTPSe
 在主项目的 `go.mod` 中添加：
 
 ```
-replace github.com/ydcloud-dy/opshub/plugins/kubernetes => ./plugins/kubernetes
+replace github.com/ydcloud-dy/iom/plugins/kubernetes => ./plugins/kubernetes
 ```
 
 ### 3. 运行迁移
@@ -153,4 +153,4 @@ replace github.com/ydcloud-dy/opshub/plugins/kubernetes => ./plugins/kubernetes
 
 ## License
 
-Copyright OpsHub Team
+Copyright iom Team

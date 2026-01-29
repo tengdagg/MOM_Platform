@@ -2620,52 +2620,52 @@ onMounted(() => {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  margin-bottom: 12px;
-  padding: 16px 20px;
+  margin-bottom: 10px;
+  padding: 12px 16px;
   background: #fff;
-  border-radius: 8px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
+  border-radius: 6px;
+  box-shadow: 0 1px 8px rgba(0, 0, 0, 0.04);
   flex-shrink: 0;
 }
 
 .page-title-group {
   display: flex;
   align-items: flex-start;
-  gap: 16px;
+  gap: 10px;
 }
 
 .page-title-icon {
-  width: 48px;
-  height: 48px;
+  width: 36px;
+  height: 36px;
   background: linear-gradient(135deg, #000 0%, #1a1a1a 100%);
-  border-radius: 10px;
+  border-radius: 8px;
   display: flex;
   align-items: center;
   justify-content: center;
   color: #d4af37;
-  font-size: 22px;
+  font-size: 16px;
   flex-shrink: 0;
   border: 1px solid #d4af37;
 }
 
 .page-title {
   margin: 0;
-  font-size: 20px;
+  font-size: 15px;
   font-weight: 600;
   color: #303133;
   line-height: 1.3;
 }
 
 .page-subtitle {
-  margin: 4px 0 0 0;
-  font-size: 13px;
+  margin: 2px 0 0 0;
+  font-size: 12px;
   color: #909399;
   line-height: 1.4;
 }
 
 .header-actions {
   display: flex;
-  gap: 12px;
+  gap: 8px;
   align-items: center;
 }
 
@@ -2683,17 +2683,17 @@ onMounted(() => {
 
 /* 左侧分组面板 */
 .left-panel {
-  width: 280px;
+  width: 200px;
   background: #fff;
-  border-radius: 8px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
+  border-radius: 6px;
+  box-shadow: 0 1px 8px rgba(0, 0, 0, 0.04);
   display: flex;
   flex-direction: column;
   flex-shrink: 0;
 }
 
 .panel-header {
-  padding: 16px;
+  padding: 10px 12px;
   border-bottom: 1px solid #e4e7ed;
   display: flex;
   justify-content: space-between;
@@ -2703,25 +2703,25 @@ onMounted(() => {
 .panel-title {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   font-weight: 600;
-  font-size: 15px;
+  font-size: 13px;
   color: #303133;
 }
 
 .panel-icon {
-  font-size: 18px;
+  font-size: 14px;
   color: #d4af37;
 }
 
 .panel-actions {
   display: flex;
-  gap: 8px;
+  gap: 6px;
 }
 
 .panel-body {
   flex: 1;
-  padding: 12px;
+  padding: 8px 10px;
   overflow: hidden;
   display: flex;
   flex-direction: column;
@@ -2762,13 +2762,15 @@ onMounted(() => {
 .tree-node {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
   flex: 1;
   width: 0;
+  font-size: 13px;
 }
 
 .node-icon {
   flex-shrink: 0;
+  font-size: 13px;
 }
 
 .node-label {
@@ -2776,10 +2778,11 @@ onMounted(() => {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  font-size: 13px;
 }
 
 .node-count {
-  font-size: 12px;
+  font-size: 11px;
   color: #909399;
   flex-shrink: 0;
 }
@@ -2813,30 +2816,30 @@ onMounted(() => {
 }
 
 .filter-bar {
-  padding: 12px 16px;
+  padding: 10px 14px;
   background: #fff;
-  border-radius: 8px 8px 0 0;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
+  border-radius: 6px 6px 0 0;
+  box-shadow: 0 1px 8px rgba(0, 0, 0, 0.04);
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 16px;
+  gap: 12px;
   border-bottom: 1px solid #e4e7ed;
 }
 
 .filter-inputs {
   display: flex;
-  gap: 12px;
+  gap: 10px;
   flex: 1;
 }
 
 .filter-input {
-  width: 220px;
+  width: 180px;
 }
 
 .filter-actions {
   display: flex;
-  gap: 10px;
+  gap: 8px;
 }
 
 .filter-bar :deep(.el-input__wrapper) {

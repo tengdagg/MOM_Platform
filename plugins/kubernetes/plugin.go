@@ -25,9 +25,9 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
 
-	"github.com/ydcloud-dy/opshub/internal/plugin"
-	"github.com/ydcloud-dy/opshub/plugins/kubernetes/model"
-	"github.com/ydcloud-dy/opshub/plugins/kubernetes/server"
+	"github.com/ydcloud-dy/iom/internal/plugin"
+	"github.com/ydcloud-dy/iom/plugins/kubernetes/model"
+	"github.com/ydcloud-dy/iom/plugins/kubernetes/server"
 )
 
 // Plugin Kubernetes 插件实现

@@ -7950,7 +7950,7 @@ const docTemplate = `{
         },
         "/plugins/kubernetes/roles/create-defaults": {
             "post": {
-                "description": "创建 OpsHub 平台使用的默认集群角色",
+                "description": "创建 iom 平台使用的默认集群角色",
                 "consumes": [
                     "application/json"
                 ],
@@ -10432,7 +10432,7 @@ var SwaggerInfo = &swag.Spec{
 	Host:             "localhost:8080",
 	BasePath:         "/api/v1",
 	Schemes:          []string{},
-	Title:            "OpsHub API",
+	Title:            "iom API",
 	Description:      "运维管理平台 API 文档",
 	InfoInstanceName: "swagger",
 	SwaggerTemplate:  docTemplate,

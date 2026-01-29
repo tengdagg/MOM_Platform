@@ -1,4 +1,4 @@
-# OpsHub 数据库结构参考
+# iom 数据库结构参考
 
 ## 表统计
 
@@ -182,13 +182,13 @@ ALTER EVENT cleanup_old_logs ENABLE;
 
 ```sql
 -- 创建应用用户（不使用root）
-CREATE USER 'opshub'@'localhost' IDENTIFIED BY 'strong_password';
-GRANT ALL PRIVILEGES ON opshub.* TO 'opshub'@'localhost';
+CREATE USER 'iom'@'localhost' IDENTIFIED BY 'strong_password';
+GRANT ALL PRIVILEGES ON iom.* TO 'iom'@'localhost';
 FLUSH PRIVILEGES;
 
 -- 用于生产环境的只读副本用户
-CREATE USER 'opshub_readonly'@'localhost' IDENTIFIED BY 'readonly_password';
-GRANT SELECT ON opshub.* TO 'opshub_readonly'@'localhost';
+CREATE USER 'iom_readonly'@'localhost' IDENTIFIED BY 'readonly_password';
+GRANT SELECT ON iom.* TO 'iom_readonly'@'localhost';
 FLUSH PRIVILEGES;
 ```
 
@@ -243,16 +243,16 @@ GROUP BY ag.id, ag.name;
 
 ```bash
 # 备份所有数据
-mysqldump -u root -p opshub > opshub_full.sql
+mysqldump -u root -p iom > iom_full.sql
 
 # 仅备份表结构
-mysqldump -u root -p -d opshub > opshub_schema.sql
+mysqldump -u root -p -d iom > iom_schema.sql
 
 # 压缩备份
-mysqldump -u root -p opshub | gzip > opshub_$(date +%Y%m%d).sql.gz
+mysqldump -u root -p iom | gzip > iom_$(date +%Y%m%d).sql.gz
 
 # 恢复备份
-mysql -u root -p opshub < opshub_full.sql
+mysql -u root -p iom < iom_full.sql
 ```
 
 ### 自动备份脚本
@@ -261,12 +261,12 @@ mysql -u root -p opshub < opshub_full.sql
 #!/bin/bash
 BACKUP_DIR="/path/to/backups"
 DATE=$(date +%Y%m%d_%H%M%S)
-BACKUP_FILE="$BACKUP_DIR/opshub_$DATE.sql.gz"
+BACKUP_FILE="$BACKUP_DIR/iom_$DATE.sql.gz"
 
-mysqldump -u opshub -p'password' opshub | gzip > "$BACKUP_FILE"
+mysqldump -u iom -p'password' iom | gzip > "$BACKUP_FILE"
 
 # 保留最近30天的备份
-find "$BACKUP_DIR" -name "opshub_*.sql.gz" -mtime +30 -delete
+find "$BACKUP_DIR" -name "iom_*.sql.gz" -mtime +30 -delete
 ```
 
 ## 故障排查
@@ -292,7 +292,7 @@ SELECT
     table_name,
     ROUND(((data_length + index_length) / 1024 / 1024), 2) AS size_mb
 FROM information_schema.TABLES
-WHERE table_schema = 'opshub'
+WHERE table_schema = 'iom'
 ORDER BY size_mb DESC;
 ```
 
@@ -310,5 +310,5 @@ SELECT * FROM mysql.slow_log;
 ## 相关文档
 
 - [数据库初始化指南](README.md)
-- [OpsHub 项目主文档](../../README.md)
+- [iom 项目主文档](../../README.md)
 - [MySQL 官方文档](https://dev.mysql.com/doc/)

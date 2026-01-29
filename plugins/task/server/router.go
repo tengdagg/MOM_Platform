@@ -21,7 +21,7 @@ package server
 
 import (
 	"github.com/gin-gonic/gin"
-	"github.com/ydcloud-dy/opshub/plugins/task/model"
+	"github.com/ydcloud-dy/iom/plugins/task/model"
 	"gorm.io/gorm"
 )
 

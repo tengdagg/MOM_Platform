@@ -25,9 +25,9 @@ import (
 	"gorm.io/gorm"
 	"time"
 
-	"github.com/ydcloud-dy/opshub/internal/plugin"
-	"github.com/ydcloud-dy/opshub/plugins/monitor/model"
-	"github.com/ydcloud-dy/opshub/plugins/monitor/server"
+	"github.com/ydcloud-dy/iom/internal/plugin"
+	"github.com/ydcloud-dy/iom/plugins/monitor/model"
+	"github.com/ydcloud-dy/iom/plugins/monitor/server"
 )
 
 // Plugin 监控中心插件实现

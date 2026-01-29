@@ -4,7 +4,7 @@
     <div class="brand-section">
       <div class="curved-divider"></div>
       <div class="brand-content">
-        <h1 class="brand-title">OpsHub 运维管理平台</h1>
+        <h1 class="brand-title">iom 运维管理平台</h1>
         <div class="brand-slogan">
           <span>高效</span>
           <span>安全</span>
@@ -57,7 +57,7 @@
           <div class="header-line"></div>
         </div>
 
-        <el-form :model="loginForm" :rules="rules" ref="formRef" class="login-form" size="large">
+        <el-form :model="loginForm" :rules="rules" ref="formRef" class="login-form" size="default">
           <el-form-item prop="username">
             <el-input
               v-model="loginForm.username"
@@ -303,14 +303,14 @@ onMounted(() => {
   text-align: center;
   color: #ffffff;
   z-index: 1;
-  padding: 60px;
+  padding: 40px;
 }
 
 .brand-title {
-  font-size: 52px;
+  font-size: 36px;
   font-weight: 700;
-  margin-bottom: 40px;
-  letter-spacing: 3px;
+  margin-bottom: 28px;
+  letter-spacing: 2px;
   color: #ffffff;
   text-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
 }
@@ -318,32 +318,32 @@ onMounted(() => {
 .brand-slogan {
   display: flex;
   justify-content: center;
-  gap: 40px;
-  margin-bottom: 30px;
-  font-size: 32px;
+  gap: 24px;
+  margin-bottom: 20px;
+  font-size: 20px;
   font-weight: 600;
 }
 
 .brand-slogan span {
-  padding: 12px 28px;
+  padding: 8px 18px;
   background: rgba(255, 255, 255, 0.08);
-  border-radius: 12px;
+  border-radius: 8px;
   backdrop-filter: blur(10px);
   border: 1px solid rgba(255, 255, 255, 0.15);
   color: #ffffff;
 }
 
 .brand-subtitle {
-  font-size: 20px;
+  font-size: 14px;
   opacity: 0.9;
-  margin-bottom: 80px;
-  letter-spacing: 2px;
+  margin-bottom: 50px;
+  letter-spacing: 1px;
   font-weight: 300;
   color: #cccccc;
 }
 
 .brand-illustration {
-  max-width: 450px;
+  max-width: 320px;
   margin: 0 auto;
 }
 
@@ -360,7 +360,7 @@ onMounted(() => {
   align-items: center;
   justify-content: flex-start;
   background: #ffffff;
-  padding: 60px 80px;
+  padding: 40px 60px;
   position: relative;
 }
 
@@ -377,40 +377,40 @@ onMounted(() => {
 
 .login-wrapper {
   width: 100%;
-  max-width: 450px;
+  max-width: 360px;
 }
 
 .login-header {
-  margin-bottom: 50px;
+  margin-bottom: 32px;
 }
 
 .login-header h2 {
-  font-size: 32px;
+  font-size: 22px;
   font-weight: 600;
   color: #1a1a1a;
-  margin-bottom: 20px;
+  margin-bottom: 12px;
 }
 
 .header-line {
-  width: 70px;
-  height: 4px;
+  width: 50px;
+  height: 3px;
   background: linear-gradient(90deg, #D4AF37, #FFD700, #FFA500);
   border-radius: 2px;
   box-shadow: 0 0 10px rgba(212, 175, 55, 0.4);
 }
 
 .login-form {
-  margin-top: 40px;
+  margin-top: 24px;
 }
 
 .login-form :deep(.el-form-item) {
-  margin-bottom: 32px;
+  margin-bottom: 20px;
 }
 
 /* 黑白风格输入框 - 金色图标保留 */
 .login-form :deep(.el-input__wrapper) {
-  padding: 14px 18px;
-  border-radius: 10px;
+  padding: 8px 12px;
+  border-radius: 6px;
   background: #ffffff;
   box-shadow: 0 0 0 1px #e0e0e0 inset;
   transition: all 0.3s;
@@ -421,12 +421,12 @@ onMounted(() => {
 }
 
 .login-form :deep(.el-input__wrapper.is-focus) {
-  box-shadow: 0 0 0 1px #D4AF37 inset, 0 0 15px rgba(212, 175, 55, 0.2);
+  box-shadow: 0 0 0 1px #D4AF37 inset, 0 0 10px rgba(212, 175, 55, 0.15);
   background: #fafafa;
 }
 
 .login-form :deep(.el-input__inner) {
-  font-size: 16px;
+  font-size: 14px;
   color: #1a1a1a;
 }
 
@@ -441,7 +441,7 @@ onMounted(() => {
 /* 验证码样式 */
 .captcha-wrapper {
   display: flex;
-  gap: 14px;
+  gap: 10px;
   width: 100%;
 }
 
@@ -451,10 +451,10 @@ onMounted(() => {
 
 .captcha-image {
   flex-shrink: 0;
-  width: 140px;
-  height: 48px;
+  width: 110px;
+  height: 36px;
   border: 1px solid #e0e0e0;
-  border-radius: 10px;
+  border-radius: 6px;
   overflow: hidden;
   cursor: pointer;
   display: flex;
@@ -467,8 +467,8 @@ onMounted(() => {
 .captcha-image:hover {
   border-color: #D4AF37;
   background: #ffffff;
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(212, 175, 55, 0.25);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(212, 175, 55, 0.2);
 }
 
 .captcha-image img {
@@ -478,7 +478,7 @@ onMounted(() => {
 }
 
 .captcha-loading {
-  font-size: 13px;
+  font-size: 12px;
   color: #999999;
 }
 
@@ -491,7 +491,7 @@ onMounted(() => {
 }
 
 .form-options :deep(.el-checkbox__label) {
-  font-size: 15px;
+  font-size: 13px;
   color: #666666;
 }
 
@@ -507,20 +507,20 @@ onMounted(() => {
 /* 登录按钮 - 黑白风格，金色装饰 */
 .login-button {
   width: 100%;
-  height: 52px;
-  font-size: 17px;
+  height: 40px;
+  font-size: 14px;
   font-weight: 500;
-  border-radius: 10px;
+  border-radius: 6px;
   background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
-  border: 2px solid #D4AF37;
+  border: 1px solid #D4AF37;
   color: #D4AF37;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1), 0 0 0 0 rgba(212, 175, 55, 0);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   transition: all 0.3s;
 }
 
 .login-button:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15), 0 0 20px rgba(212, 175, 55, 0.3);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15), 0 0 15px rgba(212, 175, 55, 0.25);
   background: linear-gradient(135deg, #D4AF37 0%, #FFD700 100%);
   color: #1a1a1a;
   border-color: #FFD700;
@@ -537,12 +537,12 @@ onMounted(() => {
   }
 
   .brand-title {
-    font-size: 44px;
+    font-size: 28px;
   }
 
   .brand-slogan {
-    font-size: 28px;
-    gap: 30px;
+    font-size: 16px;
+    gap: 16px;
   }
 }
 
@@ -553,7 +553,7 @@ onMounted(() => {
 
   .brand-section {
     flex: none;
-    min-height: 45vh;
+    min-height: 35vh;
   }
 
   .curved-divider {
@@ -561,30 +561,30 @@ onMounted(() => {
   }
 
   .brand-title {
-    font-size: 32px;
+    font-size: 24px;
   }
 
   .brand-slogan {
-    font-size: 20px;
-    gap: 20px;
+    font-size: 14px;
+    gap: 12px;
   }
 
   .brand-slogan span {
-    padding: 8px 16px;
+    padding: 6px 12px;
   }
 
   .brand-illustration {
-    max-width: 280px;
+    max-width: 200px;
   }
 
   .login-section {
-    padding: 30px 40px;
+    padding: 24px 32px;
     align-items: center;
     justify-content: center;
   }
 
   .login-wrapper {
-    padding: 20px;
+    padding: 16px;
   }
 }
 </style>

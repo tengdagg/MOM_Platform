@@ -1,6 +1,6 @@
 # 插件 API 参考
 
-本文档定义了 OpsHub 插件系统的所有接口和数据结构。
+本文档定义了 iom 插件系统的所有接口和数据结构。
 
 ---
 
@@ -64,7 +64,7 @@ package myplugin
 
 import (
     "github.com/gin-gonic/gin"
-    "github.com/ydcloud-dy/opshub/internal/plugin"
+    "github.com/ydcloud-dy/iom/internal/plugin"
     "gorm.io/gorm"
 )
 
@@ -190,7 +190,7 @@ GET /api/v1/plugins
             "name": "kubernetes",
             "description": "Kubernetes 容器管理",
             "version": "1.0.0",
-            "author": "OpsHub",
+            "author": "iom",
             "enabled": true
         }
     ]
@@ -213,7 +213,7 @@ GET /api/v1/plugins/:name
         "name": "kubernetes",
         "description": "Kubernetes 容器管理",
         "version": "1.0.0",
-        "author": "OpsHub",
+        "author": "iom",
         "enabled": true,
         "menus": [...]
     }

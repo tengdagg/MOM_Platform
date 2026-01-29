@@ -24,7 +24,7 @@ import (
 
 	"gorm.io/gorm"
 
-	"github.com/ydcloud-dy/opshub/internal/data"
+	"github.com/ydcloud-dy/iom/internal/data"
 )
 
 // UseCase 业务用例接口

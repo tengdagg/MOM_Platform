@@ -323,7 +323,7 @@ const getIconComponent = (iconName: string) => {
 }
 
 // 插件菜单排序存储 key
-const PLUGIN_MENU_SORT_KEY = 'opshub_plugin_menu_sort'
+const PLUGIN_MENU_SORT_KEY = 'iom_plugin_menu_sort'
 
 const menuList = ref<any[]>([])
 const menuTreeOptions = ref<any[]>([])

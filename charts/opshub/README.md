@@ -1,6 +1,6 @@
-# OpsHub Helm Chart
+# iom Helm Chart
 
-OpsHub 的官方 Helm Chart，用于在 Kubernetes 上部署 OpsHub 运维管理平台。
+iom 的官方 Helm Chart，用于在 Kubernetes 上部署 iom 运维管理平台。
 
 ## 前置条件
 
@@ -16,17 +16,17 @@ OpsHub 的官方 Helm Chart，用于在 Kubernetes 上部署 OpsHub 运维管理
 ```bash
 
 # 克隆项目
-git clone https://github.com/ydcloud-dy/opshub.git
-cd opshub
+git clone https://github.com/ydcloud-dy/iom.git
+cd iom
 
 # 使用默认配置安装
-helm install opshub ./charts/opshub \
-  --namespace opshub \
+helm install iom ./charts/iom \
+  --namespace iom \
   --create-namespace
 
 # 使用自定义配置安装
-helm install opshub ./charts/opshub \
-  --namespace opshub \
+helm install iom ./charts/iom \
+  --namespace iom \
   --create-namespace \
   -f my-values.yaml
 ```
@@ -34,10 +34,10 @@ helm install opshub ./charts/opshub \
 ### 方式二：指定参数安装
 
 ```bash
-helm install opshub ./charts/opshub \
-  --namespace opshub \
+helm install iom ./charts/iom \
+  --namespace iom \
   --create-namespace \
-  --set ingress.hosts[0].host=opshub.mycompany.com \
+  --set ingress.hosts[0].host=iom.mycompany.com \
   --set mysql.auth.rootPassword=MySecurePassword \
   --set server.jwtSecret=my-jwt-secret-key
 ```
@@ -45,8 +45,8 @@ helm install opshub ./charts/opshub \
 ## 卸载
 
 ```bash
-helm uninstall opshub -n opshub
-kubectl delete namespace opshub
+helm uninstall iom -n iom
+kubectl delete namespace iom
 ```
 
 ## 配置参数
@@ -64,7 +64,7 @@ kubectl delete namespace opshub
 | 参数 | 描述 | 默认值 |
 |------|------|--------|
 | `backend.replicaCount` | 副本数 | `2` |
-| `backend.image.repository` | 镜像仓库 | `ydcloud/opshub-backend` |
+| `backend.image.repository` | 镜像仓库 | `ydcloud/iom-backend` |
 | `backend.image.tag` | 镜像标签 | `latest` |
 | `backend.resources.requests.memory` | 内存请求 | `256Mi` |
 | `backend.resources.requests.cpu` | CPU 请求 | `100m` |
@@ -76,7 +76,7 @@ kubectl delete namespace opshub
 | 参数 | 描述 | 默认值 |
 |------|------|--------|
 | `frontend.replicaCount` | 副本数 | `2` |
-| `frontend.image.repository` | 镜像仓库 | `ydcloud/opshub-frontend` |
+| `frontend.image.repository` | 镜像仓库 | `ydcloud/iom-frontend` |
 | `frontend.image.tag` | 镜像标签 | `latest` |
 | `frontend.resources.requests.memory` | 内存请求 | `64Mi` |
 | `frontend.resources.requests.cpu` | CPU 请求 | `50m` |
@@ -86,8 +86,8 @@ kubectl delete namespace opshub
 | 参数 | 描述 | 默认值 |
 |------|------|--------|
 | `mysql.enabled` | 是否启用内置 MySQL | `true` |
-| `mysql.auth.rootPassword` | root 密码 | `OpsHub@2024` |
-| `mysql.auth.database` | 数据库名 | `opshub` |
+| `mysql.auth.rootPassword` | root 密码 | `iom@2024` |
+| `mysql.auth.database` | 数据库名 | `iom` |
 | `mysql.persistence.enabled` | 是否启用持久化 | `true` |
 | `mysql.persistence.size` | 存储大小 | `20Gi` |
 
@@ -96,7 +96,7 @@ kubectl delete namespace opshub
 | 参数 | 描述 | 默认值 |
 |------|------|--------|
 | `redis.enabled` | 是否启用内置 Redis | `true` |
-| `redis.auth.password` | 密码 | `OpsHub@Redis` |
+| `redis.auth.password` | 密码 | `iom@Redis` |
 | `redis.persistence.enabled` | 是否启用持久化 | `false` |
 
 ### 外部数据库配置
@@ -107,7 +107,7 @@ kubectl delete namespace opshub
 |------|------|--------|
 | `externalDatabase.host` | 主机地址 | `""` |
 | `externalDatabase.port` | 端口 | `3306` |
-| `externalDatabase.database` | 数据库名 | `opshub` |
+| `externalDatabase.database` | 数据库名 | `iom` |
 | `externalDatabase.username` | 用户名 | `root` |
 | `externalDatabase.password` | 密码 | `""` |
 
@@ -127,7 +127,7 @@ kubectl delete namespace opshub
 |------|------|--------|
 | `server.mode` | 运行模式 | `release` |
 | `server.httpPort` | HTTP 端口 | `9876` |
-| `server.jwtSecret` | JWT 密钥 | `opshub-jwt-secret-...` |
+| `server.jwtSecret` | JWT 密钥 | `iom-jwt-secret-...` |
 | `server.jwtExpire` | JWT 过期时间 | `24h` |
 
 ### Ingress 配置
@@ -136,7 +136,7 @@ kubectl delete namespace opshub
 |------|------|--------|
 | `ingress.enabled` | 是否启用 Ingress | `true` |
 | `ingress.className` | Ingress 类名 | `nginx` |
-| `ingress.hosts[0].host` | 主机域名 | `opshub.example.com` |
+| `ingress.hosts[0].host` | 主机域名 | `iom.example.com` |
 | `ingress.tls` | TLS 配置 | `[]` |
 
 ## 常见配置示例
@@ -150,8 +150,8 @@ mysql:
 externalDatabase:
   host: mysql.example.com
   port: 3306
-  database: opshub
-  username: opshub
+  database: iom
+  username: iom
   password: your-password
 ```
 
@@ -161,14 +161,14 @@ externalDatabase:
 ingress:
   enabled: true
   hosts:
-    - host: opshub.example.com
+    - host: iom.example.com
       paths:
         - path: /
           pathType: Prefix
   tls:
-    - secretName: opshub-tls
+    - secretName: iom-tls
       hosts:
-        - opshub.example.com
+        - iom.example.com
 ```
 
 ### 生产环境配置
@@ -198,19 +198,19 @@ server:
 ## 升级
 
 ```bash
-helm upgrade opshub ./charts/opshub -n opshub -f values.yaml
+helm upgrade iom ./charts/iom -n iom -f values.yaml
 ```
 
 ## 故障排查
 
 ```bash
 # 查看 Pod 状态
-kubectl get pods -n opshub
+kubectl get pods -n iom
 
 # 查看 Pod 日志
-kubectl logs -f deployment/opshub-backend -n opshub
-kubectl logs -f deployment/opshub-frontend -n opshub
+kubectl logs -f deployment/iom-backend -n iom
+kubectl logs -f deployment/iom-frontend -n iom
 
 # 查看 Pod 详情
-kubectl describe pod <pod-name> -n opshub
+kubectl describe pod <pod-name> -n iom
 ```

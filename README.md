@@ -1,8 +1,8 @@
 <p align="center">
-  <img src="web/public/logo.png" alt="OpsHub Logo" width="180"/>
+  <img src="web/public/logo.png" alt="iom Logo" width="180"/>
 </p>
 
-<h3 align="center">OpsHub —— 现代化、插件化的云原生运维管理平台</h3>
+<h3 align="center">iom —— 现代化、插件化的云原生运维管理平台</h3>
 
 <p align="center">
   <img src="https://img.shields.io/badge/Go-1.21+-00ADD8?style=flat&logo=go" alt="Go">
@@ -13,11 +13,11 @@
 
 ---
 
-## 💎 OpsHub 是什么？
+## 💎 iom 是什么？
 
 **🎯 一站式运维管理平台，让运维更简单**
 
-OpsHub 是一个功能强大的**插件化运维管理平台**，采用前后端分离架构，支持多集群 Kubernetes 管理、主机资产管理、RBAC 权限控制、任务编排、监控告警等功能。平台以**插件形式**组织功能模块，支持**一键安装与卸载**，可根据实际需求灵活扩展。
+iom 是一个功能强大的**插件化运维管理平台**，采用前后端分离架构，支持多集群 Kubernetes 管理、主机资产管理、RBAC 权限控制、任务编排、监控告警等功能。平台以**插件形式**组织功能模块，支持**一键安装与卸载**，可根据实际需求灵活扩展。
 
 **🔌 插件化架构，按需加载**
 
@@ -161,18 +161,18 @@ OpsHub 是一个功能强大的**插件化运维管理平台**，采用前后端
 ### 1. 克隆项目
 
 ```bash
-git clone https://github.com/ydcloud-dy/opshub.git
-cd opshub
+git clone https://github.com/ydcloud-dy/iom.git
+cd iom
 ```
 
 ### 2. 初始化数据库
 
 ```bash
 # 创建数据库
-mysql -u root -p -e "CREATE DATABASE opshub CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+mysql -u root -p -e "CREATE DATABASE iom CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
 
 # 导入初始化脚本
-mysql -u root -p opshub < migrations/init.sql
+mysql -u root -p iom < migrations/init.sql
 ```
 
 ### 3. 配置后端
@@ -224,8 +224,8 @@ cd web && npm install && npm run dev
 
 ```bash
 # 克隆项目
-git clone https://github.com/ydcloud-dy/opshub.git
-cd opshub
+git clone https://github.com/ydcloud-dy/iom.git
+cd iom
 
 # 启动服务
 docker-compose up -d
@@ -258,7 +258,7 @@ docker-compose up -d
 ## 📁 项目结构
 
 ```
-opshub/
+iom/
 ├── cmd/                    # 命令行入口
 ├── config/                 # 配置文件
 ├── internal/               # 核心模块
@@ -304,7 +304,7 @@ opshub/
 
 ## 📞 联系方式
 
-- 📮 Issue: [GitHub Issues](https://github.com/ydcloud-dy/opshub/issues)
+- 📮 Issue: [GitHub Issues](https://github.com/ydcloud-dy/iom/issues)
 - 📧 Email: dycloudlove@163.com
 
 ---

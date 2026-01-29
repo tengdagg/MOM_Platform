@@ -1,8 +1,8 @@
 <template>
   <el-container class="layout-container">
-    <el-aside width="260px" v-if="!hideSidebar">
+    <el-aside width="200px" v-if="!hideSidebar">
       <div class="logo">
-        <img :src="logoImage" alt="OpsHub Logo" class="logo-image" />
+        <img :src="logoImage" alt="iom Logo" class="logo-image" />
       </div>
 
       <el-menu
@@ -49,7 +49,7 @@
         <el-dropdown trigger="click" @command="handleUserCommand">
           <div class="user-info-wrapper">
             <div class="user-avatar">
-              <el-avatar :size="40" :src="avatarUrl" :key="userStore.avatarTimestamp">
+              <el-avatar :size="28" :src="avatarUrl" :key="userStore.avatarTimestamp">
                 <el-icon><UserFilled /></el-icon>
               </el-avatar>
             </div>
@@ -248,7 +248,7 @@ const buildPluginMenus = async (authorizedPaths: Set<string>) => {
   }
 
   // 从 localStorage 加载自定义排序
-  const PLUGIN_MENU_SORT_KEY = 'opshub_plugin_menu_sort'
+  const PLUGIN_MENU_SORT_KEY = 'iom_plugin_menu_sort'
   const customSort: Map<string, number> = (() => {
     try {
       const stored = localStorage.getItem(PLUGIN_MENU_SORT_KEY)
@@ -584,8 +584,8 @@ onMounted(async () => {
 }
 
 .logo {
-  height: 120px;
-  line-height: 120px;
+  height: 56px;
+  line-height: 56px;
   text-align: center;
   background: #000000;
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
@@ -595,12 +595,12 @@ onMounted(async () => {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 10px 0;
+  padding: 8px 0;
 }
 
 .logo-image {
-  max-height: 100px;
-  max-width: 240px;
+  max-height: 40px;
+  max-width: 180px;
   width: auto;
   height: auto;
   object-fit: contain;
@@ -612,22 +612,22 @@ onMounted(async () => {
   padding: 0;
   flex-shrink: 0;
   width: 100%;
-  min-width: 260px;
-  max-width: 260px;
+  min-width: 200px;
+  max-width: 200px;
 }
 
 .user-info-wrapper {
-  padding: 16px 20px;
+  padding: 10px 12px;
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 8px;
   border-top: 1px solid rgba(255, 255, 255, 0.1);
   background: #000000;
   cursor: pointer;
   transition: all 0.3s ease;
   width: 100%;
-  min-width: 260px;
-  max-width: 260px;
+  min-width: 200px;
+  max-width: 200px;
   box-sizing: border-box;
 }
 
@@ -642,11 +642,13 @@ onMounted(async () => {
 
 .user-avatar :deep(.el-avatar) {
   background-color: #FFAF35;
-  border: 2px solid rgba(255, 255, 255, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  width: 28px !important;
+  height: 28px !important;
 }
 
 .user-avatar :deep(.el-icon) {
-  font-size: 20px;
+  font-size: 14px;
   color: #fff;
 }
 
@@ -657,9 +659,9 @@ onMounted(async () => {
 
 .user-name {
   color: #fff;
-  font-size: 14px;
+  font-size: 12px;
   font-weight: 500;
-  margin-bottom: 2px;
+  margin-bottom: 1px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -667,7 +669,7 @@ onMounted(async () => {
 
 .user-role {
   color: hsla(0, 0%, 100%, 0.45);
-  font-size: 12px;
+  font-size: 11px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -675,7 +677,7 @@ onMounted(async () => {
 
 .dropdown-icon {
   color: hsla(0, 0%, 100%, 0.45);
-  font-size: 14px;
+  font-size: 12px;
   transition: transform 0.3s;
 }
 
@@ -692,8 +694,9 @@ onMounted(async () => {
 
 :deep(.el-dropdown-menu__item) {
   color: #606266 !important;
-  line-height: 40px;
-  padding: 0 16px;
+  line-height: 32px;
+  padding: 0 12px;
+  font-size: 13px;
 }
 
 :deep(.el-dropdown-menu__item:hover) {
@@ -704,13 +707,13 @@ onMounted(async () => {
 :deep(.el-dropdown-menu__item.is-divided) {
   border-top: 1px solid #e4e7ed;
   margin-top: 4px;
-  padding-top: 8px;
+  padding-top: 6px;
 }
 
 :deep(.el-dropdown-menu__item .el-icon) {
   color: #606266 !important;
-  margin-right: 8px;
-  font-size: 16px;
+  margin-right: 6px;
+  font-size: 14px;
 }
 
 :deep(.el-dropdown-menu__item:hover .el-icon) {
@@ -752,13 +755,13 @@ onMounted(async () => {
 :deep(.el-menu-item) {
   color: #fff !important;
   background-color: transparent !important;
-  font-size: 16px !important;
-  padding-left: 20px !important; /* 从24px改为20px,往左移 */
-  height: 48px !important;
-  line-height: 48px !important;
+  font-size: 13px !important;
+  padding-left: 16px !important;
+  height: 36px !important;
+  line-height: 36px !important;
   transition: background-color 0.3s ease, color 0.3s ease;
-  margin: 4px 12px; /* 上下4px间距,左右12px */
-  border-radius: 8px; /* 圆角效果 */
+  margin: 2px 8px;
+  border-radius: 4px;
 }
 
 :deep(.el-menu-item:hover) {
@@ -769,13 +772,13 @@ onMounted(async () => {
 :deep(.el-menu-item.is-active) {
   background-color: #FFAF35 !important;
   color: #000000 !important;
-  border-radius: 8px; /* 圆角效果 */
+  border-radius: 4px;
 }
 
 :deep(.el-menu-item .el-icon) {
   color: inherit;
-  font-size: 18px !important;
-  margin-right: 12px !important;
+  font-size: 15px !important;
+  margin-right: 8px !important;
   transition: color 0.3s ease;
 }
 
@@ -783,13 +786,13 @@ onMounted(async () => {
 :deep(.el-sub-menu__title) {
   color: #fff !important;
   background-color: transparent !important;
-  font-size: 16px !important;
-  padding-left: 20px !important; /* 从24px改为20px,往左移 */
-  height: 48px !important;
-  line-height: 48px !important;
+  font-size: 13px !important;
+  padding-left: 16px !important;
+  height: 36px !important;
+  line-height: 36px !important;
   transition: background-color 0.3s ease, color 0.3s ease;
-  margin: 4px 12px; /* 上下4px间距,左右12px */
-  border-radius: 8px; /* 圆角效果 */
+  margin: 2px 8px;
+  border-radius: 4px;
 }
 
 :deep(.el-sub-menu__title:hover) {
@@ -800,21 +803,21 @@ onMounted(async () => {
 :deep(.el-sub-menu.is-active > .el-sub-menu__title) {
   background-color: #FFAF35 !important;
   color: #000000 !important;
-  border-radius: 8px; /* 圆角效果 */
+  border-radius: 4px;
 }
 
 :deep(.el-sub-menu__title .el-icon) {
   color: inherit;
-  font-size: 18px !important;
-  margin-right: 12px !important;
+  font-size: 15px !important;
+  margin-right: 8px !important;
   transition: color 0.3s ease;
 }
 
 /* 子菜单项样式 - 内联菜单的子项 */
 :deep(.el-menu--inline .el-menu-item) {
-  padding-left: 48px !important; /* 从56px改为48px,与父菜单的间距保持一致 */
-  margin: 4px 20px; /* 上下4px间距,左右20px(更大,使背景更小) */
-  border-radius: 6px; /* 子菜单圆角稍小 */
+  padding-left: 40px !important;
+  margin: 2px 12px;
+  border-radius: 4px;
 }
 
 /* 禁用子菜单展开动画，防止抖动 */
@@ -857,7 +860,7 @@ onMounted(async () => {
 :deep(.el-menu--inline .el-menu-item.is-active) {
   background-color: #FFAF35 !important;
   color: #000000 !important;
-  border-radius: 6px; /* 圆角效果 */
+  border-radius: 4px;
 }
 
 /* 禁用菜单样式 */
@@ -887,15 +890,16 @@ onMounted(async () => {
   border-bottom: 1px solid #e6e6e6;
   display: flex;
   align-items: center;
-  padding: 0 20px;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+  padding: 0 16px;
+  height: 48px !important;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
 }
 
 .header-content {
   width: 100%;
   display: flex;
   align-items: center;
-  gap: 20px;
+  gap: 16px;
 }
 
 .header-logo {
@@ -903,12 +907,12 @@ onMounted(async () => {
   display: flex;
   align-items: center;
   justify-content: center;
-  height: 64px;
+  height: 48px;
 }
 
 .header-image {
-  max-height: 50px;
-  max-width: 400px;
+  max-height: 32px;
+  max-width: 280px;
   width: auto;
   height: auto;
   object-fit: contain;
@@ -920,9 +924,13 @@ onMounted(async () => {
   align-items: center;
 }
 
+.breadcrumb :deep(.el-breadcrumb) {
+  font-size: 13px;
+}
+
 .el-main {
   background-color: #f0f2f5;
-  padding: 20px;
+  padding: 16px;
 }
 
 </style>

@@ -125,7 +125,7 @@
             <el-input v-model="form.config.fromEmail" placeholder="noreply@example.com" />
           </el-form-item>
           <el-form-item label="发件人名称" prop="config.fromName">
-            <el-input v-model="form.config.fromName" placeholder="OpsHub监控" />
+            <el-input v-model="form.config.fromName" placeholder="iom监控" />
           </el-form-item>
           <el-form-item label="SMTP用户名" prop="config.smtpUser">
             <el-input v-model="form.config.smtpUser" placeholder="user@example.com" />

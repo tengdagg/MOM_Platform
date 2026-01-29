@@ -27,7 +27,7 @@ import (
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
 
-	"github.com/ydcloud-dy/opshub/internal/conf"
+	"github.com/ydcloud-dy/iom/internal/conf"
 	// 导入 MySQL 驱动，确保 time.Time 类型正确处理
 	_ "github.com/go-sql-driver/mysql"
 )

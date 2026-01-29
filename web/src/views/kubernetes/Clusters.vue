@@ -1334,7 +1334,7 @@ const handleDelete = async (row: Cluster) => {
             <li>所有用户的集群访问凭据（ServiceAccount）</li>
             <li>所有用户的角色绑定（ClusterRoleBinding 和 RoleBinding）</li>
             <li>所有默认集群角色（ClusterRole）</li>
-            <li>所有命名空间中的 OpsHub 管理的 RoleBinding</li>
+            <li>所有命名空间中的 iom 管理的 RoleBinding</li>
             <li>数据库中的所有集群相关数据</li>
           </ul>
         </div>
@@ -1574,12 +1574,12 @@ const getCurrentUsername = () => {
   if (userStr) {
     try {
       const user = JSON.parse(userStr)
-      return user.username || 'opshub-user'
+      return user.username || 'iom-user'
     } catch {
-      return 'opshub-user'
+      return 'iom-user'
     }
   }
-  return 'opshub-user'
+  return 'iom-user'
 }
 
 // 复制生成的kubeconfig
@@ -1689,34 +1689,34 @@ watch(paginatedClusterList, () => {
 .stats-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 20px;
-  margin-bottom: 12px;
+  gap: 12px;
+  margin-bottom: 10px;
 }
 
 .stat-card {
   display: flex;
   align-items: center;
-  gap: 16px;
-  padding: 20px;
+  gap: 10px;
+  padding: 12px 14px;
   background: #fff;
-  border-radius: 8px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
+  border-radius: 6px;
+  box-shadow: 0 1px 8px rgba(0, 0, 0, 0.04);
   transition: all 0.3s ease;
 }
 
 .stat-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
 }
 
 .stat-icon {
-  width: 64px;
-  height: 64px;
-  border-radius: 12px;
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 32px;
+  font-size: 18px;
   flex-shrink: 0;
 }
 
@@ -1749,13 +1749,13 @@ watch(paginatedClusterList, () => {
 }
 
 .stat-label {
-  font-size: 14px;
+  font-size: 12px;
   color: #909399;
-  margin-bottom: 8px;
+  margin-bottom: 4px;
 }
 
 .stat-value {
-  font-size: 28px;
+  font-size: 18px;
   font-weight: 700;
   color: #d4af37;
   line-height: 1;
@@ -1766,51 +1766,51 @@ watch(paginatedClusterList, () => {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  margin-bottom: 12px;
-  padding: 16px 20px;
+  margin-bottom: 10px;
+  padding: 12px 16px;
   background: #fff;
-  border-radius: 8px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
+  border-radius: 6px;
+  box-shadow: 0 1px 8px rgba(0, 0, 0, 0.04);
 }
 
 .page-title-group {
   display: flex;
   align-items: flex-start;
-  gap: 16px;
+  gap: 10px;
 }
 
 .page-title-icon {
-  width: 48px;
-  height: 48px;
+  width: 36px;
+  height: 36px;
   background: linear-gradient(135deg, #000 0%, #1a1a1a 100%);
-  border-radius: 10px;
+  border-radius: 8px;
   display: flex;
   align-items: center;
   justify-content: center;
   color: #d4af37;
-  font-size: 22px;
+  font-size: 16px;
   flex-shrink: 0;
   border: 1px solid #d4af37;
 }
 
 .page-title {
   margin: 0;
-  font-size: 20px;
+  font-size: 15px;
   font-weight: 600;
   color: #303133;
   line-height: 1.3;
 }
 
 .page-subtitle {
-  margin: 4px 0 0 0;
-  font-size: 13px;
+  margin: 2px 0 0 0;
+  font-size: 12px;
   color: #909399;
   line-height: 1.4;
 }
 
 .header-actions {
   display: flex;
-  gap: 12px;
+  gap: 8px;
   align-items: center;
 }
 
@@ -1819,21 +1819,21 @@ watch(paginatedClusterList, () => {
   color: #fff;
   border: none;
   font-weight: 500;
-  padding: 10px 20px;
-  font-size: 14px;
-  border-radius: 8px;
+  padding: 7px 14px;
+  font-size: 13px;
+  border-radius: 6px;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  box-shadow: 0 2px 8px rgba(103, 194, 58, 0.2);
+  box-shadow: 0 2px 6px rgba(103, 194, 58, 0.2);
 
   &:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 6px 20px rgba(103, 194, 58, 0.4);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(103, 194, 58, 0.3);
     background: linear-gradient(135deg, #85CE61 0%, #67C23A 100%);
   }
 
   &:active {
     transform: translateY(0);
-    box-shadow: 0 2px 8px rgba(103, 194, 58, 0.3);
+    box-shadow: 0 2px 6px rgba(103, 194, 58, 0.25);
   }
 }
 
@@ -2030,34 +2030,34 @@ watch(paginatedClusterList, () => {
 
 /* 搜索栏 */
 .search-bar {
-  margin-bottom: 12px;
-  padding: 12px 16px;
+  margin-bottom: 10px;
+  padding: 10px 14px;
   background: #fff;
-  border-radius: 8px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
+  border-radius: 6px;
+  box-shadow: 0 1px 8px rgba(0, 0, 0, 0.04);
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 16px;
+  gap: 12px;
 }
 
 .search-inputs {
   display: flex;
-  gap: 12px;
+  gap: 10px;
   flex: 1;
 }
 
 .search-input {
-  width: 280px;
+  width: 220px;
 }
 
 .filter-select {
-  width: 150px;
+  width: 130px;
 }
 
 .search-actions {
   display: flex;
-  gap: 10px;
+  gap: 8px;
 }
 
 .reset-btn {
@@ -2084,8 +2084,8 @@ watch(paginatedClusterList, () => {
 /* 表格容器 */
 .table-wrapper {
   background: #fff;
-  border-radius: 12px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
+  border-radius: 6px;
+  box-shadow: 0 1px 8px rgba(0, 0, 0, 0.04);
   overflow: hidden;
 }
 
@@ -2093,7 +2093,7 @@ watch(paginatedClusterList, () => {
 .pagination-wrapper {
   display: flex;
   justify-content: flex-end;
-  padding: 16px 20px;
+  padding: 10px 14px;
   background: #fff;
   border-top: 1px solid #f0f0f0;
 }
@@ -2232,8 +2232,9 @@ watch(paginatedClusterList, () => {
   background-color: #000000 !important;
   color: #ffffff !important;
   border-color: #000000 !important;
-  border-radius: 8px;
-  padding: 10px 20px;
+  border-radius: 6px;
+  padding: 7px 14px;
+  font-size: 13px;
   font-weight: 500;
 }
 

@@ -1,4 +1,4 @@
-# OpsHub 插件开发文档
+# iom 插件开发文档
 
 <p align="center">
   <img src="https://img.shields.io/badge/Architecture-Plugin--based-purple?style=flat" alt="Plugin">
@@ -21,7 +21,7 @@
 
 ## 插件系统概述
 
-OpsHub 采用**前后端分离的插件化架构**，允许开发者以插件的形式扩展系统功能。
+iom 采用**前后端分离的插件化架构**，允许开发者以插件的形式扩展系统功能。
 
 ### 核心特性
 
@@ -37,7 +37,7 @@ OpsHub 采用**前后端分离的插件化架构**，允许开发者以插件的
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                      OpsHub 核心系统                         │
+│                      iom 核心系统                         │
 ├─────────────────────────────────────────────────────────────┤
 │                                                              │
 │   后端 (Go)                        前端 (Vue 3)              │
@@ -118,7 +118,7 @@ package hello
 
 import (
     "github.com/gin-gonic/gin"
-    "github.com/ydcloud-dy/opshub/internal/plugin"
+    "github.com/ydcloud-dy/iom/internal/plugin"
     "gorm.io/gorm"
 )
 
@@ -131,7 +131,7 @@ func New() *Plugin {
 func (p *Plugin) Name() string        { return "hello" }
 func (p *Plugin) Description() string { return "Hello World 示例插件" }
 func (p *Plugin) Version() string     { return "1.0.0" }
-func (p *Plugin) Author() string      { return "OpsHub" }
+func (p *Plugin) Author() string      { return "iom" }
 
 func (p *Plugin) Enable(db *gorm.DB) error {
     // 初始化数据库表等
@@ -159,7 +159,7 @@ func (p *Plugin) GetMenus() []plugin.MenuConfig {
 
 ```go
 // internal/server/http.go
-import helloplugin "github.com/ydcloud-dy/opshub/plugins/hello"
+import helloplugin "github.com/ydcloud-dy/iom/plugins/hello"
 
 // 在 NewHTTPServer() 中
 s.pluginMgr.Register(helloplugin.New())
@@ -176,7 +176,7 @@ class HelloPlugin implements Plugin {
     name = 'hello'
     description = 'Hello World 示例插件'
     version = '1.0.0'
-    author = 'OpsHub'
+    author = 'iom'
 
     async install() {}
     async uninstall() {}
@@ -218,7 +218,7 @@ import '@/plugins/hello'
 
 ## 相关文档
 
-- [OpsHub 主文档](../../README.md)
+- [iom 主文档](../../README.md)
 - [部署指南](../deployment.md)
 - [Kubernetes 插件](../plugins/kubernetes.md)
 - [任务中心插件](../plugins/task.md)

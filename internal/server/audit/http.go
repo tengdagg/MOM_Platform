@@ -21,7 +21,7 @@ package audit
 
 import (
 	"github.com/gin-gonic/gin"
-	"github.com/ydcloud-dy/opshub/internal/service/audit"
+	"github.com/ydcloud-dy/iom/internal/service/audit"
 )
 
 type HTTPService struct {

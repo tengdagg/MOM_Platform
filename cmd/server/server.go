@@ -29,19 +29,19 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-	"github.com/ydcloud-dy/opshub/cmd/root"
-	"github.com/ydcloud-dy/opshub/internal/biz"
-	assetmodel "github.com/ydcloud-dy/opshub/internal/biz/asset"
-	auditmodel "github.com/ydcloud-dy/opshub/internal/biz/audit"
-	rbacmodel "github.com/ydcloud-dy/opshub/internal/biz/rbac"
-	"github.com/ydcloud-dy/opshub/internal/conf"
-	dataPkg "github.com/ydcloud-dy/opshub/internal/data"
-	"github.com/ydcloud-dy/opshub/internal/server"
-	"github.com/ydcloud-dy/opshub/internal/service"
-	rbacservice "github.com/ydcloud-dy/opshub/internal/service/rbac"
-	appLogger "github.com/ydcloud-dy/opshub/pkg/logger"
-	"github.com/ydcloud-dy/opshub/plugins/kubernetes/data/models"
-	k8smodel "github.com/ydcloud-dy/opshub/plugins/kubernetes/model"
+	"github.com/ydcloud-dy/iom/cmd/root"
+	"github.com/ydcloud-dy/iom/internal/biz"
+	assetmodel "github.com/ydcloud-dy/iom/internal/biz/asset"
+	auditmodel "github.com/ydcloud-dy/iom/internal/biz/audit"
+	rbacmodel "github.com/ydcloud-dy/iom/internal/biz/rbac"
+	"github.com/ydcloud-dy/iom/internal/conf"
+	dataPkg "github.com/ydcloud-dy/iom/internal/data"
+	"github.com/ydcloud-dy/iom/internal/server"
+	"github.com/ydcloud-dy/iom/internal/service"
+	rbacservice "github.com/ydcloud-dy/iom/internal/service/rbac"
+	appLogger "github.com/ydcloud-dy/iom/pkg/logger"
+	"github.com/ydcloud-dy/iom/plugins/kubernetes/data/models"
+	k8smodel "github.com/ydcloud-dy/iom/plugins/kubernetes/model"
 	"go.uber.org/zap"
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
@@ -57,7 +57,7 @@ var (
 var Cmd = &cobra.Command{
 	Use:   "server",
 	Short: "启动服务",
-	Long:  `启动 OpsHub HTTP 服务器`,
+	Long:  `启动 iom HTTP 服务器`,
 	PreRun: func(cmd *cobra.Command, args []string) {
 		// 从命令行参数覆盖配置
 		if mode := viper.GetString("mode"); mode != "" {
@@ -281,7 +281,7 @@ func initDefaultData(db *gorm.DB) error {
 		Username:     "admin",
 		Password:     string(hashedPassword),
 		RealName:     "系统管理员",
-		Email:        "admin@opshub.com",
+		Email:        "admin@iom.com",
 		Status:       1,
 		DepartmentID: dept.ID,
 	}
@@ -436,7 +436,7 @@ func printStartupInfo(cfg *conf.Config) {
 
 	fmt.Println()
 	fmt.Println("========================================")
-	fmt.Println("       OpsHub 运维管理平台启动成功")
+	fmt.Println("       iom 运维管理平台启动成功")
 	fmt.Println("========================================")
 	fmt.Printf("版本:     1.0.0\n")
 	fmt.Printf("模式:     %s\n", cfg.Server.Mode)

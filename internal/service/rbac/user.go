@@ -26,10 +26,10 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/ydcloud-dy/opshub/internal/biz/audit"
-	"github.com/ydcloud-dy/opshub/internal/biz/rbac"
-	"github.com/ydcloud-dy/opshub/pkg/response"
-	appLogger "github.com/ydcloud-dy/opshub/pkg/logger"
+	"github.com/ydcloud-dy/iom/internal/biz/audit"
+	"github.com/ydcloud-dy/iom/internal/biz/rbac"
+	"github.com/ydcloud-dy/iom/pkg/response"
+	appLogger "github.com/ydcloud-dy/iom/pkg/logger"
 	"go.uber.org/zap"
 )
 

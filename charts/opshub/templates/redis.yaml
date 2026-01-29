@@ -2,19 +2,19 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ include "opshub.fullname" . }}-redis
+  name: {{ include "iom.fullname" . }}-redis
   namespace: {{ .Release.Namespace }}
   labels:
-    {{- include "opshub.redis.labels" . | nindent 4 }}
+    {{- include "iom.redis.labels" . | nindent 4 }}
 spec:
   replicas: 1
   selector:
     matchLabels:
-      {{- include "opshub.redis.selectorLabels" . | nindent 6 }}
+      {{- include "iom.redis.selectorLabels" . | nindent 6 }}
   template:
     metadata:
       labels:
-        {{- include "opshub.redis.selectorLabels" . | nindent 8 }}
+        {{- include "iom.redis.selectorLabels" . | nindent 8 }}
     spec:
       {{- with .Values.global.imagePullSecrets }}
       imagePullSecrets:
@@ -38,7 +38,7 @@ spec:
             - name: REDIS_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: {{ include "opshub.fullname" . }}-secrets
+                  name: {{ include "iom.fullname" . }}-secrets
                   key: redis-password
           {{- if .Values.redis.persistence.enabled }}
           volumeMounts:
@@ -63,7 +63,7 @@ spec:
       volumes:
         - name: redis-data
           persistentVolumeClaim:
-            claimName: {{ include "opshub.fullname" . }}-redis-pvc
+            claimName: {{ include "iom.fullname" . }}-redis-pvc
       {{- end }}
       {{- with .Values.redis.nodeSelector }}
       nodeSelector:
@@ -78,10 +78,10 @@ spec:
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: {{ include "opshub.fullname" . }}-redis-pvc
+  name: {{ include "iom.fullname" . }}-redis-pvc
   namespace: {{ .Release.Namespace }}
   labels:
-    {{- include "opshub.redis.labels" . | nindent 4 }}
+    {{- include "iom.redis.labels" . | nindent 4 }}
 spec:
   accessModes:
     - ReadWriteOnce
@@ -96,10 +96,10 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ include "opshub.fullname" . }}-redis
+  name: {{ include "iom.fullname" . }}-redis
   namespace: {{ .Release.Namespace }}
   labels:
-    {{- include "opshub.redis.labels" . | nindent 4 }}
+    {{- include "iom.redis.labels" . | nindent 4 }}
 spec:
   type: ClusterIP
   ports:
@@ -108,5 +108,5 @@ spec:
       protocol: TCP
       name: redis
   selector:
-    {{- include "opshub.redis.selectorLabels" . | nindent 4 }}
+    {{- include "iom.redis.selectorLabels" . | nindent 4 }}
 {{- end }}

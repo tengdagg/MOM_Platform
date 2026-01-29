@@ -24,7 +24,7 @@ import (
 	"time"
 
 	"github.com/redis/go-redis/v9"
-	appLogger "github.com/ydcloud-dy/opshub/pkg/logger"
+	appLogger "github.com/ydcloud-dy/iom/pkg/logger"
 	"go.uber.org/zap"
 )
 

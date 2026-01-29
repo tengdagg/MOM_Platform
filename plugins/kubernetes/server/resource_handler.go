@@ -57,9 +57,9 @@ import (
 	"k8s.io/metrics/pkg/apis/metrics/v1beta1"
 	"sigs.k8s.io/yaml"
 
-	"github.com/ydcloud-dy/opshub/plugins/kubernetes/data/models"
-	"github.com/ydcloud-dy/opshub/plugins/kubernetes/model"
-	"github.com/ydcloud-dy/opshub/plugins/kubernetes/service"
+	"github.com/ydcloud-dy/iom/plugins/kubernetes/data/models"
+	"github.com/ydcloud-dy/iom/plugins/kubernetes/model"
+	"github.com/ydcloud-dy/iom/plugins/kubernetes/service"
 )
 
 // ResourceHandler Kubernetes资源处理器
@@ -86,7 +86,7 @@ type JwtClaims struct {
 // verifyTokenAndGetUserID 验证JWT token并返回用户ID
 func (h *ResourceHandler) verifyTokenAndGetUserID(tokenString string) (uint, error) {
 	// 从环境变量获取JWT密钥
-	secretKey := os.Getenv("OPSHUB_SERVER_JWT_SECRET")
+	secretKey := os.Getenv("iom_SERVER_JWT_SECRET")
 	if secretKey == "" {
 		secretKey = "your-secret-key-change-in-production" // 默认值
 	}
@@ -3261,9 +3261,9 @@ func (h *ResourceHandler) NodeShellWebSocket(c *gin.Context) {
 			Name:      debugPodName,
 			Namespace: debugNamespace,
 			Labels: map[string]string{
-				"app":        "opshub-debug",
+				"app":        "iom-debug",
 				"node":       nodeName,
-				"created-by": "opshub",
+				"created-by": "iom",
 			},
 		},
 		Spec: v1.PodSpec{
@@ -9676,7 +9676,7 @@ func (h *ResourceHandler) BatchPauseWorkloads(c *gin.Context) {
 				if statefulSet.Annotations == nil {
 					statefulSet.Annotations = make(map[string]string)
 				}
-				statefulSet.Annotations["opshub/original-replicas"] = fmt.Sprintf("%d", *statefulSet.Spec.Replicas)
+				statefulSet.Annotations["iom/original-replicas"] = fmt.Sprintf("%d", *statefulSet.Spec.Replicas)
 				zero := int32(0)
 				statefulSet.Spec.Replicas = &zero
 				_, err = clientset.AppsV1().StatefulSets(item.Namespace).Update(c.Request.Context(), statefulSet, metav1.UpdateOptions{})
@@ -9781,7 +9781,7 @@ func (h *ResourceHandler) BatchResumeWorkloads(c *gin.Context) {
 			statefulSet, err := clientset.AppsV1().StatefulSets(item.Namespace).Get(c.Request.Context(), item.Name, metav1.GetOptions{})
 			if err == nil {
 				// 尝试从 annotations 获取原始副本数
-				if originalReplicasStr, ok := statefulSet.Annotations["opshub/original-replicas"]; ok {
+				if originalReplicasStr, ok := statefulSet.Annotations["iom/original-replicas"]; ok {
 					originalReplicas, err := strconv.ParseInt(originalReplicasStr, 10, 32)
 					if err == nil && originalReplicas > 0 {
 						replicas := int32(originalReplicas)
@@ -9792,7 +9792,7 @@ func (h *ResourceHandler) BatchResumeWorkloads(c *gin.Context) {
 					one := int32(1)
 					statefulSet.Spec.Replicas = &one
 				}
-				delete(statefulSet.Annotations, "opshub/original-replicas")
+				delete(statefulSet.Annotations, "iom/original-replicas")
 				_, err = clientset.AppsV1().StatefulSets(item.Namespace).Update(c.Request.Context(), statefulSet, metav1.UpdateOptions{})
 			}
 

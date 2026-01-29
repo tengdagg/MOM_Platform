@@ -4,11 +4,11 @@ services:
   # MySQL 数据库
   mysql:
     image: swr.cn-north-4.myhuaweicloud.com/ddn-k8s/docker.io/mysql:8.0.44
-    container_name: opshub-mysql
+    container_name: iom-mysql
     restart: unless-stopped
     environment:
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-OpsHub@2026}
-      MYSQL_DATABASE: ${MYSQL_DATABASE:-opshub}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-iom@2026}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-iom}
       TZ: Asia/Shanghai
     ports:
       - "${MYSQL_PORT:-3306}:3306"
@@ -22,12 +22,12 @@ services:
       timeout: 5s
       retries: 5
     networks:
-      - opshub-network
+      - iom-network
 
   # Redis 缓存
   redis:
     image: swr.cn-north-4.myhuaweicloud.com/ddn-k8s/docker.io/redis:7-alpine
-    container_name: opshub-redis
+    container_name: iom-redis
     restart: unless-stopped
     ports:
       - "${REDIS_PORT:-6379}:6379"
@@ -40,29 +40,29 @@ services:
       timeout: 5s
       retries: 5
     networks:
-      - opshub-network
+      - iom-network
 
   # 后端服务
   backend:
-    image: docker.1ms.run/dyclouds/opshub-api:latest
-    container_name: opshub-backend
+    image: docker.1ms.run/dyclouds/iom-api:latest
+    container_name: iom-backend
     restart: unless-stopped
     ports:
       - "${BACKEND_PORT:-9876}:9876"
     environment:
-      OPSHUB_SERVER_MODE: ${OPSHUB_SERVER_MODE:-release}
-      OPSHUB_SERVER_HTTP_PORT: 9876
-      OPSHUB_SERVER_JWT_SECRET: ${OPSHUB_SERVER_JWT_SECRET:-opshub-jwt-secret-change-in-production}
-      OPSHUB_SERVER_JWT_EXPIRE: 24h
-      OPSHUB_DATABASE_HOST: mysql
-      OPSHUB_DATABASE_PORT: 3306
-      OPSHUB_DATABASE_DATABASE: ${MYSQL_DATABASE:-opshub}
-      OPSHUB_DATABASE_USERNAME: ${MYSQL_USERNAME:-root}
-      OPSHUB_DATABASE_PASSWORD: ${MYSQL_ROOT_PASSWORD:-OpsHub@2026}
-      OPSHUB_REDIS_HOST: redis
-      OPSHUB_REDIS_PORT: 6379
-      OPSHUB_REDIS_PASSWORD: ""
-      OPSHUB_REDIS_DB: 0
+      iom_SERVER_MODE: ${iom_SERVER_MODE:-release}
+      iom_SERVER_HTTP_PORT: 9876
+      iom_SERVER_JWT_SECRET: ${iom_SERVER_JWT_SECRET:-iom-jwt-secret-change-in-production}
+      iom_SERVER_JWT_EXPIRE: 24h
+      iom_DATABASE_HOST: mysql
+      iom_DATABASE_PORT: 3306
+      iom_DATABASE_DATABASE: ${MYSQL_DATABASE:-iom}
+      iom_DATABASE_USERNAME: ${MYSQL_USERNAME:-root}
+      iom_DATABASE_PASSWORD: ${MYSQL_ROOT_PASSWORD:-iom@2026}
+      iom_REDIS_HOST: redis
+      iom_REDIS_PORT: 6379
+      iom_REDIS_PASSWORD: ""
+      iom_REDIS_DB: 0
       TZ: Asia/Shanghai
     depends_on:
       mysql:
@@ -72,12 +72,12 @@ services:
     volumes:
       - ./logs:/app/logs
     networks:
-      - opshub-network
+      - iom-network
 
   # 前端服务 (Nginx)
   frontend:
-    image: docker.1ms.run/dyclouds/opshub-web:latest
-    container_name: opshub-frontend
+    image: docker.1ms.run/dyclouds/iom-web:latest
+    container_name: iom-frontend
     restart: unless-stopped
     ports:
       - "${FRONTEND_PORT:-80}:80"
@@ -88,7 +88,7 @@ services:
     volumes:
       - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
     networks:
-      - opshub-network
+      - iom-network
 
 volumes:
   mysql-data:
@@ -97,5 +97,5 @@ volumes:
     driver: local
 
 networks:
-  opshub-network:
+  iom-network:
     driver: bridge

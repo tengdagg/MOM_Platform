@@ -57,10 +57,10 @@
 
         <!-- 表格 -->
         <el-table :data="userList" border stripe v-loading="loading" style="width: 100%">
-          <el-table-column label="头像" width="80">
+          <el-table-column label="头像" width="60">
             <template #default="{ row }">
-              <el-avatar v-if="row.avatar" :src="row.avatar" :size="50" />
-              <el-avatar v-else :size="50">{{ row.realName?.substring(0, 1) || row.username.substring(0, 1) }}</el-avatar>
+              <el-avatar v-if="row.avatar" :src="row.avatar" :size="32" />
+              <el-avatar v-else :size="32">{{ row.realName?.substring(0, 1) || row.username.substring(0, 1) }}</el-avatar>
             </template>
           </el-table-column>
           <el-table-column prop="username" label="用户名" min-width="120" />
@@ -711,7 +711,7 @@ onMounted(() => {
 
 <style scoped>
 .users-container {
-  padding: 20px;
+  padding: 16px;
   background-color: #fff;
   min-height: 100%;
 }
@@ -720,28 +720,28 @@ onMounted(() => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 20px;
-  padding-bottom: 16px;
+  margin-bottom: 14px;
+  padding-bottom: 12px;
   border-bottom: 1px solid #e6e6e6;
 }
 
 .page-title {
   margin: 0;
-  font-size: 18px;
+  font-size: 15px;
   font-weight: 500;
   color: #303133;
 }
 
 .content-wrapper {
   display: flex;
-  gap: 20px;
-  min-height: calc(100vh - 200px);
+  gap: 14px;
+  min-height: calc(100vh - 180px);
 }
 
 /* 左侧部门树面板 */
 .dept-tree-panel {
-  width: 280px;
-  min-width: 280px;
+  width: 220px;
+  min-width: 220px;
   background: #fafafa;
   border: 1px solid #e6e6e6;
   border-radius: 4px;
@@ -750,8 +750,9 @@ onMounted(() => {
 }
 
 .panel-header {
-  padding: 12px 16px;
+  padding: 10px 12px;
   font-weight: 500;
+  font-size: 13px;
   color: #303133;
   border-bottom: 1px solid #e6e6e6;
   background-color: #fff;
@@ -760,10 +761,10 @@ onMounted(() => {
 
 .dept-tree {
   flex: 1;
-  padding: 12px;
+  padding: 8px;
   overflow-y: auto;
   background-color: #fafafa;
-  font-size: 15px;
+  font-size: 13px;
 }
 
 .custom-tree-node {
@@ -771,7 +772,7 @@ onMounted(() => {
   align-items: center;
   justify-content: space-between;
   width: 100%;
-  padding-right: 8px;
+  padding-right: 6px;
 }
 
 .node-label {
@@ -779,12 +780,12 @@ onMounted(() => {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 15px;
+  font-size: 13px;
 }
 
 .node-count {
   color: #909399;
-  font-size: 14px;
+  font-size: 12px;
 }
 
 /* 右侧用户列表面板 */
@@ -799,17 +800,18 @@ onMounted(() => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 10px 16px;
-  margin-bottom: 16px;
+  padding: 8px 12px;
+  margin-bottom: 12px;
   background-color: #f0f9ff;
   border: 1px solid #b3d8ff;
   border-radius: 4px;
+  font-size: 13px;
 }
 
 .dept-path-text {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
 }
 
 .dept-path-text .label {
@@ -822,7 +824,15 @@ onMounted(() => {
 }
 
 .search-form {
-  margin-bottom: 16px;
+  margin-bottom: 12px;
+}
+
+.search-form :deep(.el-form-item) {
+  margin-bottom: 12px;
+}
+
+.search-form :deep(.el-form-item__label) {
+  font-size: 13px;
 }
 
 /* 黑色按钮样式 */
@@ -844,7 +854,7 @@ onMounted(() => {
 
 /* 用户对话框样式 */
 .user-dialog :deep(.el-dialog__body) {
-  padding: 20px 30px;
+  padding: 14px 20px;
   max-height: 60vh;
   overflow-y: auto;
 }
@@ -853,52 +863,60 @@ onMounted(() => {
   width: 100%;
 }
 
+.user-form :deep(.el-form-item) {
+  margin-bottom: 14px;
+}
+
+.user-form :deep(.el-form-item__label) {
+  font-size: 13px;
+}
+
 .form-section-title {
   display: flex;
   align-items: center;
-  gap: 8px;
-  margin-bottom: 20px;
-  padding-bottom: 12px;
-  border-bottom: 2px solid #f0f0f0;
-  font-size: 15px;
+  gap: 6px;
+  margin-bottom: 14px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #f0f0f0;
+  font-size: 13px;
   font-weight: 600;
   color: #303133;
 }
 
 .form-section-title .el-icon {
-  font-size: 18px;
+  font-size: 15px;
   color: #409eff;
 }
 
 .form-section-title + .el-form {
-  margin-top: 16px;
+  margin-top: 12px;
 }
 
 /* 树形选择器节点样式 */
 .tree-node-count {
-  margin-left: 8px;
+  margin-left: 6px;
   color: #909399;
-  font-size: 12px;
+  font-size: 11px;
 }
 
 /* 角色选择器选项样式 */
 .role-code {
-  margin-left: 12px;
+  margin-left: 10px;
   color: #909399;
-  font-size: 12px;
+  font-size: 11px;
 }
 
 /* 对话框底部 */
 .dialog-footer {
   display: flex;
   justify-content: flex-end;
-  gap: 12px;
+  gap: 10px;
 }
 
 .dialog-footer .el-button {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
 }
 
 /* 输入框图标样式 */

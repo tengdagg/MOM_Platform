@@ -25,8 +25,8 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
-	"github.com/ydcloud-dy/opshub/internal/biz/rbac"
-	"github.com/ydcloud-dy/opshub/pkg/response"
+	"github.com/ydcloud-dy/iom/internal/biz/rbac"
+	"github.com/ydcloud-dy/iom/pkg/response"
 )
 
 const (

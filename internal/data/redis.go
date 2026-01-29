@@ -25,7 +25,7 @@ import (
 	"time"
 
 	"github.com/redis/go-redis/v9"
-	"github.com/ydcloud-dy/opshub/internal/conf"
+	"github.com/ydcloud-dy/iom/internal/conf"
 )
 
 // Redis Redis客户端

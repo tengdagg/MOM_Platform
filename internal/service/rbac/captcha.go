@@ -25,7 +25,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/mojocn/base64Captcha"
 	"github.com/redis/go-redis/v9"
-	"github.com/ydcloud-dy/opshub/pkg/response"
+	"github.com/ydcloud-dy/iom/pkg/response"
 )
 
 // 全局验证码存储（支持 Redis）

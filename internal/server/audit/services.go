@@ -20,9 +20,9 @@
 package audit
 
 import (
-	"github.com/ydcloud-dy/opshub/internal/biz/audit"
-	auditdata "github.com/ydcloud-dy/opshub/internal/data/audit"
-	auditservice "github.com/ydcloud-dy/opshub/internal/service/audit"
+	"github.com/ydcloud-dy/iom/internal/biz/audit"
+	auditdata "github.com/ydcloud-dy/iom/internal/data/audit"
+	auditservice "github.com/ydcloud-dy/iom/internal/service/audit"
 	"gorm.io/gorm"
 )
 

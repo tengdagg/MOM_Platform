@@ -2,10 +2,10 @@
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: {{ include "opshub.fullname" . }}
+  name: {{ include "iom.fullname" . }}
   namespace: {{ .Release.Namespace }}
   labels:
-    {{- include "opshub.labels" . | nindent 4 }}
+    {{- include "iom.labels" . | nindent 4 }}
   {{- with .Values.ingress.annotations }}
   annotations:
     {{- toYaml . | nindent 4 }}
@@ -34,7 +34,7 @@ spec:
             pathType: Prefix
             backend:
               service:
-                name: {{ include "opshub.fullname" $ }}-backend
+                name: {{ include "iom.fullname" $ }}-backend
                 port:
                   number: {{ $.Values.backend.service.port }}
           # Swagger 文档路由到后端
@@ -42,7 +42,7 @@ spec:
             pathType: Prefix
             backend:
               service:
-                name: {{ include "opshub.fullname" $ }}-backend
+                name: {{ include "iom.fullname" $ }}-backend
                 port:
                   number: {{ $.Values.backend.service.port }}
           # 其他请求路由到前端
@@ -51,7 +51,7 @@ spec:
             pathType: {{ .pathType }}
             backend:
               service:
-                name: {{ include "opshub.fullname" $ }}-frontend
+                name: {{ include "iom.fullname" $ }}-frontend
                 port:
                   number: {{ $.Values.frontend.service.port }}
           {{- end }}

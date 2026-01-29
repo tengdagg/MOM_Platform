@@ -1,6 +1,6 @@
 # 插件开发完整指南
 
-本文档详细介绍 OpsHub 插件开发的完整流程、规范和最佳实践。
+本文档详细介绍 iom 插件开发的完整流程、规范和最佳实践。
 
 ---
 
@@ -39,7 +39,7 @@
 ### 项目结构
 
 ```
-opshub/
+iom/
 ├── cmd/                    # 命令行入口
 ├── config/                 # 配置文件
 ├── internal/               # 核心模块（不可被外部引用）
@@ -97,9 +97,9 @@ package myplugin
 
 import (
     "github.com/gin-gonic/gin"
-    "github.com/ydcloud-dy/opshub/internal/plugin"
-    "github.com/ydcloud-dy/opshub/plugins/myplugin/model"
-    "github.com/ydcloud-dy/opshub/plugins/myplugin/server"
+    "github.com/ydcloud-dy/iom/internal/plugin"
+    "github.com/ydcloud-dy/iom/plugins/myplugin/model"
+    "github.com/ydcloud-dy/iom/plugins/myplugin/server"
     "gorm.io/gorm"
 )
 
@@ -282,7 +282,7 @@ import (
     "strconv"
 
     "github.com/gin-gonic/gin"
-    "github.com/ydcloud-dy/opshub/plugins/myplugin/model"
+    "github.com/ydcloud-dy/iom/plugins/myplugin/model"
 )
 
 // Response 统一响应结构
@@ -461,7 +461,7 @@ func actionHandler(c *gin.Context) {
 ```go
 import (
     // ... 其他导入
-    myplugin "github.com/ydcloud-dy/opshub/plugins/myplugin"
+    myplugin "github.com/ydcloud-dy/iom/plugins/myplugin"
 )
 
 func NewHTTPServer(/* ... */) *HTTPServer {

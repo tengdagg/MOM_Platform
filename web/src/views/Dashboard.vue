@@ -6,7 +6,7 @@
         <el-card class="stat-card" shadow="hover">
           <div class="stat-content">
             <div class="stat-icon" :style="{ backgroundColor: stat.color }">
-              <el-icon :size="32" :color="'#fff'">
+              <el-icon :size="22" :color="'#fff'">
                 <component :is="stat.icon" />
               </el-icon>
             </div>
@@ -83,27 +83,27 @@
           </template>
           <div class="quick-access-grid">
             <div class="quick-item" @click="$router.push('/asset/hosts')">
-              <el-icon :size="32" color="#409EFF"><OfficeBuilding /></el-icon>
+              <el-icon :size="24" color="#409EFF"><OfficeBuilding /></el-icon>
               <span>主机管理</span>
             </div>
             <div class="quick-item" @click="$router.push('/kubernetes/clusters')">
-              <el-icon :size="32" color="#67C23A"><Connection /></el-icon>
+              <el-icon :size="24" color="#67C23A"><Connection /></el-icon>
               <span>K8s集群</span>
             </div>
             <div class="quick-item" @click="$router.push('/audit/operation-logs')">
-              <el-icon :size="32" color="#E6A23C"><Document /></el-icon>
+              <el-icon :size="24" color="#E6A23C"><Document /></el-icon>
               <span>操作日志</span>
             </div>
             <div class="quick-item" @click="$router.push('/monitor/alert-logs')">
-              <el-icon :size="32" color="#F56C6C"><Warning /></el-icon>
+              <el-icon :size="24" color="#F56C6C"><Warning /></el-icon>
               <span>告警日志</span>
             </div>
             <div class="quick-item" @click="$router.push('/asset/credentials')">
-              <el-icon :size="32" color="#909399"><Key /></el-icon>
+              <el-icon :size="24" color="#909399"><Key /></el-icon>
               <span>凭据管理</span>
             </div>
             <div class="quick-item" @click="$router.push('/asset/cloud-accounts')">
-              <el-icon :size="32" color="#606266"><Cloudy /></el-icon>
+              <el-icon :size="24" color="#606266"><Cloudy /></el-icon>
               <span>云账号</span>
             </div>
           </div>
@@ -518,16 +518,16 @@ onMounted(() => {
 }
 
 .stats-row {
-  margin-bottom: 20px;
+  margin-bottom: 16px;
 }
 
 .stat-card {
-  border-radius: 8px;
+  border-radius: 6px;
   overflow: hidden;
 }
 
 .stat-card :deep(.el-card__body) {
-  padding: 20px;
+  padding: 14px;
 }
 
 .stat-content {
@@ -536,13 +536,17 @@ onMounted(() => {
 }
 
 .stat-icon {
-  width: 64px;
-  height: 64px;
-  border-radius: 12px;
+  width: 44px;
+  height: 44px;
+  border-radius: 8px;
   display: flex;
   align-items: center;
   justify-content: center;
-  margin-right: 16px;
+  margin-right: 12px;
+}
+
+.stat-icon :deep(.el-icon) {
+  font-size: 22px !important;
 }
 
 .stat-info {
@@ -550,34 +554,34 @@ onMounted(() => {
 }
 
 .stat-value {
-  font-size: 28px;
+  font-size: 20px;
   font-weight: bold;
   color: #303133;
   line-height: 1;
-  margin-bottom: 8px;
+  margin-bottom: 4px;
 }
 
 .stat-label {
-  font-size: 14px;
+  font-size: 12px;
   color: #909399;
 }
 
 .chart-row {
-  margin-bottom: 20px;
+  margin-bottom: 16px;
 }
 
 .chart-card {
-  border-radius: 8px;
+  border-radius: 6px;
   height: 100%;
 }
 
 .chart-card :deep(.el-card__header) {
-  padding: 15px 20px;
+  padding: 10px 14px;
   border-bottom: 1px solid #ebeef5;
 }
 
 .chart-card :deep(.el-card__body) {
-  padding: 20px;
+  padding: 14px;
 }
 
 .card-header {
@@ -587,37 +591,37 @@ onMounted(() => {
 }
 
 .card-title {
-  font-size: 16px;
+  font-size: 14px;
   font-weight: 500;
   color: #303133;
 }
 
 .chart-container {
   width: 100%;
-  height: 300px;
+  height: 240px;
 }
 
 .quick-access-row {
-  margin-bottom: 20px;
+  margin-bottom: 16px;
 }
 
 .quick-access-card {
-  border-radius: 8px;
+  border-radius: 6px;
 }
 
 .quick-access-card :deep(.el-card__header) {
-  padding: 15px 20px;
+  padding: 10px 14px;
   border-bottom: 1px solid #ebeef5;
 }
 
 .quick-access-card :deep(.el-card__body) {
-  padding: 20px;
+  padding: 14px;
 }
 
 .quick-access-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-  gap: 20px;
+  grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+  gap: 12px;
 }
 
 .quick-item {
@@ -625,22 +629,26 @@ onMounted(() => {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 20px;
-  border-radius: 8px;
+  padding: 14px;
+  border-radius: 6px;
   background-color: #f5f7fa;
   cursor: pointer;
   transition: all 0.3s;
 }
 
+.quick-item :deep(.el-icon) {
+  font-size: 24px !important;
+}
+
 .quick-item:hover {
   background-color: #ecf5ff;
-  transform: translateY(-4px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  transform: translateY(-2px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
 }
 
 .quick-item span {
-  margin-top: 12px;
-  font-size: 14px;
+  margin-top: 8px;
+  font-size: 12px;
   color: #606266;
   font-weight: 500;
 }
@@ -648,27 +656,27 @@ onMounted(() => {
 /* 响应式设计 */
 @media (max-width: 1200px) {
   .stat-value {
-    font-size: 24px;
+    font-size: 18px;
   }
 
   .stat-icon {
-    width: 56px;
-    height: 56px;
+    width: 40px;
+    height: 40px;
   }
 
   .chart-container {
-    height: 250px;
+    height: 200px;
   }
 }
 
 @media (max-width: 768px) {
   .quick-access-grid {
-    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
-    gap: 15px;
+    grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
+    gap: 10px;
   }
 
   .quick-item {
-    padding: 15px;
+    padding: 10px;
   }
 }
 </style>

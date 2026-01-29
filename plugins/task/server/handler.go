@@ -35,10 +35,10 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/pkg/sftp"
+	assetbiz "github.com/ydcloud-dy/iom/internal/biz/asset"
+	"github.com/ydcloud-dy/iom/pkg/response"
+	"github.com/ydcloud-dy/iom/plugins/task/model"
 	"golang.org/x/crypto/ssh"
-	assetbiz "github.com/ydcloud-dy/opshub/internal/biz/asset"
-	"github.com/ydcloud-dy/opshub/pkg/response"
-	"github.com/ydcloud-dy/opshub/plugins/task/model"
 	"gorm.io/gorm"
 )
 
@@ -49,7 +49,7 @@ type Handler struct {
 
 func NewHandler(db *gorm.DB) *Handler {
 	// 使用与凭证仓库相同的加密密钥
-	encryptionKey := []byte("opshub-enc-key-32-bytes-long!!!!")
+	encryptionKey := []byte("iom-encrypt-key-32bytes-long!!@@")
 	return &Handler{
 		db:            db,
 		encryptionKey: encryptionKey,
@@ -501,16 +501,16 @@ func (h *Handler) DeleteAnsibleTask(c *gin.Context) {
 
 // ExecuteTaskRequest 执行任务请求
 type ExecuteTaskRequest struct {
-	HostIDs     []uint `json:"hostIds" binding:"required"`
-	ScriptType  string `json:"scriptType" binding:"required"` // Shell, Python
-	Content     string `json:"content" binding:"required"`
-	Name        string `json:"name"`
+	HostIDs    []uint `json:"hostIds" binding:"required"`
+	ScriptType string `json:"scriptType" binding:"required"` // Shell, Python
+	Content    string `json:"content" binding:"required"`
+	Name       string `json:"name"`
 }
 
 // ExecuteTaskResponse 执行任务响应
 type ExecuteTaskResponse struct {
-	TaskID  uint                    `json:"taskId"`
-	Results []HostExecutionResult   `json:"results"`
+	TaskID  uint                  `json:"taskId"`
+	Results []HostExecutionResult `json:"results"`
 }
 
 // HostExecutionResult 主机执行结果
@@ -620,17 +620,17 @@ func (h *Handler) checkCommandSafety(content string) error {
 
 	// ============ 完全禁止的命令（一刀切） ============
 	absoluteBannedCommands := []string{
-		"rm", "unlink", "shred",  // 任何形式的删除
+		"rm", "unlink", "shred", // 任何形式的删除
 	}
 
 	for _, cmd := range absoluteBannedCommands {
 		// 检查命令是否作为独立词出现
 		if strings.Contains(contentLower, cmd+" ") ||
-		   strings.Contains(contentLower, cmd+"\t") ||
-		   strings.Contains(contentLower, cmd+"\n") ||
-		   strings.HasPrefix(contentLower, cmd+" ") ||
-		   strings.HasSuffix(contentLower, " "+cmd) ||
-		   contentLower == cmd {
+			strings.Contains(contentLower, cmd+"\t") ||
+			strings.Contains(contentLower, cmd+"\n") ||
+			strings.HasPrefix(contentLower, cmd+" ") ||
+			strings.HasSuffix(contentLower, " "+cmd) ||
+			contentLower == cmd {
 			return fmt.Errorf("命令【%s】已被完全禁用，系统不允许执行任何删除操作", cmd)
 		}
 	}
@@ -921,10 +921,10 @@ func (h *Handler) checkCommandSafety(content string) error {
 
 	// ============ 检查管道和重定向到系统目录 ============
 	if strings.Contains(contentCompact, ">/etc") ||
-	   strings.Contains(contentCompact, ">>/etc") ||
-	   strings.Contains(contentCompact, ">/usr") ||
-	   strings.Contains(contentCompact, ">/var") ||
-	   strings.Contains(contentCompact, ">/boot") {
+		strings.Contains(contentCompact, ">>/etc") ||
+		strings.Contains(contentCompact, ">/usr") ||
+		strings.Contains(contentCompact, ">/var") ||
+		strings.Contains(contentCompact, ">/boot") {
 		return fmt.Errorf("命令包含重定向到系统目录的操作，已被系统拦截")
 	}
 
