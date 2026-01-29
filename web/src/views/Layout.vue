@@ -1,7 +1,7 @@
 <template>
   <el-container class="layout-container">
     <!-- 侧边栏 -->
-    <el-aside :width="isCollapse ? '64px' : '220px'" v-if="!hideSidebar" class="sidebar">
+    <el-aside :width="isCollapse ? '64px' : '200px'" v-if="!hideSidebar" class="sidebar">
       <div class="logo" @click="router.push('/')">
         <img v-if="!isCollapse" :src="logoImage" alt="Logo" class="logo-image" />
         <img v-else :src="logoImage" alt="Logo" class="logo-image-mini" />
@@ -15,7 +15,7 @@
         router
         :unique-opened="true"
         background-color="#0a466a"
-        text-color="rgba(255, 255, 255, 0.85)"
+        text-color="#ffffff"
         active-text-color="#ffffff"
       >
         <template v-for="menu in menuList" :key="menu.ID || menu.id || menu.path">
@@ -517,7 +517,7 @@ onMounted(async () => {
 }
 
 .el-menu-vertical:not(.el-menu--collapse) {
-  width: 220px;
+  width: 200px;
 }
 
 /* 自定义滚动条 */
@@ -542,17 +542,30 @@ onMounted(async () => {
    Zabbix 风格菜单样式
    ================================ */
 
-/* 顶级菜单项（无子菜单） */
-:deep(.el-menu-item) {
-  height: 38px;
-  line-height: 38px;
-  font-size: 13px;
+/* 顶级菜单项（无子菜单，如仪表盘） */
+:deep(.el-menu-vertical > .el-menu-item) {
+  height: 40px;
+  line-height: 40px;
+  font-size: 14px !important;
   margin: 0;
   padding-left: 16px !important;
   border-radius: 0;
   border-left: 3px solid transparent;
   transition: all 0.15s ease;
-  color: rgba(255, 255, 255, 0.85);
+  color: #ffffff;
+}
+
+/* 通用菜单项样式 */
+:deep(.el-menu-item) {
+  height: 40px;
+  line-height: 40px;
+  font-size: 14px;
+  margin: 0;
+  padding-left: 16px !important;
+  border-radius: 0;
+  border-left: 3px solid transparent;
+  transition: all 0.15s ease;
+  color: #ffffff;
 }
 
 :deep(.el-menu-item:hover) {
@@ -583,15 +596,15 @@ onMounted(async () => {
 
 /* 子菜单标题（父级菜单） */
 :deep(.el-sub-menu__title) {
-  height: 38px;
-  line-height: 38px;
-  font-size: 13px;
+  height: 40px;
+  line-height: 40px;
+  font-size: 14px;
   margin: 0;
   padding-left: 16px !important;
   border-radius: 0;
   border-left: 3px solid transparent;
   transition: all 0.15s ease;
-  color: rgba(255, 255, 255, 0.85);
+  color: #ffffff;
 }
 
 :deep(.el-sub-menu__title:hover) {
@@ -630,33 +643,48 @@ onMounted(async () => {
 
 /* 子菜单展开区域 - Zabbix 风格 */
 :deep(.el-menu--inline) {
-  background-color: rgba(0, 0, 0, 0.15) !important;
+  background-color: rgba(0, 0, 0, 0.25) !important;
+  border-left: 20px solid rgb(0 30 43 / 90%);
+  margin-left: 0;
 }
 
 /* 子菜单内容项 */
 :deep(.el-menu--inline .el-menu-item) {
-  height: 34px;
-  line-height: 34px;
-  padding-left: 44px !important;
+  height: 38px;
+  line-height: 38px;
+  padding-left: 28px !important;
   margin: 0;
-  font-size: 13px;
-  color: rgba(255, 255, 255, 0.8);
+  font-size: 14px;
+  color: #ffffff;
   border-left: 3px solid transparent;
+  background-color: transparent;
+  transition: all 0.15s ease;
 }
 
 :deep(.el-menu--inline .el-menu-item .el-icon) {
-  display: none;
+  font-size: 14px;
+  margin-right: 8px;
+  color: rgba(255, 255, 255, 0.65);
 }
 
 :deep(.el-menu--inline .el-menu-item:hover) {
-  background-color: rgba(0, 0, 0, 0.1) !important;
+  background-color: rgba(79, 195, 247, 0.15) !important;
+  border-left: 3px solid rgba(255, 255, 255, 0.5) !important;
   color: #ffffff !important;
 }
 
+:deep(.el-menu--inline .el-menu-item:hover .el-icon) {
+  color: rgba(255, 255, 255, 0.9);
+}
+
 :deep(.el-menu--inline .el-menu-item.is-active) {
-  background-color: rgba(0, 0, 0, 0.2) !important;
+  background-color: rgba(79, 195, 247, 0.25) !important;
   border-left: 3px solid #4fc3f7 !important;
   color: #4fc3f7 !important;
+}
+
+:deep(.el-menu--inline .el-menu-item.is-active .el-icon) {
+  color: #4fc3f7;
 }
 
 /* 收缩状态样式 */

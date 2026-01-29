@@ -154,6 +154,9 @@ func runServer() (*conf.Config, error) {
 		return nil, fmt.Errorf("初始化默认数据失败: %w", err)
 	}
 
+	// 修复：确保个人信息菜单始终隐藏（解决历史数据问题）
+	data.DB().Exec("UPDATE sys_menu SET visible = 0 WHERE code = 'profile'")
+
 	// 初始化HTTP服务器
 	httpServer := server.NewHTTPServer(cfg, svc, data.DB())
 	globalHTTPServer = httpServer // 保存到全局变量
