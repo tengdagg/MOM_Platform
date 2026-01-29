@@ -8,19 +8,19 @@ server:
 
 database:
   driver: mysql
-  host: 127.0.0.1
-  port: 3306
-  database: opshub
+  host: 172.20.200.28
+  port: 4000
+  database: iom_platform
   username: root
-  password: "123456"
+  password: "Telling123pass"
   max_idle_conns: 10
   max_open_conns: 100
   conn_max_lifetime: 3600 # 秒
 
 redis:
-  host: 127.0.0.1
+  host: 172.20.200.26
   port: 6379
-  password: ""
+  password: "Telling123pass"
   db: 0
   pool_size: 10
   min_idle_conn: 5
