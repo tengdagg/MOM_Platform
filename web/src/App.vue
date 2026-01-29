@@ -134,4 +134,251 @@ body {
 .el-button--default {
   --el-button-size: 32px;
 }
+
+/* ================================
+   主题色按钮样式 - #0a466a
+   ================================ */
+
+/* 黑色按钮类覆盖 - 改为主题色 */
+.black-button,
+.black-button.el-button,
+button.black-button,
+.el-button.black-button,
+[class*="black-button"] {
+  background-color: #0a466a !important;
+  border-color: #0a466a !important;
+  color: #ffffff !important;
+  background-image: none !important;
+  background: #0a466a !important;
+}
+
+.black-button:hover,
+.black-button:focus,
+.black-button.el-button:hover,
+.black-button.el-button:focus,
+.el-button.black-button:hover,
+.el-button.black-button:focus {
+  background-color: #0d5a87 !important;
+  border-color: #0d5a87 !important;
+  color: #ffffff !important;
+  background-image: none !important;
+  background: #0d5a87 !important;
+}
+
+.black-button:active,
+.black-button.el-button:active,
+.el-button.black-button:active {
+  background-color: #083a56 !important;
+  border-color: #083a56 !important;
+  background-image: none !important;
+  background: #083a56 !important;
+}
+
+/* 所有带黑色渐变背景的按钮 */
+.el-button[style*="background"],
+.el-button[style*="#000"] {
+  background-color: #0a466a !important;
+  border-color: #0a466a !important;
+  background-image: none !important;
+  background: #0a466a !important;
+}
+
+/* 主要按钮 - 使用更高优先级选择器 */
+.el-button--primary,
+.el-button.el-button--primary,
+button.el-button--primary,
+.batch-actions-right .el-button--primary,
+.header-actions .el-button--primary,
+.filter-actions .el-button--primary,
+.search-btn.el-button--primary {
+  background-color: #0a466a !important;
+  border-color: #0a466a !important;
+  background-image: none !important;
+  background: #0a466a !important;
+}
+
+.el-button--primary:hover,
+.el-button--primary:focus,
+.el-button.el-button--primary:hover,
+.el-button.el-button--primary:focus,
+.batch-actions-right .el-button--primary:hover,
+.header-actions .el-button--primary:hover,
+.filter-actions .el-button--primary:hover {
+  background-color: #0d5a87 !important;
+  border-color: #0d5a87 !important;
+  background-image: none !important;
+  background: #0d5a87 !important;
+}
+
+.el-button--primary:active,
+.el-button.el-button--primary:active {
+  background-color: #083a56 !important;
+  border-color: #083a56 !important;
+  background-image: none !important;
+  background: #083a56 !important;
+}
+
+.el-button--primary.is-disabled,
+.el-button--primary.is-disabled:hover {
+  background-color: #0a466a !important;
+  border-color: #0a466a !important;
+  background-image: none !important;
+  background: #0a466a !important;
+  opacity: 0.6;
+}
+
+/* 朴素主要按钮 */
+.el-button--primary.is-plain {
+  background-color: rgba(10, 70, 106, 0.1) !important;
+  border-color: #0a466a !important;
+  color: #0a466a !important;
+}
+
+.el-button--primary.is-plain:hover,
+.el-button--primary.is-plain:focus {
+  background-color: #0a466a !important;
+  border-color: #0a466a !important;
+  color: #ffffff !important;
+}
+
+/* 文字按钮 */
+.el-button--text {
+  color: #0a466a !important;
+}
+
+.el-button--text:hover,
+.el-button--text:focus {
+  color: #0d5a87 !important;
+}
+
+/* 链接按钮 */
+.el-button--link {
+  color: #0a466a !important;
+}
+
+.el-button--link:hover,
+.el-button--link:focus {
+  color: #0d5a87 !important;
+}
+
+/* 复选框选中 */
+.el-checkbox__input.is-checked .el-checkbox__inner {
+  background-color: #0a466a !important;
+  border-color: #0a466a !important;
+}
+
+.el-checkbox__input.is-checked + .el-checkbox__label {
+  color: #0a466a !important;
+}
+
+.el-checkbox__input.is-indeterminate .el-checkbox__inner {
+  background-color: #0a466a !important;
+  border-color: #0a466a !important;
+}
+
+/* 单选框选中 */
+.el-radio__input.is-checked .el-radio__inner {
+  background-color: #0a466a !important;
+  border-color: #0a466a !important;
+}
+
+.el-radio__input.is-checked + .el-radio__label {
+  color: #0a466a !important;
+}
+
+/* 开关 */
+.el-switch.is-checked .el-switch__core {
+  background-color: #0a466a !important;
+  border-color: #0a466a !important;
+}
+
+/* 标签页 */
+.el-tabs__item.is-active {
+  color: #0a466a !important;
+}
+
+.el-tabs__item:hover {
+  color: #0a466a !important;
+}
+
+.el-tabs__active-bar {
+  background-color: #0a466a !important;
+}
+
+/* 分页选中 */
+.el-pagination.is-background .el-pager li:not(.is-disabled).is-active {
+  background-color: #0a466a !important;
+}
+
+.el-pager li:not(.is-disabled).is-active {
+  color: #0a466a !important;
+}
+
+/* 链接 */
+.el-link--primary {
+  color: #0a466a !important;
+}
+
+.el-link--primary:hover {
+  color: #0d5a87 !important;
+}
+
+/* 下拉选中项 */
+.el-select-dropdown__item.is-selected {
+  color: #0a466a !important;
+}
+
+/* 输入框聚焦 */
+.el-input__wrapper:focus-within,
+.el-input__wrapper.is-focus {
+  box-shadow: 0 0 0 1px #0a466a inset !important;
+}
+
+.el-textarea__inner:focus {
+  box-shadow: 0 0 0 1px #0a466a inset !important;
+}
+
+/* 选择器聚焦 */
+.el-select .el-input.is-focus .el-input__wrapper {
+  box-shadow: 0 0 0 1px #0a466a inset !important;
+}
+
+/* 日期选择器 */
+.el-date-table td.current:not(.disabled) span {
+  background-color: #0a466a !important;
+}
+
+.el-date-table td.today span {
+  color: #0a466a !important;
+}
+
+/* 树形控件 */
+.el-tree-node.is-current > .el-tree-node__content {
+  background-color: rgba(10, 70, 106, 0.1) !important;
+}
+
+/* 步骤条 */
+.el-step__head.is-process {
+  color: #0a466a !important;
+  border-color: #0a466a !important;
+}
+
+.el-step__head.is-finish {
+  color: #0a466a !important;
+  border-color: #0a466a !important;
+}
+
+.el-step__title.is-process,
+.el-step__title.is-finish {
+  color: #0a466a !important;
+}
+
+/* 加载中 */
+.el-loading-spinner .circular {
+  stroke: #0a466a !important;
+}
+
+.el-loading-spinner .el-loading-text {
+  color: #0a466a !important;
+}
 </style>

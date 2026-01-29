@@ -2703,7 +2703,7 @@ onMounted(() => {
 }
 
 .stat-icon-blue {
-  background: linear-gradient(135deg, #000000 0%, #1a1a1a 100%);
+  background: linear-gradient(135deg, #0a466a 0%, #0d5a87 100%);
   color: #d4af37;
   border: 1px solid #d4af37;
 }
@@ -2715,7 +2715,7 @@ onMounted(() => {
 }
 
 .stat-orange {
-  background: linear-gradient(135deg, #000000 0%, #1a1a1a 100%);
+  background: linear-gradient(135deg, #0a466a 0%, #0d5a87 100%);
   color: #d4af37;
   border: 1px solid #d4af37;
 }
@@ -2801,17 +2801,17 @@ onMounted(() => {
 }
 
 .black-button {
-  background-color: #000000 !important;
+  background-color: #0a466a !important;
   color: #ffffff !important;
-  border-color: #000000 !important;
+  border-color: #0a466a !important;
   border-radius: 8px;
   padding: 10px 20px;
   font-weight: 500;
 }
 
 .black-button:hover {
-  background-color: #333333 !important;
-  border-color: #333333 !important;
+  background-color: #0d5a87 !important;
+  border-color: #0d5a87 !important;
 }
 
 /* 搜索栏 */
@@ -3082,7 +3082,7 @@ onMounted(() => {
   width: 36px;
   height: 36px;
   border-radius: 8px;
-  background: linear-gradient(135deg, #000000 0%, #1a1a1a 100%);
+  background: linear-gradient(135deg, #0a466a 0%, #0d5a87 100%);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -3194,7 +3194,7 @@ onMounted(() => {
 }
 
 .resource-icon-cpu {
-  background: linear-gradient(135deg, #000000 0%, #1a1a1a 100%);
+  background: linear-gradient(135deg, #0a466a 0%, #0d5a87 100%);
   color: #d4af37;
   border: 1px solid #d4af37;
 }
@@ -3405,7 +3405,7 @@ onMounted(() => {
 
 /* 标签弹窗 */
 .label-dialog :deep(.el-dialog__header) {
-  background: linear-gradient(135deg, #000000 0%, #1a1a1a 100%);
+  background: linear-gradient(135deg, #0a466a 0%, #0d5a87 100%);
   color: #d4af37;
   border-radius: 12px 12px 0 0;
   padding: 20px 28px;
@@ -3441,7 +3441,7 @@ onMounted(() => {
   align-items: center;
   justify-content: space-between;
   padding: 16px 20px;
-  background: linear-gradient(135deg, #000000 0%, #1a1a1a 100%);
+  background: linear-gradient(135deg, #0a466a 0%, #0d5a87 100%);
   border-radius: 8px;
   border: 1px solid #d4af37;
 }
@@ -3502,7 +3502,7 @@ onMounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, #000000 0%, #1a1a1a 100%);
+  background: linear-gradient(135deg, #0a466a 0%, #0d5a87 100%);
   color: #d4af37;
   border-radius: 6px;
   font-weight: 600;
@@ -3622,7 +3622,7 @@ onMounted(() => {
 }
 
 .dialog-footer .edit-btn {
-  background: linear-gradient(135deg, #000000 0%, #1a1a1a 100%);
+  background: linear-gradient(135deg, #0a466a 0%, #0d5a87 100%);
   border-color: #d4af37;
   color: #d4af37;
 }
@@ -3635,7 +3635,7 @@ onMounted(() => {
 }
 
 .dialog-footer .save-btn {
-  background: linear-gradient(135deg, #000000 0%, #1a1a1a 100%);
+  background: linear-gradient(135deg, #0a466a 0%, #0d5a87 100%);
   border-color: #d4af37;
   color: #d4af37;
   min-width: 120px;
@@ -3661,7 +3661,7 @@ onMounted(() => {
   align-items: center !important;
   gap: 6px !important;
   padding: 5px 12px !important;
-  background: linear-gradient(135deg, #000000 0%, #1a1a1a 100%) !important;
+  background: linear-gradient(135deg, #0a466a 0%, #0d5a87 100%) !important;
   color: #d4af37 !important;
   border: 1px solid #d4af37 !important;
   border-radius: 6px !important;
@@ -3718,7 +3718,7 @@ onMounted(() => {
 
 /* 污点弹窗 */
 .taint-dialog :deep(.el-dialog__header) {
-  background: linear-gradient(135deg, #000000 0%, #1a1a1a 100%);
+  background: linear-gradient(135deg, #0a466a 0%, #0d5a87 100%);
   color: #d4af37;
   border-radius: 8px 8px 0 0;
   padding: 20px 24px;
@@ -3746,7 +3746,7 @@ onMounted(() => {
   align-items: center;
   justify-content: space-between;
   padding: 16px 20px;
-  background: linear-gradient(135deg, #000000 0%, #1a1a1a 100%);
+  background: linear-gradient(135deg, #0a466a 0%, #0d5a87 100%);
   border-radius: 8px;
   border: 1px solid #d4af37;
 }
@@ -3807,7 +3807,7 @@ onMounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, #000000 0%, #1a1a1a 100%);
+  background: linear-gradient(135deg, #0a466a 0%, #0d5a87 100%);
   color: #d4af37;
   border-radius: 6px;
   font-weight: 600;
@@ -3961,7 +3961,7 @@ onMounted(() => {
   align-items: center !important;
   gap: 6px !important;
   padding: 5px 12px !important;
-  background: linear-gradient(135deg, #000000 0%, #1a1a1a 100%) !important;
+  background: linear-gradient(135deg, #0a466a 0%, #0d5a87 100%) !important;
   color: #d4af37 !important;
   border: 1px solid #d4af37 !important;
   border-radius: 6px !important;
@@ -4045,7 +4045,7 @@ onMounted(() => {
 
 /* YAML 编辑弹窗 */
 .yaml-dialog :deep(.el-dialog__header) {
-  background: linear-gradient(135deg, #000000 0%, #1a1a1a 100%);
+  background: linear-gradient(135deg, #0a466a 0%, #0d5a87 100%);
   color: #d4af37;
   border-radius: 8px 8px 0 0;
   padding: 20px 24px;
@@ -4256,7 +4256,7 @@ onMounted(() => {
   transform: translateY(-2px);
   box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
   background: #333333;
-  border-color: #333333;
+  border-color: #0d5a87;
   color: #ffffff;
 }
 
@@ -4277,7 +4277,7 @@ onMounted(() => {
 .batch-actions-right .el-button--danger:hover,
 .batch-actions-right .el-button--success:hover {
   background: #333333;
-  border-color: #333333;
+  border-color: #0d5a87;
   color: #ffffff;
   box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
 }
@@ -4340,7 +4340,7 @@ onMounted(() => {
 
 /* 批量标签对话框 */
 .batch-label-dialog :deep(.el-dialog__header) {
-  background: linear-gradient(135deg, #000000 0%, #1a1a1a 100%);
+  background: linear-gradient(135deg, #0a466a 0%, #0d5a87 100%);
   color: #d4af37;
   border-radius: 8px 8px 0 0;
   padding: 20px 24px;
@@ -4382,7 +4382,7 @@ onMounted(() => {
 
 /* 批量污点对话框 */
 .batch-taint-dialog :deep(.el-dialog__header) {
-  background: linear-gradient(135deg, #000000 0%, #1a1a1a 100%);
+  background: linear-gradient(135deg, #0a466a 0%, #0d5a87 100%);
   color: #d4af37;
   border-radius: 8px 8px 0 0;
   padding: 20px 24px;
@@ -4417,7 +4417,7 @@ onMounted(() => {
 
 /* 批量操作结果对话框 */
 .batch-result-dialog :deep(.el-dialog__header) {
-  background: linear-gradient(135deg, #000000 0%, #1a1a1a 100%);
+  background: linear-gradient(135deg, #0a466a 0%, #0d5a87 100%);
   color: #d4af37;
   border-radius: 8px 8px 0 0;
   padding: 20px 24px;

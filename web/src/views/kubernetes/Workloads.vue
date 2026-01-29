@@ -5787,7 +5787,7 @@ onMounted(() => {
   transform: translateY(-2px);
   box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
   background: #333333;
-  border-color: #333333;
+  border-color: #0d5a87;
   color: #ffffff;
 }
 
@@ -5808,7 +5808,7 @@ onMounted(() => {
 .batch-btn.el-button--info:hover,
 .batch-btn.el-button--primary:hover {
   background: #333333;
-  border-color: #333333;
+  border-color: #0d5a87;
   color: #ffffff;
   box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
 }
@@ -6056,7 +6056,7 @@ onMounted(() => {
   width: 36px;
   height: 36px;
   border-radius: 8px;
-  background: linear-gradient(135deg, #000000 0%, #1a1a1a 100%);
+  background: linear-gradient(135deg, #0a466a 0%, #0d5a87 100%);
   display: flex;
   align-items: center;
   justify-content: center;

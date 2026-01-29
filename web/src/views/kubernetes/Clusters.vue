@@ -1721,7 +1721,7 @@ watch(paginatedClusterList, () => {
 }
 
 .stat-icon-blue {
-  background: linear-gradient(135deg, #000000 0%, #1a1a1a 100%);
+  background: linear-gradient(135deg, #0a466a 0%, #0d5a87 100%);
   color: #d4af37;
   border: 1px solid #d4af37;
 }
@@ -1733,7 +1733,7 @@ watch(paginatedClusterList, () => {
 }
 
 .stat-orange {
-  background: linear-gradient(135deg, #000000 0%, #1a1a1a 100%);
+  background: linear-gradient(135deg, #0a466a 0%, #0d5a87 100%);
   color: #d4af37;
   border: 1px solid #d4af37;
 }
@@ -1972,7 +1972,7 @@ watch(paginatedClusterList, () => {
   transform: translateY(-2px);
   box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
   background: #333333;
-  border-color: #333333;
+  border-color: #0d5a87;
   color: #ffffff;
 }
 
@@ -1993,7 +1993,7 @@ watch(paginatedClusterList, () => {
 .batch-actions-right .el-button--danger:hover,
 .batch-actions-right .el-button--success:hover {
   background: #333333;
-  border-color: #333333;
+  border-color: #0d5a87;
   color: #ffffff;
   box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
 }
@@ -2229,9 +2229,9 @@ watch(paginatedClusterList, () => {
 }
 
 .black-button {
-  background-color: #000000 !important;
+  background-color: #0a466a !important;
   color: #ffffff !important;
-  border-color: #000000 !important;
+  border-color: #0a466a !important;
   border-radius: 6px;
   padding: 7px 14px;
   font-size: 13px;
@@ -2239,8 +2239,8 @@ watch(paginatedClusterList, () => {
 }
 
 .black-button:hover {
-  background-color: #333333 !important;
-  border-color: #333333 !important;
+  background-color: #0d5a87 !important;
+  border-color: #0d5a87 !important;
 }
 
 .form-section {

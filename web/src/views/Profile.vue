@@ -408,18 +408,18 @@ onMounted(() => {
 
 /* 黑色按钮样式 */
 .black-button {
-  background-color: #000000 !important;
+  background-color: #0a466a !important;
   color: #ffffff !important;
-  border-color: #000000 !important;
+  border-color: #0a466a !important;
 }
 
 .black-button:hover {
-  background-color: #333333 !important;
-  border-color: #333333 !important;
+  background-color: #0d5a87 !important;
+  border-color: #0d5a87 !important;
 }
 
 .black-button:focus {
-  background-color: #000000 !important;
-  border-color: #000000 !important;
+  background-color: #0a466a !important;
+  border-color: #0a466a !important;
 }
 </style>

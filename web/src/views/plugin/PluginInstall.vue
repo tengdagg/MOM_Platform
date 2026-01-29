@@ -511,9 +511,9 @@ const handleBackToList = () => {
 }
 
 .black-button {
-  background-color: #000000 !important;
+  background-color: #0a466a !important;
   color: #ffffff !important;
-  border-color: #000000 !important;
+  border-color: #0a466a !important;
 
   &:hover {
     background-color: #1a1a1a !important;

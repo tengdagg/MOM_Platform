@@ -431,16 +431,16 @@ defineExpose({
 }
 
 .black-button {
-  background-color: #000000 !important;
+  background-color: #0a466a !important;
   color: #ffffff !important;
-  border-color: #000000 !important;
+  border-color: #0a466a !important;
   border-radius: 8px;
   font-weight: 500;
 }
 
 .black-button:hover {
-  background-color: #333333 !important;
-  border-color: #333333 !important;
+  background-color: #0d5a87 !important;
+  border-color: #0d5a87 !important;
 }
 
 .search-bar {

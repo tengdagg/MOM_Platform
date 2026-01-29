@@ -867,7 +867,7 @@ watch(() => props.cluster, (newCluster) => {
 
     /* 黑金风格按钮 */
     :deep(.el-button--primary) {
-      background: linear-gradient(135deg, #000000 0%, #2a2a2a 100%);
+      background: linear-gradient(135deg, #0a466a 0%, #0d5a87 100%);
       border: 1px solid #d4af37;
       color: #d4af37;
 
@@ -879,7 +879,7 @@ watch(() => props.cluster, (newCluster) => {
       }
 
       &:active {
-        background: linear-gradient(135deg, #000000 0%, #1a1a1a 100%);
+        background: linear-gradient(135deg, #0a466a 0%, #0d5a87 100%);
       }
     }
 
@@ -1004,7 +1004,7 @@ watch(() => props.cluster, (newCluster) => {
 
     /* 黑金风格按钮 */
     :deep(.el-button--primary) {
-      background: linear-gradient(135deg, #000000 0%, #2a2a2a 100%);
+      background: linear-gradient(135deg, #0a466a 0%, #0d5a87 100%);
       border: 1px solid #d4af37;
       color: #d4af37;
       font-weight: 500;
@@ -1017,7 +1017,7 @@ watch(() => props.cluster, (newCluster) => {
       }
 
       &:active {
-        background: linear-gradient(135deg, #000000 0%, #1a1a1a 100%);
+        background: linear-gradient(135deg, #0a466a 0%, #0d5a87 100%);
       }
 
       &:disabled {

@@ -668,7 +668,7 @@ onMounted(() => {
     margin-bottom: 20px;
 
     .back-btn {
-      background: linear-gradient(135deg, #2c3e50 0%, #000000 100%);
+      background: linear-gradient(135deg, #0a466a 0%, #083a56 100%);
       color: #D4AF37;
       border: 1px solid rgba(212, 175, 55, 0.3);
       font-weight: 500;
@@ -735,7 +735,7 @@ onMounted(() => {
 }
 
 .black-button {
-  background-color: #000000 !important;
+  background-color: #0a466a !important;
   color: #d4af37 !important;
   border-color: #d4af37 !important;
   border-radius: 6px;
@@ -747,7 +747,7 @@ onMounted(() => {
 }
 
 .black-button:hover {
-  background-color: #333333 !important;
+  background-color: #0d5a87 !important;
   border-color: #bfa13f !important;
 }
 
@@ -791,7 +791,7 @@ onMounted(() => {
 }
 
 .stat-icon-cpu {
-  background: linear-gradient(135deg, #000000 0%, #1a1a1a 100%);
+  background: linear-gradient(135deg, #0a466a 0%, #0d5a87 100%);
   color: #d4af37;
   border: 1px solid #d4af37;
 }
@@ -803,7 +803,7 @@ onMounted(() => {
 }
 
 .stat-icon-pod {
-  background: linear-gradient(135deg, #000000 0%, #1a1a1a 100%);
+  background: linear-gradient(135deg, #0a466a 0%, #0d5a87 100%);
   color: #d4af37;
   border: 1px solid #d4af37;
 }
@@ -1008,7 +1008,7 @@ onMounted(() => {
 
 /* 污点编辑弹窗 */
 .taint-edit-dialog :deep(.el-dialog__header) {
-  background: linear-gradient(135deg, #000000 0%, #1a1a1a 100%);
+  background: linear-gradient(135deg, #0a466a 0%, #0d5a87 100%);
   color: #d4af37;
   border-radius: 8px 8px 0 0;
   padding: 20px 24px;

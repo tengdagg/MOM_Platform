@@ -518,7 +518,7 @@ const quickStats = computed(() => [
     label: '节点数量',
     value: clusterStats.value.nodeCount,
     icon: Monitor,
-    color: 'linear-gradient(135deg, #2c3e50 0%, #000000 100%)',
+    color: 'linear-gradient(135deg, #0a466a 0%, #083a56 100%)',
     iconColor: '#D4AF37',
     trend: true
   },
@@ -526,7 +526,7 @@ const quickStats = computed(() => [
     label: '工作负载',
     value: clusterStats.value.workloadCount,
     icon: Box,
-    color: 'linear-gradient(135deg, #2c3e50 0%, #000000 100%)',
+    color: 'linear-gradient(135deg, #0a466a 0%, #083a56 100%)',
     iconColor: '#D4AF37',
     trend: true
   },
@@ -534,7 +534,7 @@ const quickStats = computed(() => [
     label: 'Pod 总数',
     value: clusterStats.value.podCount,
     icon: Files,
-    color: 'linear-gradient(135deg, #2c3e50 0%, #000000 100%)',
+    color: 'linear-gradient(135deg, #0a466a 0%, #083a56 100%)',
     iconColor: '#D4AF37',
     trend: true
   },
@@ -542,7 +542,7 @@ const quickStats = computed(() => [
     label: 'CPU 使用率',
     value: Math.round(clusterStats.value.cpuUsage) + '%',
     icon: Cpu,
-    color: 'linear-gradient(135deg, #2c3e50 0%, #000000 100%)',
+    color: 'linear-gradient(135deg, #0a466a 0%, #083a56 100%)',
     iconColor: '#D4AF37',
     trend: false
   }
@@ -732,7 +732,7 @@ onMounted(() => {
     margin-bottom: 20px;
 
     .back-btn {
-      background: linear-gradient(135deg, #2c3e50 0%, #000000 100%);
+      background: linear-gradient(135deg, #0a466a 0%, #083a56 100%);
       color: #D4AF37;
       border: 1px solid rgba(212, 175, 55, 0.3);
       font-weight: 500;
@@ -957,7 +957,7 @@ onMounted(() => {
   }
 
   .search-button {
-    background-color: #000;
+    background-color: #0a466a;
     color: #d4af37;
     border: 1px solid #d4af37;
     border-radius: 8px;
@@ -1128,7 +1128,7 @@ onMounted(() => {
     gap: 12px;
 
     .runtime-card {
-      background: linear-gradient(135deg, #2c3e50 0%, #000000 100%);
+      background: linear-gradient(135deg, #0a466a 0%, #083a56 100%);
       color: #D4AF37;
       padding: 16px;
       border-radius: 8px;

@@ -540,7 +540,7 @@ defineExpose({
   width: 36px;
   height: 36px;
   border-radius: 8px;
-  background: linear-gradient(135deg, #000000 0%, #1a1a1a 100%);
+  background: linear-gradient(135deg, #0a466a 0%, #0d5a87 100%);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -618,7 +618,7 @@ defineExpose({
 
 /* YAML 编辑弹窗 */
 .yaml-dialog :deep(.el-dialog__header) {
-  background: linear-gradient(135deg, #000000 0%, #1a1a1a 100%);
+  background: linear-gradient(135deg, #0a466a 0%, #0d5a87 100%);
   color: #d4af37;
   border-radius: 8px 8px 0 0;
   padding: 20px 24px;
@@ -691,9 +691,9 @@ defineExpose({
 }
 
 .black-button {
-  background-color: #000000 !important;
+  background-color: #0a466a !important;
   color: #ffffff !important;
-  border-color: #000000 !important;
+  border-color: #0a466a !important;
   border-radius: 8px;
   padding: 10px 20px;
   font-weight: 500;
@@ -701,6 +701,6 @@ defineExpose({
 
 .black-button:hover {
   background-color: #333333 !important;
-  border-color: #333333 !important;
+  border-color: #0d5a87 !important;
 }
 </style>

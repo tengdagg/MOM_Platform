@@ -142,7 +142,7 @@ defineExpose({
   display: flex;
   align-items: center;
   justify-content: center;
-  background-color: #000;
+  background-color: #0a466a;
   min-height: 500px;
 }
 

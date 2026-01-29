@@ -182,7 +182,7 @@ onMounted(() => {
 }
 
 .black-button {
-  background-color: #000;
+  background-color: #0a466a;
   color: #fff;
   border: none;
 }
