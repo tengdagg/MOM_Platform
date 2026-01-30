@@ -337,7 +337,7 @@ onMounted(() => {
 }
 
 .search-icon {
-  color: #ffffff;
+  color: #909399;
 }
 
 /* 配置类型标签栏 */

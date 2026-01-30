@@ -2982,7 +2982,7 @@ onMounted(() => {
 }
 
 .search-icon {
-  color: #ffffff;
+  color: #909399;
 }
 
 /* 表格容器 */
@@ -3664,7 +3664,7 @@ onMounted(() => {
   background: linear-gradient(135deg, #0a466a 0%, #0d5a87 100%) !important;
   color: #d4af37 !important;
   border: 1px solid #d4af37 !important;
-  border-radius: 6px !important;
+  border-radius: 0 !important;
   font-family: 'Monaco', 'Menlo', monospace !important;
   font-size: 12px !important;
   font-weight: 500 !important;
@@ -3964,7 +3964,7 @@ onMounted(() => {
   background: linear-gradient(135deg, #0a466a 0%, #0d5a87 100%) !important;
   color: #d4af37 !important;
   border: 1px solid #d4af37 !important;
-  border-radius: 6px !important;
+  border-radius: 0 !important;
   font-family: 'Monaco', 'Menlo', monospace !important;
   font-size: 12px !important;
   font-weight: 500 !important;

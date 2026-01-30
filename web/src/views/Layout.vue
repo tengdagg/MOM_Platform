@@ -4,7 +4,7 @@
     <el-aside :width="isCollapse ? '64px' : '200px'" v-if="!hideSidebar" class="sidebar">
       <div class="logo" @click="router.push('/')">
         <img v-if="!isCollapse" :src="logoImage" alt="Logo" class="logo-image" />
-        <img v-else :src="logoImage" alt="Logo" class="logo-image-mini" />
+        <img v-else :src="logoIcon" alt="Logo" class="logo-image-mini" />
       </div>
 
       <el-menu
@@ -65,9 +65,6 @@
       <!-- Header -->
       <el-header class="main-header">
         <div class="header-left">
-          <div class="header-logo">
-            <img :src="headerImage" alt="Header" class="header-image" />
-          </div>
           <el-breadcrumb separator="/" class="breadcrumb">
             <el-breadcrumb-item :to="{ path: '/' }">首页</el-breadcrumb-item>
             <el-breadcrumb-item v-if="currentRoute.meta.title">
@@ -152,6 +149,7 @@ import { pluginManager } from '@/plugins/manager'
 
 // Logo 和 Header 图片路径
 const logoImage = '/logo.png'
+const logoIcon = '/logo_icon.png'  // 收起时显示的图标
 const headerImage = '/header.png'
 
 const router = useRouter()
@@ -492,8 +490,8 @@ onMounted(async () => {
 }
 
 .logo-image {
-  max-height: 36px;
-  max-width: 180px;
+  max-height: 40px;
+  max-width: 200px;
   width: auto;
   height: auto;
   object-fit: contain;
@@ -547,6 +545,7 @@ onMounted(async () => {
   height: 40px;
   line-height: 40px;
   font-size: 14px !important;
+  font-weight: 500; /* 增加字重 */
   margin: 0;
   padding-left: 16px !important;
   border-radius: 0;
@@ -560,6 +559,7 @@ onMounted(async () => {
   height: 40px;
   line-height: 40px;
   font-size: 14px;
+  font-weight: 500; /* 增加字重 */
   margin: 0;
   padding-left: 16px !important;
   border-radius: 0;
@@ -577,6 +577,7 @@ onMounted(async () => {
   background-color: rgba(0, 0, 0, 0.2) !important;
   border-left: 3px solid #4fc3f7 !important;
   color: #ffffff !important;
+  font-weight: 600; /* 选中项更粗 */
 }
 
 :deep(.el-menu-item.is-active .el-icon) {
@@ -599,6 +600,7 @@ onMounted(async () => {
   height: 40px;
   line-height: 40px;
   font-size: 14px;
+  font-weight: 500; /* 增加字重 */
   margin: 0;
   padding-left: 16px !important;
   border-radius: 0;

@@ -262,7 +262,7 @@ onMounted(async () => {
 }
 
 .search-icon {
-  color: #ffffff;
+  color: #909399;
 }
 
 /* 存储类型标签栏 */

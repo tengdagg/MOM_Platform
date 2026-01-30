@@ -26,7 +26,7 @@
           <template #header>
             <div class="card-header">
               <span class="card-title">主机状态分布</span>
-              <el-button type="primary" link size="small" @click="$router.push('/asset/hosts')">查看全部</el-button>
+              <span class="view-all-link" @click="$router.push('/asset/hosts')">查看全部</span>
             </div>
           </template>
           <div ref="hostStatusChart" class="chart-container"></div>
@@ -38,7 +38,7 @@
           <template #header>
             <div class="card-header">
               <span class="card-title">K8s集群资源概览</span>
-              <el-button type="primary" link size="small" @click="$router.push('/kubernetes/clusters')">查看全部</el-button>
+              <span class="view-all-link" @click="$router.push('/kubernetes/clusters')">查看全部</span>
             </div>
           </template>
           <div ref="k8sResourceChart" class="chart-container"></div>
@@ -52,7 +52,7 @@
           <template #header>
             <div class="card-header">
               <span class="card-title">操作趋势（最近7天）</span>
-              <el-button type="primary" link size="small" @click="$router.push('/audit/operation-logs')">查看全部</el-button>
+              <span class="view-all-link" @click="$router.push('/audit/operation-logs')">查看全部</span>
             </div>
           </template>
           <div ref="operationTrendChart" class="chart-container"></div>
@@ -64,7 +64,7 @@
           <template #header>
             <div class="card-header">
               <span class="card-title">告警统计</span>
-              <el-button type="primary" link size="small" @click="$router.push('/monitor/alert-logs')">查看全部</el-button>
+              <span class="view-all-link" @click="$router.push('/monitor/alert-logs')">查看全部</span>
             </div>
           </template>
           <div ref="alertStatsChart" class="chart-container"></div>
@@ -594,6 +594,16 @@ onMounted(() => {
   font-size: 14px;
   font-weight: 500;
   color: #303133;
+}
+
+.view-all-link {
+  font-size: 12px;
+  color: #409EFF;
+  cursor: pointer;
+}
+
+.view-all-link:hover {
+  color: #66b1ff;
 }
 
 .chart-container {

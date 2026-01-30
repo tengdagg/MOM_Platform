@@ -485,7 +485,7 @@ defineExpose({
 }
 
 .search-icon {
-  color: #ffffff;
+  color: #909399;
 }
 
 .table-wrapper {

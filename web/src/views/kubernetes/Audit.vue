@@ -481,7 +481,7 @@ onMounted(() => {
 }
 
 .search-icon {
-  color: #ffffff;
+  color: #909399;
 }
 
 /* 表格容器 */

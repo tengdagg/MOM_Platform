@@ -5545,7 +5545,7 @@ onMounted(() => {
 }
 
 .search-icon {
-  color: #ffffff;
+  color: #909399;
 }
 
 .black-button {
@@ -5937,7 +5937,7 @@ onMounted(() => {
 }
 
 .search-icon {
-  color: #ffffff;
+  color: #909399;
 }
 
 /* 表格容器 */
@@ -6459,7 +6459,7 @@ onMounted(() => {
   background: rgba(212, 175, 55, 0.1) !important;
   color: #d4af37 !important;
   border: 1px solid #d4af37 !important;
-  border-radius: 6px !important;
+  border-radius: 0 !important;
   font-family: 'Monaco', 'Menlo', monospace !important;
   font-size: 12px !important;
   font-weight: 600 !important;

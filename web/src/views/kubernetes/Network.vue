@@ -729,7 +729,7 @@ onUnmounted(() => {
 }
 
 .search-icon {
-  color: #ffffff;
+  color: #909399;
 }
 
 /* 网络类型标签栏 */

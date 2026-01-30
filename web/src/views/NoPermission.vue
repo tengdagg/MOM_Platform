@@ -270,7 +270,7 @@ const handleRefresh = () => {
   background: linear-gradient(135deg, #1a1a1a 0%, #333 100%) !important;
   border: none !important;
   padding: 12px 32px !important;
-  border-radius: 10px !important;
+  border-radius: 0 !important;
   font-weight: 500;
 }
 
@@ -280,7 +280,7 @@ const handleRefresh = () => {
 
 .refresh-btn {
   padding: 12px 32px !important;
-  border-radius: 10px !important;
+  border-radius: 0 !important;
   border-color: #dcdfe6 !important;
 }
 

@@ -533,20 +533,19 @@ onMounted(() => {
 
 .filter-bar :deep(.el-input__wrapper) {
   border-radius: 0;
-  border: 1px solid #dcdfe6;
   transition: all 0.3s ease;
 }
 
 .filter-bar :deep(.el-input__wrapper:hover) {
-  border-color: #ffffff;
+  box-shadow: 0 0 0 1px #c0c4cc inset;
 }
 
 .filter-bar :deep(.el-input__wrapper.is-focus) {
-  border-color: #ffffff;
+  box-shadow: 0 0 0 1px #409eff inset;
 }
 
 .search-icon {
-  color: #ffffff;
+  color: #909399;
 }
 
 .reset-btn {

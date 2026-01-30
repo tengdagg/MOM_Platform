@@ -327,7 +327,7 @@ defineExpose({
 .role-bindings-tab { width: 100%; }
 .search-bar { margin-bottom: 16px; }
 .search-input { width: 300px; }
-.search-icon { color: #ffffff; }
+.search-icon { color: #909399; }
 .table-wrapper { background: #fff; border-radius: 0; overflow: hidden; }
 .name-cell { display: flex; align-items: center; gap: 10px; }
 .name-icon-wrapper { width: 32px; height: 32px; border-radius: 0; background: #0a466a; display: flex; align-items: center; justify-content: center; border: none; }

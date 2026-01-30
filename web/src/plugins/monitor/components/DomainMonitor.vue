@@ -725,7 +725,7 @@ onMounted(() => {
 }
 
 .search-icon {
-  color: #ffffff;
+  color: #909399;
 }
 
 /* 统计卡片 */

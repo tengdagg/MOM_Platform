@@ -2160,7 +2160,7 @@ watch(paginatedClusterList, () => {
 }
 
 .search-icon {
-  color: #ffffff;
+  color: #909399;
 }
 
 /* 表头图标 */

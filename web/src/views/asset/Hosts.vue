@@ -312,7 +312,7 @@
               <template #default="{ row }">
                 <div v-if="row.os || row.arch" class="config-cell">
                   <div v-if="row.os" class="config-item">
-                    <el-icon><Platform /></el-icon>
+                    <OsIcon :os="row.os" :size="14" />
                     <span class="config-text">{{ row.os }}</span>
                   </div>
                   <div v-if="row.arch" class="config-item">
@@ -686,14 +686,14 @@
             <div class="info-card">
               <div class="info-card-header">
                 <div class="info-icon info-icon-system">
-                  <el-icon><Platform /></el-icon>
+                  <OsIcon :os="hostDetail.os || ''" :size="18" />
                 </div>
                 <span class="info-card-title">系统信息</span>
               </div>
               <div class="info-card-body">
                 <div class="info-row">
                   <span class="info-label">操作系统</span>
-                  <span class="info-value">{{ hostDetail.os || '-' }}</span>
+                  <span class="info-value"><OsIcon :os="hostDetail.os || ''" :size="14" style="margin-right: 4px;" />{{ hostDetail.os || '-' }}</span>
                 </div>
                 <div class="info-row">
                   <span class="info-label">内核版本</span>
@@ -1333,6 +1333,7 @@ import type { CloudInstanceVO, CloudRegionVO } from '@/api/host'
 import { PERMISSION, hasPermission } from '@/utils/permission'
 import { getUserHostPermissions } from '@/api/assetPermission'
 import { useUserStore } from '@/stores/user'
+import OsIcon from '@/components/OsIcon.vue'
 
 // 用户状态
 const userStore = useUserStore()
@@ -2604,6 +2605,20 @@ onMounted(() => {
   loadCredentialList()
   loadCloudAccountList()
 })
+
+// 监听用户信息变化，当用户信息加载完成后重新检查权限
+watch(() => userStore.userInfo, (newUserInfo, oldUserInfo) => {
+  // 当用户信息从 null 变成有效值时，重新加载主机列表以更新权限
+  if (newUserInfo && !oldUserInfo) {
+    // 如果是管理员，直接设置编辑权限
+    if (isAdmin.value) {
+      userHasEditPermission.value = true
+    } else {
+      // 非管理员需要重新检查权限
+      loadHostList()
+    }
+  }
+}, { immediate: false })
 </script>
 
 <style scoped>
@@ -2844,20 +2859,19 @@ onMounted(() => {
 
 .filter-bar :deep(.el-input__wrapper) {
   border-radius: 0;
-  border: 1px solid #dcdfe6;
   transition: all 0.3s ease;
 }
 
 .filter-bar :deep(.el-input__wrapper:hover) {
-  border-color: #ffffff;
+  box-shadow: 0 0 0 1px #c0c4cc inset;
 }
 
 .filter-bar :deep(.el-input__wrapper.is-focus) {
-  border-color: #ffffff;
+  box-shadow: 0 0 0 1px #409eff inset;
 }
 
 .search-icon {
-  color: #ffffff;
+  color: #909399;
 }
 
 .reset-btn {
