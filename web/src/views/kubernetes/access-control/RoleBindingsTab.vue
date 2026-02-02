@@ -79,6 +79,7 @@ import { ref, computed, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Search, Link, Edit, Delete, Plus } from '@element-plus/icons-vue'
 import { getRoleBindings, createRoleBindingFromYAML, updateRoleBindingFromYAML, deleteRoleBinding, type RoleBindingInfo } from '@/api/kubernetes'
+import { useKubernetesStore } from '@/stores/kubernetes'
 import axios from 'axios'
 import * as yaml from 'js-yaml'
 
@@ -94,6 +95,8 @@ const emit = defineEmits<{
 }>()
 const loading = ref(false)
 const roleBindings = ref<RoleBindingInfo[]>([])
+const kubernetesStore = useKubernetesStore()
+const selectedNamespaces = computed(() => kubernetesStore.selectedNamespaces)
 const currentPage = ref(1)
 const pageSize = ref(10)
 
@@ -124,6 +127,11 @@ const filteredData = computed(() => {
   if (props.searchName) {
     result = result.filter(item => item.name.toLowerCase().includes(props.searchName!.toLowerCase()))
   }
+  if (selectedNamespaces.value.length > 0) {
+    if (selectedNamespaces.value.length > 1) {
+      result = result.filter(item => selectedNamespaces.value.includes(item.namespace))
+    }
+  }
   return result
 })
 
@@ -135,7 +143,11 @@ const paginatedList = computed(() => {
 const loadData = async () => {
   loading.value = true
   try {
-    const data = await getRoleBindings(props.clusterId, props.namespace)
+    let nsParam = undefined
+    if (selectedNamespaces.value.length === 1) {
+      nsParam = selectedNamespaces.value[0]
+    }
+    const data = await getRoleBindings(props.clusterId, nsParam)
     roleBindings.value = data || []
   } catch (error) {
     ElMessage.error('获取 RoleBinding 列表失败')

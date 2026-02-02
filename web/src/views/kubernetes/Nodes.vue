@@ -308,7 +308,7 @@
         </template>
       </el-table-column>
 
-      <el-table-column label="角色" min-width="100" align="center">
+      <el-table-column label="角色" min-width="130" align="center">
         <template #default="{ row }">
           <div :class="['role-badge', 'role-' + (row.roles || 'worker')]">
             <el-icon :size="13"><User /></el-icon>
@@ -357,7 +357,7 @@
         </template>
       </el-table-column>
 
-      <el-table-column label="内存" min-width="130">
+      <el-table-column label="内存" min-width="140">
         <template #default="{ row }">
           <div class="resource-cell">
             <div class="resource-icon resource-icon-memory">
@@ -1294,7 +1294,7 @@ const formatMemoryWithUsage = (node: NodeInfo) => {
   const used = usedGB >= 1 ? usedGB.toFixed(1) : (usedBytes / (1024 * 1024)).toFixed(1)
   const total = totalGB >= 1 ? Math.ceil(totalGB) + 'G' : Math.ceil(totalBytes / (1024 * 1024)) + 'M'
 
-  return `内存:${used}/${total}`
+  return `${used}/${total}`
 }
 
 // 获取角色文本
@@ -2840,7 +2840,7 @@ onMounted(() => {
 }
 
 .cloudtty-action-btn {
-  background: #1a1a1a;
+  background-color: #1a9276;
   color: #ffffff;
   border: none;
   font-weight: 600;
@@ -2855,9 +2855,7 @@ onMounted(() => {
   margin-left: 12px;
 
   &:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
-    background: #333333;
+   background: #00b288;
   }
 
   &:active {
@@ -3218,7 +3216,7 @@ onMounted(() => {
 }
 
 .pod-count {
-  font-size: 18px;
+  font-size: 14px;
   font-weight: 600;
 }
 

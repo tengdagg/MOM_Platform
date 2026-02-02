@@ -69,16 +69,20 @@
         </el-input>
 
         <el-select
-          v-model="selectedNamespace"
+          v-model="selectedNamespaces"
           placeholder="所有命名空间"
+          multiple
+          collapse-tags
+          collapse-tags-tooltip
           clearable
           filterable
-          @change="handleSearch"
+          @change="handleNamespaceChange"
           class="namespace-select"
         >
           <template #prefix>
             <el-icon class="search-icon"><FolderOpened /></el-icon>
           </template>
+          <el-option label="所有命名空间" value="" />
           <el-option
             v-for="ns in namespaceList"
             :key="ns.name"
@@ -1409,6 +1413,7 @@ import {
   Plus
 } from '@element-plus/icons-vue'
 import { getClusterList, updateWorkload, getConfigMaps, getSecrets, getPersistentVolumeClaims, type Cluster } from '@/api/kubernetes'
+import { useKubernetesStore } from '@/stores/kubernetes'
 // 导入工作负载编辑组件
 import BasicInfo from './workload-components/BasicInfo.vue'
 import ContainerConfig from './workload-components/ContainerConfig.vue'
@@ -1421,6 +1426,9 @@ import Others from './workload-components/spec/Others.vue'
 import VolumeConfig from './workload-components/VolumeConfig.vue'
 import PodDetail from './PodDetail.vue'
 import FileBrowser from './FileBrowser.vue'
+
+// 使用全局 Kubernetes store
+const kubernetesStore = useKubernetesStore()
 
 // 工作负载接口定义
 interface Workload {
@@ -1464,7 +1472,31 @@ const loading = ref(false)
 const clusterList = ref<Cluster[]>([])
 const namespaceList = ref<Namespace[]>([])
 const selectedClusterId = ref<number>()
-const selectedNamespace = ref<string>('')
+
+// 使用 computed 双向绑定 store 的 selectedNamespaces
+const selectedNamespaces = computed({
+  get: () => kubernetesStore.selectedNamespaces,
+  set: (val: string[]) => kubernetesStore.setNamespaces(val)
+})
+
+// 命名空间选择变化处理
+const handleNamespaceChange = (val: string[]) => {
+  if (val.includes('')) {
+    if (val[val.length - 1] === '') {
+       kubernetesStore.setNamespaces([''])
+    } else {
+       const newVal = val.filter(v => v !== '')
+       kubernetesStore.setNamespaces(newVal)
+    }
+  } else {
+    if (val.length === 0) {
+       kubernetesStore.setNamespaces([''])
+    } else {
+       kubernetesStore.setNamespaces(val)
+    }
+  }
+  handleSearch()
+}
 
 // 计算属性：当前选中的集群对象
 const selectedCluster = computed(() => {
@@ -1955,7 +1987,7 @@ const handleClusterChange = async () => {
   if (selectedClusterId.value) {
     localStorage.setItem('workloads_selected_cluster_id', selectedClusterId.value.toString())
   }
-  selectedNamespace.value = ''
+  kubernetesStore.clearNamespaces()
   currentPage.value = 1
   await loadNamespaces()
   await loadWorkloads()
@@ -2073,7 +2105,7 @@ const handleAddWorkloadForm = async () => {
   // 初始化工作负载数据
   editWorkloadData.value = {
     name: '',
-    namespace: selectedNamespace.value || 'default',
+    namespace: selectedNamespaces.value[0] || 'default',
     type: workloadType,
     labels: [{ key: 'app', value: '' }],
     annotations: [],
@@ -2150,8 +2182,12 @@ const loadWorkloads = async () => {
   try {
     const token = localStorage.getItem('token')
     const params: any = { clusterId: selectedClusterId.value }
-    // 不传 type 参数，获取所有类型的工作负载
-    if (selectedNamespace.value) params.namespace = selectedNamespace.value
+    
+    // Kubernetes API 只支持单个命名空间，多选时获取全部然后本地过滤
+    if (selectedNamespaces.value.length === 1) {
+      params.namespace = selectedNamespaces.value[0]
+    }
+    // 多选时不传 namespace，获取所有，后面本地过滤
 
     const response = await axios.get(
       `/api/v1/plugins/kubernetes/resources/workloads`,
@@ -2160,7 +2196,14 @@ const loadWorkloads = async () => {
         headers: { Authorization: `Bearer ${token}` }
       }
     )
-    const allWorkloads = response.data.data || []
+    let allWorkloads = response.data.data || []
+
+    // 多命名空间选择时，本地过滤
+    if (selectedNamespaces.value.length > 1) {
+      allWorkloads = allWorkloads.filter((w: Workload) => 
+        selectedNamespaces.value.includes(w.namespace)
+      )
+    }
 
     // 根据选中的类型过滤
     if (selectedType.value) {
@@ -5549,21 +5592,6 @@ onMounted(() => {
   color: #909399;
 }
 
-.black-button {
-  background: #000 !important;
-  color: #fff !important;
-  border: none !important;
-  border-radius: 0;
-  padding: 10px 20px;
-  font-weight: 600;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-}
-
-.black-button:hover {
-  background: #333 !important;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
-}
-
 /* 上下文选择栏 */
 .context-bar {
   margin-bottom: 12px;
@@ -5616,19 +5644,17 @@ onMounted(() => {
   align-items: center;
   gap: 8px;
   padding: 10px 16px;
-  background: #1a1a1a;
+  background: #0a466a;
   color: #fff;
   border-radius: 0;
   cursor: pointer;
   transition: all 0.3s ease;
-  user-select: none;
-  border: 2px solid #1a1a1a;
+  font-size: 14px;
+  font-weight: 500;
 }
 
 .type-tab:hover {
-  background: #333;
-  border-color: #333;
-  transform: translateY(-1px);
+  background: #0f69a6;
 }
 
 .type-tab.active {
@@ -5872,7 +5898,6 @@ onMounted(() => {
 
 /* 创建按钮样式 */
 .add-button {
-  background: #1a1a1a !important;
   color: #fff !important;
   border: none !important;
   font-weight: 500;
@@ -5882,9 +5907,7 @@ onMounted(() => {
 }
 
 .add-button:hover {
-  background: #333 !important;
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  background: #0f69a6;
 }
 
 .add-button:active {
@@ -5892,8 +5915,8 @@ onMounted(() => {
 }
 
 .add-button-form {
-  background: #1a1a1a !important;
-  color: #fff !important;
+  background: #1a9276;
+  color: #fff ;
   border: none !important;
   font-weight: 500;
   padding: 10px 20px;
@@ -5902,9 +5925,7 @@ onMounted(() => {
 }
 
 .add-button-form:hover {
-  background: #333 !important;
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  background: #00b288;
 }
 
 .add-button-form:active {

@@ -102,6 +102,7 @@ import { ref, computed, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Search, User, PriceTag, Edit, Delete, Plus } from '@element-plus/icons-vue'
 import { getServiceAccounts, type ServiceAccountInfo } from '@/api/kubernetes'
+import { useKubernetesStore } from '@/stores/kubernetes'
 import axios from 'axios'
 import * as yaml from 'js-yaml'
 
@@ -117,6 +118,8 @@ const emit = defineEmits<{
 }>()
 const loading = ref(false)
 const serviceAccounts = ref<ServiceAccountInfo[]>([])
+const kubernetesStore = useKubernetesStore()
+const selectedNamespaces = computed(() => kubernetesStore.selectedNamespaces)
 const currentPage = ref(1)
 const pageSize = ref(10)
 const labelDialogVisible = ref(false)
@@ -150,6 +153,11 @@ const filteredData = computed(() => {
       item.name.toLowerCase().includes(props.searchName!.toLowerCase())
     )
   }
+  if (selectedNamespaces.value.length > 0) {
+    if (selectedNamespaces.value.length > 1) {
+      result = result.filter(item => selectedNamespaces.value.includes(item.namespace))
+    }
+  }
   return result
 })
 
@@ -164,7 +172,11 @@ const paginatedList = computed(() => {
 const loadData = async () => {
   loading.value = true
   try {
-    const data = await getServiceAccounts(props.clusterId, props.namespace)
+    let nsParam = undefined
+    if (selectedNamespaces.value.length === 1) {
+      nsParam = selectedNamespaces.value[0]
+    }
+    const data = await getServiceAccounts(props.clusterId, nsParam)
     serviceAccounts.value = data || []
   } catch (error) {
     ElMessage.error('获取 ServiceAccount 列表失败')

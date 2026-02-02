@@ -15,8 +15,18 @@
           </template>
         </el-input>
 
-        <el-select v-model="filterNamespace" placeholder="命名空间" clearable @change="handleSearch" class="filter-select">
-          <el-option label="全部" value="" />
+        <el-select 
+          v-model="selectedNamespaces" 
+          placeholder="命名空间" 
+          multiple
+          collapse-tags
+          collapse-tags-tooltip
+          clearable 
+          filterable
+          @change="handleNamespaceChange" 
+          class="filter-select"
+        >
+          <el-option label="所有命名空间" value="" />
           <el-option v-for="ns in namespaces" :key="ns.name" :label="ns.name" :value="ns.name" />
         </el-select>
       </div>
@@ -291,6 +301,7 @@ import { ref, computed, onMounted, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Search, Key, Document, Delete, Plus, Edit } from '@element-plus/icons-vue'
 import { getNamespaces } from '@/api/kubernetes'
+import { useKubernetesStore } from '@/stores/kubernetes'
 import axios from 'axios'
 import * as yaml from 'js-yaml'
 
@@ -319,7 +330,32 @@ const namespaces = ref<{ name: string }[]>([])
 
 // 搜索和筛选
 const searchName = ref('')
-const filterNamespace = ref('')
+// const filterNamespace = ref('') // 移除本地 filterNamespace
+const kubernetesStore = useKubernetesStore()
+
+const selectedNamespaces = computed({
+  get: () => kubernetesStore.selectedNamespaces,
+  set: (val: string[]) => kubernetesStore.setNamespaces(val)
+})
+
+const handleNamespaceChange = (val: string[]) => {
+  if (val.includes('')) {
+    if (val[val.length - 1] === '') {
+       kubernetesStore.setNamespaces([''])
+    } else {
+       const newVal = val.filter(v => v !== '')
+       kubernetesStore.setNamespaces(newVal)
+    }
+  } else {
+    if (val.length === 0) {
+       kubernetesStore.setNamespaces([''])
+    } else {
+       kubernetesStore.setNamespaces(val)
+    }
+  }
+  handleSearch()
+  loadConfigMaps()
+}
 
 // 分页
 const currentPage = ref(1)
@@ -378,8 +414,10 @@ const filteredConfigMaps = computed(() => {
     )
   }
 
-  if (filterNamespace.value) {
-    result = result.filter(cm => cm.namespace === filterNamespace.value)
+  if (selectedNamespaces.value.length > 0) {
+    if (selectedNamespaces.value.length > 1) {
+      result = result.filter(cm => selectedNamespaces.value.includes(cm.namespace))
+    }
   }
 
   return result
@@ -409,8 +447,15 @@ const loadConfigMaps = async () => {
   loading.value = true
   try {
     const token = localStorage.getItem('token')
+    
+    const params: any = { clusterId: props.clusterId }
+    // 单选传递 namespace，多选不传（获取所有）
+    if (selectedNamespaces.value.length === 1) {
+      params.namespace = selectedNamespaces.value[0]
+    }
+    
     const response = await axios.get(`/api/v1/plugins/kubernetes/resources/configmaps`, {
-      params: { clusterId: props.clusterId },
+      params,
       headers: { Authorization: `Bearer ${token}` }
     })
     configMapList.value = response.data.data || []
@@ -1126,17 +1171,4 @@ defineExpose({
   gap: 12px;
 }
 
-.black-button {
-  background-color: #0a466a !important;
-  color: #ffffff !important;
-  border-color: #0a466a !important;
-  border-radius: 0;
-  padding: 10px 20px;
-  font-weight: 500;
-}
-
-.black-button:hover {
-  background-color: #0d5a87 !important;
-  border-color: #0d5a87 !important;
-}
 </style>

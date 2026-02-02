@@ -8,8 +8,18 @@
           </template>
         </el-input>
 
-        <el-select v-model="filterNamespace" placeholder="命名空间" clearable @change="handleSearch" class="filter-select">
-          <el-option label="全部" value="" />
+        <el-select 
+          v-model="selectedNamespaces" 
+          placeholder="命名空间" 
+          multiple
+          collapse-tags
+          collapse-tags-tooltip
+          clearable 
+          filterable
+          @change="handleNamespaceChange" 
+          class="filter-select"
+        >
+          <el-option label="所有命名空间" value="" />
           <el-option v-for="ns in namespaces" :key="ns.name" :label="ns.name" :value="ns.name" />
         </el-select>
       </div>
@@ -151,6 +161,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { Search, Link, Document, Edit, Delete, Monitor, Connection } from '@element-plus/icons-vue'
 import { load, dump } from 'js-yaml'
 import { getIngresses, getIngressYAML, updateIngressYAML, createIngressYAML, createIngress, deleteIngress, getNamespaces, type IngressInfo } from '@/api/kubernetes'
+import { useKubernetesStore } from '@/stores/kubernetes'
 import IngressEditDialog from './IngressEditDialog.vue'
 
 const props = defineProps<{
@@ -165,7 +176,12 @@ const saving = ref(false)
 const ingressList = ref<IngressInfo[]>([])
 const namespaces = ref<any[]>([])
 const searchName = ref('')
-const filterNamespace = ref('')
+// const filterNamespace = ref('')
+const kubernetesStore = useKubernetesStore()
+const selectedNamespaces = computed({
+  get: () => kubernetesStore.selectedNamespaces,
+  set: (val: string[]) => kubernetesStore.setNamespaces(val)
+})
 const yamlDialogVisible = ref(false)
 const yamlContent = ref('')
 const selectedIngress = ref<IngressInfo | null>(null)
@@ -195,8 +211,10 @@ const filteredIngresses = computed(() => {
   if (searchName.value) {
     result = result.filter(i => i.name.toLowerCase().includes(searchName.value.toLowerCase()))
   }
-  if (filterNamespace.value) {
-    result = result.filter(i => i.namespace === filterNamespace.value)
+  if (selectedNamespaces.value.length > 0) {
+    if (selectedNamespaces.value.length > 1) {
+      result = result.filter(i => selectedNamespaces.value.includes(i.namespace))
+    }
   }
   return result
 })
@@ -205,7 +223,11 @@ const loadIngresses = async (showSuccess = false) => {
   if (!props.clusterId) return
   loading.value = true
   try {
-    const data = await getIngresses(props.clusterId, props.namespace || undefined)
+    let nsParam = undefined
+    if (selectedNamespaces.value.length === 1) {
+      nsParam = selectedNamespaces.value[0]
+    }
+    const data = await getIngresses(props.clusterId, nsParam)
     ingressList.value = data || []
     if (showSuccess) {
       ElMessage.success('刷新成功')
@@ -456,10 +478,25 @@ watch(() => props.clusterId, () => {
   loadNamespaces()
 })
 
-watch(() => props.namespace, () => {
-  filterNamespace.value = props.namespace || ''
+// watch local namespace removed
+
+const handleNamespaceChange = (val: string[]) => {
+  if (val.includes('')) {
+    if (val[val.length - 1] === '') {
+       kubernetesStore.setNamespaces([''])
+    } else {
+       const newVal = val.filter(v => v !== '')
+       kubernetesStore.setNamespaces(newVal)
+    }
+  } else {
+    if (val.length === 0) {
+       kubernetesStore.setNamespaces([''])
+    } else {
+       kubernetesStore.setNamespaces(val)
+    }
+  }
   loadIngresses()
-})
+}
 
 // 监听筛选后的数据变化，更新计数
 watch(filteredIngresses, (newData) => {
@@ -492,8 +529,8 @@ defineExpose({
 }
 
 .black-button:hover {
-  background-color: #0d5a87 !important;
-  border-color: #0d5a87 !important;
+  background-color: #0f69a6 !important;
+  border-color: #0f69a6 !important;
 }
 
 .search-bar {

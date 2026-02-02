@@ -58,6 +58,7 @@
         v-show="activeTab === 'pvcs' && selectedClusterId"
         ref="pvcListRef"
         :clusterId="selectedClusterId"
+        :namespace="namespaceParam"
         @refresh="loadCurrentResources"
         @count-update="(count) => updateCount('pvcs', count)"
       />
@@ -84,13 +85,17 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { Refresh, FolderOpened, Platform, Coin, Folder, Box } from '@element-plus/icons-vue'
-import { getClusterList, type Cluster } from '@/api/kubernetes'
+import { getClusterList, getNamespaces, type Cluster } from '@/api/kubernetes'
+import { useKubernetesStore } from '@/stores/kubernetes'
 import axios from 'axios'
 import PVCList from './storage-components/PVCList.vue'
 import PVList from './storage-components/PVList.vue'
 import StorageClassList from './storage-components/StorageClassList.vue'
+
+// 使用全局 Kubernetes store
+const kubernetesStore = useKubernetesStore()
 
 // 存储类型定义
 interface StorageType {
@@ -107,8 +112,27 @@ const storageTypes = ref<StorageType[]>([
 ])
 
 const clusterList = ref<Cluster[]>([])
+const namespaceList = ref<any[]>([])
 const selectedClusterId = ref<number>()
 const activeTab = ref('pvcs')
+
+// 使用 computed 双向绑定 store 的 selectedNamespaces
+const selectedNamespaces = computed({
+  get: () => kubernetesStore.selectedNamespaces,
+  set: (val: string[]) => kubernetesStore.setNamespaces(val)
+})
+
+// 命名空间选择变化处理
+const handleNamespaceChange = (namespaces: string[]) => {
+  kubernetesStore.setNamespaces(namespaces)
+  loadCurrentResources()
+}
+
+// 为子组件提供的命名空间参数
+const namespaceParam = computed(() => {
+  if (selectedNamespaces.value.length === 0) return ''
+  return selectedNamespaces.value.join(',')
+})
 
 // 子组件引用
 const pvcListRef = ref()
@@ -134,10 +158,22 @@ const loadClusters = async () => {
   }
 }
 
+// 加载命名空间列表
+const loadNamespaces = async () => {
+  if (!selectedClusterId.value) return
+  try {
+    const data = await getNamespaces(selectedClusterId.value)
+    namespaceList.value = data || []
+  } catch (error) {
+    console.error('获取命名空间列表失败', error)
+  }
+}
+
 // 切换集群
 const handleClusterChange = async () => {
   if (selectedClusterId.value) {
     localStorage.setItem('storage_selected_cluster_id', selectedClusterId.value.toString())
+    await loadNamespaces()
   }
 }
 
@@ -172,6 +208,7 @@ const loadCurrentResources = () => {
 
 onMounted(async () => {
   await loadClusters()
+  await loadNamespaces()
   const savedTab = localStorage.getItem('storage_active_tab')
   if (savedTab) {
     activeTab.value = savedTab
@@ -244,7 +281,11 @@ onMounted(async () => {
 }
 
 .cluster-select {
-  width: 280px;
+  width: 200px;
+}
+
+.namespace-select {
+  width: 250px;
 }
 
 .black-button {
@@ -282,7 +323,7 @@ onMounted(async () => {
   align-items: center;
   gap: 8px;
   padding: 10px 16px;
-  background: #1a1a1a;
+  background: #0a466a;
   color: #fff;
   border-radius: 0;
   cursor: pointer;
@@ -292,7 +333,7 @@ onMounted(async () => {
 }
 
 .type-tab:hover {
-  background: #2a2a2a;
+  background: #0f69a6;
 }
 
 .type-tab.active {

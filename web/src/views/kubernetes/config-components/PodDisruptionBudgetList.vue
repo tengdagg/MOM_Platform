@@ -15,8 +15,18 @@
           </template>
         </el-input>
 
-        <el-select v-model="filterNamespace" placeholder="命名空间" clearable @change="handleSearch" class="filter-select">
-          <el-option label="全部" value="" />
+        <el-select 
+          v-model="selectedNamespaces" 
+          placeholder="命名空间" 
+          multiple
+          collapse-tags
+          collapse-tags-tooltip
+          clearable 
+          filterable
+          @change="handleNamespaceChange" 
+          class="filter-select"
+        >
+          <el-option label="所有命名空间" value="" />
           <el-option v-for="ns in namespaces" :key="ns.name" :label="ns.name" :value="ns.name" />
         </el-select>
       </div>
@@ -155,8 +165,8 @@
 import { ref, computed, onMounted, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Search, Lock, Document, Delete, Plus } from '@element-plus/icons-vue'
-import { getNamespaces } from '@/api/kubernetes'
-import axios from 'axios'
+import { getPodDisruptionBudgets, getPodDisruptionBudgetYAML, updatePodDisruptionBudgetYAML, createPodDisruptionBudgetFromYAML, deletePodDisruptionBudget, getNamespaces, type PodDisruptionBudgetInfo } from '@/api/kubernetes'
+import { useKubernetesStore } from '@/stores/kubernetes'
 
 interface PDBInfo {
   name: string
@@ -177,12 +187,17 @@ const props = defineProps<{
 const emit = defineEmits(['edit', 'yaml', 'refresh', 'count-update'])
 
 const loading = ref(false)
-const pdbList = ref<PDBInfo[]>([])
+const pdbList = ref<PodDisruptionBudgetInfo[]>([])
 const namespaces = ref<{ name: string }[]>([])
 
 // 搜索和筛选
 const searchName = ref('')
-const filterNamespace = ref('')
+// const filterNamespace = ref('')
+const kubernetesStore = useKubernetesStore()
+const selectedNamespaces = computed({
+  get: () => kubernetesStore.selectedNamespaces,
+  set: (val: string[]) => kubernetesStore.setNamespaces(val)
+})
 
 // 分页
 const currentPage = ref(1)
@@ -191,7 +206,7 @@ const pageSize = ref(10)
 // YAML 编辑
 const yamlDialogVisible = ref(false)
 const yamlContent = ref('')
-const selectedPDB = ref<PDBInfo | null>(null)
+const selectedPDB = ref<PodDisruptionBudgetInfo | null>(null)
 const yamlTextarea = ref<HTMLTextAreaElement | null>(null)
 const saving = ref(false)
 const isCreateMode = ref(false)
@@ -241,8 +256,8 @@ const filteredPDBs = computed(() => {
     )
   }
 
-  if (filterNamespace.value) {
-    result = result.filter(p => p.namespace === filterNamespace.value)
+  if (selectedNamespaces.value.length > 0 && !selectedNamespaces.value.includes('')) {
+    result = result.filter(p => selectedNamespaces.value.includes(p.namespace))
   }
 
   return result
@@ -262,6 +277,7 @@ const loadNamespaces = async () => {
     const data = await getNamespaces(props.clusterId)
     namespaces.value = data || []
   } catch (error) {
+    console.error('Failed to load namespaces:', error)
   }
 }
 
@@ -271,13 +287,19 @@ const loadPDBs = async () => {
 
   loading.value = true
   try {
-    const token = localStorage.getItem('token')
-    const response = await axios.get(`/api/v1/plugins/kubernetes/resources/poddisruptionbudgets`, {
-      params: { clusterId: props.clusterId },
-      headers: { Authorization: `Bearer ${token}` }
-    })
-    pdbList.value = response.data.data || []
+    let nsParam: string | undefined = undefined
+    if (selectedNamespaces.value.length === 1 && selectedNamespaces.value[0] !== '') {
+      nsParam = selectedNamespaces.value[0]
+    } else if (selectedNamespaces.value.length > 1) {
+      // If multiple specific namespaces are selected, filter client-side
+      // The API currently only supports one namespace or all.
+      // For now, we fetch all and filter later.
+      nsParam = undefined
+    }
+    const response = await getPodDisruptionBudgets(props.clusterId, nsParam)
+    pdbList.value = response || []
   } catch (error) {
+    console.error('Failed to load PDBs:', error)
     pdbList.value = []
   } finally {
     loading.value = false
@@ -290,21 +312,13 @@ const handleSearch = () => {
 }
 
 // 编辑 YAML
-const handleEditYAML = async (row: PDBInfo) => {
+const handleEditYAML = async (row: PodDisruptionBudgetInfo) => {
   selectedPDB.value = row
   isCreateMode.value = false
 
   try {
-    const token = localStorage.getItem('token')
-    const response = await axios.get(
-      `/api/v1/plugins/kubernetes/resources/poddisruptionbudgets/${row.namespace}/${row.name}/yaml`,
-      {
-        params: { clusterId: props.clusterId },
-        headers: { Authorization: `Bearer ${token}` }
-      }
-    )
-    // 原生axios，需要用 response.data.data?.yaml
-    yamlContent.value = response.data.data?.yaml || ''
+    const response = await getPodDisruptionBudgetYAML(props.clusterId!, row.namespace, row.name)
+    yamlContent.value = response || ''
     yamlDialogVisible.value = true
   } catch (error: any) {
     ElMessage.error(`获取 YAML 失败: ${error.response?.data?.message || error.message}`)
@@ -333,17 +347,7 @@ const handleSaveYAML = async () => {
 
     saving.value = true
     try {
-      const token = localStorage.getItem('token')
-      await axios.post(
-        `/api/v1/plugins/kubernetes/resources/poddisruptionbudgets/${namespace}/yaml`,
-        {
-          clusterId: props.clusterId,
-          yaml: yamlContent.value
-        },
-        {
-          headers: { Authorization: `Bearer ${token}` }
-        }
-      )
+      await createPodDisruptionBudgetFromYAML(props.clusterId!, namespace, yamlContent.value)
       ElMessage.success('创建成功')
       yamlDialogVisible.value = false
       await loadPDBs()
@@ -359,17 +363,7 @@ const handleSaveYAML = async () => {
 
     saving.value = true
     try {
-      const token = localStorage.getItem('token')
-      await axios.put(
-        `/api/v1/plugins/kubernetes/resources/poddisruptionbudgets/${selectedPDB.value.namespace}/${selectedPDB.value.name}/yaml`,
-        {
-          clusterId: props.clusterId,
-          yaml: yamlContent.value
-        },
-        {
-          headers: { Authorization: `Bearer ${token}` }
-        }
-      )
+      await updatePodDisruptionBudgetYAML(props.clusterId!, selectedPDB.value.namespace, selectedPDB.value.name, yamlContent.value)
 
       ElMessage.success('保存成功')
       yamlDialogVisible.value = false
@@ -384,7 +378,7 @@ const handleSaveYAML = async () => {
 }
 
 // 删除 PodDisruptionBudget
-const handleDelete = async (row: PDBInfo) => {
+const handleDelete = async (row: PodDisruptionBudgetInfo) => {
   try {
     await ElMessageBox.confirm(
       `确定要删除 PodDisruptionBudget ${row.name} 吗？此操作不可恢复！`,
@@ -396,14 +390,7 @@ const handleDelete = async (row: PDBInfo) => {
       }
     )
 
-    const token = localStorage.getItem('token')
-    await axios.delete(
-      `/api/v1/plugins/kubernetes/resources/poddisruptionbudgets/${row.namespace}/${row.name}`,
-      {
-        params: { clusterId: props.clusterId },
-        headers: { Authorization: `Bearer ${token}` }
-      }
-    )
+    await deletePodDisruptionBudget(props.clusterId!, row.namespace, row.name)
 
     ElMessage.success('删除成功')
     await loadPDBs()
@@ -437,6 +424,24 @@ watch(() => props.clusterId, (newVal) => {
     loadPDBs()
   }
 })
+
+const handleNamespaceChange = (val: string[]) => {
+  if (val.includes('')) {
+    if (val[val.length - 1] === '') {
+       kubernetesStore.setNamespaces([''])
+    } else {
+       const newVal = val.filter(v => v !== '')
+       kubernetesStore.setNamespaces(newVal)
+    }
+  } else {
+    if (val.length === 0) {
+       kubernetesStore.setNamespaces([''])
+    } else {
+       kubernetesStore.setNamespaces(val)
+    }
+  }
+  loadPDBs()
+}
 
 // 监听筛选后的数据变化，更新计数
 watch(filteredPDBs, (newData) => {

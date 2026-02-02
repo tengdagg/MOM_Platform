@@ -15,8 +15,18 @@
           </template>
         </el-input>
 
-        <el-select v-model="filterNamespace" placeholder="命名空间" clearable @change="handleSearch" class="filter-select">
-          <el-option label="全部" value="" />
+        <el-select 
+          v-model="selectedNamespaces" 
+          placeholder="命名空间" 
+          multiple
+          collapse-tags
+          collapse-tags-tooltip
+          clearable 
+          filterable
+          @change="handleNamespaceChange" 
+          class="filter-select"
+        >
+          <el-option label="所有命名空间" value="" />
           <el-option v-for="ns in namespaces" :key="ns.name" :label="ns.name" :value="ns.name" />
         </el-select>
       </div>
@@ -160,6 +170,7 @@ import { ref, computed, onMounted, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Search, Operation, Document, Delete, Plus } from '@element-plus/icons-vue'
 import { getNamespaces } from '@/api/kubernetes'
+import { useKubernetesStore } from '@/stores/kubernetes'
 import axios from 'axios'
 
 interface LimitRangeInfo {
@@ -183,11 +194,16 @@ const emit = defineEmits(['edit', 'yaml', 'refresh', 'count-update'])
 
 const loading = ref(false)
 const limitRangeList = ref<LimitRangeInfo[]>([])
-const namespaces = ref<{ name: string }[]>([])
+const namespaces = ref<any[]>([])
 
 // 搜索和筛选
 const searchName = ref('')
-const filterNamespace = ref('')
+// const filterNamespace = ref('')
+const kubernetesStore = useKubernetesStore()
+const selectedNamespaces = computed({
+  get: () => kubernetesStore.selectedNamespaces,
+  set: (val: string[]) => kubernetesStore.setNamespaces(val)
+})
 
 // 分页
 const currentPage = ref(1)
@@ -248,8 +264,8 @@ const filteredLimitRanges = computed(() => {
     )
   }
 
-  if (filterNamespace.value) {
-    result = result.filter(lr => lr.namespace === filterNamespace.value)
+  if (selectedNamespaces.value.length > 0 && !selectedNamespaces.value.includes('')) {
+    result = result.filter(lr => selectedNamespaces.value.includes(lr.namespace))
   }
 
   return result
@@ -269,6 +285,25 @@ const loadNamespaces = async () => {
     const data = await getNamespaces(props.clusterId)
     namespaces.value = data || []
   } catch (error) {
+  }
+}
+
+// Watch local namespace removed
+
+const handleNamespaceChange = (val: string[]) => {
+  if (val.includes('')) {
+    if (val[val.length - 1] === '') {
+       kubernetesStore.setNamespaces([''])
+    } else {
+       const newVal = val.filter(v => v !== '')
+       kubernetesStore.setNamespaces(newVal)
+    }
+  } else {
+    if (val.length === 0) {
+       kubernetesStore.setNamespaces([''])
+    } else {
+       kubernetesStore.setNamespaces(val)
+    }
   }
 }
 

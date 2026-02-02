@@ -8,8 +8,18 @@
           </template>
         </el-input>
 
-        <el-select v-model="filterNamespace" placeholder="命名空间" clearable @change="handleSearch" class="filter-select">
-          <el-option label="全部" value="" />
+        <el-select 
+          v-model="selectedNamespaces" 
+          placeholder="命名空间" 
+          multiple
+          collapse-tags
+          collapse-tags-tooltip
+          clearable 
+          filterable
+          @change="handleNamespaceChange" 
+          class="filter-select"
+        >
+          <el-option label="所有命名空间" value="" />
           <el-option v-for="ns in namespaces" :key="ns.name" :label="ns.name" :value="ns.name" />
         </el-select>
       </div>
@@ -155,6 +165,7 @@ import { ref, computed, onMounted, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Search, Document, Connection, Delete } from '@element-plus/icons-vue'
 import { getEndpoints, getEndpointsDetail, createEndpointYAML, getEndpointYAML, updateEndpointYAML, deleteEndpoint, getNamespaces, type EndpointsInfo } from '@/api/kubernetes'
+import { useKubernetesStore } from '@/stores/kubernetes'
 import { load, dump } from 'js-yaml'
 
 const props = defineProps<{
@@ -168,7 +179,12 @@ const loading = ref(false)
 const endpointsList = ref<EndpointsInfo[]>([])
 const namespaces = ref<any[]>([])
 const searchName = ref('')
-const filterNamespace = ref('')
+// const filterNamespace = ref('')
+const kubernetesStore = useKubernetesStore()
+const selectedNamespaces = computed({
+  get: () => kubernetesStore.selectedNamespaces,
+  set: (val: string[]) => kubernetesStore.setNamespaces(val)
+})
 const detailDialogVisible = ref(false)
 const selectedEndpoint = ref<EndpointsInfo | null>(null)
 
@@ -210,8 +226,10 @@ const filteredEndpoints = computed(() => {
   if (searchName.value) {
     result = result.filter(e => e.name.toLowerCase().includes(searchName.value.toLowerCase()))
   }
-  if (filterNamespace.value) {
-    result = result.filter(e => e.namespace === filterNamespace.value)
+  if (selectedNamespaces.value.length > 0) {
+    if (selectedNamespaces.value.length > 1) {
+      result = result.filter(e => selectedNamespaces.value.includes(e.namespace))
+    }
   }
   return result
 })
@@ -220,7 +238,11 @@ const loadEndpoints = async (showSuccess = false) => {
   if (!props.clusterId) return
   loading.value = true
   try {
-    const data = await getEndpoints(props.clusterId, props.namespace || undefined)
+    let nsParam = undefined
+    if (selectedNamespaces.value.length === 1) {
+      nsParam = selectedNamespaces.value[0]
+    }
+    const data = await getEndpoints(props.clusterId, nsParam)
     endpointsList.value = data || []
     if (showSuccess) {
       ElMessage.success('刷新成功')
@@ -411,13 +433,28 @@ const handleCreateYamlScroll = (e: Event) => {
 
 watch(() => props.clusterId, () => {
   loadEndpoints()
-  loadNamespaces()
-})
+    loadNamespaces()
+  })
 
-watch(() => props.namespace, () => {
-  filterNamespace.value = props.namespace || ''
-  loadEndpoints()
-})
+  // Watch local namespace removed
+
+  const handleNamespaceChange = (val: string[]) => {
+    if (val.includes('')) {
+      if (val[val.length - 1] === '') {
+         kubernetesStore.setNamespaces([''])
+      } else {
+         const newVal = val.filter(v => v !== '')
+         kubernetesStore.setNamespaces(newVal)
+      }
+    } else {
+      if (val.length === 0) {
+         kubernetesStore.setNamespaces([''])
+      } else {
+         kubernetesStore.setNamespaces(val)
+      }
+    }
+    loadEndpoints()
+  }
 
 // 监听筛选后的数据变化，更新计数
 watch(filteredEndpoints, (newData) => {
@@ -441,23 +478,11 @@ defineExpose({
 }
 
 /* 黑色按钮样式 */
-.black-button {
-  background-color: #0a466a !important;
-  color: #ffffff !important;
-  border-color: #0a466a !important;
-  border-radius: 0;
-  font-weight: 500;
-}
 
-.black-button:hover {
-  background-color: #0d5a87 !important;
-  border-color: #0d5a87 !important;
-}
 
 .search-bar {
   display: flex;
   align-items: center;
-  gap: 12px;
   margin-bottom: 12px;
   padding: 12px 20px;
   background: #fff;

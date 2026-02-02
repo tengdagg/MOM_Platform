@@ -79,6 +79,7 @@ import { ref, computed, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Search, Key, Edit, Delete, Plus, Document } from '@element-plus/icons-vue'
 import { getRoles, createRoleFromYAML, updateRoleFromYAML, deleteRole, type RoleInfo } from '@/api/kubernetes'
+import { useKubernetesStore } from '@/stores/kubernetes'
 import axios from 'axios'
 import * as yaml from 'js-yaml'
 
@@ -94,6 +95,8 @@ const emit = defineEmits<{
 }>()
 const loading = ref(false)
 const roles = ref<RoleInfo[]>([])
+const kubernetesStore = useKubernetesStore()
+const selectedNamespaces = computed(() => kubernetesStore.selectedNamespaces)
 const currentPage = ref(1)
 const pageSize = ref(10)
 
@@ -126,6 +129,11 @@ const filteredData = computed(() => {
       item.name.toLowerCase().includes(props.searchName!.toLowerCase())
     )
   }
+  if (selectedNamespaces.value.length > 0) {
+    if (selectedNamespaces.value.length > 1) {
+      result = result.filter(item => selectedNamespaces.value.includes(item.namespace))
+    }
+  }
   return result
 })
 
@@ -138,7 +146,11 @@ const paginatedList = computed(() => {
 const loadData = async () => {
   loading.value = true
   try {
-    const data = await getRoles(props.clusterId, props.namespace)
+    let nsParam = undefined
+    if (selectedNamespaces.value.length === 1) {
+      nsParam = selectedNamespaces.value[0]
+    }
+    const data = await getRoles(props.clusterId, nsParam)
     roles.value = data || []
   } catch (error) {
     ElMessage.error('获取 Role 列表失败')

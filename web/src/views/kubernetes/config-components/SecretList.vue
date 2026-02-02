@@ -23,8 +23,18 @@
           <el-option label="kubernetes.io/service-account-token" value="kubernetes.io/service-account-token" />
         </el-select>
 
-        <el-select v-model="filterNamespace" placeholder="命名空间" clearable @change="handleSearch" class="filter-select">
-          <el-option label="全部" value="" />
+        <el-select 
+          v-model="selectedNamespaces" 
+          placeholder="命名空间" 
+          multiple
+          collapse-tags
+          collapse-tags-tooltip
+          clearable 
+          filterable
+          @change="handleNamespaceChange" 
+          class="filter-select"
+        >
+          <el-option label="所有命名空间" value="" />
           <el-option v-for="ns in namespaces" :key="ns.name" :label="ns.name" :value="ns.name" />
         </el-select>
       </div>
@@ -290,6 +300,7 @@ import { ref, computed, onMounted, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Search, Lock, Document, Delete, Plus, Upload, Edit } from '@element-plus/icons-vue'
 import { getNamespaces } from '@/api/kubernetes'
+import { useKubernetesStore } from '@/stores/kubernetes'
 import axios from 'axios'
 import * as yaml from 'js-yaml'
 
@@ -314,12 +325,16 @@ const emit = defineEmits(['edit', 'yaml', 'refresh', 'count-update'])
 
 const loading = ref(false)
 const secretList = ref<SecretInfo[]>([])
-const namespaces = ref<{ name: string }[]>([])
-
+const namespaces = ref<any[]>([])
 // 搜索和筛选
 const searchName = ref('')
 const filterType = ref('')
-const filterNamespace = ref('')
+// const filterNamespace = ref('')
+const kubernetesStore = useKubernetesStore()
+const selectedNamespaces = computed({
+  get: () => kubernetesStore.selectedNamespaces,
+  set: (val: string[]) => kubernetesStore.setNamespaces(val)
+})
 
 // 分页
 const currentPage = ref(1)
@@ -394,8 +409,8 @@ const filteredSecrets = computed(() => {
     result = result.filter(s => s.type === filterType.value)
   }
 
-  if (filterNamespace.value) {
-    result = result.filter(s => s.namespace === filterNamespace.value)
+  if (selectedNamespaces.value.length > 0 && !selectedNamespaces.value.includes('')) {
+    result = result.filter(s => selectedNamespaces.value.includes(s.namespace))
   }
 
   return result
@@ -414,8 +429,33 @@ const loadNamespaces = async () => {
   try {
     const data = await getNamespaces(props.clusterId)
     namespaces.value = data || []
+    // If no namespaces are selected in the store, default to 'all' or the first one
+    if (kubernetesStore.selectedNamespaces.length === 0) {
+      kubernetesStore.setNamespaces(['']) // Set to 'all'
+    }
   } catch (error) {
+    // Handle error
   }
+}
+
+const handleNamespaceChange = (val: string[]) => {
+  if (val.includes('')) {
+    if (val[val.length - 1] === '') {
+       kubernetesStore.setNamespaces([''])
+    } else {
+       const newVal = val.filter(v => v !== '')
+       kubernetesStore.setNamespaces(newVal)
+    }
+  } else {
+    if (val.length === 0) {
+       kubernetesStore.setNamespaces([''])
+    } else {
+       kubernetesStore.setNamespaces(val)
+    }
+  }
+  // Client-side filter, no reload needed if we have all data
+  // But if we want to follow pattern, we could reload.
+  // However, original code fetched ALL secrets.
 }
 
 // 加载 Secret 列表
@@ -1188,19 +1228,5 @@ defineExpose({
   display: flex;
   justify-content: flex-end;
   gap: 12px;
-}
-
-.black-button {
-  background-color: #0a466a !important;
-  color: #ffffff !important;
-  border-color: #0a466a !important;
-  border-radius: 0;
-  padding: 10px 20px;
-  font-weight: 500;
-}
-
-.black-button:hover {
-  background-color: #333333 !important;
-  border-color: #0d5a87 !important;
 }
 </style>

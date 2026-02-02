@@ -58,7 +58,7 @@
         v-show="activeTab === 'services' && selectedClusterId"
         ref="serviceListRef"
         :clusterId="selectedClusterId"
-        :namespace="selectedNamespace"
+        :namespace="namespaceParam"
         @edit="handleEditService"
         @yaml="handleEditServiceYAML"
         @refresh="loadCurrentResources"
@@ -72,7 +72,7 @@
         v-show="activeTab === 'ingresses' && selectedClusterId"
         ref="ingressListRef"
         :clusterId="selectedClusterId"
-        :namespace="selectedNamespace"
+        :namespace="namespaceParam"
         @edit="handleEditIngress"
         @yaml="handleEditIngressYAML"
         @refresh="loadCurrentResources"
@@ -84,7 +84,7 @@
         v-show="activeTab === 'networkpolicies' && selectedClusterId"
         ref="networkPolicyListRef"
         :clusterId="selectedClusterId"
-        :namespace="selectedNamespace"
+        :namespace="namespaceParam"
         @edit="handleEditNetworkPolicy"
         @yaml="handleEditNetworkPolicyYAML"
         @refresh="loadCurrentResources"
@@ -96,7 +96,7 @@
         v-show="activeTab === 'endpoints' && selectedClusterId"
         ref="endpointsListRef"
         :clusterId="selectedClusterId"
-        :namespace="selectedNamespace"
+        :namespace="namespaceParam"
         @refresh="loadCurrentResources"
         @count-update="(count) => updateCount('endpoints', count)"
       />
@@ -182,7 +182,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, nextTick, onUnmounted, watch } from 'vue'
+import { ref, computed, onMounted, nextTick, onUnmounted, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import {
   Platform,
@@ -207,6 +207,10 @@ import IngressList from './network-components/IngressList.vue'
 import NetworkPolicyList from './network-components/NetworkPolicyList.vue'
 import EndpointsList from './network-components/EndpointsList.vue'
 import IngressClassList from './network-components/IngressClassList.vue'
+import { useKubernetesStore } from '@/stores/kubernetes'
+
+// 使用全局 Kubernetes store
+const kubernetesStore = useKubernetesStore()
 
 // 网络类型定义
 interface NetworkType {
@@ -226,8 +230,19 @@ const networkTypes = ref<NetworkType[]>([
 
 const clusterList = ref<Cluster[]>([])
 const selectedClusterId = ref<number>()
-const selectedNamespace = ref('')
 const activeTab = ref('services')
+
+// 使用 computed 双向绑定 store 的 selectedNamespaces
+const selectedNamespaces = computed({
+  get: () => kubernetesStore.selectedNamespaces,
+  set: (val: string[]) => kubernetesStore.setNamespaces(val)
+})
+
+// 为子组件提供的命名空间参数（逗号分隔或空字符串）
+const namespaceParam = computed(() => {
+  if (selectedNamespaces.value.length === 0) return ''
+  return selectedNamespaces.value.join(',')
+})
 
 // 子组件引用
 const serviceListRef = ref()
@@ -243,7 +258,6 @@ const loadClusters = async () => {
     clusterList.value = data || []
     if (clusterList.value.length > 0) {
       const savedClusterId = localStorage.getItem('network_selected_cluster_id')
-      const savedNs = localStorage.getItem('network_selected_namespace')
       if (savedClusterId) {
         const savedId = parseInt(savedClusterId)
         const exists = clusterList.value.some(c => c.id === savedId)
@@ -251,9 +265,7 @@ const loadClusters = async () => {
       } else {
         selectedClusterId.value = clusterList.value[0].id
       }
-      if (savedNs) {
-        selectedNamespace.value = savedNs
-      }
+      // 命名空间状态由 Pinia store 管理，自动从 localStorage 恢复
     }
   } catch (error) {
     ElMessage.error('获取集群列表失败')
@@ -764,7 +776,7 @@ onUnmounted(() => {
   align-items: center;
   gap: 8px;
   padding: 10px 16px;
-  background: #1a1a1a;
+  background: #0a466a;
   color: #fff;
   border-radius: 0;
   cursor: pointer;
@@ -774,7 +786,7 @@ onUnmounted(() => {
 }
 
 .type-tab:hover {
-  background: #2a2a2a;
+  background: #0f69a6;
 }
 
 .type-tab.active {

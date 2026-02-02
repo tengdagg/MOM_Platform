@@ -672,3 +672,25 @@ button.action-btn:hover {
 .el-message--success .el-message__content {
   color: #0a466a !important;
 }
+
+/* 全局按钮样式 */
+.black-button {
+  background-color: #0a466a !important;
+  color: #ffffff !important;
+  border-color: #0a466a !important;
+  border-radius: 0;
+  padding: 10px 20px;
+  font-weight: 500;
+  transition: all 0.3s;
+}
+
+.black-button:hover {
+  background-color: #0f69a6 !important;
+  border-color: #0f69a6 !important;
+}
+
+.black-button:focus {
+  background-color: #0a466a !important;
+  border-color: #0a466a !important;
+  color: #ffffff !important;
+}

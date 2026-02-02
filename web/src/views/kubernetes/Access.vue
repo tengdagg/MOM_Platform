@@ -65,9 +65,14 @@
           </template>
         </el-input>
         <el-select
-          v-model="selectedNamespace"
+          v-model="selectedNamespaces"
           placeholder="选择命名空间"
           class="namespace-select"
+          multiple
+          collapse-tags
+          collapse-tags-tooltip
+          clearable
+          filterable
           @change="handleNamespaceChange"
         >
           <template #prefix>
@@ -98,7 +103,6 @@
         v-show="activeTab === 'serviceaccounts' && selectedClusterId"
         ref="serviceAccountsTabRef"
         :cluster-id="selectedClusterId"
-        :namespace="selectedNamespace"
         :search-name="searchName"
         @count-update="(count) => updateCount('serviceaccounts', count)"
       />
@@ -108,7 +112,6 @@
         v-show="activeTab === 'roles' && selectedClusterId"
         ref="rolesTabRef"
         :cluster-id="selectedClusterId"
-        :namespace="selectedNamespace || ''"
         :search-name="searchName"
         @count-update="(count) => updateCount('roles', count)"
       />
@@ -118,7 +121,6 @@
         v-show="activeTab === 'rolebindings' && selectedClusterId"
         ref="roleBindingsTabRef"
         :cluster-id="selectedClusterId"
-        :namespace="selectedNamespace || ''"
         :search-name="searchName"
         @count-update="(count) => updateCount('rolebindings', count)"
       />
@@ -145,7 +147,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed, watch } from 'vue'
 import {
   Lock,
   Platform,
@@ -165,6 +167,7 @@ import RolesTab from './access-control/RolesTab.vue'
 import RoleBindingsTab from './access-control/RoleBindingsTab.vue'
 import ClusterRolesTab from './access-control/ClusterRolesTab.vue'
 import ClusterRoleBindingsTab from './access-control/ClusterRoleBindingsTab.vue'
+import { useKubernetesStore } from '@/stores/kubernetes'
 
 // 访问控制类型定义
 interface AccessType {
@@ -184,10 +187,17 @@ const accessTypes = ref<AccessType[]>([
 
 const activeTab = ref('serviceaccounts')
 const selectedClusterId = ref<number>()
-const selectedNamespace = ref<string>()
+// const selectedNamespace = ref<string>() // 移除本地 selectedNamespace
 const clusterList = ref<Cluster[]>([])
-const namespaceList = ref<NamespaceInfo[]>([])
+const namespaceList = ref<{ name: string }[]>([])
 const searchName = ref('')
+
+const kubernetesStore = useKubernetesStore()
+
+const selectedNamespaces = computed({
+  get: () => kubernetesStore.selectedNamespaces,
+  set: (val: string[]) => kubernetesStore.setNamespaces(val)
+})
 
 // 子组件引用
 const serviceAccountsTabRef = ref()
@@ -286,10 +296,22 @@ const handleClusterChange = async () => {
 }
 
 // 处理命名空间切换
-const handleNamespaceChange = () => {
-  if (selectedNamespace.value) {
-    localStorage.setItem('access_control_namespace', selectedNamespace.value)
+const handleNamespaceChange = (val: string[]) => {
+  if (val.includes('')) {
+    if (val[val.length - 1] === '') {
+       kubernetesStore.setNamespaces([''])
+    } else {
+       const newVal = val.filter(v => v !== '')
+       kubernetesStore.setNamespaces(newVal)
+    }
+  } else {
+    if (val.length === 0) {
+       kubernetesStore.setNamespaces([''])
+    } else {
+       kubernetesStore.setNamespaces(val)
+    }
   }
+  loadData()
 }
 
 // 处理标签切换
@@ -447,21 +469,17 @@ onMounted(() => {
   align-items: center;
   gap: 8px;
   padding: 10px 16px;
-  background: #1a1a1a;
-  border: 1px solid #1a1a1a;
+  background: #0a466a;
+  color: #fff;
   border-radius: 0;
   cursor: pointer;
   transition: all 0.3s ease;
-  white-space: nowrap;
-  color: #e0e0e0;
   font-size: 14px;
-  user-select: none;
+  font-weight: 500;
 }
 
 .type-tab:hover {
-  background: #333;
-  border-color: #333;
-  transform: translateY(-1px);
+  background: #0f69a6;
 }
 
 .type-tab.active {

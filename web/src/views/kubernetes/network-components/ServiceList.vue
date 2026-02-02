@@ -22,8 +22,18 @@
           <el-option label="LoadBalancer" value="LoadBalancer" />
         </el-select>
 
-        <el-select v-model="filterNamespace" placeholder="命名空间" clearable @change="handleSearch" class="filter-select">
-          <el-option label="全部" value="" />
+        <el-select 
+          v-model="selectedNamespaces" 
+          placeholder="命名空间" 
+          multiple
+          collapse-tags
+          collapse-tags-tooltip
+          clearable 
+          filterable
+          @change="handleNamespaceChange" 
+          class="filter-select"
+        >
+          <el-option label="所有命名空间" value="" />
           <el-option v-for="ns in namespaces" :key="ns.name" :label="ns.name" :value="ns.name" />
         </el-select>
       </div>
@@ -200,6 +210,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { Search, Connection, Document, Edit, Delete } from '@element-plus/icons-vue'
 import { load, dump } from 'js-yaml'
 import { getServices, getServiceYAML, updateServiceYAML, createServiceYAML, deleteService, getNamespaces, type ServiceInfo } from '@/api/kubernetes'
+import { useKubernetesStore } from '@/stores/kubernetes'
 import ServiceEditDialog from './ServiceEditDialog.vue'
 import ServiceDetailDialog from './ServiceDetailDialog.vue'
 
@@ -216,7 +227,36 @@ const serviceList = ref<ServiceInfo[]>([])
 const namespaces = ref<any[]>([])
 const searchName = ref('')
 const filterType = ref('')
-const filterNamespace = ref('')
+// const filterNamespace = ref('') // 移除本地 filterNamespace，使用 store
+const kubernetesStore = useKubernetesStore()
+
+const selectedNamespaces = computed({
+  get: () => kubernetesStore.selectedNamespaces,
+  set: (val: string[]) => kubernetesStore.setNamespaces(val)
+})
+
+const handleNamespaceChange = (val: string[]) => {
+  // 处理"所有命名空间"唯一性逻辑
+  if (val.includes('')) {
+    // 如果最新选中的是所有(也就是最后一个是'')，或者之前有其他现在加上了'' => 清空其他只留''
+    if (val[val.length - 1] === '') {
+       kubernetesStore.setNamespaces([''])
+    } else {
+       // 如果之前是''，现在选了其他 => 去掉''
+       const newVal = val.filter(v => v !== '')
+       kubernetesStore.setNamespaces(newVal)
+    }
+  } else {
+    // 没选所有
+    if (val.length === 0) {
+      // 全不选 => 默认为所有
+       kubernetesStore.setNamespaces([''])
+    } else {
+       kubernetesStore.setNamespaces(val)
+    }
+  }
+  handleSearch()
+}
 const currentPage = ref(1)
 const pageSize = ref(10)
 const yamlDialogVisible = ref(false)
@@ -252,8 +292,13 @@ const filteredServices = computed(() => {
   if (filterType.value) {
     result = result.filter(s => s.type === filterType.value)
   }
-  if (filterNamespace.value) {
-    result = result.filter(s => s.namespace === filterNamespace.value)
+  if (selectedNamespaces.value.length > 0) {
+    // 多选时已经在后端请求时过滤了（单选）或者获取全部（多选），这里做额外保障
+    if (selectedNamespaces.value.length > 1) {
+       result = result.filter(s => selectedNamespaces.value.includes(s.namespace))
+    }
+    // 如果是单选，loadServices 已经通过 API 参数过滤了，不需要额外过滤，或者也可以过滤
+    // 为了通过 client 过滤所有，loadServices 在多选时应不传参数
   }
   return result
 })
@@ -268,7 +313,13 @@ const loadServices = async (showSuccess = false) => {
   if (!props.clusterId) return
   loading.value = true
   try {
-    const data = await getServices(props.clusterId, props.namespace || undefined)
+    // 处理多命名空间逻辑：单选传参，多选不传（获取所有）
+    let nsParam = undefined
+    if (selectedNamespaces.value.length === 1) {
+      nsParam = selectedNamespaces.value[0]
+    }
+    
+    const data = await getServices(props.clusterId, nsParam)
     serviceList.value = data || []
     if (showSuccess) {
       ElMessage.success('刷新成功')
@@ -490,10 +541,7 @@ watch(() => props.clusterId, () => {
   loadNamespaces()
 })
 
-watch(() => props.namespace, () => {
-  filterNamespace.value = props.namespace || ''
-  loadServices()
-})
+
 
 // 监听筛选后的数据变化，更新计数
 watch(filteredServices, (newData) => {
@@ -529,18 +577,7 @@ defineExpose({
 }
 
 /* 黑色按钮样式 */
-.black-button {
-  background-color: #0a466a !important;
-  color: #ffffff !important;
-  border-color: #0a466a !important;
-  border-radius: 0;
-  font-weight: 500;
-}
 
-.black-button:hover {
-  background-color: #333333 !important;
-  border-color: #0d5a87 !important;
-}
 
 .search-bar {
   display: flex;

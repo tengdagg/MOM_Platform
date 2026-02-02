@@ -58,6 +58,7 @@
         v-show="activeTab === 'configmaps' && selectedClusterId"
         ref="configMapListRef"
         :clusterId="selectedClusterId"
+        :namespace="namespaceParam"
         @edit="handleEditConfigMap"
         @yaml="handleEditConfigMapYAML"
         @refresh="loadCurrentResources"
@@ -69,6 +70,7 @@
         v-show="activeTab === 'secrets' && selectedClusterId"
         ref="secretListRef"
         :clusterId="selectedClusterId"
+        :namespace="namespaceParam"
         @edit="handleEditSecret"
         @yaml="handleEditSecretYAML"
         @refresh="loadCurrentResources"
@@ -80,6 +82,7 @@
         v-show="activeTab === 'resourcequotas' && selectedClusterId"
         ref="resourceQuotaListRef"
         :clusterId="selectedClusterId"
+        :namespace="namespaceParam"
         @refresh="loadCurrentResources"
         @count-update="(count) => updateCount('resourcequotas', count)"
       />
@@ -89,6 +92,7 @@
         v-show="activeTab === 'limitranges' && selectedClusterId"
         ref="limitRangeListRef"
         :clusterId="selectedClusterId"
+        :namespace="namespaceParam"
         @refresh="loadCurrentResources"
         @count-update="(count) => updateCount('limitranges', count)"
       />
@@ -98,6 +102,7 @@
         v-show="activeTab === 'hpa' && selectedClusterId"
         ref="hpaListRef"
         :clusterId="selectedClusterId"
+        :namespace="namespaceParam"
         @refresh="loadCurrentResources"
         @count-update="(count) => updateCount('hpa', count)"
       />
@@ -107,6 +112,7 @@
         v-show="activeTab === 'pdb' && selectedClusterId"
         ref="pdbListRef"
         :clusterId="selectedClusterId"
+        :namespace="namespaceParam"
         @refresh="loadCurrentResources"
         @count-update="(count) => updateCount('pdb', count)"
       />
@@ -115,7 +121,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import {
   Platform,
@@ -124,9 +130,11 @@ import {
   Lock,
   Histogram,
   Operation,
-  TrendCharts
+  TrendCharts,
+  FolderOpened
 } from '@element-plus/icons-vue'
-import { getClusterList, type Cluster } from '@/api/kubernetes'
+import { getClusterList, getNamespaces, type Cluster } from '@/api/kubernetes'
+import { useKubernetesStore } from '@/stores/kubernetes'
 import axios from 'axios'
 import ConfigMapList from './config-components/ConfigMapList.vue'
 import SecretList from './config-components/SecretList.vue'
@@ -134,6 +142,9 @@ import ResourceQuotaList from './config-components/ResourceQuotaList.vue'
 import LimitRangeList from './config-components/LimitRangeList.vue'
 import HPAList from './config-components/HPAList.vue'
 import PodDisruptionBudgetList from './config-components/PodDisruptionBudgetList.vue'
+
+// 使用全局 Kubernetes store
+const kubernetesStore = useKubernetesStore()
 
 // 配置类型定义
 interface ConfigType {
@@ -153,8 +164,27 @@ const configTypes = ref<ConfigType[]>([
 ])
 
 const clusterList = ref<Cluster[]>([])
+const namespaceList = ref<any[]>([])
 const selectedClusterId = ref<number>()
 const activeTab = ref('configmaps')
+
+// 使用 computed 双向绑定 store 的 selectedNamespaces
+const selectedNamespaces = computed({
+  get: () => kubernetesStore.selectedNamespaces,
+  set: (val: string[]) => kubernetesStore.setNamespaces(val)
+})
+
+// 命名空间选择变化处理
+const handleNamespaceChange = (namespaces: string[]) => {
+  kubernetesStore.setNamespaces(namespaces)
+  loadCurrentResources()
+}
+
+// 为子组件提供的命名空间参数
+const namespaceParam = computed(() => {
+  if (selectedNamespaces.value.length === 0) return ''
+  return selectedNamespaces.value.join(',')
+})
 
 // 子组件引用
 const configMapListRef = ref()
@@ -184,10 +214,22 @@ const loadClusters = async () => {
   }
 }
 
+// 加载命名空间列表
+const loadNamespaces = async () => {
+  if (!selectedClusterId.value) return
+  try {
+    const data = await getNamespaces(selectedClusterId.value)
+    namespaceList.value = data || []
+  } catch (error) {
+    console.error('获取命名空间列表失败', error)
+  }
+}
+
 // 切换集群
 const handleClusterChange = async () => {
   if (selectedClusterId.value) {
     localStorage.setItem('config_selected_cluster_id', selectedClusterId.value.toString())
+    await loadNamespaces()
   }
 }
 
@@ -250,8 +292,9 @@ const updateCount = (type: string, count: number) => {
   }
 }
 
-onMounted(() => {
-  loadClusters()
+onMounted(async () => {
+  await loadClusters()
+  await loadNamespaces()
   const savedTab = localStorage.getItem('config_active_tab')
   if (savedTab) {
     activeTab.value = savedTab
@@ -319,7 +362,11 @@ onMounted(() => {
 }
 
 .cluster-select {
-  width: 280px;
+  width: 200px;
+}
+
+.namespace-select {
+  width: 250px;
 }
 
 .black-button {
@@ -357,7 +404,7 @@ onMounted(() => {
   align-items: center;
   gap: 8px;
   padding: 10px 16px;
-  background: #1a1a1a;
+  background: #0a466a;
   color: #fff;
   border-radius: 0;
   cursor: pointer;
@@ -367,7 +414,7 @@ onMounted(() => {
 }
 
 .type-tab:hover {
-  background: #2a2a2a;
+  background: #0f69a6;
 }
 
 .type-tab.active {

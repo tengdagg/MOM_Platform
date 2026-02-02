@@ -2173,3 +2173,17 @@ export function deletePodDisruptionBudget(clusterId: number, namespace: string, 
   })
 }
 
+
+/**
+ * 从 YAML 创建 PodDisruptionBudget
+ */
+export function createPodDisruptionBudgetFromYAML(clusterId: number, namespace: string, yamlContent: string) {
+  return request({
+    url: `/api/v1/plugins/kubernetes/resources/poddisruptionbudgets/${namespace}/yaml`,
+    method: 'post',
+    data: {
+      clusterId,
+      yaml: yamlContent
+    }
+  })
+}

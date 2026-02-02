@@ -1982,7 +1982,7 @@ watch(paginatedClusterList, () => {
 .batch-actions-right .el-button--info,
 .batch-actions-right .el-button--danger,
 .batch-actions-right .el-button--success {
-  background: #1a1a1a;
+
   border-color: #1a1a1a;
   color: #ffffff;
 }
