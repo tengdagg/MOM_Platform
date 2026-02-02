@@ -41,6 +41,7 @@
         v-loading="loading"
         class="modern-table"
         size="default"
+        :header-cell-style="{ background: '#fafbfc', color: '#606266', fontWeight: '600' }"
       >
         <el-table-column label="ID" prop="id" width="80" align="center">
           <template #default="{ row }">

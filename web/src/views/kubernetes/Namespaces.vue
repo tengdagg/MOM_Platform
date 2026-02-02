@@ -398,7 +398,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, onUnmounted, computed } from 'vue'
 import { ElMessage, ElMessageBox, type FormInstance, type FormRules } from 'element-plus'
 import axios from 'axios'
 import {
@@ -423,6 +423,9 @@ const loading = ref(false)
 const clusterList = ref<Cluster[]>([])
 const selectedClusterId = ref<number>()
 const namespaceList = ref<NamespaceInfo[]>([])
+
+// 删除轮询定时器
+let deletePollingTimer: ReturnType<typeof setInterval> | null = null
 
 // 搜索条件
 const searchName = ref('')
@@ -959,9 +962,11 @@ const handleYamlScroll = (e: Event) => {
 const handleDelete = async () => {
   if (!selectedNamespace.value) return
 
+  const nameToDelete = selectedNamespace.value.name
+
   try {
     await ElMessageBox.confirm(
-      `确定要删除命名空间 ${selectedNamespace.value.name} 吗？此操作将删除该命名空间下的所有资源，且不可恢复！`,
+      `确定要删除命名空间 ${nameToDelete} 吗？此操作将删除该命名空间下的所有资源，且不可恢复！`,
       '删除命名空间确认',
       {
         confirmButtonText: '确定删除',
@@ -972,14 +977,19 @@ const handleDelete = async () => {
 
     const token = localStorage.getItem('token')
     await axios.delete(
-      `/api/v1/plugins/kubernetes/resources/namespaces/${selectedNamespace.value.name}?clusterId=${selectedClusterId.value}`,
+      `/api/v1/plugins/kubernetes/resources/namespaces/${nameToDelete}?clusterId=${selectedClusterId.value}`,
       {
         headers: { Authorization: `Bearer ${token}` }
       }
     )
 
-    ElMessage.success('命名空间删除成功')
+    ElMessage.success('命名空间删除请求已发送，正在等待删除完成...')
+    
+    // 立即刷新一次
     await loadNamespaces()
+    
+    // 开始轮询，直到命名空间消失
+    startDeletePolling(nameToDelete)
   } catch (error: any) {
     if (error !== 'cancel') {
       ElMessage.error(`删除失败: ${error.response?.data?.message || error.message}`)
@@ -987,8 +997,55 @@ const handleDelete = async () => {
   }
 }
 
+// 开始删除轮询
+const startDeletePolling = (namespaceName: string) => {
+  // 清除之前的轮询
+  stopDeletePolling()
+  
+  let pollCount = 0
+  const maxPolls = 30 // 最多轮询30次（2分钟）
+  const pollInterval = 4000 // 每4秒轮询一次
+  
+  deletePollingTimer = setInterval(async () => {
+    pollCount++
+    
+    try {
+      await loadNamespaces()
+      
+      // 检查命名空间是否还存在
+      const stillExists = namespaceList.value.some(ns => ns.name === namespaceName)
+      
+      if (!stillExists) {
+        // 命名空间已删除
+        stopDeletePolling()
+        ElMessage.success(`命名空间 ${namespaceName} 已完全删除`)
+      } else if (pollCount >= maxPolls) {
+        // 超时
+        stopDeletePolling()
+        ElMessage.warning(`命名空间 ${namespaceName} 仍在删除中，请稍后手动刷新`)
+      }
+    } catch (error) {
+      // 轮询失败，停止轮询
+      stopDeletePolling()
+    }
+  }, pollInterval)
+}
+
+// 停止删除轮询
+const stopDeletePolling = () => {
+  if (deletePollingTimer) {
+    clearInterval(deletePollingTimer)
+    deletePollingTimer = null
+  }
+}
+
 onMounted(() => {
   loadClusters()
+})
+
+onUnmounted(() => {
+  // 清理轮询定时器
+  stopDeletePolling()
 })
 </script>
 
@@ -1070,7 +1127,7 @@ onMounted(() => {
 .stat-value {
   font-size: 28px;
   font-weight: 700;
-  color: #ffffff;
+  color: #909399;
   line-height: 1;
 }
 

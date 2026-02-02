@@ -6715,6 +6715,189 @@ func cleanIngressForYAML(ing *networkingv1.Ingress) map[string]interface{} {
 	return result
 }
 
+// ==================== IngressClass 相关 ====================
+
+// IngressClassInfo IngressClass 信息
+type IngressClassInfo struct {
+	Name       string            `json:"name"`       // IngressClass 名称
+	Controller string            `json:"controller"` // 控制器名称
+	IsDefault  bool              `json:"isDefault"`  // 是否为默认
+	Parameters *IngressClassParams `json:"parameters"` // 参数配置
+	Age        string            `json:"age"`        // 创建时间
+	Labels     map[string]string `json:"labels"`     // 标签
+}
+
+// IngressClassParams IngressClass 参数
+type IngressClassParams struct {
+	APIGroup  string `json:"apiGroup"`
+	Kind      string `json:"kind"`
+	Name      string `json:"name"`
+	Namespace string `json:"namespace"`
+	Scope     string `json:"scope"`
+}
+
+// ListIngressClasses 获取 IngressClass 列表
+// @Summary 获取IngressClass列表
+// @Description 获取集群的 IngressClass 列表（集群级别资源）
+// @Tags Kubernetes/网络
+// @Accept json
+// @Produce json
+// @Security Bearer
+// @Param clusterId query int true "集群ID"
+// @Success 200 {object} map[string]interface{} "IngressClass列表"
+// @Failure 400 {object} map[string]interface{} "参数错误"
+// @Failure 500 {object} map[string]interface{} "服务器错误"
+// @Router /plugins/kubernetes/resources/ingressclasses [get]
+func (h *ResourceHandler) ListIngressClasses(c *gin.Context) {
+	clusterIDStr := c.Query("clusterId")
+	clusterID, err := strconv.ParseUint(clusterIDStr, 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"code":    400,
+			"message": "无效的集群ID",
+		})
+		return
+	}
+
+	// 获取当前用户 ID
+	currentUserID, ok := GetCurrentUserID(c)
+	if !ok {
+		return
+	}
+
+	// 使用用户凭据获取 clientset
+	clientset, err := h.clusterService.GetClientsetForUser(c.Request.Context(), uint(clusterID), currentUserID)
+	if err != nil {
+		if h.handleGetClientsetError(c, err) {
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"code":    500,
+			"message": "获取集群连接失败: " + err.Error(),
+		})
+		return
+	}
+
+	// 获取 IngressClass 列表（集群级别资源）
+	ingressClasses, err := clientset.NetworkingV1().IngressClasses().List(c.Request.Context(), metav1.ListOptions{})
+	if err != nil {
+		HandleK8sError(c, err, "IngressClass")
+		return
+	}
+
+	ingressClassInfos := make([]IngressClassInfo, 0, len(ingressClasses.Items))
+	for _, ic := range ingressClasses.Items {
+		// 确保 labels 不为 nil
+		labels := ic.Labels
+		if labels == nil {
+			labels = make(map[string]string)
+		}
+
+		// 检查是否为默认 IngressClass
+		isDefault := false
+		if annotations := ic.Annotations; annotations != nil {
+			if val, ok := annotations["ingressclass.kubernetes.io/is-default-class"]; ok && val == "true" {
+				isDefault = true
+			}
+		}
+
+		// 获取参数配置
+		var params *IngressClassParams
+		if ic.Spec.Parameters != nil {
+			params = &IngressClassParams{
+				Kind: ic.Spec.Parameters.Kind,
+				Name: ic.Spec.Parameters.Name,
+			}
+			if ic.Spec.Parameters.APIGroup != nil {
+				params.APIGroup = *ic.Spec.Parameters.APIGroup
+			}
+			if ic.Spec.Parameters.Namespace != nil {
+				params.Namespace = *ic.Spec.Parameters.Namespace
+			}
+			if ic.Spec.Parameters.Scope != nil {
+				params.Scope = *ic.Spec.Parameters.Scope
+			}
+		}
+
+		ingressClassInfo := IngressClassInfo{
+			Name:       ic.Name,
+			Controller: ic.Spec.Controller,
+			IsDefault:  isDefault,
+			Parameters: params,
+			Age:        calculateAge(ic.CreationTimestamp.Time),
+			Labels:     labels,
+		}
+
+		ingressClassInfos = append(ingressClassInfos, ingressClassInfo)
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"code":    0,
+		"message": "success",
+		"data":    ingressClassInfos,
+	})
+}
+
+// GetIngressClassYAML 获取 IngressClass YAML
+func (h *ResourceHandler) GetIngressClassYAML(c *gin.Context) {
+	name := c.Param("name")
+	clusterIDStr := c.Query("clusterId")
+
+	clusterID, err := strconv.Atoi(clusterIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"code":    400,
+			"message": "无效的集群ID",
+		})
+		return
+	}
+
+	// 获取当前用户ID
+	currentUserID, ok := GetCurrentUserID(c)
+	if !ok {
+		return
+	}
+
+	clientset, err := h.clusterService.GetClientsetForUser(c.Request.Context(), uint(clusterID), currentUserID)
+	if err != nil {
+		if h.handleGetClientsetError(c, err) {
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"code":    500,
+			"message": "获取集群客户端失败: " + err.Error(),
+		})
+		return
+	}
+
+	ic, err := clientset.NetworkingV1().IngressClasses().Get(c.Request.Context(), name, metav1.GetOptions{})
+	if err != nil {
+		HandleK8sError(c, err, "IngressClass")
+		return
+	}
+
+	// 清理对象用于 YAML 输出
+	cleanedIC := cleanIngressClassForYAML(ic)
+
+	c.JSON(http.StatusOK, gin.H{
+		"code":    0,
+		"message": "success",
+		"data": gin.H{
+			"items": cleanedIC,
+		},
+	})
+}
+
+// cleanIngressClassForYAML 清理 IngressClass 对象用于 YAML 输出
+func cleanIngressClassForYAML(ic *networkingv1.IngressClass) map[string]interface{} {
+	result := make(map[string]interface{})
+	result["apiVersion"] = "networking.k8s.io/v1"
+	result["kind"] = "IngressClass"
+	result["metadata"] = cleanMetadata(ic.ObjectMeta)
+	result["spec"] = ic.Spec
+	return result
+}
+
 // ==================== Endpoints 相关 ====================
 
 // EndpointsInfo 端点信息

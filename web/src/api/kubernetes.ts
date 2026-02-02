@@ -1050,6 +1050,47 @@ export function deleteIngress(clusterId: number, namespace: string, name: string
   })
 }
 
+// -------------------- IngressClass --------------------
+
+export interface IngressClassParams {
+  apiGroup: string
+  kind: string
+  name: string
+  namespace: string
+  scope: string
+}
+
+export interface IngressClassInfo {
+  name: string
+  controller: string
+  isDefault: boolean
+  parameters: IngressClassParams | null
+  age: string
+  labels: Record<string, string>
+}
+
+/**
+ * 获取 IngressClass 列表
+ */
+export function getIngressClasses(clusterId: number) {
+  return request<IngressClassInfo[]>({
+    url: '/api/v1/plugins/kubernetes/resources/ingressclasses',
+    method: 'get',
+    params: { clusterId }
+  })
+}
+
+/**
+ * 获取 IngressClass YAML
+ */
+export function getIngressClassYAML(clusterId: number, name: string) {
+  return request<{ items: Record<string, any> }>({
+    url: `/api/v1/plugins/kubernetes/resources/ingressclasses/${name}/yaml`,
+    method: 'get',
+    params: { clusterId }
+  })
+}
+
 // -------------------- Endpoints --------------------
 
 export interface EndpointAddress {

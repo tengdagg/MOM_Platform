@@ -1757,7 +1757,7 @@ watch(paginatedClusterList, () => {
 .stat-value {
   font-size: 18px;
   font-weight: 700;
-  color: #ffffff;
+  color: #909399;
   line-height: 1;
 }
 

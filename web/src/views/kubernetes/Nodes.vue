@@ -2739,7 +2739,7 @@ onMounted(() => {
 .stat-value {
   font-size: 28px;
   font-weight: 700;
-  color: #ffffff;
+  color: #909399;
   line-height: 1;
 }
 
@@ -3135,13 +3135,11 @@ onMounted(() => {
 
 .role-master {
   background: transparent;
-  color: #ffffff;
   border: none;
 }
 
 .role-control-plane {
   background: transparent;
-  color: #ffffff;
   border: none;
 }
 
@@ -3161,7 +3159,7 @@ onMounted(() => {
 }
 
 .version-icon {
-  color: #ffffff;
+  color: #919191;
 }
 
 /* 时间单元格 */
@@ -3222,7 +3220,6 @@ onMounted(() => {
 .pod-count {
   font-size: 18px;
   font-weight: 600;
-  color: #ffffff;
 }
 
 .pod-label {

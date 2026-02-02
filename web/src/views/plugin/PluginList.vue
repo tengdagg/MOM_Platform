@@ -401,7 +401,7 @@ onMounted(async () => {
     .stat-value {
       font-size: 28px;
       font-weight: 700;
-      color: #303133;
+      color: #909399;
       line-height: 1;
       margin-bottom: 8px;
     }

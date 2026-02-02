@@ -185,6 +185,10 @@ func RegisterRoutes(router *gin.RouterGroup, db *gorm.DB) {
 		clusters.PUT("/resources/networkpolicies/:namespace/:name/yaml", resourceHandler.UpdateNetworkPolicyYAML)
 		clusters.DELETE("/resources/networkpolicies/:namespace/:name", resourceHandler.DeleteNetworkPolicy)
 
+		// 网络资源管理 - IngressClass (集群级别资源)
+		clusters.GET("/resources/ingressclasses", resourceHandler.ListIngressClasses)
+		clusters.GET("/resources/ingressclasses/:name/yaml", resourceHandler.GetIngressClassYAML)
+
 		// 配置管理 - ConfigMap
 		clusters.GET("/resources/configmaps", resourceHandler.ListConfigMaps)
 		clusters.POST("/resources/configmaps/:namespace/yaml", resourceHandler.CreateConfigMapFromYAML)

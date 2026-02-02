@@ -11,15 +11,27 @@
     <div class="basic-info-section">
       <el-form ref="formRef" :model="formData" :rules="rules" label-width="100px">
         <el-row :gutter="20">
-          <el-col :span="12">
+          <el-col :span="8">
             <el-form-item label="名称" prop="name">
               <el-input v-model="formData.name" placeholder="Ingress 名称" :disabled="isEdit" />
             </el-form-item>
           </el-col>
-          <el-col :span="12">
+          <el-col :span="8">
             <el-form-item label="命名空间" prop="namespace">
               <el-select v-model="formData.namespace" placeholder="选择命名空间" :disabled="isEdit" style="width: 100%">
                 <el-option v-for="ns in namespaces" :key="ns.name" :label="ns.name" :value="ns.name" />
+              </el-select>
+            </el-form-item>
+          </el-col>
+          <el-col :span="8">
+            <el-form-item label="IngressClass">
+              <el-select v-model="formData.ingressClassName" placeholder="选择 IngressClass" clearable style="width: 100%">
+                <el-option v-for="ic in ingressClassList" :key="ic.name" :label="ic.name" :value="ic.name">
+                  <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <span>{{ ic.name }}</span>
+                    <el-tag v-if="ic.isDefault" size="small" type="success" style="margin-left: 8px;">默认</el-tag>
+                  </div>
+                </el-option>
               </el-select>
             </el-form-item>
           </el-col>
@@ -293,7 +305,7 @@
 import { ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import { Delete, Plus, Document, Lock, Link, PriceTag } from '@element-plus/icons-vue'
-import { getIngressYAML, updateIngressYAML, createIngress, getSecrets, getServices, type IngressInfo } from '@/api/kubernetes'
+import { getIngressYAML, updateIngressYAML, createIngress, getSecrets, getServices, getIngressClasses, type IngressInfo } from '@/api/kubernetes'
 
 interface PathConfig {
   path: string
@@ -333,10 +345,12 @@ const activeTab = ref('rules')
 const newTLSHost = ref<string[]>([])
 const secretsList = ref<any[]>([])
 const servicesList = ref<any[]>([])
+const ingressClassList = ref<any[]>([])
 
 const formData = ref({
   name: '',
   namespace: '',
+  ingressClassName: '',
   rules: [] as RuleConfig[],
   tls: [] as TLSConfig[],
   labels: {} as Record<string, string>,
@@ -403,6 +417,7 @@ const openEdit = async (ingress: IngressInfo, nsList: any[]) => {
     formData.value = {
       name: metadata.name || '',
       namespace: metadata.namespace || '',
+      ingressClassName: spec.ingressClassName || '',
       rules,
       tls,
       labels: metadata.labels || {},
@@ -422,6 +437,9 @@ const openEdit = async (ingress: IngressInfo, nsList: any[]) => {
     // 加载 Service 列表
     await loadServices()
 
+    // 加载 IngressClass 列表
+    await loadIngressClasses()
+
     if (formData.value.rules.length === 0) {
       addRule()
     }
@@ -431,7 +449,7 @@ const openEdit = async (ingress: IngressInfo, nsList: any[]) => {
 }
 
 // 打开对话框（创建模式）
-const openCreate = (nsList: any[]) => {
+const openCreate = async (nsList: any[]) => {
   namespaces.value = nsList
   isEdit.value = false
   visible.value = true
@@ -440,6 +458,7 @@ const openCreate = (nsList: any[]) => {
   formData.value = {
     name: '',
     namespace: '',
+    ingressClassName: '',
     rules: [],
     tls: [],
     labels: {},
@@ -450,6 +469,9 @@ const openCreate = (nsList: any[]) => {
   annotationsList.value = []
   newTLSHost.value = []
   secretsList.value = []
+
+  // 加载 IngressClass 列表
+  await loadIngressClasses()
 
   // 添加默认规则
   addRule()
@@ -590,6 +612,16 @@ const loadServices = async () => {
   }
 }
 
+// 加载 IngressClass 列表
+const loadIngressClasses = async () => {
+  if (!props.clusterId) return
+  try {
+    const data = await getIngressClasses(props.clusterId)
+    ingressClassList.value = data || []
+  } catch (error) {
+  }
+}
+
 // 监听命名空间变化，自动加载 Secret 列表和 Service 列表
 watch(() => formData.value.namespace, () => {
   if (formData.value.namespace) {
@@ -641,7 +673,8 @@ const buildSaveData = () => {
       namespace: formData.value.namespace
     },
     spec: {
-      rules
+      rules,
+      ingressClassName: formData.value.ingressClassName || undefined
     }
   }
 
@@ -742,6 +775,7 @@ const handleSave = async () => {
       // 构建创建请求数据
       const createData = {
         name: formData.value.name,
+        ingressClass: formData.value.ingressClassName || undefined,
         rules: formData.value.rules
           .filter(rule => rule.paths.length > 0)
           .map(rule => ({

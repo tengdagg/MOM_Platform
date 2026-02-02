@@ -100,6 +100,15 @@
         @refresh="loadCurrentResources"
         @count-update="(count) => updateCount('endpoints', count)"
       />
+
+      <!-- IngressClass -->
+      <IngressClassList
+        v-show="activeTab === 'ingressclasses' && selectedClusterId"
+        ref="ingressClassListRef"
+        :clusterId="selectedClusterId"
+        @refresh="loadCurrentResources"
+        @count-update="(count) => updateCount('ingressclasses', count)"
+      />
     </div>
 
     <!-- 终端对话框 -->
@@ -197,6 +206,7 @@ import ServiceList from './network-components/ServiceList.vue'
 import IngressList from './network-components/IngressList.vue'
 import NetworkPolicyList from './network-components/NetworkPolicyList.vue'
 import EndpointsList from './network-components/EndpointsList.vue'
+import IngressClassList from './network-components/IngressClassList.vue'
 
 // 网络类型定义
 interface NetworkType {
@@ -211,6 +221,7 @@ const networkTypes = ref<NetworkType[]>([
   { label: 'Ingress', value: 'ingresses', icon: Link, count: 0 },
   { label: 'Network Policies', value: 'networkpolicies', icon: Lock, count: 0 },
   { label: 'Endpoints', value: 'endpoints', icon: Position, count: 0 },
+  { label: 'IngressClass', value: 'ingressclasses', icon: Connection, count: 0 },
 ])
 
 const clusterList = ref<Cluster[]>([])
@@ -223,6 +234,7 @@ const serviceListRef = ref()
 const ingressListRef = ref()
 const networkPolicyListRef = ref()
 const endpointsListRef = ref()
+const ingressClassListRef = ref()
 
 // 加载集群列表
 const loadClusters = async () => {
@@ -284,6 +296,9 @@ const loadCurrentResources = () => {
       break
     case 'endpoints':
       endpointsListRef.value?.loadData()
+      break
+    case 'ingressclasses':
+      ingressClassListRef.value?.loadIngressClasses()
       break
   }
 }

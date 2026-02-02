@@ -3966,6 +3966,7 @@ const handleShowEditDialog = async () => {
         namespace: workloadData.metadata?.namespace || namespace,
         type: workloadData.kind || workloadType,
         replicas: workloadData.spec?.replicas || 0,
+        selector: workloadData.spec?.selector, // 保存原始 selector
         labels: objectToKeyValueArray(workloadData.metadata?.labels || {}),
         annotations: objectToKeyValueArray(workloadData.metadata?.annotations || {}),
         nodeSelector: nodeSelector,
@@ -4655,7 +4656,7 @@ const convertToKubernetesYaml = (data: any, cluster: string, namespace: string):
     // Deployment 或 StatefulSet spec
     spec = {
       replicas: data.replicas || 1,
-      selector: {
+      selector: data.selector || {
         matchLabels: { app: labels.app || data.name }
       },
       template: podTemplate
@@ -4692,7 +4693,7 @@ const convertToKubernetesYaml = (data: any, cluster: string, namespace: string):
   } else if (data.type === 'DaemonSet') {
     // DaemonSet spec
     spec = {
-      selector: {
+      selector: data.selector || {
         matchLabels: { app: labels.app || data.name }
       },
       template: podTemplate
@@ -6156,7 +6157,6 @@ onMounted(() => {
 .pod-count {
   font-size: 18px;
   font-weight: 600;
-  color: #ffffff;
 }
 
 .pod-label {

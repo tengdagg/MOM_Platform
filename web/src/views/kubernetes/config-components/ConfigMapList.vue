@@ -41,6 +41,7 @@
         v-loading="loading"
         class="modern-table"
         size="default"
+        :header-cell-style="{ background: '#fafbfc', color: '#606266', fontWeight: '600' }"
       >
         <el-table-column label="名称" prop="name" min-width="200" fixed>
           <template #header>

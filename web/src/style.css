@@ -20,11 +20,10 @@
  */
 
 :root {
-  font-family: 'Microsoft YaHei', '微软雅黑', 'PingFang SC', 'Hiragino Sans GB', -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+  font-family: 'Helvetica Neue', Helvetica, 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', '微软雅黑', Arial, sans-serif;
   font-size: 14px;
   line-height: 1.5;
   font-weight: 400;
-  /* 增加字重，使字体更饱满 */
 
   color-scheme: light;
   color: #303133;
@@ -32,8 +31,7 @@
 
   font-synthesis: none;
   text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  /* 改为 subpixel-antialiased 会让字体比  略粗 */
+  -webkit-font-smoothing: auto;
   -moz-osx-font-smoothing: auto;
 
   /* Element Plus 全局圆角变量覆盖 */
@@ -203,6 +201,35 @@ button.el-button {
 .el-input__prefix .el-icon,
 .el-input__suffix .el-icon {
   color: #909399 !important;
+}
+
+/* 全局操作按钮颜色修复 - 确保在白色背景上可见 */
+.action-btn,
+.el-table .action-btn,
+.el-button.action-btn,
+button.action-btn {
+  color: #606266 !important;
+}
+
+.action-btn:hover,
+.el-table .action-btn:hover,
+.el-button.action-btn:hover,
+button.action-btn:hover {
+  color: #409eff !important;
+}
+
+.action-btn.danger,
+.action-btn.action-delete,
+.el-table .action-btn.danger,
+.el-button.action-btn.danger {
+  color: #f56c6c !important;
+}
+
+.action-btn.danger:hover,
+.action-btn.action-delete:hover,
+.el-table .action-btn.danger:hover,
+.el-button.action-btn.danger:hover {
+  color: #f78989 !important;
 }
 
 .el-input {
