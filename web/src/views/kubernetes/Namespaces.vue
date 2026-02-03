@@ -1372,7 +1372,7 @@ onUnmounted(() => {
 }
 
 .label-icon {
-  color: #ffffff;
+  color: #606266;
   font-size: 20px;
   transition: all 0.3s;
 }
@@ -1381,8 +1381,7 @@ onUnmounted(() => {
   position: absolute;
   top: -6px;
   right: -6px;
-  background-color: #ffffff;
-  color: #000;
+  color: #ffa845;
   font-size: 10px;
   font-weight: 600;
   min-width: 16px;
@@ -1396,7 +1395,6 @@ onUnmounted(() => {
 }
 
 .label-cell:hover .label-icon {
-  color: #bfa13f;
   transform: scale(1.1);
 }
 
@@ -1658,7 +1656,7 @@ onUnmounted(() => {
   width: 100%;
   height: 44px;
   font-size: 15px;
-  border: 2px dashed #d4af37;
+  border: 2px dashed #0f69a6;
   border-radius: 0;
   transition: all 0.3s;
 }
@@ -1676,7 +1674,7 @@ onUnmounted(() => {
   color: #ffffff;
   border-radius: 0;
   padding: 20px 28px;
-  border-bottom: 2px solid #d4af37;
+  border-bottom: 2px solid #0f69a6;
 }
 
 .label-dialog :deep(.el-dialog__title) {
@@ -1710,8 +1708,8 @@ onUnmounted(() => {
   gap: 6px !important;
   padding: 5px 12px !important;
   background: linear-gradient(135deg, #0a466a 0%, #0d5a87 100%) !important;
-  color: #d4af37 !important;
-  border: 1px solid #d4af37 !important;
+  color: #0f69a6 !important;
+  border: 1px solid #0f69a6 !important;
   border-radius: 0 !important;
   font-family: 'Monaco', 'Menlo', monospace !important;
   font-size: 12px !important;

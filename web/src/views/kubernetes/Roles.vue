@@ -140,7 +140,7 @@ onMounted(() => {
 
   .black-button {
     background: linear-gradient(135deg, #0a466a 0%, #083a56 100%);
-    color: #D4AF37;
+    color: #0f69a6;
     border: 1px solid rgba(212, 175, 55, 0.3);
     font-weight: 500;
     padding: 10px 20px;

@@ -244,7 +244,7 @@ const removeArg = (index: number) => {
 }
 
 .checkbox-group :deep(.el-checkbox__input.is-checked .el-checkbox__inner) {
-  background: #d4af37;
+  background: #0f69a6;
   border-color: #ffffff;
 }
 </style>

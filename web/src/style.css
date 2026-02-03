@@ -822,10 +822,9 @@ button.action-btn:hover {
 }
 
 .type-tab.active {
-  background: #d4af37;
-  color: #1a1a1a;
+  background: #c2a025;
+  color: #494949;
   border: none;
-  box-shadow: 0 4px 12px rgba(212, 175, 55, 0.4);
   font-weight: 600;
 }
 

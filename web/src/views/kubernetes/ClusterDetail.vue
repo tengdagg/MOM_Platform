@@ -58,7 +58,7 @@
         <el-card shadow="hover" class="modern-card">
           <template #header>
             <div class="card-title-section">
-              <el-icon class="card-icon" :size="20" color="#D4AF37"><DataAnalysis /></el-icon>
+              <el-icon class="card-icon" :size="20" color="#0f69a6"><DataAnalysis /></el-icon>
               <span class="card-title">资源使用率</span>
             </div>
           </template>
@@ -66,7 +66,7 @@
             <div class="usage-item">
               <div class="usage-header">
                 <div class="usage-label">
-                  <el-icon color="#D4AF37" :size="18"><Cpu /></el-icon>
+                  <el-icon color="#0f69a6" :size="18"><Cpu /></el-icon>
                   <span>CPU 使用率</span>
                 </div>
                 <span class="usage-value">{{ Math.round(clusterStats.cpuUsage) }}%</span>
@@ -88,7 +88,7 @@
             <div class="usage-item">
               <div class="usage-header">
                 <div class="usage-label">
-                  <el-icon color="#D4AF37" :size="18"><Coin /></el-icon>
+                  <el-icon color="#0f69a6" :size="18"><Coin /></el-icon>
                   <span>内存使用率</span>
                 </div>
                 <span class="usage-value">{{ Math.round(clusterStats.memoryUsage) }}%</span>
@@ -113,7 +113,7 @@
         <el-card shadow="hover" class="modern-card">
           <template #header>
             <div class="card-title-section">
-              <el-icon class="card-icon" :size="20" color="#D4AF37"><Connection /></el-icon>
+              <el-icon class="card-icon" :size="20" color="#0f69a6"><Connection /></el-icon>
               <span class="card-title">网络配置</span>
             </div>
           </template>
@@ -151,7 +151,7 @@
         <el-card shadow="hover" class="modern-card">
           <template #header>
             <div class="card-title-section">
-              <el-icon class="card-icon" :size="20" color="#D4AF37"><InfoFilled /></el-icon>
+              <el-icon class="card-icon" :size="20" color="#0f69a6"><InfoFilled /></el-icon>
               <span class="card-title">集群信息</span>
             </div>
           </template>
@@ -194,7 +194,7 @@
         <el-card shadow="hover" class="modern-card">
           <template #header>
             <div class="card-title-section">
-              <el-icon class="card-icon" :size="20" color="#D4AF37"><Files /></el-icon>
+              <el-icon class="card-icon" :size="20" color="#0f69a6"><Files /></el-icon>
               <span class="card-title">组件信息</span>
             </div>
           </template>
@@ -230,7 +230,7 @@
                 class="component-item"
               >
                 <div class="component-main">
-                  <el-icon class="component-icon" :size="20" color="#D4AF37"><CircleCheck /></el-icon>
+                  <el-icon class="component-icon" :size="20" color="#0f69a6"><CircleCheck /></el-icon>
                   <div class="component-info">
                     <div class="component-name">{{ component.name }}</div>
                     <el-tag size="small" type="info">{{ component.version }}</el-tag>
@@ -259,7 +259,7 @@
                 class="storage-item"
               >
                 <div class="storage-main">
-                  <el-icon class="storage-icon" :size="18" color="#D4AF37"><Folder /></el-icon>
+                  <el-icon class="storage-icon" :size="18" color="#0f69a6"><Folder /></el-icon>
                   <div class="storage-info">
                     <div class="storage-name">{{ storage.name }}</div>
                     <div class="storage-provisioner">{{ storage.provisioner }}</div>
@@ -282,7 +282,7 @@
     <el-card shadow="hover" class="modern-card full-width-card">
       <template #header>
         <div class="card-title-section">
-          <el-icon class="card-icon" :size="20" color="#D4AF37"><Monitor /></el-icon>
+          <el-icon class="card-icon" :size="20" color="#0f69a6"><Monitor /></el-icon>
           <span class="card-title">节点信息</span>
           <span class="node-count">{{ filteredNodeList.length }}个节点</span>
         </div>
@@ -359,7 +359,7 @@
     <el-card shadow="hover" class="modern-card full-width-card">
       <template #header>
         <div class="card-title-section">
-          <el-icon class="card-icon" :size="20" color="#D4AF37"><Document /></el-icon>
+          <el-icon class="card-icon" :size="20" color="#0f69a6"><Document /></el-icon>
           <span class="card-title">最近事件</span>
           <span class="event-count">最近50条</span>
         </div>
@@ -519,7 +519,7 @@ const quickStats = computed(() => [
     value: clusterStats.value.nodeCount,
     icon: Monitor,
     color: 'linear-gradient(135deg, #0a466a 0%, #083a56 100%)',
-    iconColor: '#D4AF37',
+    iconColor: '#0f69a6',
     trend: true
   },
   {
@@ -527,7 +527,7 @@ const quickStats = computed(() => [
     value: clusterStats.value.workloadCount,
     icon: Box,
     color: 'linear-gradient(135deg, #0a466a 0%, #083a56 100%)',
-    iconColor: '#D4AF37',
+    iconColor: '#0f69a6',
     trend: true
   },
   {
@@ -535,7 +535,7 @@ const quickStats = computed(() => [
     value: clusterStats.value.podCount,
     icon: Files,
     color: 'linear-gradient(135deg, #0a466a 0%, #083a56 100%)',
-    iconColor: '#D4AF37',
+    iconColor: '#0f69a6',
     trend: true
   },
   {
@@ -543,7 +543,7 @@ const quickStats = computed(() => [
     value: Math.round(clusterStats.value.cpuUsage) + '%',
     icon: Cpu,
     color: 'linear-gradient(135deg, #0a466a 0%, #083a56 100%)',
-    iconColor: '#D4AF37',
+    iconColor: '#0f69a6',
     trend: false
   }
 ])
@@ -733,7 +733,7 @@ onMounted(() => {
 
     .back-btn {
       background: linear-gradient(135deg, #0a466a 0%, #083a56 100%);
-      color: #D4AF37;
+      color: #0f69a6;
       border: 1px solid rgba(212, 175, 55, 0.3);
       font-weight: 500;
       padding: 12px 24px;
@@ -785,7 +785,7 @@ onMounted(() => {
       color: #303133;
 
       .title-icon {
-        color: #D4AF37;
+        color: #0f69a6;
       }
     }
 
@@ -809,7 +809,7 @@ onMounted(() => {
       font-size: 14px;
 
       .el-icon {
-        color: #D4AF37;
+        color: #0f69a6;
       }
     }
   }
@@ -842,7 +842,7 @@ onMounted(() => {
       left: 0;
       right: 0;
       height: 4px;
-      background: #D4AF37;
+      background: #0f69a6;
     }
 
     &:hover {
@@ -878,7 +878,7 @@ onMounted(() => {
     }
 
     .stat-trend {
-      color: #D4AF37;
+      color: #0f69a6;
       font-size: 20px;
     }
   }
@@ -1014,7 +1014,7 @@ onMounted(() => {
       .usage-value {
         font-size: 24px;
         font-weight: 600;
-        color: #D4AF37;
+        color: #0f69a6;
       }
     }
 
@@ -1058,7 +1058,7 @@ onMounted(() => {
         word-break: break-all;
 
         &.primary {
-          color: #D4AF37;
+          color: #0f69a6;
         }
       }
 
@@ -1129,7 +1129,7 @@ onMounted(() => {
 
     .runtime-card {
       background: linear-gradient(135deg, #0a466a 0%, #083a56 100%);
-      color: #D4AF37;
+      color: #0f69a6;
       padding: 16px;
       border-radius: 0;
       transition: all 0.3s;
@@ -1166,7 +1166,7 @@ onMounted(() => {
       padding: 16px;
       background: #fafafa;
       border-radius: 0;
-      border-left: 3px solid #D4AF37;
+      border-left: 3px solid #0f69a6;
       transition: all 0.3s;
 
       &:hover {
@@ -1211,7 +1211,7 @@ onMounted(() => {
       padding: 16px;
       background: #fafafa;
       border-radius: 0;
-      border-left: 3px solid #D4AF37;
+      border-left: 3px solid #0f69a6;
       transition: all 0.3s;
 
       &:hover {

@@ -39,7 +39,7 @@
             <!-- 定义渐变 -->
             <defs>
               <linearGradient id="goldGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                <stop offset="0%" style="stop-color:#D4AF37;stop-opacity:1" />
+                <stop offset="0%" style="stop-color:#0f69a6;stop-opacity:1" />
                 <stop offset="50%" style="stop-color:#FFD700;stop-opacity:1" />
                 <stop offset="100%" style="stop-color:#FFA500;stop-opacity:1" />
               </linearGradient>
@@ -394,7 +394,7 @@ onMounted(() => {
 .header-line {
   width: 50px;
   height: 3px;
-  background: linear-gradient(90deg, #D4AF37, #FFD700, #FFA500);
+  background: linear-gradient(90deg, #0f69a6, #FFD700, #FFA500);
   border-radius: 0;
   box-shadow: 0 0 10px rgba(212, 175, 55, 0.4);
 }
@@ -421,7 +421,7 @@ onMounted(() => {
 }
 
 .login-form :deep(.el-input__wrapper.is-focus) {
-  box-shadow: 0 0 0 1px #D4AF37 inset, 0 0 10px rgba(212, 175, 55, 0.15);
+  box-shadow: 0 0 0 1px #0f69a6 inset, 0 0 10px rgba(212, 175, 55, 0.15);
   background: #fafafa;
 }
 
@@ -435,7 +435,7 @@ onMounted(() => {
 }
 
 .login-form :deep(.el-input__prefix-inner) {
-  color: #D4AF37;
+  color: #0f69a6;
 }
 
 /* 验证码样式 */
@@ -465,7 +465,7 @@ onMounted(() => {
 }
 
 .captcha-image:hover {
-  border-color: #D4AF37;
+  border-color: #0f69a6;
   background: #ffffff;
   transform: translateY(-1px);
   box-shadow: 0 2px 8px rgba(212, 175, 55, 0.2);
@@ -496,8 +496,8 @@ onMounted(() => {
 }
 
 .form-options :deep(.el-checkbox__input.is-checked .el-checkbox__inner) {
-  background-color: #D4AF37;
-  border-color: #D4AF37;
+  background-color: #0f69a6;
+  border-color: #0f69a6;
 }
 
 .form-options :deep(.el-checkbox__inner) {
@@ -512,8 +512,8 @@ onMounted(() => {
   font-weight: 500;
   border-radius: 0;
   background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
-  border: 1px solid #D4AF37;
-  color: #D4AF37;
+  border: 1px solid #0f69a6;
+  color: #0f69a6;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   transition: all 0.3s;
 }
@@ -521,7 +521,7 @@ onMounted(() => {
 .login-button:hover {
   transform: translateY(-1px);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15), 0 0 15px rgba(212, 175, 55, 0.25);
-  background: linear-gradient(135deg, #D4AF37 0%, #FFD700 100%);
+  background: linear-gradient(135deg, #0f69a6 0%, #FFD700 100%);
   color: #1a1a1a;
   border-color: #FFD700;
 }

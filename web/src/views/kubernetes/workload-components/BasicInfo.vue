@@ -125,7 +125,7 @@ const emit = defineEmits<{
   align-items: center;
   gap: 10px;
   padding: 16px 20px;
-  border-bottom: 2px solid #d4af37;
+  border-bottom: 2px solid #0f69a6;
   background: linear-gradient(135deg, #fafafa 0%, #ffffff 100%);
   position: sticky;
   top: 0;
@@ -139,7 +139,7 @@ const emit = defineEmits<{
   justify-content: center;
   width: 36px;
   height: 36px;
-  background: #d4af37;
+  background: #0f69a6;
   border-radius: 0;
   color: #ffffff;
   box-shadow: 0 2px 8px rgba(212, 175, 55, 0.3);

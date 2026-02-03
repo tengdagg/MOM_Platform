@@ -297,9 +297,9 @@ const updateContainerProbe = (type: 'containers' | 'initContainers', index: numb
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 12px 20px;
-  background: #d4af37;
-  border-bottom: 1px solid #d4af37;
+  padding: 10px 16px;
+  background: #0f69a6;
+  border-bottom: 1px solid #0f69a6;
 }
 
 .section-title {
@@ -307,6 +307,9 @@ const updateContainerProbe = (type: 'containers' | 'initContainers', index: numb
   font-weight: 600;
   color: #ffffff;
   letter-spacing: 0.3px;
+  line-height: normal;
+  margin: 0;
+  padding-top: 2px;
 }
 
 .section-header .el-button {
@@ -387,7 +390,7 @@ const updateContainerProbe = (type: 'containers' | 'initContainers', index: numb
 
 .container-detail :deep(.el-tabs__active-bar) {
   height: 2px;
-  background: #d4af37;
+  background: #0f69a6;
 }
 
 .container-detail :deep(.el-collapse) {

@@ -565,7 +565,7 @@ const updateEnvs = () => {
   align-items: center;
   justify-content: space-between;
   padding: 12px 20px;
-  background: #d4af37;
+  background: #0f69a6;
   border: none;
   border-radius: 0;
   margin-bottom: 0;
@@ -716,7 +716,7 @@ const updateEnvs = () => {
 }
 
 :deep(.el-tabs__active-bar) {
-  background: #d4af37;
+  background: #0f69a6;
 }
 
 :deep(.el-empty) {

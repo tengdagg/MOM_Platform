@@ -513,7 +513,7 @@ defineExpose({
 }
 
 .label-icon {
-  color: #ffffff;
+  color: #606266;
   font-size: 18px;
 }
 
@@ -521,8 +521,7 @@ defineExpose({
   position: absolute;
   top: -6px;
   right: -6px;
-  background-color: #ffffff;
-  color: #000;
+  color: #ffa845;
   font-size: 10px;
   font-weight: 600;
   min-width: 16px;
@@ -541,7 +540,6 @@ defineExpose({
 }
 
 .label-cell:hover .label-count {
-  background-color: #bfa13f;
 }
 
 .action-btn {

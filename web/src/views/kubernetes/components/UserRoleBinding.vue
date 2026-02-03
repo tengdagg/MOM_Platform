@@ -817,7 +817,7 @@ watch(() => props.cluster, (newCluster) => {
   &.active {
     background: linear-gradient(90deg, rgba(212, 175, 55, 0.15) 0%, rgba(212, 175, 55, 0.05) 100%);
     color: #000;
-    border-left: 3px solid #d4af37;
+    border-left: 3px solid #0f69a6;
     padding-left: 17px;
 
     .el-icon {

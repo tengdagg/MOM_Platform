@@ -127,7 +127,7 @@ const update = () => {
   content: '';
   width: 4px;
   height: 18px;
-  background: #d4af37;
+  background: #0f69a6;
   border-radius: 0;
   box-shadow: 0 0 8px rgba(212, 175, 55, 0.4);
 }

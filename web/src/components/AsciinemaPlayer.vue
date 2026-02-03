@@ -174,11 +174,11 @@ defineExpose({
 }
 
 .asciinema-player-wrapper :deep(.asciinema-player .ap-progress-bar) {
-  background-color: #d4af37 !important;
+  background-color: #0f69a6 !important;
 }
 
 .asciinema-player-wrapper :deep(.asciinema-player .ap-controls) {
-  color: #d4af37 !important;
+  color: #0f69a6 !important;
   display: flex !important;
   opacity: 1 !important;
 }
@@ -189,7 +189,7 @@ defineExpose({
 
 .asciinema-player-wrapper :deep(.asciinema-player .ap-icon-button) {
   display: inline-flex !important;
-  color: #d4af37 !important;
+  color: #0f69a6 !important;
 }
 
 .asciinema-player-wrapper :deep(.asciinema-player .ap-icon-button:hover) {

@@ -2167,8 +2167,8 @@ const handleShellOpened = async () => {
   terminal = new Terminal({
     theme: {
       background: '#000000',
-      foreground: '#d4af37',
-      cursor: '#d4af37',
+      foreground: '#0f69a6',
+      cursor: '#0f69a6',
       selection: '#ffffff40'
     },
     fontFamily: 'Monaco, Menlo, Courier New, monospace',
@@ -2876,7 +2876,7 @@ onMounted(() => {
       transition: all 0.3s;
 
       &:hover {
-        border-color: #D4AF37;
+        border-color: #0f69a6;
         background-color: rgba(212, 175, 55, 0.05);
       }
     }
@@ -3280,7 +3280,7 @@ onMounted(() => {
 }
 
 .label-icon {
-  color: #ffffff;
+  color: #606266;
   font-size: 20px;
   transition: all 0.3s;
 }
@@ -3289,8 +3289,7 @@ onMounted(() => {
   position: absolute;
   top: -6px;
   right: -6px;
-  background-color: #ffffff;
-  color: #000;
+  color: #ffa845;
   font-size: 10px;
   font-weight: 600;
   min-width: 16px;
@@ -3309,7 +3308,6 @@ onMounted(() => {
 }
 
 .label-cell:hover .label-count {
-  background-color: #bfa13f;
   border-color: #bfa13f;
 }
 
@@ -3392,7 +3390,7 @@ onMounted(() => {
   color: #ffffff;
   border-radius: 0;
   padding: 20px 28px;
-  border-bottom: 2px solid #d4af37;
+  border-bottom: 2px solid #0f69a6;
 }
 
 .label-dialog :deep(.el-dialog__title) {
@@ -3592,7 +3590,7 @@ onMounted(() => {
   width: 100%;
   height: 44px;
   font-size: 15px;
-  border: 2px dashed #d4af37;
+  border: 2px dashed #0f69a6;
   border-radius: 0;
   transition: all 0.3s;
 }
@@ -3645,8 +3643,8 @@ onMounted(() => {
   gap: 6px !important;
   padding: 5px 12px !important;
   background: linear-gradient(135deg, #0a466a 0%, #0d5a87 100%) !important;
-  color: #d4af37 !important;
-  border: 1px solid #d4af37 !important;
+  color: #0f69a6 !important;
+  border: 1px solid #0f69a6 !important;
   border-radius: 0 !important;
   font-family: 'Monaco', 'Menlo', monospace !important;
   font-size: 12px !important;
@@ -3918,7 +3916,7 @@ onMounted(() => {
   width: 100%;
   height: 44px;
   font-size: 15px;
-  border: 2px dashed #d4af37;
+  border: 2px dashed #0f69a6;
   border-radius: 0;
   transition: all 0.3s;
 }
@@ -3945,8 +3943,8 @@ onMounted(() => {
   gap: 6px !important;
   padding: 5px 12px !important;
   background: linear-gradient(135deg, #0a466a 0%, #0d5a87 100%) !important;
-  color: #d4af37 !important;
-  border: 1px solid #d4af37 !important;
+  color: #0f69a6 !important;
+  border: 1px solid #0f69a6 !important;
   border-radius: 0 !important;
   font-family: 'Monaco', 'Menlo', monospace !important;
   font-size: 12px !important;
@@ -4149,7 +4147,7 @@ onMounted(() => {
 
 /* 批量操作栏内的复选框样式 */
 .batch-actions-left :deep(.el-checkbox__inner) {
-  border: 2px solid #d4af37;
+  border: 2px solid #0f69a6;
   background: #ffffff;
   width: 20px;
   height: 20px;
@@ -4162,12 +4160,12 @@ onMounted(() => {
 }
 
 .batch-actions-left :deep(.el-checkbox__input.is-checked .el-checkbox__inner) {
-  background: #d4af37;
+  background: #0f69a6;
   border-color: #ffffff;
 }
 
 .batch-actions-left :deep(.el-checkbox__input.is-indeterminate .el-checkbox__inner) {
-  background: #d4af37;
+  background: #0f69a6;
   border-color: #ffffff;
 }
 
@@ -4186,7 +4184,7 @@ onMounted(() => {
   font-weight: 700;
   padding: 8px 16px;
   background: #ffffff;
-  border: 2px solid #d4af37;
+  border: 2px solid #0f69a6;
   border-radius: 0;
   display: inline-flex;
   align-items: center;
@@ -4198,7 +4196,7 @@ onMounted(() => {
   content: '';
   width: 10px;
   height: 10px;
-  background: #d4af37;
+  background: #0f69a6;
   border-radius: 50%;
   animation: pulse 2s ease-in-out infinite;
 }
@@ -4281,7 +4279,7 @@ onMounted(() => {
 /* 自定义复选框样式 */
 .modern-table :deep(.el-checkbox__inner) {
   border-radius: 0;
-  border: 2px solid #d4af37;
+  border: 2px solid #0f69a6;
   background: transparent;
   width: 18px;
   height: 18px;
@@ -4294,12 +4292,12 @@ onMounted(() => {
 }
 
 .modern-table :deep(.el-checkbox__input.is-checked .el-checkbox__inner) {
-  background: linear-gradient(135deg, #d4af37 0%, #c9a227 100%);
+  background: linear-gradient(135deg, #0f69a6 0%, #c9a227 100%);
   border-color: #ffffff;
 }
 
 .modern-table :deep(.el-checkbox__input.is-indeterminate .el-checkbox__inner) {
-  background: linear-gradient(135deg, #d4af37 0%, #c9a227 100%);
+  background: linear-gradient(135deg, #0f69a6 0%, #c9a227 100%);
   border-color: #ffffff;
 }
 
@@ -4327,7 +4325,7 @@ onMounted(() => {
   color: #ffffff;
   border-radius: 0;
   padding: 20px 24px;
-  border-bottom: 1px solid #d4af37;
+  border-bottom: 1px solid #0f69a6;
 }
 
 .batch-label-dialog :deep(.el-dialog__title) {
@@ -4369,7 +4367,7 @@ onMounted(() => {
   color: #ffffff;
   border-radius: 0;
   padding: 20px 24px;
-  border-bottom: 1px solid #d4af37;
+  border-bottom: 1px solid #0f69a6;
 }
 
 .batch-taint-dialog :deep(.el-dialog__title) {
@@ -4404,7 +4402,7 @@ onMounted(() => {
   color: #ffffff;
   border-radius: 0;
   padding: 20px 24px;
-  border-bottom: 1px solid #d4af37;
+  border-bottom: 1px solid #0f69a6;
 }
 
 .batch-result-dialog :deep(.el-dialog__title) {

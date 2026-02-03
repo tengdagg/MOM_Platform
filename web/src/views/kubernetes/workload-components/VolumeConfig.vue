@@ -3,7 +3,7 @@
     <div class="panel-header">
       <span class="panel-icon">💾</span>
       <span class="panel-title">数据卷</span>
-      <el-button link type="primary" @click="emit('addVolume')" :icon="Plus" size="small">添加</el-button>
+      <el-button type="primary" @click="emit('addVolume')" :icon="Plus" size="small">添加</el-button>
     </div>
     <div class="panel-content">
       <div class="volume-list">
@@ -415,8 +415,8 @@ const removeSecretItem = (volume: Volume, idx: number) => {
   align-items: center;
   justify-content: space-between;
   padding: 12px 20px;
-  background: #d4af37;
-  border-bottom: 1px solid #d4af37;
+  background: #0f69a6;
+  border-bottom: 1px solid #0f69a6;
 }
 
 .panel-icon {
@@ -431,16 +431,20 @@ const removeSecretItem = (volume: Volume, idx: number) => {
 }
 
 .panel-header .el-button {
-  background: #ffffff;
-  border: none;
-  color: #ffffff;
   font-weight: 500;
+  border-radius: 0;
+  background: #0a466a !important;
+  border: none;
+  color: #ffffff !important;
+  padding: 8px 15px;
+  height: 24px;
 }
 
 .panel-header .el-button:hover {
-  background: #fafafa;
-  border-color: #c9a227;
-  box-shadow: 0 2px 8px rgba(212, 175, 55, 0.3);
+  background: #0d5a87 !important;
+  border-color: #0d5a87;
+  box-shadow: 0 2px 8px rgba(10, 70, 106, 0.3);
+  opacity: 1;
 }
 
 .panel-content {

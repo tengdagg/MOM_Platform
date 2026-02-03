@@ -135,7 +135,7 @@ func RegisterRoutes(router *gin.RouterGroup, db *gorm.DB) {
 		clusters.GET("/resources/deployments", resourceHandler.ListDeployments)
 		clusters.GET("/resources/workloads", resourceHandler.GetWorkloads)
 		clusters.GET("/resources/workloads/:namespace/:name", resourceHandler.GetWorkloadDetail)
-		clusters.GET("/resources/workloads/:namespace/:name/replicasets", resourceHandler.GetWorkloadReplicaSets)
+		clusters.GET("/resources/workloads/:namespace/:name/history", resourceHandler.GetWorkloadHistory)
 		clusters.GET("/resources/workloads/:namespace/:name/pods", resourceHandler.GetWorkloadPods)
 		clusters.GET("/resources/workloads/:namespace/:name/services", resourceHandler.GetWorkloadServices)
 		clusters.GET("/resources/workloads/:namespace/:name/ingresses", resourceHandler.GetWorkloadIngresses)

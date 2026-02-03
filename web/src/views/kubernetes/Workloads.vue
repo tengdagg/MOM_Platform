@@ -625,7 +625,7 @@
             </div>
             <!-- 修改镜像按钮 -->
             <div class="info-item action-buttons" v-if="detailData.type !== 'Pod' && detailData.type !== 'Job' && detailData.type !== 'CronJob'">
-              <el-button type="primary" size="small" @click="showUpdateImageDialog" :icon="Picture">
+              <el-button type="primary" class="black-button" size="small" @click="showUpdateImageDialog" :icon="Picture">
                 修改镜像
               </el-button>
             </div>
@@ -981,6 +981,62 @@
 
           <el-tab-pane label="历史版本" name="revisions">
             <div class="tab-content">
+              <!-- 历史版本统计栏 -->
+              <div class="history-summary-bar">
+                <div class="summary-item">
+                  <span class="label">当前副本集数</span>
+                  <span class="value">{{ sortedReplicaSets.length }}</span>
+                </div>
+                <div class="summary-divider"></div>
+                <div class="summary-item">
+                  <span class="label">最大历史副本集数</span>
+                  
+                  <!-- 编辑模式 -->
+                  <div v-if="isEditingHistoryLimit" class="inline-edit-wrapper">
+                    <el-input-number 
+                      v-model="historyLimitForm.limit" 
+                      :min="1" 
+                      :max="100" 
+                      size="small"
+                      controls-position="right"
+                      class="inline-limit-input"
+                    />
+                    <el-button 
+                      type="primary" 
+                      size="small" 
+                      class="save-limit-btn"
+                      :loading="historyLimitLoading"
+                      @click="handleUpdateHistoryLimit"
+                    >
+                      保存
+                    </el-button>
+                    <el-button 
+                      link 
+                      size="small" 
+                      class="cancel-limit-btn"
+                      @click="cancelHistoryLimitEdit"
+                    >
+                      <el-icon><Close /></el-icon> 取消
+                    </el-button>
+                  </div>
+
+                  <!-- 查看模式 -->
+                  <div v-else class="view-mode-wrapper">
+                    <span class="value">{{ getHistoryLimit() }}</span>
+                    <el-button 
+                      v-if="['Deployment', 'StatefulSet', 'DaemonSet'].includes(detailData.type)"
+                      type="primary" 
+                      link 
+                      size="small" 
+                      class="edit-limit-btn"
+                      @click="enableHistoryLimitEdit"
+                    >
+                      <el-icon><Edit /></el-icon> 编辑
+                    </el-button>
+                  </div>
+                </div>
+              </div>
+              
               <div v-if="sortedReplicaSets.length > 0" class="revisions-content">
                 <el-table :data="sortedReplicaSets" class="revisions-table" stripe>
                   <el-table-column label="版本" width="140" align="center">
@@ -1016,12 +1072,12 @@
                       <div class="replicas-info">
                         <div class="replica-item">
                           <span class="replica-label">期望</span>
-                          <span class="replica-value">{{ row.spec?.replicas || 0 }}</span>
+                          <span class="replica-value">{{ getHistoryReplicas(row).desired }}</span>
                         </div>
                         <div class="replica-divider"></div>
                         <div class="replica-item">
                           <span class="replica-label">就绪</span>
-                          <span class="replica-value ready">{{ row.status?.availableReplicas || 0 }}</span>
+                          <span class="replica-value ready">{{ getHistoryReplicas(row).ready }}</span>
                         </div>
                       </div>
                     </template>
@@ -1052,9 +1108,8 @@
                         <el-button
                           type="primary"
                           size="small"
-                          plain
                           @click="handleViewReplicaSetYAML(row)"
-                          class="action-btn view-btn"
+                          class="black-button action-btn view-btn"
                         >
                           <el-icon><Document /></el-icon>
                           <span>详情</span>
@@ -1448,6 +1503,8 @@
         </div>
       </template>
     </el-dialog>
+
+
   </div>
 </template>
 
@@ -1713,6 +1770,13 @@ const createYamlLoading = ref(false)
 // 批量操作
 const selectedWorkloads = ref<Workload[]>([])
 const batchActionLoading = ref(false)
+
+// 历史版本限制弹窗
+const isEditingHistoryLimit = ref(false)
+const historyLimitForm = ref({
+  limit: 10
+})
+const historyLimitLoading = ref(false)
 
 // 工作负载类型模板
 const workloadTemplates: Record<string, string> = {
@@ -2315,6 +2379,45 @@ const loadWorkloads = async () => {
 
     // 更新每个类型的数量
     updateWorkloadTypeCounts(allWorkloads)
+
+    // 如果选中的是 Pod 类型，获取实时 Metrics
+    if (selectedType.value === 'Pod' && workloadList.value.length > 0) {
+       try {
+         const metricsParams: any = { clusterId: selectedClusterId.value }
+         if (selectedNamespaces.value.length === 1) {
+           metricsParams.namespace = selectedNamespaces.value[0]
+         }
+
+         const metricsRes = await axios.get(`/api/v1/plugins/kubernetes/resources/pods/metrics`, {
+           params: metricsParams,
+           headers: { Authorization: `Bearer ${token}` }
+         })
+         
+         const metricsMap = metricsRes.data?.data?.metrics || {}
+         
+         // 将 metrics 合并到 workloadList
+         workloadList.value = workloadList.value.map(pod => {
+           if (metricsMap[pod.name]) {
+             // 如果有 metrics 数据，优先使用 metrics。
+             // 后端 formatCPUMetrics 返回 "-" 表示 0，前端统一修正为 "0m"
+             let cpuUsage = metricsMap[pod.name].cpuStr || '0m'
+             if (cpuUsage === '-') cpuUsage = '0m'
+             
+             let memUsage = metricsMap[pod.name].memoryStr || '0Mi'
+             if (memUsage === '-') memUsage = '0Mi'
+             
+             return {
+               ...pod,
+               cpu: cpuUsage,
+               memory: memUsage
+             }
+           }
+           return pod
+         })
+       } catch (metricsError) {
+         console.error('获取 Pod Metrics 失败', metricsError)
+       }
+    }
   } catch (error) {
     workloadList.value = []
     ElMessage.error('获取工作负载列表失败')
@@ -2849,16 +2952,19 @@ const handleShowDetail = async (workload: Workload) => {
     const token = localStorage.getItem('token')
     const clusterId = selectedClusterId.value
 
-    // 并行获取所有数据
-    const [workloadRes, replicaSetsRes, podsRes, servicesRes, ingressesRes] = await Promise.all([
+    // 构造请求 promise 数组
+    const promises = [
       axios.get(`/api/v1/plugins/kubernetes/resources/workloads/${workload.namespace}/${workload.name}`, {
         params: { clusterId, type: workload.type },
         headers: { Authorization: `Bearer ${token}` }
       }),
-      axios.get(`/api/v1/plugins/kubernetes/resources/workloads/${workload.namespace}/${workload.name}/replicasets`, {
-        params: { clusterId },
-        headers: { Authorization: `Bearer ${token}` }
-      }),
+      // 获取历史版本（所有支持的类型）
+      ['Deployment', 'StatefulSet', 'DaemonSet', 'CronJob'].includes(workload.type)
+        ? axios.get(`/api/v1/plugins/kubernetes/resources/workloads/${workload.namespace}/${workload.name}/history`, {
+            params: { clusterId, type: workload.type },
+            headers: { Authorization: `Bearer ${token}` }
+          })
+        : Promise.resolve({ data: { data: { items: [] } } }),
       axios.get(`/api/v1/plugins/kubernetes/resources/workloads/${workload.namespace}/${workload.name}/pods`, {
         params: { clusterId, type: workload.type },
         headers: { Authorization: `Bearer ${token}` }
@@ -2871,7 +2977,10 @@ const handleShowDetail = async (workload: Workload) => {
         params: { clusterId },
         headers: { Authorization: `Bearer ${token}` }
       })
-    ])
+    ]
+
+    // 并行获取所有数据
+    const [workloadRes, replicaSetsRes, podsRes, servicesRes, ingressesRes] = await Promise.all(promises)
 
     // 获取 Pods metrics
     try {
@@ -2893,7 +3002,7 @@ const handleShowDetail = async (workload: Workload) => {
       namespace: workload.namespace,
       type: workload.type,
       workload: workloadObj,
-      replicaSets: replicaSetsRes.data.data.items || [],
+      replicaSets: replicaSetsRes.data?.data?.items || [],
       pods: podsRes.data.data.items || [],
       services: servicesRes.data.data.items || [],
       ingresses: ingressesRes.data.data.items || []
@@ -3066,17 +3175,33 @@ const refreshDetailPods = async () => {
   if (!detailData.value || !selectedClusterId.value) return
   
   try {
-    const res = await request.get('/api/v1/plugins/kubernetes/resources/workloads/' + 
-      detailData.value.namespace + '/' + detailData.value.name + '/pods', {
-      params: {
-        clusterId: selectedClusterId.value,
-        type: detailData.value.type
-      }
-    })
-    // request 工具会自动解包 response.data.data
-    // 所以这里 res 直接就是 { items: [...] }
-    if (res && res.items) {
-      detailData.value.pods = res.items
+    const promises: Promise<any>[] = [
+      request.get('/api/v1/plugins/kubernetes/resources/workloads/' + 
+        detailData.value.namespace + '/' + detailData.value.name + '/pods', {
+        params: {
+          clusterId: selectedClusterId.value,
+          type: detailData.value.type
+        }
+      })
+    ]
+
+    // 同时获取 metrics
+    promises.push(
+       request.get(`/api/v1/plugins/kubernetes/resources/pods/metrics`, {
+        params: { clusterId: selectedClusterId.value, namespace: detailData.value.namespace }
+      }).catch(() => ({ data: { data: { metrics: {} } } }))
+    )
+
+    const [podsRes, metricsRes] = await Promise.all(promises)
+
+    // 更新 Pod 列表
+    if (podsRes && podsRes.items) {
+      detailData.value.pods = podsRes.items
+    }
+
+    // 更新 Metrics 数据
+    if (metricsRes && metricsRes.data && metricsRes.data.metrics) {
+      podMetricsData.value = metricsRes.data.metrics
     }
   } catch (error) {
     console.error('刷新 Pod 列表失败:', error)
@@ -3114,6 +3239,22 @@ const handleUpdateImage = async () => {
       containerName: updateImageForm.value.containerName,
       image: updateImageForm.value.image
     })
+
+    ElMessage.success('镜像更新成功，工作负载将进行滚动更新')
+    updateImageDialogVisible.value = false
+    
+    // 立即刷新详情信息以显示新镜像
+    refreshWorkloadInfo()
+    
+    // 刷新 Pod 列表 (延迟一点以等待新 Pod 创建)
+    startPodPolling()
+  } catch (error: any) {
+    ElMessage.error(error.message || '镜像更新失败')
+  } finally {
+    updateImageLoading.value = false
+  }
+}
+
 // 刷新工作负载详情（不包含 Pod 等其他资源）
 const refreshWorkloadInfo = async () => {
   if (!detailData.value || !selectedClusterId.value) return
@@ -3147,21 +3288,6 @@ const refreshWorkloadInfo = async () => {
     }
   } catch (error) {
     console.error('刷新工作负载信息失败:', error)
-  }
-}
-
-    ElMessage.success('镜像更新成功，工作负载将进行滚动更新')
-    updateImageDialogVisible.value = false
-    
-    // 立即刷新详情信息以显示新镜像
-    refreshWorkloadInfo()
-    
-    // 刷新 Pod 列表 (延迟一点以等待新 Pod 创建)
-    startPodPolling()
-  } catch (error: any) {
-    ElMessage.error(error.message || '镜像更新失败')
-  } finally {
-    updateImageLoading.value = false
   }
 }
 
@@ -3408,40 +3534,87 @@ const handlePauseChange = async (value: boolean) => {
   }
 }
 
-// 获取 ReplicaSet 版本号
-const getReplicaSetRevision = (replicaSet: any) => {
-  const annotations = replicaSet.metadata?.annotations || {}
-  const revision = annotations['deployment.kubernetes.io/revision']
-  return revision || '-'
+// 获取版本号（兼容 ReplicaSet, ControllerRevision, Job）
+const getReplicaSetRevision = (item: any) => {
+  // Deployment (ReplicaSet)
+  if (item.metadata?.annotations?.['deployment.kubernetes.io/revision']) {
+    return item.metadata.annotations['deployment.kubernetes.io/revision']
+  }
+  // StatefulSet / DaemonSet (ControllerRevision)
+  if (item.revision !== undefined) {
+    return item.revision
+  }
+  // CronJob (Job) - 使用 Job 名称或创建时间作为标识
+  if (item.kind === 'Job') {
+    return item.metadata.name
+  }
+  return '-'
 }
 
-// 获取 ReplicaSet 镜像列表
-const getReplicaSetImages = (replicaSet: any) => {
-  const containers = replicaSet.spec?.template?.spec?.containers || []
+// 获取镜像列表
+const getReplicaSetImages = (item: any) => {
+  let containers: any[] = []
+  
+  // ReplicaSet / Job
+  if (item.spec?.template?.spec?.containers) {
+    containers = item.spec.template.spec.containers
+  } 
+  // ControllerRevision (Data 通常是序列化后的对象，但在前端可能已被解析，或者需要从 data 字段中提取)
+  // 注意：后端返回的 ControllerRevision.Data 是 runtime.RawExtension，需要确认是否已解析
+  // 如果后端直接返回 k8s 对象，ControllerRevision 的 data 字段可能是 RawExtension 结构
+  // 但为了简化，假设 ControllerRevision 的 data 包含 spec
+  else if (item.data?.spec?.template?.spec?.containers) {
+    containers = item.data.spec.template.spec.containers
+  }
+  
   return containers.map((c: any) => {
     const image = c.image || ''
-    // 只保留镜像名和tag，去掉registry部分
     const parts = image.split('/')
-    const nameAndTag = parts[parts.length - 1]
-    return nameAndTag
+    return parts[parts.length - 1]
   })
 }
 
-// 获取 ReplicaSet 状态类型
-const getReplicaSetStatusType = (replicaSet: any) => {
-  const replicas = replicaSet.spec?.replicas || 0
-  const availableReplicas = replicaSet.status?.availableReplicas || 0
+// 获取状态类型
+const getReplicaSetStatusType = (item: any) => {
+  // Job
+  if (item.kind === 'Job') {
+    if (item.status?.succeeded > 0) return 'success'
+    if (item.status?.failed > 0) return 'danger'
+    if (item.status?.active > 0) return 'warning'
+    return 'info'
+  }
+  
+  // ReplicaSet / ControllerRevision (后者通常没有 status 副本数信息，或者不准确)
+  const replicas = item.spec?.replicas || 0
+  const availableReplicas = item.status?.availableReplicas || 0
 
   if (replicas === 0) return 'info'
   if (availableReplicas === replicas) return 'success'
   if (availableReplicas > 0) return 'warning'
+  // ControllerRevision 可能没有 spec.replicas，默认为 info
+  if (item.kind === 'ControllerRevision') return 'info'
+  
   return 'danger'
 }
 
-// 获取 ReplicaSet 状态文本
-const getReplicaSetStatusText = (replicaSet: any) => {
-  const replicas = replicaSet.spec?.replicas || 0
-  const availableReplicas = replicaSet.status?.availableReplicas || 0
+// 获取状态文本
+const getReplicaSetStatusText = (item: any) => {
+  // Job
+  if (item.kind === 'Job') {
+    if (item.status?.succeeded > 0) return '已完成'
+    if (item.status?.failed > 0) return '已失败'
+    if (item.status?.active > 0) return '运行中'
+    return '等待中'
+  }
+
+  // ControllerRevision
+  if (item.kind === 'ControllerRevision') {
+    return `Revision: ${item.revision}`
+  }
+
+  // ReplicaSet
+  const replicas = item.spec?.replicas || 0
+  const availableReplicas = item.status?.availableReplicas || 0
 
   if (replicas === 0) return '已停止'
   if (availableReplicas === replicas) return '运行中'
@@ -3449,20 +3622,61 @@ const getReplicaSetStatusText = (replicaSet: any) => {
   return '未就绪'
 }
 
-// 判断是否为当前版本的 ReplicaSet
-const isCurrentReplicaSet = (replicaSet: any) => {
+// 判断是否为当前版本
+const isCurrentReplicaSet = (item: any) => {
   if (!detailData.value?.workload) return false
   const workload = detailData.value.workload
 
-  // 对于 Deployment，检查当前 ReplicaSet 是否匹配
-  if (workload.status?.currentReplicas) {
-    // 通过 annotations 中的 revision 判断
+  // Deployment
+  if (workload.kind === 'Deployment') {
     const currentRevision = workload.metadata?.annotations?.['deployment.kubernetes.io/revision']
-    const replicaSetRevision = replicaSet.metadata?.annotations?.['deployment.kubernetes.io/revision']
-    return currentRevision === replicaSetRevision
+    const itemRevision = item.metadata?.annotations?.['deployment.kubernetes.io/revision']
+    return currentRevision && itemRevision && currentRevision === itemRevision
+  }
+  
+  // StatefulSet / DaemonSet
+  if (['StatefulSet', 'DaemonSet'].includes(workload.kind)) {
+    // 比较 revision
+    if (workload.status?.currentRevision && item.metadata?.name) {
+       return workload.status.currentRevision === item.metadata.name
+    }
+    // 或者 updateRevision
+    if (workload.status?.updateRevision && item.metadata?.name) {
+        return workload.status.updateRevision === item.metadata.name
+    }
+    // 粗略比较 revision number
+    const currentRev = workload.status?.currentRevision || workload.status?.updateRevision
+    if (currentRev && item.revision) {
+      // k8s revision hash logic is complex, simpler updateRevision match is better
+      return currentRev.includes(item.metadata?.name) // often revision name is stored in status
+    }
   }
 
   return false
+}
+
+// 获取历史记录副本信息
+const getHistoryReplicas = (item: any) => {
+  if (!detailData.value) return { desired: 0, ready: 0 }
+
+  // Job (CronJob History)
+  if (detailData.value.type === 'CronJob') {
+    return {
+      desired: item.spec?.completions || 1,
+      ready: item.status?.succeeded || 0
+    }
+  }
+
+  // ControllerRevision (StatefulSet/DaemonSet History)
+  if (['StatefulSet', 'DaemonSet'].includes(detailData.value.type)) {
+     return { desired: '-', ready: '-' }
+  }
+
+  // ReplicaSet (Deployment History)
+  return {
+    desired: item.spec?.replicas || 0,
+    ready: item.status?.availableReplicas || 0
+  }
 }
 
 // 获取状态点图标
@@ -3512,6 +3726,29 @@ const handleCopyReplicaSetYAML = async () => {
   }
 }
 
+// 刷新历史版本
+const refreshHistory = async () => {
+  if (!detailData.value || !selectedClusterId.value) return
+  const { namespace, name, type } = detailData.value
+  const token = localStorage.getItem('token')
+  const clusterId = selectedClusterId.value
+
+  try {
+    const res = ['Deployment', 'StatefulSet', 'DaemonSet', 'CronJob'].includes(type)
+        ? await axios.get(`/api/v1/plugins/kubernetes/resources/workloads/${namespace}/${name}/history`, {
+            params: { clusterId, type },
+            headers: { Authorization: `Bearer ${token}` }
+          })
+        : { data: { data: { items: [] } } }
+    
+    if (res.data?.data?.items) {
+      detailData.value.replicaSets = res.data.data.items
+    }
+  } catch (error) {
+    console.error('刷新历史版本失败', error)
+  }
+}
+
 // 回滚到指定版本
 const handleRollback = async (replicaSet: any) => {
   try {
@@ -3544,20 +3781,15 @@ const handleRollback = async (replicaSet: any) => {
       { headers: { Authorization: `Bearer ${token}` } }
     )
 
-    ElMessage.success('回滚成功')
+    ElMessage.success('回滚任务已下发')
 
-    // 保存当前标签页
-    const currentTab = activeDetailTab.value
+    // 立即刷新基本信息和历史记录
+    refreshWorkloadInfo()
+    refreshHistory()
 
-    // 刷新详情
-    await handleShowDetail({
-      namespace,
-      name,
-      type
-    } as Workload)
+    // 开始轮询 Pod 状态以实时显示回滚进度
+    startPodPolling()
 
-    // 恢复标签页
-    activeDetailTab.value = currentTab
   } catch (error: any) {
     if (error !== 'cancel') {
       ElMessage.error('回滚失败: ' + (error.response?.data?.message || error.message))
@@ -3720,8 +3952,11 @@ const getPodCPU = (pod: any) => {
   const podName = pod.metadata?.name
   const metrics = podMetricsData.value[podName]
 
-  if (metrics && metrics.cpu > 0) {
-    return metrics.cpuStr
+  // 优先显示实际使用量
+  if (metrics) {
+    let usage = metrics.cpuStr || '0m'
+    if (usage === '-') usage = '0m'
+    return usage
   }
 
   // 如果没有 metrics，显示 requests 值
@@ -3750,8 +3985,11 @@ const getPodMemory = (pod: any) => {
   const podName = pod.metadata?.name
   const metrics = podMetricsData.value[podName]
 
-  if (metrics && metrics.memory > 0) {
-    return metrics.memoryStr
+  // 优先显示实际使用量
+  if (metrics) {
+    let usage = metrics.memoryStr || '0Mi'
+    if (usage === '-') usage = '0Mi'
+    return usage
   }
 
   // 如果没有 metrics，显示 requests 值
@@ -5850,6 +6088,96 @@ onUnmounted(() => {
   stopLogsAutoRefresh()
 })
 
+// 获取当前历史版本限制
+const getHistoryLimit = () => {
+  if (!detailData.value?.workload) return '-'
+  return detailData.value.workload.spec?.revisionHistoryLimit || 10 // 默认为 10
+}
+
+// 开启历史版本限制编辑
+const enableHistoryLimitEdit = () => {
+  const currentLimit = getHistoryLimit()
+  historyLimitForm.value.limit = currentLimit === '-' ? 10 : Number(currentLimit)
+  isEditingHistoryLimit.value = true
+}
+
+// 取消编辑
+const cancelHistoryLimitEdit = () => {
+  isEditingHistoryLimit.value = false
+}
+
+// 更新历史版本限制
+const handleUpdateHistoryLimit = async () => {
+  if (!detailData.value || !selectedClusterId.value) return
+  
+  historyLimitLoading.value = true
+  try {
+    const token = localStorage.getItem('token')
+    
+    // 获取当前 Workload 的完整信息 (JSON格式)
+    // 注意：GetWorkloadYAML 接口其实返回的是 JSON 对象 (data.items)
+    const res = await axios.get(
+      `/api/v1/plugins/kubernetes/resources/workloads/${detailData.value.namespace}/${detailData.value.name}/yaml`,
+      {
+        params: {
+          clusterId: selectedClusterId.value,
+          type: detailData.value.type
+        },
+        headers: { Authorization: `Bearer ${token}` }
+      }
+    )
+    
+    if (res.data.code === 0 && res.data.data?.items) {
+      const workloadObj = res.data.data.items
+      const newLimit = historyLimitForm.value.limit
+      
+      // 修改 revisionHistoryLimit
+      if (!workloadObj.spec) {
+         workloadObj.spec = {}
+      }
+      workloadObj.spec.revisionHistoryLimit = newLimit
+      
+      // 将修改后的对象转换为 YAML 字符串
+      const newYaml = yaml.dump(workloadObj)
+
+      await request.put(
+        `/api/v1/plugins/kubernetes/resources/workloads/${detailData.value.namespace}/${detailData.value.name}/yaml`, 
+        {
+          clusterId: selectedClusterId.value,
+          type: detailData.value.type,
+          yaml: newYaml
+        }
+      )
+      
+      ElMessage.success('设置最大历史版本数成功')
+      isEditingHistoryLimit.value = false
+      
+      // 刷新详情
+      // 重新获取 workload 详情以更新显示
+      if (detailData.value.workload) {
+          const detailRes = await axios.get(`/api/v1/plugins/kubernetes/resources/workloads/${detailData.value.namespace}/${detailData.value.name}`, {
+             params: { clusterId: selectedClusterId.value, type: detailData.value.type },
+             headers: { Authorization: `Bearer ${token}` } 
+          })
+          if (detailRes.data?.data?.items?.[0]) {
+             // 保持当前的 tab 状态，只更新 workload 数据
+             const newWorkload = detailRes.data.data.items[0]
+             detailData.value.workload = newWorkload
+             // 同时也更新 detailData 的顶层属性，尽管它们可能主要用于显示
+             detailData.value.spec = newWorkload.spec
+          }
+      }
+    } else {
+        throw new Error('获取工作负载信息失败')
+    }
+  } catch (error) {
+    console.error('更新历史版本限制失败', error)
+    ElMessage.error('设置失败: ' + (error instanceof Error ? error.message : String(error)))
+  } finally {
+    historyLimitLoading.value = false
+  }
+}
+
 onMounted(() => {
   loadClusters()
 })
@@ -6033,7 +6361,7 @@ onMounted(() => {
   font-weight: 700;
   padding: 8px 16px;
   background: #ffffff;
-  border: 2px solid #d4af37;
+  border: 2px solid #0f69a6;
   border-radius: 0;
   display: inline-flex;
   align-items: center;
@@ -6045,7 +6373,7 @@ onMounted(() => {
   content: '';
   width: 10px;
   height: 10px;
-  background: #d4af37;
+  background: #0f69a6;
   border-radius: 50%;
   animation: pulse 2s ease-in-out infinite;
 }
@@ -6126,7 +6454,7 @@ onMounted(() => {
 /* 自定义复选框样式 */
 .modern-table :deep(.el-checkbox__inner) {
   border-radius: 0;
-  border: 2px solid #d4af37;
+  border: 2px solid #0f69a6;
   background: transparent;
   width: 18px;
   height: 18px;
@@ -6139,12 +6467,12 @@ onMounted(() => {
 }
 
 .modern-table :deep(.el-checkbox__input.is-checked .el-checkbox__inner) {
-  background: #d4af37;
+  background: #0f69a6;
   border-color: #ffffff;
 }
 
 .modern-table :deep(.el-checkbox__input.is-indeterminate .el-checkbox__inner) {
-  background: #d4af37;
+  background: #0f69a6;
   border-color: #ffffff;
 }
 
@@ -6319,7 +6647,7 @@ onMounted(() => {
   width: 36px;
   height: 36px;
   border-radius: 0;
-  background: #d4af37;
+  background: #0f69a6;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -6370,7 +6698,7 @@ onMounted(() => {
 }
 
 .golden-text {
-  color: #d4af37 !important;
+  color: #0f69a6 !important;
 }
 
 .clickable {
@@ -6404,7 +6732,7 @@ onMounted(() => {
 }
 
 .label-icon {
-  color: #ffffff;
+  color: #606266;
   font-size: 20px;
   transition: all 0.3s;
 }
@@ -6413,8 +6741,7 @@ onMounted(() => {
   position: absolute;
   top: -6px;
   right: -6px;
-  background-color: #ffffff;
-  color: #000;
+  color: #ffa845;
   font-size: 10px;
   font-weight: 600;
   min-width: 16px;
@@ -6428,7 +6755,6 @@ onMounted(() => {
 }
 
 .label-cell:hover .label-icon {
-  color: #bfa13f;
   transform: scale(1.1);
 }
 
@@ -6718,8 +7044,8 @@ onMounted(() => {
 
 /* 标签弹窗 */
 .label-dialog :deep(.el-dialog__header) {
-  background: #d4af37;
-  color: #1a1a1a;
+  background: #0f69a6;
+  color: #ffffff;
   border-radius: 0;
   padding: 20px 24px;
 }
@@ -6747,9 +7073,9 @@ onMounted(() => {
   align-items: center !important;
   gap: 6px !important;
   padding: 5px 12px !important;
-  background: rgba(212, 175, 55, 0.1) !important;
-  color: #d4af37 !important;
-  border: 1px solid #d4af37 !important;
+  background: rgba(48, 65, 86, 0.1) !important;
+  color: #0f69a6 !important;
+  border: 1px solid #0f69a6 !important;
   border-radius: 0 !important;
   font-family: 'Monaco', 'Menlo', monospace !important;
   font-size: 12px !important;
@@ -6804,8 +7130,8 @@ onMounted(() => {
 
 /* YAML 编辑弹窗 */
 .yaml-dialog :deep(.el-dialog__header) {
-  background: #d4af37;
-  color: #1a1a1a;
+  background: #0f69a6;
+  color: #ffffff;
   border-radius: 0;
   padding: 20px 24px;
 }
@@ -7039,7 +7365,7 @@ onMounted(() => {
 
 .resource-value {
   font-size: 13px;
-  color: #606266;
+
   font-family: 'Monaco', 'Menlo', 'Consolas', monospace;
 }
 
@@ -8342,8 +8668,8 @@ onMounted(() => {
 }
 
 .workload-edit-dialog :deep(.el-dialog__header) {
-  background: #d4af37;
-  border-bottom: 2px solid #c9a227;
+  background: #0f69a6;
+  border-bottom: 2px solid #0f69a6;
   padding: 24px 32px;
   margin: 0;
   position: relative;
@@ -8412,7 +8738,7 @@ onMounted(() => {
 }
 
 .edit-sidebar::-webkit-scrollbar-thumb {
-  background: #d4af37;
+  background: #0f69a6;
   border-radius: 0;
 }
 
@@ -8470,7 +8796,7 @@ onMounted(() => {
 
 .edit-main :deep(.el-tabs__active-bar) {
   height: 3px;
-  background: #d4af37;
+  background: #0f69a6;
 }
 
 .edit-main :deep(.el-tabs__content) {
@@ -8489,7 +8815,7 @@ onMounted(() => {
 }
 
 .edit-main :deep(.el-tabs__content)::-webkit-scrollbar-thumb {
-  background: #d4af37;
+  background: #0f69a6;
   border-radius: 0;
 }
 
@@ -8514,9 +8840,10 @@ onMounted(() => {
 .panel-header {
   display: flex;
   align-items: center;
-  padding: 12px 20px;
-  background: #d4af37;
-  border-bottom: 1px solid #d4af37;
+  padding: 0 16px;
+  height: 40px;
+  background: #0f69a6;
+  border-bottom: 1px solid #0f69a6;
 }
 
 .panel-icon {
@@ -8559,19 +8886,19 @@ onMounted(() => {
 /* 白金风格按钮样式 */
 .edit-main :deep(.el-button--primary),
 .edit-sidebar :deep(.el-button--primary) {
-  background: #d4af37;
+  background: #0f69a6;
   border: none;
-  color: #1a1a1a;
+  color: #ffffff;
   font-weight: 600;
   letter-spacing: 0.3px;
-  box-shadow: 0 2px 8px rgba(212, 175, 55, 0.3);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
   transition: all 0.3s ease;
 }
 
 .edit-main :deep(.el-button--primary:hover),
 .edit-sidebar :deep(.el-button--primary:hover) {
-  background: #c9a227;
-  box-shadow: 0 4px 12px rgba(212, 175, 55, 0.4);
+  background: #202d3d;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
   transform: translateY(-1px);
 }
 
@@ -8652,7 +8979,7 @@ onMounted(() => {
 
 /* 白金风格标签 */
 .edit-main :deep(.el-tag) {
-  background: rgba(212, 175, 55, 0.1);
+  background: rgba(48, 65, 86, 0.1);
   border: none;
   color: #ffffff;
   font-weight: 600;
@@ -8690,7 +9017,7 @@ onMounted(() => {
 }
 
 .edit-main :deep(.el-checkbox__input.is-checked .el-checkbox__inner) {
-  background: #d4af37;
+  background: #0f69a6;
   border-color: #ffffff;
 }
 
@@ -8740,7 +9067,7 @@ onMounted(() => {
 
 /* 白金风格开关 */
 .edit-main :deep(.el-switch.is-checked .el-switch__core) {
-  background: #d4af37;
+  background: #0f69a6;
   border-color: #ffffff;
 }
 
@@ -8760,7 +9087,7 @@ onMounted(() => {
 }
 
 .edit-main :deep(.el-select-dropdown__item.is-selected) {
-  background: rgba(212, 175, 55, 0.1);
+  background: rgba(48, 65, 86, 0.1);
   color: #ffffff;
 }
 
@@ -8859,6 +9186,78 @@ onMounted(() => {
 .menu-item.danger:hover {
   background: #fef0f0;
   color: #f56c6c;
+}
+
+/* 历史版本统计栏样式 */
+.history-summary-bar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 12px 16px;
+  background: #ffffff;
+  border-bottom: 1px solid #ebeef5;
+  margin-bottom: 0;
+}
+
+.summary-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.summary-item .label {
+  color: #909399;
+  font-size: 13px;
+}
+
+.summary-item .value {
+  color: #303133;
+  font-size: 16px;
+  font-weight: 600;
+  font-family: 'Roboto Mono', monospace;
+}
+
+.summary-divider {
+  width: 1px;
+  height: 16px;
+  background: #dcdfe6;
+}
+
+.view-mode-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.inline-edit-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.inline-limit-input {
+  width: 100px;
+}
+
+.save-limit-btn {
+  padding: 5px 12px;
+}
+
+.cancel-limit-btn {
+  padding: 5px 8px;
+  color: #909399;
+}
+
+.cancel-limit-btn:hover {
+  color: #F56C6C;
+}
+
+.edit-limit-btn {
+  margin-left: 0;
+}
+
+.edit-limit-btn .el-icon {
+  margin-right: 4px;
 }
 
 .menu-item .el-icon {

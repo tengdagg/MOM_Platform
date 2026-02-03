@@ -976,7 +976,7 @@ onMounted(() => {
 }
 
 .menu-tree-table :deep(.el-table__expand-icon:hover) {
-  color: #d4af37 !important;
+  color: #0f69a6 !important;
 }
 
 .menu-tree-table :deep(.el-table__expand-icon--expanded) {

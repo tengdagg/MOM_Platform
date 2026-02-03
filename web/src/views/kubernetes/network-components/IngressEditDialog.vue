@@ -929,7 +929,7 @@ defineExpose({
 
 .path-card {
   padding: 16px;
-  background-color: #fef9e7;
+  background-color: #c2a025;
   border: none;
   border-radius: 0;
 }
@@ -996,7 +996,7 @@ defineExpose({
 }
 
 .host-tag {
-  background-color: #fef9e7;
+  background-color: #c2a025;
   border-color: #ffffff;
   color: #303133;
 }
@@ -1151,7 +1151,7 @@ defineExpose({
 
 :deep(.el-input__wrapper.is-focus) {
   border-color: #ffffff;
-  box-shadow: 0 0 0 1px #d4af37;
+  box-shadow: 0 0 0 1px #0f69a6;
 }
 
 :deep(.el-input__inner) {
@@ -1248,7 +1248,7 @@ defineExpose({
 }
 
 :deep(.el-dialog__header) {
-  border-bottom: 1px solid #d4af37;
+  border-bottom: 1px solid #0f69a6;
   padding: 20px;
 }
 

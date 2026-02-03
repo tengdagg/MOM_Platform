@@ -647,7 +647,7 @@ onMounted(() => {
 }
 
 .group-tree-table :deep(.el-table__expand-icon:hover) {
-  color: #d4af37 !important;
+  color: #0f69a6 !important;
 }
 
 .group-tree-table :deep(.el-table__expand-icon--expanded) {

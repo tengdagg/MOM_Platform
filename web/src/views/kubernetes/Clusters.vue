@@ -1891,7 +1891,7 @@ watch(paginatedClusterList, () => {
 }
 
 .batch-actions-left :deep(.el-checkbox__inner) {
-  border: 2px solid #d4af37;
+  border: 2px solid #0f69a6;
   background: #ffffff;
   width: 22px;
   height: 22px;
@@ -1910,12 +1910,12 @@ watch(paginatedClusterList, () => {
 }
 
 .batch-actions-left :deep(.el-checkbox__input.is-checked .el-checkbox__inner) {
-  background: #d4af37;
+  background: #0f69a6;
   border-color: #ffffff;
 }
 
 .batch-actions-left :deep(.el-checkbox__input.is-indeterminate .el-checkbox__inner) {
-  background: #d4af37;
+  background: #0f69a6;
   border-color: #ffffff;
 }
 
@@ -2000,7 +2000,7 @@ watch(paginatedClusterList, () => {
 
 /* 表格复选框金色样式 */
 .modern-table :deep(.el-checkbox__inner) {
-  border: 2px solid #d4af37;
+  border: 2px solid #0f69a6;
   background: #ffffff;
   border-radius: 0;
 }
@@ -2010,12 +2010,12 @@ watch(paginatedClusterList, () => {
 }
 
 .modern-table :deep(.el-checkbox__input.is-checked .el-checkbox__inner) {
-  background: #d4af37;
+  background: #0f69a6;
   border-color: #ffffff;
 }
 
 .modern-table :deep(.el-checkbox__input.is-indeterminate .el-checkbox__inner) {
-  background: #d4af37;
+  background: #0f69a6;
   border-color: #ffffff;
 }
 

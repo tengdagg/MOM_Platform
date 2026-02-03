@@ -161,7 +161,7 @@ const updatePorts = () => {
 
 .port-name {
   padding: 4px 12px;
-  background: #d4af37;
+  background: #0f69a6;
   color: #1a1a1a;
   border-radius: 0;
   font-size: 12px;
@@ -259,7 +259,7 @@ const updatePorts = () => {
 .add-port-section .el-button {
   border-radius: 0;
   font-weight: 500;
-  background: #d4af37;
+  background: #0f69a6;
   border: none;
   color: #1a1a1a;
 }

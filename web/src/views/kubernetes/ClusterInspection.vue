@@ -1126,7 +1126,7 @@ onMounted(() => {
   justify-content: center;
   color: #ffffff;
   font-size: 48px;
-  border: 2px solid #d4af37;
+  border: 2px solid #0f69a6;
 }
 
 .empty-title {
@@ -1231,7 +1231,7 @@ onMounted(() => {
 
 .score-circle .score-progress {
   fill: none;
-  stroke: #d4af37;
+  stroke: #0f69a6;
   stroke-width: 8;
   stroke-linecap: round;
   transition: stroke-dashoffset 0.8s ease;

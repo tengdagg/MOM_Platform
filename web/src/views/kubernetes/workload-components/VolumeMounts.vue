@@ -138,7 +138,7 @@ const updateMounts = () => {
   align-items: center;
   justify-content: space-between;
   padding: 12px 20px;
-  background: #d4af37;
+  background: #0f69a6;
   border: none;
   border-radius: 0;
   margin-bottom: 0;

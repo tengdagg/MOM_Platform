@@ -669,7 +669,7 @@ onMounted(() => {
 
     .back-btn {
       background: linear-gradient(135deg, #0a466a 0%, #083a56 100%);
-      color: #D4AF37;
+      color: #0f69a6;
       border: 1px solid rgba(212, 175, 55, 0.3);
       font-weight: 500;
       padding: 12px 24px;
@@ -678,7 +678,7 @@ onMounted(() => {
 
     .back-btn:hover {
       background: linear-gradient(135deg, #000000 0%, #2c3e50 100%);
-      border-color: #D4AF37;
+      border-color: #0f69a6;
       transform: translateY(-2px);
       box-shadow: 0 4px 12px rgba(212, 175, 55, 0.3);
     }
@@ -700,7 +700,7 @@ onMounted(() => {
       color: #303133;
 
       .title-icon {
-        color: #D4AF37;
+        color: #0f69a6;
       }
     }
 
@@ -833,7 +833,7 @@ onMounted(() => {
 
 .progress-bar {
   height: 100%;
-  background: linear-gradient(90deg, #d4af37 0%, #bfa13f 100%);
+  background: linear-gradient(90deg, #0f69a6 0%, #bfa13f 100%);
   transition: width 0.5s ease;
 }
 

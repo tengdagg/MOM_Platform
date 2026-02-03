@@ -369,7 +369,7 @@ onMounted(() => {
       color: #333;
       margin-bottom: 16px;
       padding-bottom: 8px;
-      border-bottom: 2px solid #D4AF37;
+      border-bottom: 2px solid #0f69a6;
     }
   }
 

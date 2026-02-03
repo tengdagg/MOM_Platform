@@ -569,7 +569,7 @@ defineExpose({
 
 .resource-value {
   font-size: 13px;
-  color: #606266;
+
 }
 
 /* 名称单元格 */

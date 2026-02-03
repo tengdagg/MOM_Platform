@@ -285,8 +285,8 @@ const handleRefresh = () => {
 }
 
 .refresh-btn:hover {
-  border-color: #d4af37 !important;
-  color: #d4af37 !important;
+  border-color: #0f69a6 !important;
+  color: #0f69a6 !important;
 }
 
 /* 背景装饰 */

@@ -111,8 +111,8 @@ const props = defineProps<{
   display: flex;
   align-items: center;
   padding: 12px 20px;
-  background: #d4af37;
-  border-bottom: 1px solid #d4af37;
+  background: #0f69a6;
+  border-bottom: 1px solid #0f69a6;
 }
 
 .panel-icon {

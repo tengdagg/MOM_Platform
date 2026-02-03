@@ -587,7 +587,7 @@ watch(() => props.visible, (newVal) => {
   align-items: center;
   gap: 10px;
   padding: 16px 0;
-  border-bottom: 2px solid #d4af37;
+  border-bottom: 2px solid #0f69a6;
   margin-bottom: 20px;
 }
 

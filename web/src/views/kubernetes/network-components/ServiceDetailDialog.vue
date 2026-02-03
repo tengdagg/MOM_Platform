@@ -476,7 +476,7 @@ defineExpose({
   gap: 8px;
   margin-bottom: 16px;
   padding-bottom: 12px;
-  border-bottom: 2px solid #d4af37;
+  border-bottom: 2px solid #0f69a6;
 }
 
 .section-icon {

@@ -759,7 +759,7 @@ onMounted(() => {
 }
 
 .dept-tree-table :deep(.el-table__expand-icon:hover) {
-  color: #d4af37 !important;
+  color: #0f69a6 !important;
 }
 
 .dept-tree-table :deep(.el-table__expand-icon--expanded) {

@@ -197,7 +197,6 @@
                       :min="1"
                       :max="86400"
                       controls-position="right"
-                      size="large"
                       class="timeout-input"
                     />
                     <div class="time-conversions">
@@ -890,7 +889,7 @@ defineExpose({
   align-items: center;
   margin-bottom: 16px;
   font-weight: 500;
-  color: #ffffff;
+  color: #303133;
 }
 
 .field-group {
@@ -901,7 +900,7 @@ defineExpose({
 
 .field-group label {
   font-size: 13px;
-  color: #606266;
+  color: #303133;
   font-weight: 500;
 }
 
@@ -932,20 +931,31 @@ defineExpose({
   font-weight: 500;
 }
 
-/* 输入框样式 */
-:deep(.el-input__wrapper) {
+/* 输入框和下拉框通用样式 */
+:deep(.el-input__wrapper),
+:deep(.el-select__wrapper) {
   background-color: #fff;
-  border-color: #dcdfe6;
-  box-shadow: none;
+  box-shadow: 0 0 0 1px #dcdfe6 inset !important;
+  height: 32px;
+  line-height: 32px;
+  padding: 0 12px;
 }
 
-:deep(.el-input__wrapper:hover) {
-  border-color: #ffffff;
+:deep(.el-select .el-input__wrapper) {
+  box-shadow: 0 0 0 1px #dcdfe6 inset !important;
+  height: 32px;
 }
 
-:deep(.el-input__wrapper.is-focus) {
-  border-color: #ffffff;
-  box-shadow: 0 0 0 1px #d4af37;
+:deep(.el-input__wrapper:hover),
+:deep(.el-select__wrapper:hover),
+:deep(.el-select .el-input__wrapper:hover) {
+  box-shadow: 0 0 0 1px #c0c4cc inset !important;
+}
+
+:deep(.el-input__wrapper.is-focus),
+:deep(.el-select__wrapper.is-focused),
+:deep(.el-select .el-input__wrapper.is-focus) {
+  box-shadow: 0 0 0 1px #0f69a6 inset !important;
 }
 
 :deep(.el-input__inner) {
@@ -987,12 +997,12 @@ defineExpose({
 
 :deep(.el-radio.is-checked .el-radio__inner) {
   border-color: #ffffff;
-  background: #d4af37;
+  background: #0f69a6;
 }
 
 :deep(.el-radio__input.is-checked .el-radio__inner) {
   border-color: #ffffff;
-  background: #d4af37;
+  background: #0f69a6;
 }
 
 .dialog-footer {
@@ -1063,7 +1073,7 @@ defineExpose({
 }
 
 :deep(.el-dialog__header) {
-  border-bottom: 1px solid #d4af37;
+  border-bottom: 1px solid #0f69a6;
   padding: 20px;
 }
 
@@ -1211,13 +1221,11 @@ defineExpose({
 .affinity-type-card:hover {
   border-color: #ffffff;
   box-shadow: 0 4px 20px rgba(212, 175, 55, 0.15);
-  transform: translateY(-2px);
 }
 
 .affinity-type-card.is-selected {
-  border-color: #ffffff;
-  background-color: #fff;
-  box-shadow: 0 4px 20px rgba(212, 175, 55, 0.2);
+  border-color: #0f69a6;
+
 }
 
 .affinity-type-card .card-icon {
@@ -1226,16 +1234,15 @@ defineExpose({
   display: flex;
   align-items: center;
   justify-content: center;
-  background-color: #fef9e7;
+  background-color: #c2a025;
   border-radius: 0;
   flex-shrink: 0;
   color: #ffffff;
   font-size: 28px;
-  border: 2px solid #d4af37;
 }
 
 .affinity-type-card.is-selected .card-icon {
-  background: #d4af37;
+  background: #0f69a6;
   color: #fff;
 }
 
@@ -1279,7 +1286,7 @@ defineExpose({
 .timeout-config-card {
   padding: 24px;
   background-color: #fff;
-  border: 2px solid #d4af37;
+  border: 1px solid #0f69a6;
   border-radius: 0;
   box-shadow: 0 4px 20px rgba(212, 175, 55, 0.15);
 }
@@ -1287,7 +1294,7 @@ defineExpose({
 .timeout-config-card .config-card-header {
   margin-bottom: 24px;
   padding-bottom: 20px;
-  border-bottom: 2px dashed #d4af37;
+  border-bottom: 1px dashed #0f69a6;
 }
 
 .timeout-config-card .header-left {
@@ -1337,11 +1344,7 @@ defineExpose({
 .timeout-config-card .timeout-input-wrapper {
   display: flex;
   align-items: center;
-  gap: 24px;
-  padding: 20px;
   background-color: #fff;
-  border-radius: 0;
-  border: none;
 }
 
 .timeout-config-card .timeout-input {
@@ -1349,21 +1352,13 @@ defineExpose({
 }
 
 .timeout-config-card .timeout-input :deep(.el-input__wrapper) {
-  width: 200px;
-  padding: 8px 16px;
-  background-color: #fff;
-  border: 2px solid #d4af37;
   border-radius: 0;
   font-size: 16px;
-  font-weight: 600;
   color: #303133;
 }
 
 .timeout-config-card .timeout-input :deep(.el-input__inner) {
   font-size: 18px;
-  font-weight: 700;
-  color: #ffffff;
-  text-align: center;
 }
 
 .timeout-config-card .time-conversions {
@@ -1378,7 +1373,7 @@ defineExpose({
   align-items: center;
   gap: 12px;
   padding: 10px 16px;
-  background-color: #fef9e7;
+
   border-radius: 0;
   border: none;
 }
@@ -1386,7 +1381,6 @@ defineExpose({
 .timeout-config-card .conversion-label {
   font-size: 14px;
   font-weight: 600;
-  color: #ffffff;
   min-width: 24px;
 }
 
@@ -1400,9 +1394,8 @@ defineExpose({
   display: flex;
   gap: 12px;
   padding: 16px 20px;
-  background-color: #fef9e7;
+  background-color: #c5c5c5;
   border-radius: 0;
-  border: 1px dashed #d4af37;
 }
 
 .timeout-config-card .info-icon {
@@ -1459,7 +1452,7 @@ defineExpose({
   display: flex;
   align-items: center;
   justify-content: center;
-  background-color: #fef9e7;
+  background-color: #c2a025;
   border-radius: 0;
   color: #ffffff;
   font-size: 20px;

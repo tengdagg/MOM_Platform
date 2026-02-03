@@ -4669,7 +4669,8 @@ func (h *ResourceHandler) GetWorkloadDetail(c *gin.Context) {
 }
 
 // GetWorkloadReplicaSets 获取工作负载的ReplicaSet列表
-func (h *ResourceHandler) GetWorkloadReplicaSets(c *gin.Context) {
+// GetWorkloadHistory 获取工作负载历史版本
+func (h *ResourceHandler) GetWorkloadHistory(c *gin.Context) {
 	namespace := c.Param("namespace")
 	name := c.Param("name")
 
@@ -4682,6 +4683,8 @@ func (h *ResourceHandler) GetWorkloadReplicaSets(c *gin.Context) {
 		})
 		return
 	}
+
+	workloadType := c.Query("type") // 需要前端传 type 参数
 
 	currentUserID, ok := GetCurrentUserID(c)
 	if !ok {
@@ -4697,20 +4700,113 @@ func (h *ResourceHandler) GetWorkloadReplicaSets(c *gin.Context) {
 		return
 	}
 
-	// 获取该工作负载的所有ReplicaSet
-	labelSelector := fmt.Sprintf("app=%s", name)
-	replicaSets, err := clientset.AppsV1().ReplicaSets(namespace).List(c.Request.Context(), metav1.ListOptions{
-		LabelSelector: labelSelector,
-	})
-	if err != nil {
-		HandleK8sError(c, err, "ReplicaSet")
-		return
-	}
-
-	// 转换为通用格式
 	var items []interface{}
-	for _, rs := range replicaSets.Items {
-		items = append(items, rs)
+	var labelSelector string
+
+	switch workloadType {
+	case "Deployment":
+		// Deployment 使用 ReplicaSet
+		deployment, err := clientset.AppsV1().Deployments(namespace).Get(c.Request.Context(), name, metav1.GetOptions{})
+		if err != nil {
+			HandleK8sError(c, err, "Deployment")
+			return
+		}
+		var selectors []string
+		for k, v := range deployment.Spec.Selector.MatchLabels {
+			selectors = append(selectors, fmt.Sprintf("%s=%s", k, v))
+		}
+		labelSelector = strings.Join(selectors, ",")
+
+		replicaSets, err := clientset.AppsV1().ReplicaSets(namespace).List(c.Request.Context(), metav1.ListOptions{
+			LabelSelector: labelSelector,
+		})
+		if err != nil {
+			HandleK8sError(c, err, "ReplicaSet")
+			return
+		}
+		for _, rs := range replicaSets.Items {
+			items = append(items, rs)
+		}
+
+	case "StatefulSet", "DaemonSet":
+		// StatefulSet 和 DaemonSet 使用 ControllerRevision
+		// 先获取对象以确定 Selector
+		var matchLabels map[string]string
+		if workloadType == "StatefulSet" {
+			sts, err := clientset.AppsV1().StatefulSets(namespace).Get(c.Request.Context(), name, metav1.GetOptions{})
+			if err != nil {
+				HandleK8sError(c, err, "StatefulSet")
+				return
+			}
+			matchLabels = sts.Spec.Selector.MatchLabels
+		} else {
+			ds, err := clientset.AppsV1().DaemonSets(namespace).Get(c.Request.Context(), name, metav1.GetOptions{})
+			if err != nil {
+				HandleK8sError(c, err, "DaemonSet")
+				return
+			}
+			matchLabels = ds.Spec.Selector.MatchLabels
+		}
+
+		var selectors []string
+		for k, v := range matchLabels {
+			selectors = append(selectors, fmt.Sprintf("%s=%s", k, v))
+		}
+		labelSelector = strings.Join(selectors, ",")
+
+		revisions, err := clientset.AppsV1().ControllerRevisions(namespace).List(c.Request.Context(), metav1.ListOptions{
+			LabelSelector: labelSelector,
+		})
+		if err != nil {
+			HandleK8sError(c, err, "ControllerRevision")
+			return
+		}
+		for _, rev := range revisions.Items {
+			items = append(items, rev)
+		}
+
+	case "CronJob":
+		// CronJob 使用 Job 作为历史
+		// CronJob 创建的 Job 名称通常是 cronjob-name-timestamp，没有统一标签，但 ownerReferences 指向 CronJob
+		// 或者通过标签筛选（如果 controller 添加了标签）
+		jobs, err := clientset.BatchV1().Jobs(namespace).List(c.Request.Context(), metav1.ListOptions{})
+		if err != nil {
+			HandleK8sError(c, err, "Job")
+			return
+		}
+
+		// 手动筛选属于该 CronJob 的 Job
+		cronJobUID := "" // 获取 CronJob UID 进行对比更准确，这里简化处理，对比 OwnerReferences
+		cj, err := clientset.BatchV1().CronJobs(namespace).Get(c.Request.Context(), name, metav1.GetOptions{})
+		if err == nil {
+			cronJobUID = string(cj.UID)
+		}
+
+		for _, job := range jobs.Items {
+			isOwned := false
+			for _, owner := range job.OwnerReferences {
+				if owner.Kind == "CronJob" && owner.Name == name {
+					if cronJobUID != "" && string(owner.UID) != cronJobUID {
+						continue
+					}
+					isOwned = true
+					break
+				}
+			}
+			if isOwned {
+				items = append(items, job)
+			}
+		}
+
+	default:
+		// 默认行为（之前的 Deployment 逻辑，或者是空）
+		// 为了兼容性，如果是空类型，可能尝试根据名称推断，或者返回空
+		c.JSON(http.StatusOK, gin.H{
+			"code":    0,
+			"message": "success",
+			"data":    gin.H{"items": []interface{}{}},
+		})
+		return
 	}
 
 	c.JSON(http.StatusOK, gin.H{

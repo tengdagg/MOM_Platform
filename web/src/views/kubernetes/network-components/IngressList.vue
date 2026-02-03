@@ -628,7 +628,7 @@ defineExpose({
 .path-item {
   padding: 10px 12px;
   margin-bottom: 8px;
-  background-color: #fef9e7;
+  background-color: #c2a025;
   border: none;
   border-radius: 0;
 }
