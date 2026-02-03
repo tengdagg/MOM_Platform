@@ -50,7 +50,7 @@
       <div class="form-section">
         <div class="form-section-header">
           <label>标签</label>
-          <el-button link type="primary" @click="emit('addLabel')" :icon="Plus" size="small">添加</el-button>
+          <span class="text-link" @click="emit('addLabel')"><el-icon><Plus /></el-icon> 添加</span>
         </div>
         <div class="key-value-list">
           <div v-for="(label, index) in formData.labels" :key="'label-'+index" class="key-value-row">
@@ -65,7 +65,7 @@
       <div class="form-section">
         <div class="form-section-header">
           <label>注解</label>
-          <el-button link type="primary" @click="emit('addAnnotation')" :icon="Plus" size="small">添加</el-button>
+          <span class="text-link" @click="emit('addAnnotation')"><el-icon><Plus /></el-icon> 添加</span>
         </div>
         <div class="key-value-list">
           <div v-for="(anno, index) in formData.annotations" :key="'anno-'+index" class="key-value-row">
@@ -228,16 +228,24 @@ const emit = defineEmits<{
   letter-spacing: 0.3px;
 }
 
-.form-section-header .el-button {
+/* 纯文字链接样式 */
+.text-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: #0a466a;
+  cursor: pointer;
+  font-size: 13px;
   font-weight: 500;
-  background: #d4af37;
-  border: none;
-  color: #1a1a1a;
+  transition: color 0.2s ease;
 }
 
-.form-section-header .el-button:hover {
-  background: #c9a227;
-  box-shadow: 0 4px 12px rgba(212, 175, 55, 0.4);
+.text-link:hover {
+  color: #0d5a87;
+}
+
+.text-link .el-icon {
+  font-size: 14px;
 }
 
 .key-value-list {

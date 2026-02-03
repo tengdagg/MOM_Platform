@@ -192,6 +192,7 @@ button.el-button--primary,
 .search-btn.el-button--primary {
   background-color: #0a466a !important;
   border-color: #0a466a !important;
+  color: #ffffff !important;
   background-image: none !important;
   background: #0a466a !important;
 }
@@ -250,13 +251,24 @@ button.el-button--primary,
   color: #0d5a87 !important;
 }
 
-/* 链接按钮 */
-.el-button--link {
+/* 链接按钮 - 透明背景，主题色文字 */
+.el-button--link,
+.el-button.is-link,
+.el-button--primary.is-link {
+  background: transparent !important;
+  background-color: transparent !important;
+  border: none !important;
   color: #0a466a !important;
 }
 
 .el-button--link:hover,
-.el-button--link:focus {
+.el-button--link:focus,
+.el-button.is-link:hover,
+.el-button.is-link:focus,
+.el-button--primary.is-link:hover,
+.el-button--primary.is-link:focus {
+  background: transparent !important;
+  background-color: transparent !important;
   color: #0d5a87 !important;
 }
 

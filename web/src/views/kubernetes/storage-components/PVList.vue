@@ -430,18 +430,7 @@ defineExpose({
   width: 100%;
 }
 
-.black-button {
-  background-color: #0a466a !important;
-  color: #ffffff !important;
-  border-color: #0a466a !important;
-  border-radius: 0;
-  font-weight: 500;
-}
-
-.black-button:hover {
-  background-color: #0d5a87 !important;
-  border-color: #0d5a87 !important;
-}
+/* 按钮样式 - 使用全局样式 .black-button */
 
 .search-bar {
   display: flex;

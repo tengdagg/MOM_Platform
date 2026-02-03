@@ -694,3 +694,156 @@ button.action-btn:hover {
   border-color: #0a466a !important;
   color: #ffffff !important;
 }
+
+/* ================================
+   强制所有 primary 按钮使用白色文字
+   覆盖本地组件样式
+   ================================ */
+
+/* 所有 primary 类型按钮 */
+.el-button--primary:not(.is-link):not(.is-text) {
+  color: #ffffff !important;
+}
+
+/* 表单区域内的 primary 按钮 - 高优先级 */
+.section-header .el-button,
+.mount-header .el-button,
+.form-section-header .el-button--primary,
+.add-btn-wrapper .el-button,
+.container-section .el-button--primary {
+  background: #0a466a !important;
+  background-color: #0a466a !important;
+  color: #ffffff !important;
+  border-color: #0a466a !important;
+}
+
+.section-header .el-button:hover,
+.mount-header .el-button:hover,
+.add-btn-wrapper .el-button:hover,
+.container-section .el-button--primary:hover {
+  background: #0d5a87 !important;
+  background-color: #0d5a87 !important;
+  border-color: #0d5a87 !important;
+}
+
+/* ================================
+   侧边栏弹出菜单样式（收起状态）
+   ================================ */
+
+/* 弹出菜单容器 - 必须在全局样式中定义，因为 Popper 渲染到 body 下 */
+.el-menu--popup {
+  min-width: 160px;
+  background-color: #0a466a !important;
+  border: none !important;
+  border-radius: 0 !important;
+  padding: 0 !important;
+  box-shadow: 2px 2px 12px rgba(0, 0, 0, 0.4) !important;
+}
+
+/* 弹出菜单项 */
+.el-menu--popup .el-menu-item {
+  height: 38px !important;
+  line-height: 38px !important;
+  margin: 0 !important;
+  padding: 0 16px !important;
+  border-left: 4px solid transparent !important;
+  color: rgba(255, 255, 255, 0.85) !important;
+  background-color: transparent !important;
+  border-radius: 0 !important;
+  transition: all 0.15s ease !important;
+}
+
+/* 弹出菜单项图标 */
+.el-menu--popup .el-menu-item .el-icon {
+  color: rgba(255, 255, 255, 0.7) !important;
+  margin-right: 8px !important;
+}
+
+/* 弹出菜单项悬浮 */
+.el-menu--popup .el-menu-item:hover {
+  background-color: rgba(255, 255, 255, 0.15) !important;
+  color: #ffffff !important;
+}
+
+.el-menu--popup .el-menu-item:hover .el-icon {
+  color: #ffffff !important;
+}
+
+/* 弹出菜单选中项 - 关键样式 */
+.el-menu--popup .el-menu-item.is-active {
+  background-color: rgba(79, 195, 247, 0.35) !important;
+  border-left: 4px solid #4fc3f7 !important;
+  color: #ffffff !important;
+  font-weight: 600 !important;
+}
+
+.el-menu--popup .el-menu-item.is-active .el-icon {
+  color: #4fc3f7 !important;
+}
+
+/* ================================
+   子菜单标签栏通用样式
+   ================================ */
+
+/* 子菜单标签栏容器 */
+.types-bar,
+.workload-types-bar,
+.storage-types-bar,
+.network-types-bar,
+.config-types-bar,
+.access-types-bar {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+  padding: 12px 20px;
+  background: #fff;
+  border-radius: 0 !important;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
+  flex-wrap: wrap;
+}
+
+/* 子菜单标签按钮 */
+.type-tab {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  background: #0a466a;
+  color: #fff;
+  border-radius: 0 !important;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.type-tab:hover {
+  background: #0f69a6;
+}
+
+.type-tab.active {
+  background: #d4af37;
+  color: #1a1a1a;
+  border: none;
+  box-shadow: 0 4px 12px rgba(212, 175, 55, 0.4);
+  font-weight: 600;
+}
+
+.type-tab .type-icon {
+  font-size: 16px;
+  color: #fff;
+}
+
+.type-tab.active .type-icon {
+  color: #1a1a1a;
+}
+
+.type-tab .type-label {
+  white-space: nowrap;
+}
+
+.type-tab .type-count {
+  font-size: 12px;
+  opacity: 0.8;
+  margin-left: 2px;
+}

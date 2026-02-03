@@ -605,15 +605,7 @@ onMounted(() => {
   }
 }
 
-.black-button {
-  background-color: #0a466a !important;
-  color: #ffffff !important;
-  border-color: #0a466a !important;
-
-  &:hover {
-    background-color: #1a1a1a !important;
-  }
-}
+/* 按钮样式 - 使用全局样式 .black-button */
 
 .pagination {
   padding: 16px 20px;

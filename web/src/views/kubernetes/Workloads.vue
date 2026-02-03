@@ -594,6 +594,41 @@
               <span class="info-label">存活时间</span>
               <span class="info-value">{{ formatAgeShort(detailData.workload?.metadata?.creationTimestamp) }}</span>
             </div>
+            <!-- 伸缩控制器 - 仅 Deployment/StatefulSet 显示 -->
+            <div class="info-item scale-controller" v-if="isScalableWorkload(detailData.type)">
+              <span class="info-label">伸缩</span>
+              <div class="scale-controls">
+                <el-button 
+                  class="scale-btn" 
+                  circle 
+                  size="small" 
+                  @click="handleScaleDown"
+                  :disabled="scaleReplicas <= 0 || scaleLoading"
+                >
+                  <el-icon><Minus /></el-icon>
+                </el-button>
+                <div class="scale-display" :style="scaleProgressStyle">
+                  <span class="current-replicas">{{ readyPodCount }}</span>
+                  <span class="replicas-divider">/</span>
+                  <span class="desired-replicas">{{ scaleReplicas }}</span>
+                </div>
+                <el-button 
+                  class="scale-btn" 
+                  circle 
+                  size="small" 
+                  @click="handleScaleUp"
+                  :disabled="scaleLoading"
+                >
+                  <el-icon><Plus /></el-icon>
+                </el-button>
+              </div>
+            </div>
+            <!-- 修改镜像按钮 -->
+            <div class="info-item action-buttons" v-if="detailData.type !== 'Pod' && detailData.type !== 'Job' && detailData.type !== 'CronJob'">
+              <el-button type="primary" size="small" @click="showUpdateImageDialog" :icon="Picture">
+                修改镜像
+              </el-button>
+            </div>
           </div>
 
           <!-- 第二行：镜像名称 -->
@@ -1306,7 +1341,7 @@
             <el-icon><CopyDocument /></el-icon>
             复制
           </el-button>
-          <el-button type="primary" @click="replicaSetYamlDialogVisible = false">关闭</el-button>
+          <el-button type="primary" class="black-button" @click="replicaSetYamlDialogVisible = false">关闭</el-button>
         </div>
       </template>
     </el-dialog>
@@ -1340,6 +1375,7 @@
           <el-button @click="createWorkloadDialogVisible = false">取消</el-button>
           <el-button
             type="primary"
+            class="black-button"
             :loading="createYamlLoading"
             @click="handleCreateFromYaml"
           >
@@ -1365,6 +1401,53 @@
       :pod-name="selectedFileBrowserPod"
       :container-name="selectedFileBrowserContainer"
     />
+
+    <!-- 修改镜像对话框 -->
+    <el-dialog
+      v-model="updateImageDialogVisible"
+      title="修改镜像"
+      width="500px"
+      :close-on-click-modal="false"
+      class="update-image-dialog"
+    >
+      <el-form label-position="top" :model="updateImageForm">
+        <el-form-item label="容器">
+          <el-select 
+            v-model="updateImageForm.containerName" 
+            placeholder="请选择容器" 
+            @change="onContainerChange"
+            style="width: 100%"
+          >
+            <el-option
+              v-for="item in containerOptions"
+              :key="item.name"
+              :label="item.name"
+              :value="item.name"
+            />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="镜像">
+          <el-input 
+            v-model="updateImageForm.image" 
+            placeholder="请输入镜像地址 (例如: nginx:latest)" 
+            clearable
+          />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <div class="dialog-footer">
+          <el-button @click="updateImageDialogVisible = false">取消</el-button>
+          <el-button 
+            type="primary" 
+            class="black-button" 
+            :loading="updateImageLoading"
+            @click="handleUpdateImage"
+          >
+            更新
+          </el-button>
+        </div>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -1372,6 +1455,7 @@
 import { ref, onMounted, computed, nextTick, onUnmounted, watch } from 'vue'
 import { ElMessage, ElMessageBox, ElLoading } from 'element-plus'
 import axios from 'axios'
+import request from '@/utils/request'
 import * as yaml from 'js-yaml'
 import { Terminal } from '@xterm/xterm'
 import { FitAddon } from '@xterm/addon-fit'
@@ -1410,7 +1494,9 @@ import {
   Warning,
   VideoPause,
   VideoPlay,
-  Plus
+  Plus,
+  Minus,
+  Picture
 } from '@element-plus/icons-vue'
 import { getClusterList, updateWorkload, getConfigMaps, getSecrets, getPersistentVolumeClaims, type Cluster } from '@/api/kubernetes'
 import { useKubernetesStore } from '@/stores/kubernetes'
@@ -1424,8 +1510,10 @@ import Tolerations from './workload-components/spec/Tolerations.vue'
 import Network from './workload-components/spec/Network.vue'
 import Others from './workload-components/spec/Others.vue'
 import VolumeConfig from './workload-components/VolumeConfig.vue'
-import PodDetail from './PodDetail.vue'
-import FileBrowser from './FileBrowser.vue'
+import PodDetail from '@/views/kubernetes/PodDetail.vue'
+import FileBrowser from '@/views/kubernetes/FileBrowser.vue'
+
+const kubeStore = useKubernetesStore()
 
 // 使用全局 Kubernetes store
 const kubernetesStore = useKubernetesStore()
@@ -1537,6 +1625,19 @@ const yamlTextarea = ref<HTMLTextAreaElement | null>(null)
 const detailDialogVisible = ref(false)
 const detailData = ref<any>(null)
 const activeDetailTab = ref('pods')
+
+// 伸缩控制相关
+const scaleReplicas = ref(0)
+const scaleLoading = ref(false)
+
+// 修改镜像对话框
+const updateImageDialogVisible = ref(false)
+const updateImageLoading = ref(false)
+const updateImageForm = ref({
+  containerName: '',
+  image: ''
+})
+const containerOptions = ref<{ name: string; image: string }[]>([])
 
 // Pod 详情弹窗
 const podDetailVisible = ref(false)
@@ -2837,9 +2938,238 @@ const handleShowDetail = async (workload: Workload) => {
     }
 
     activeDetailTab.value = 'pods'
+    // 初始化伸缩副本数
+    if (workloadObj?.spec?.replicas !== undefined) {
+      scaleReplicas.value = workloadObj.spec.replicas
+    } else {
+      scaleReplicas.value = 1
+    }
+    // 获取容器列表，用于修改镜像
+    containerOptions.value = getContainersFromWorkload(workloadObj)
     detailDialogVisible.value = true
   } catch (error: any) {
     ElMessage.error('获取工作负载详情失败')
+  }
+}
+
+// 判断是否可扩缩容的工作负载类型
+const isScalableWorkload = (type: string) => {
+  return type === 'Deployment' || type === 'StatefulSet' || type === 'ReplicaSet'
+}
+
+// 获取工作负载中的容器列表
+const getContainersFromWorkload = (workload: any) => {
+  if (!workload) return []
+  const containers = workload.spec?.template?.spec?.containers || []
+  return containers.map((c: any) => ({
+    name: c.name,
+    image: c.image
+  }))
+}
+
+// 扩容
+const handleScaleUp = async () => {
+  scaleReplicas.value++
+  await performScale(scaleReplicas.value, '扩容')
+}
+
+// 缩容
+const handleScaleDown = async () => {
+  if (scaleReplicas.value > 0) {
+    scaleReplicas.value--
+    await performScale(scaleReplicas.value, '缩容')
+  }
+}
+
+// 计算就绪 Pod 数量
+const readyPodCount = computed(() => {
+  if (!detailData.value?.pods) return 0
+  return detailData.value.pods.filter((pod: any) => pod.status?.phase === 'Running').length
+})
+
+// 伸缩进度条样式
+const scaleProgressStyle = computed(() => {
+  if (scaleReplicas.value <= 0) return { background: '#e0e0e0' }
+  const percentage = Math.min(100, Math.max(0, (readyPodCount.value / scaleReplicas.value) * 100))
+  return {
+    background: `linear-gradient(90deg, #13ce66 ${percentage}%, #e0e0e0 ${percentage}%)`
+  }
+})
+
+let podPollTimer: any = null
+
+// 开始 Pod 列表轮询
+const startPodPolling = () => {
+  stopPodPolling()
+  // 每2秒刷新一次，持续60秒
+  let count = 0
+  podPollTimer = setInterval(() => {
+    count++
+    refreshDetailPods()
+    // 如果已经全部就绪且达到目标副本数，或者超过60秒，停止轮询 (但如果是扩容过程，可能需要一直等到Running)
+    if (count > 30) {
+      stopPodPolling()
+    }
+    // 如果达到目标且都Running了，也可以停止（可选，这里保持持续刷新一段时间体验更好）
+  }, 2000)
+}
+
+// 停止轮询
+const stopPodPolling = () => {
+  if (podPollTimer) {
+    clearInterval(podPollTimer)
+    podPollTimer = null
+  }
+}
+
+// 监听详情弹窗关闭
+watch(detailDialogVisible, (val) => {
+  if (!val) {
+    stopPodPolling()
+  }
+})
+
+// 执行扩缩容
+const performScale = async (replicas: number, actionName: string = '扩缩容') => {
+  if (!detailData.value) return
+  if (!selectedClusterId.value) {
+    ElMessage.error('无法获取集群ID')
+    return
+  }
+  
+  scaleLoading.value = true
+  try {
+    await request.post('/api/v1/plugins/kubernetes/workloads/scale', {
+      clusterId: selectedClusterId.value,
+      namespace: detailData.value.namespace,
+      name: detailData.value.name,
+      type: detailData.value.type,
+      replicas: replicas
+    })
+    ElMessage.success(`${actionName}成功，目标副本数: ${replicas}`)
+    // 立即刷新并开始轮询
+    refreshDetailPods()
+    startPodPolling()
+  } catch (error: any) {
+    ElMessage.error(error.message || `${actionName}失败`)
+    // 恢复原值
+    if (detailData.value.workload?.spec?.replicas !== undefined) {
+      scaleReplicas.value = detailData.value.workload.spec.replicas
+    }
+  } finally {
+    scaleLoading.value = false
+  }
+}
+
+// 刷新详情中的 Pod 列表
+const refreshDetailPods = async () => {
+  if (!detailData.value || !selectedClusterId.value) return
+  
+  try {
+    const res = await request.get('/api/v1/plugins/kubernetes/resources/workloads/' + 
+      detailData.value.namespace + '/' + detailData.value.name + '/pods', {
+      params: {
+        clusterId: selectedClusterId.value,
+        type: detailData.value.type
+      }
+    })
+    // request 工具会自动解包 response.data.data
+    // 所以这里 res 直接就是 { items: [...] }
+    if (res && res.items) {
+      detailData.value.pods = res.items
+    }
+  } catch (error) {
+    console.error('刷新 Pod 列表失败:', error)
+  }
+}
+
+// 显示修改镜像对话框
+const showUpdateImageDialog = () => {
+  if (containerOptions.value.length > 0) {
+    updateImageForm.value.containerName = containerOptions.value[0].name
+    updateImageForm.value.image = containerOptions.value[0].image
+  }
+  updateImageDialogVisible.value = true
+}
+
+// 执行修改镜像
+const handleUpdateImage = async () => {
+  if (!detailData.value) return
+  if (!selectedClusterId.value) {
+    ElMessage.error('无法获取集群ID')
+    return
+  }
+  if (!updateImageForm.value.containerName || !updateImageForm.value.image) {
+    ElMessage.warning('请选择容器并输入镜像地址')
+    return
+  }
+  
+  updateImageLoading.value = true
+  try {
+    await request.post('/api/v1/plugins/kubernetes/workloads/update-image', {
+      clusterId: selectedClusterId.value,
+      namespace: detailData.value.namespace,
+      name: detailData.value.name,
+      type: detailData.value.type,
+      containerName: updateImageForm.value.containerName,
+      image: updateImageForm.value.image
+    })
+// 刷新工作负载详情（不包含 Pod 等其他资源）
+const refreshWorkloadInfo = async () => {
+  if (!detailData.value || !selectedClusterId.value) return
+  
+  try {
+    const res = await request.get(`/api/v1/plugins/kubernetes/resources/workloads/${detailData.value.namespace}/${detailData.value.name}`, {
+      params: { 
+        clusterId: selectedClusterId.value, 
+        type: detailData.value.type 
+      }
+    })
+    
+    if (res && res.items && res.items.length > 0) {
+      detailData.value.workload = res.items[0]
+      // 更新容器选项（用于下次修改镜像）
+      containerOptions.value = getContainersFromWorkload(detailData.value.workload)
+      
+      // 同时更新列表中的数据，实现列表页镜像实时更新
+      const index = workloadList.value.findIndex(w => 
+        w.name === detailData.value.name && 
+        w.namespace === detailData.value.namespace &&
+        w.type === detailData.value.type
+      )
+      
+      if (index !== -1) {
+        // 更新列表项中的 images 字段
+        const containers = detailData.value.workload.spec?.template?.spec?.containers || []
+        const images = containers.map((c: any) => c.image)
+        workloadList.value[index].images = images
+      }
+    }
+  } catch (error) {
+    console.error('刷新工作负载信息失败:', error)
+  }
+}
+
+    ElMessage.success('镜像更新成功，工作负载将进行滚动更新')
+    updateImageDialogVisible.value = false
+    
+    // 立即刷新详情信息以显示新镜像
+    refreshWorkloadInfo()
+    
+    // 刷新 Pod 列表 (延迟一点以等待新 Pod 创建)
+    startPodPolling()
+  } catch (error: any) {
+    ElMessage.error(error.message || '镜像更新失败')
+  } finally {
+    updateImageLoading.value = false
+  }
+}
+
+// 选择容器时自动填充当前镜像
+const onContainerChange = (containerName: string) => {
+  const container = containerOptions.value.find(c => c.name === containerName)
+  if (container) {
+    updateImageForm.value.image = container.image
   }
 }
 
@@ -5627,67 +5957,7 @@ onMounted(() => {
   min-width: 200px;
 }
 
-/* 工作负载类型标签栏 */
-.workload-types-bar {
-  display: flex;
-  gap: 8px;
-  margin-bottom: 12px;
-  padding: 12px 20px;
-  background: #fff;
-  border-radius: 0;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
-  flex-wrap: wrap;
-}
-
-.type-tab {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 10px 16px;
-  background: #0a466a;
-  color: #fff;
-  border-radius: 0;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  font-size: 14px;
-  font-weight: 500;
-}
-
-.type-tab:hover {
-  background: #0f69a6;
-}
-
-.type-tab.active {
-  background: #d4af37;
-  color: #1a1a1a;
-  border-color: #ffffff;
-  box-shadow: 0 4px 12px rgba(212, 175, 55, 0.4);
-  font-weight: 600;
-}
-
-.type-tab.active .type-icon {
-  color: #1a1a1a;
-}
-
-.type-icon {
-  font-size: 18px;
-  color: #fff;
-}
-
-.type-tab.active .type-icon {
-  color: #1a1a1a;
-}
-
-.type-label {
-  font-size: 14px;
-  font-weight: 500;
-}
-
-.type-count {
-  font-size: 12px;
-  opacity: 0.8;
-  margin-left: 2px;
-}
+/* 工作负载类型标签栏 - 使用全局样式 .type-tab */
 
 /* 操作栏 */
 .action-bar {
@@ -8602,4 +8872,77 @@ onMounted(() => {
   font-size: 14px;
 }
 
+
+/* 伸缩控制器样式 */
+/* 伸缩控制器样式 */
+.scale-controller {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+}
+
+.scale-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: 12px;
+  margin-top: 0;
+}
+
+.scale-btn {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid #dcdfe6;
+  color: #606266;
+  background-color: #f5f7fa;
+  transition: all 0.3s;
+}
+
+.scale-btn:hover:not(:disabled) {
+  color: #409eff;
+  border-color: #c6e2ff;
+  background-color: #ecf5ff;
+}
+
+.scale-display {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #13ce66; /* Fallback */
+  color: white;
+  height: 28px;
+  padding: 0 16px;
+  border-radius: 14px;
+  min-width: 80px;
+  font-weight: bold;
+  font-size: 14px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+  transition: background 0.3s ease;
+}
+
+.replicas-divider {
+  margin: 0 4px;
+  opacity: 0.8;
+}
+
+.current-replicas {
+  font-weight: bold;
+}
+
+.desired-replicas {
+  font-weight: bold;
+}
+
+/* 修改镜像按钮样式 */
+.action-buttons {
+  display: flex;
+  align-items: flex-end;
+  padding-bottom: 2px;
+}
+
+.update-image-dialog :deep(.el-form-item__label) {
+  font-weight: bold;
+}
 </style>

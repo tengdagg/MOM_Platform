@@ -694,25 +694,57 @@ onMounted(async () => {
   margin: 0;
   padding: 0 !important;
   justify-content: center;
-  border-left: 3px solid transparent;
+  border-left: 4px solid transparent;
+  transition: all 0.2s ease;
 }
 
 :deep(.el-menu--collapse .el-menu-item .el-icon) {
   margin-right: 0;
+  font-size: 18px;
+}
+
+:deep(.el-menu--collapse .el-menu-item:hover) {
+  background-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+:deep(.el-menu--collapse .el-menu-item:hover .el-icon) {
+  color: #ffffff !important;
 }
 
 :deep(.el-menu--collapse .el-menu-item.is-active) {
-  border-left: 3px solid #4fc3f7 !important;
+  background-color: rgba(79, 195, 247, 0.25) !important;
+  border-left: 4px solid #4fc3f7 !important;
+}
+
+:deep(.el-menu--collapse .el-menu-item.is-active .el-icon) {
+  color: #4fc3f7 !important;
+  font-size: 20px;
 }
 
 :deep(.el-menu--collapse .el-sub-menu__title) {
   margin: 0;
   padding: 0 !important;
   justify-content: center;
+  border-left: 4px solid transparent;
+  transition: all 0.2s ease;
 }
 
 :deep(.el-menu--collapse .el-sub-menu__title .el-icon) {
   margin-right: 0;
+  font-size: 18px;
+}
+
+:deep(.el-menu--collapse .el-sub-menu__title:hover) {
+  background-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+:deep(.el-menu--collapse .el-sub-menu.is-active > .el-sub-menu__title) {
+  background-color: rgba(79, 195, 247, 0.15) !important;
+  border-left: 4px solid #4fc3f7 !important;
+}
+
+:deep(.el-menu--collapse .el-sub-menu.is-active > .el-sub-menu__title .el-icon) {
+  color: #4fc3f7 !important;
 }
 
 :deep(.el-menu--collapse .el-sub-menu__icon-arrow) {
@@ -730,23 +762,38 @@ onMounted(async () => {
 }
 
 :deep(.el-menu--popup .el-menu-item) {
-  height: 34px;
-  line-height: 34px;
+  height: 36px;
+  line-height: 36px;
   margin: 0;
   padding: 0 16px !important;
-  border-left: 3px solid transparent;
+  border-left: 4px solid transparent;
   color: rgba(255, 255, 255, 0.85) !important;
   border-radius: 0;
+  transition: all 0.15s ease;
+}
+
+:deep(.el-menu--popup .el-menu-item .el-icon) {
+  color: rgba(255, 255, 255, 0.7);
+  margin-right: 8px;
 }
 
 :deep(.el-menu--popup .el-menu-item:hover) {
-  background-color: rgba(0, 0, 0, 0.15) !important;
+  background-color: rgba(255, 255, 255, 0.1) !important;
+  color: #ffffff !important;
+}
+
+:deep(.el-menu--popup .el-menu-item:hover .el-icon) {
   color: #ffffff !important;
 }
 
 :deep(.el-menu--popup .el-menu-item.is-active) {
-  background-color: rgba(0, 0, 0, 0.2) !important;
-  border-left: 3px solid #4fc3f7 !important;
+  background-color: rgba(79, 195, 247, 0.3) !important;
+  border-left: 4px solid #4fc3f7 !important;
+  color: #ffffff !important;
+  font-weight: 600;
+}
+
+:deep(.el-menu--popup .el-menu-item.is-active .el-icon) {
   color: #4fc3f7 !important;
 }
 

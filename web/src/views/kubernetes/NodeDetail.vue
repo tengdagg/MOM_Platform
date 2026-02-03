@@ -734,22 +734,7 @@ onMounted(() => {
   gap: 12px;
 }
 
-.black-button {
-  background-color: #0a466a !important;
-  color: #d4af37 !important;
-  border-color: #d4af37 !important;
-  border-radius: 0;
-  padding: 8px 16px;
-  font-weight: 500;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.black-button:hover {
-  background-color: #0d5a87 !important;
-  border-color: #bfa13f !important;
-}
+/* 按钮样式 - 使用全局样式 .black-button */
 
 /* 统计卡片 */
 .stats-grid {

@@ -144,6 +144,8 @@ func RegisterRoutes(router *gin.RouterGroup, db *gorm.DB) {
 		clusters.POST("/workloads/update", resourceHandler.UpdateWorkload)
 		clusters.POST("/workloads/pause", resourceHandler.PauseWorkload)
 		clusters.POST("/workloads/rollback", resourceHandler.RollbackWorkload)
+		clusters.POST("/workloads/scale", resourceHandler.ScaleWorkload)
+		clusters.POST("/workloads/update-image", resourceHandler.UpdateWorkloadImage)
 		clusters.POST("/resources/workloads/create", resourceHandler.CreateWorkloadFromYAML)
 		clusters.DELETE("/resources/workloads/:namespace/:name", resourceHandler.DeleteWorkload)
 

@@ -835,22 +835,7 @@ onMounted(() => {
   font-size: 13px;
 }
 
-/* 黑色按钮样式 */
-.black-button {
-  background-color: #0a466a !important;
-  color: #ffffff !important;
-  border-color: #0a466a !important;
-}
-
-.black-button:hover {
-  background-color: #333333 !important;
-  border-color: #0d5a87 !important;
-}
-
-.black-button:focus {
-  background-color: #0a466a !important;
-  border-color: #0a466a !important;
-}
+/* 按钮样式 - 使用全局样式 .black-button */
 
 /* 用户对话框样式 */
 .user-dialog :deep(.el-dialog__body) {

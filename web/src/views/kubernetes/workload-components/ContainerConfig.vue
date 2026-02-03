@@ -312,15 +312,15 @@ const updateContainerProbe = (type: 'containers' | 'initContainers', index: numb
 .section-header .el-button {
   font-weight: 500;
   border-radius: 0;
-  background: #ffffff;
+  background: #0a466a !important;
   border: none;
-  color: #ffffff;
+  color: #ffffff !important;
 }
 
 .section-header .el-button:hover {
-  background: #fafafa;
-  border-color: #c9a227;
-  box-shadow: 0 2px 8px rgba(212, 175, 55, 0.3);
+  background: #0d5a87 !important;
+  border-color: #0d5a87;
+  box-shadow: 0 2px 8px rgba(10, 70, 106, 0.3);
 }
 
 .container-list {
@@ -336,7 +336,7 @@ const updateContainerProbe = (type: 'containers' | 'initContainers', index: numb
 }
 
 .container-title .el-icon {
-  color: #ffffff;
+  color: #0a466a;
   font-size: 18px;
 }
 

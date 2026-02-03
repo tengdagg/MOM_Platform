@@ -210,14 +210,14 @@ const removeArg = (index: number) => {
 .add-btn {
   border-radius: 0;
   font-weight: 500;
-  background: #d4af37;
+  background: #0a466a !important;
   border: none;
-  color: #1a1a1a;
+  color: #ffffff !important;
 }
 
 .add-btn:hover {
-  background: #c9a227;
-  box-shadow: 0 4px 12px rgba(212, 175, 55, 0.4);
+  background: #0d5a87 !important;
+  box-shadow: 0 4px 12px rgba(10, 70, 106, 0.3);
 }
 
 .checkbox-group {

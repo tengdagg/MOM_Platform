@@ -582,7 +582,7 @@ const updateEnvs = () => {
 
 .env-header-title .el-icon {
   font-size: 18px;
-  color: #ffffff;
+  color: #0a466a;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -594,16 +594,16 @@ const updateEnvs = () => {
 }
 
 .env-header .el-button {
-  background: #ffffff;
+  background: #0a466a !important;
   border: none;
-  color: #ffffff;
+  color: #ffffff !important;
   font-weight: 500;
 }
 
 .env-header .el-button:hover {
-  background: #fafafa;
-  border-color: #c9a227;
-  box-shadow: 0 2px 8px rgba(212, 175, 55, 0.3);
+  background: #0d5a87 !important;
+  border-color: #0d5a87;
+  box-shadow: 0 2px 8px rgba(10, 70, 106, 0.3);
 }
 
 .env-table-wrapper {

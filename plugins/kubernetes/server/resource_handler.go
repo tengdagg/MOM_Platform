@@ -43,7 +43,7 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	autoscalingv1 "k8s.io/api/autoscaling/v1"
 	batchv1 "k8s.io/api/batch/v1"
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
 	policyv1 "k8s.io/api/policy/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
@@ -173,17 +173,17 @@ type NodeCondition struct {
 
 // PodInfo Pod信息
 type PodInfo struct {
-	Name       string          `json:"name"`
-	Namespace  string          `json:"namespace"`
-	Ready      string          `json:"ready"`
-	Status     string          `json:"status"`
-	Phase      string          `json:"phase"`
-	Restarts   int32           `json:"restarts"`
-	Age        string          `json:"age"`
-	IP         string          `json:"ip"`
-	Node       string          `json:"node"`
+	Name       string            `json:"name"`
+	Namespace  string            `json:"namespace"`
+	Ready      string            `json:"ready"`
+	Status     string            `json:"status"`
+	Phase      string            `json:"phase"`
+	Restarts   int32             `json:"restarts"`
+	Age        string            `json:"age"`
+	IP         string            `json:"ip"`
+	Node       string            `json:"node"`
 	Labels     map[string]string `json:"labels"`
-	Containers []ContainerInfo `json:"containers"`
+	Containers []ContainerInfo   `json:"containers"`
 }
 
 // ContainerInfo 容器信息
@@ -2468,36 +2468,36 @@ type BatchNodesRequest struct {
 
 // BatchNodeLabelsRequest 批量节点标签操作请求
 type BatchNodeLabelsRequest struct {
-	ClusterID int                    `json:"clusterId" binding:"required"`
-	NodeNames []string              `json:"nodeNames" binding:"required"`
-	Labels    map[string]string     `json:"labels" binding:"required"`
-	Operation string                `json:"operation" binding:"required"` // add, remove, replace
+	ClusterID int               `json:"clusterId" binding:"required"`
+	NodeNames []string          `json:"nodeNames" binding:"required"`
+	Labels    map[string]string `json:"labels" binding:"required"`
+	Operation string            `json:"operation" binding:"required"` // add, remove, replace
 }
 
 // BatchNodeTaintsRequest 批量节点污点操作请求
 type BatchNodeTaintsRequest struct {
-	ClusterID int                    `json:"clusterId" binding:"required"`
-	NodeNames []string              `json:"nodeNames" binding:"required"`
-	Taints    []TaintInfo           `json:"taints" binding:"required"`
-	Operation string                `json:"operation" binding:"required"` // add, remove
+	ClusterID int         `json:"clusterId" binding:"required"`
+	NodeNames []string    `json:"nodeNames" binding:"required"`
+	Taints    []TaintInfo `json:"taints" binding:"required"`
+	Operation string      `json:"operation" binding:"required"` // add, remove
 }
 
 // BatchDrainNodesRequest 批量排空节点请求
 type BatchDrainNodesRequest struct {
-	ClusterID            int      `json:"clusterId" binding:"required"`
-	NodeNames            []string `json:"nodeNames" binding:"required"`
-	Force                bool     `json:"force"`
-	IgnoreDaemonsets     bool     `json:"ignoreDaemonsets"`
-	DeleteLocalData      bool     `json:"deleteLocalData"`
-	GracePeriodSeconds   int      `json:"gracePeriodSeconds"`
-	Timeout              int      `json:"timeout"`
+	ClusterID          int      `json:"clusterId" binding:"required"`
+	NodeNames          []string `json:"nodeNames" binding:"required"`
+	Force              bool     `json:"force"`
+	IgnoreDaemonsets   bool     `json:"ignoreDaemonsets"`
+	DeleteLocalData    bool     `json:"deleteLocalData"`
+	GracePeriodSeconds int      `json:"gracePeriodSeconds"`
+	Timeout            int      `json:"timeout"`
 }
 
 // BatchOperationResult 批量操作结果
 type BatchOperationResult struct {
-	NodeName  string `json:"nodeName"`
-	Success   bool   `json:"success"`
-	Message   string `json:"message"`
+	NodeName string `json:"nodeName"`
+	Success  bool   `json:"success"`
+	Message  string `json:"message"`
 }
 
 // BatchDrainNodes 批量排空节点
@@ -5255,6 +5255,249 @@ func (h *ResourceHandler) UpdateWorkload(c *gin.Context) {
 	})
 }
 
+// ScaleWorkloadRequest 扩缩容请求
+type ScaleWorkloadRequest struct {
+	ClusterID int    `json:"clusterId" binding:"required"`
+	Namespace string `json:"namespace" binding:"required"`
+	Name      string `json:"name" binding:"required"`
+	Type      string `json:"type" binding:"required"` // Deployment, StatefulSet
+	Replicas  int32  `json:"replicas" binding:"required"`
+}
+
+// ScaleWorkload 扩缩容工作负载
+func (h *ResourceHandler) ScaleWorkload(c *gin.Context) {
+	var req ScaleWorkloadRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"code":    400,
+			"message": "请求参数错误: " + err.Error(),
+		})
+		return
+	}
+
+	// 获取当前用户ID
+	currentUserID, ok := GetCurrentUserID(c)
+	if !ok {
+		return
+	}
+
+	fmt.Printf("📏 ScaleWorkload: cluster=%d, namespace=%s, name=%s, type=%s, replicas=%d, userID=%d\n",
+		req.ClusterID, req.Namespace, req.Name, req.Type, req.Replicas, currentUserID)
+
+	// 获取clientset
+	clientset, err := h.clusterService.GetClientsetForUser(c.Request.Context(), uint(req.ClusterID), currentUserID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"code":    500,
+			"message": "获取集群客户端失败: " + err.Error(),
+		})
+		return
+	}
+
+	// 使用 Scale subresource API 进行扩缩容
+	switch req.Type {
+	case "Deployment":
+		scale, err := clientset.AppsV1().Deployments(req.Namespace).GetScale(c.Request.Context(), req.Name, metav1.GetOptions{})
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"code":    500,
+				"message": "获取Deployment Scale失败: " + err.Error(),
+			})
+			return
+		}
+		scale.Spec.Replicas = req.Replicas
+		_, err = clientset.AppsV1().Deployments(req.Namespace).UpdateScale(c.Request.Context(), req.Name, scale, metav1.UpdateOptions{})
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"code":    500,
+				"message": "更新Deployment副本数失败: " + err.Error(),
+			})
+			return
+		}
+
+	case "StatefulSet":
+		scale, err := clientset.AppsV1().StatefulSets(req.Namespace).GetScale(c.Request.Context(), req.Name, metav1.GetOptions{})
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"code":    500,
+				"message": "获取StatefulSet Scale失败: " + err.Error(),
+			})
+			return
+		}
+		scale.Spec.Replicas = req.Replicas
+		_, err = clientset.AppsV1().StatefulSets(req.Namespace).UpdateScale(c.Request.Context(), req.Name, scale, metav1.UpdateOptions{})
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"code":    500,
+				"message": "更新StatefulSet副本数失败: " + err.Error(),
+			})
+			return
+		}
+
+	case "ReplicaSet":
+		scale, err := clientset.AppsV1().ReplicaSets(req.Namespace).GetScale(c.Request.Context(), req.Name, metav1.GetOptions{})
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"code":    500,
+				"message": "获取ReplicaSet Scale失败: " + err.Error(),
+			})
+			return
+		}
+		scale.Spec.Replicas = req.Replicas
+		_, err = clientset.AppsV1().ReplicaSets(req.Namespace).UpdateScale(c.Request.Context(), req.Name, scale, metav1.UpdateOptions{})
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"code":    500,
+				"message": "更新ReplicaSet副本数失败: " + err.Error(),
+			})
+			return
+		}
+
+	default:
+		c.JSON(http.StatusBadRequest, gin.H{
+			"code":    400,
+			"message": "不支持扩缩容的工作负载类型: " + req.Type,
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"code":    0,
+		"message": "扩缩容成功",
+		"data": gin.H{
+			"namespace": req.Namespace,
+			"name":      req.Name,
+			"type":      req.Type,
+			"replicas":  req.Replicas,
+		},
+	})
+}
+
+// UpdateWorkloadImageRequest 更新镜像请求
+type UpdateWorkloadImageRequest struct {
+	ClusterID     int    `json:"clusterId" binding:"required"`
+	Namespace     string `json:"namespace" binding:"required"`
+	Name          string `json:"name" binding:"required"`
+	Type          string `json:"type" binding:"required"` // Deployment, StatefulSet, DaemonSet
+	ContainerName string `json:"containerName" binding:"required"`
+	Image         string `json:"image" binding:"required"`
+}
+
+// UpdateWorkloadImage 更新工作负载镜像版本
+func (h *ResourceHandler) UpdateWorkloadImage(c *gin.Context) {
+	var req UpdateWorkloadImageRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"code":    400,
+			"message": "请求参数错误: " + err.Error(),
+		})
+		return
+	}
+
+	// 获取当前用户ID
+	currentUserID, ok := GetCurrentUserID(c)
+	if !ok {
+		return
+	}
+
+	fmt.Printf("🖼️ UpdateWorkloadImage: cluster=%d, namespace=%s, name=%s, type=%s, container=%s, image=%s, userID=%d\n",
+		req.ClusterID, req.Namespace, req.Name, req.Type, req.ContainerName, req.Image, currentUserID)
+
+	// 获取clientset
+	clientset, err := h.clusterService.GetClientsetForUser(c.Request.Context(), uint(req.ClusterID), currentUserID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"code":    500,
+			"message": "获取集群客户端失败: " + err.Error(),
+		})
+		return
+	}
+
+	// 构建 JSON Patch 更新容器镜像
+	// 使用 Strategic Merge Patch 更新指定容器的镜像
+	patchData := fmt.Sprintf(`{
+		"spec": {
+			"template": {
+				"spec": {
+					"containers": [{
+						"name": "%s",
+						"image": "%s"
+					}]
+				}
+			}
+		}
+	}`, req.ContainerName, req.Image)
+
+	switch req.Type {
+	case "Deployment":
+		_, err = clientset.AppsV1().Deployments(req.Namespace).Patch(
+			c.Request.Context(),
+			req.Name,
+			types.StrategicMergePatchType,
+			[]byte(patchData),
+			metav1.PatchOptions{},
+		)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"code":    500,
+				"message": "更新Deployment镜像失败: " + err.Error(),
+			})
+			return
+		}
+
+	case "StatefulSet":
+		_, err = clientset.AppsV1().StatefulSets(req.Namespace).Patch(
+			c.Request.Context(),
+			req.Name,
+			types.StrategicMergePatchType,
+			[]byte(patchData),
+			metav1.PatchOptions{},
+		)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"code":    500,
+				"message": "更新StatefulSet镜像失败: " + err.Error(),
+			})
+			return
+		}
+
+	case "DaemonSet":
+		_, err = clientset.AppsV1().DaemonSets(req.Namespace).Patch(
+			c.Request.Context(),
+			req.Name,
+			types.StrategicMergePatchType,
+			[]byte(patchData),
+			metav1.PatchOptions{},
+		)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"code":    500,
+				"message": "更新DaemonSet镜像失败: " + err.Error(),
+			})
+			return
+		}
+
+	default:
+		c.JSON(http.StatusBadRequest, gin.H{
+			"code":    400,
+			"message": "不支持更新镜像的工作负载类型: " + req.Type,
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"code":    0,
+		"message": "镜像更新成功",
+		"data": gin.H{
+			"namespace":     req.Namespace,
+			"name":          req.Name,
+			"type":          req.Type,
+			"containerName": req.ContainerName,
+			"image":         req.Image,
+		},
+	})
+}
+
 // CreateWorkloadFromYAML 从 YAML 创建工作负载
 func (h *ResourceHandler) CreateWorkloadFromYAML(c *gin.Context) {
 	var req struct {
@@ -5957,7 +6200,7 @@ func (h *ResourceHandler) UpdateServiceYAML(c *gin.Context) {
 		}
 
 		// 清除状态相关的只读字段
-		delete(spec, "loadBalancerIP") // 已废弃
+		delete(spec, "loadBalancerIP")        // 已废弃
 		delete(spec, "sessionAffinityConfig") // 如果为空则删除
 	}
 
@@ -6719,12 +6962,12 @@ func cleanIngressForYAML(ing *networkingv1.Ingress) map[string]interface{} {
 
 // IngressClassInfo IngressClass 信息
 type IngressClassInfo struct {
-	Name       string            `json:"name"`       // IngressClass 名称
-	Controller string            `json:"controller"` // 控制器名称
-	IsDefault  bool              `json:"isDefault"`  // 是否为默认
+	Name       string              `json:"name"`       // IngressClass 名称
+	Controller string              `json:"controller"` // 控制器名称
+	IsDefault  bool                `json:"isDefault"`  // 是否为默认
 	Parameters *IngressClassParams `json:"parameters"` // 参数配置
-	Age        string            `json:"age"`        // 创建时间
-	Labels     map[string]string `json:"labels"`     // 标签
+	Age        string              `json:"age"`        // 创建时间
+	Labels     map[string]string   `json:"labels"`     // 标签
 }
 
 // IngressClassParams IngressClass 参数
@@ -8460,9 +8703,9 @@ func (h *ResourceHandler) GetConfigMapYAML(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"code": 0,
 		"data": gin.H{
-			"items":   cleaned,
-			"total":   0,
-			"page":    0,
+			"items":    cleaned,
+			"total":    0,
+			"page":     0,
 			"pageSize": 0,
 		},
 		"msg": "获取成功",
@@ -8759,9 +9002,9 @@ func (h *ResourceHandler) GetSecretYAML(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"code": 0,
 		"data": gin.H{
-			"items":   cleaned,
-			"total":   0,
-			"page":    0,
+			"items":    cleaned,
+			"total":    0,
+			"page":     0,
 			"pageSize": 0,
 		},
 		"msg": "获取成功",
@@ -9545,8 +9788,8 @@ func (h *ResourceHandler) RollbackWorkload(c *gin.Context) {
 
 // BatchWorkloadsRequest 批量工作负载操作请求
 type BatchWorkloadsRequest struct {
-	ClusterID  uint                  `json:"clusterId" binding:"required"`
-	Workloads []WorkloadItem        `json:"workloads" binding:"required"`
+	ClusterID uint           `json:"clusterId" binding:"required"`
+	Workloads []WorkloadItem `json:"workloads" binding:"required"`
 }
 
 // WorkloadItem 工作负载项

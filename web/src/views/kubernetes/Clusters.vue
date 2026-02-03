@@ -2228,20 +2228,7 @@ watch(paginatedClusterList, () => {
   color: #f56c6c;
 }
 
-.black-button {
-  background-color: #0a466a !important;
-  color: #ffffff !important;
-  border-color: #0a466a !important;
-  border-radius: 0;
-  padding: 7px 14px;
-  font-size: 13px;
-  font-weight: 500;
-}
-
-.black-button:hover {
-  background-color: #0d5a87 !important;
-  border-color: #0d5a87 !important;
-}
+/* 按钮样式 - 使用全局样式 .black-button */
 
 .form-section {
   margin-bottom: 24px;

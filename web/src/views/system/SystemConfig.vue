@@ -181,14 +181,5 @@ onMounted(() => {
   margin-bottom: 20px;
 }
 
-.black-button {
-  background-color: #0a466a;
-  color: #fff;
-  border: none;
-}
-
-.black-button:hover {
-  background-color: #333;
-  color: #fff;
-}
+/* 按钮样式 - 使用全局样式 .black-button */
 </style>

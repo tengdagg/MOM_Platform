@@ -392,33 +392,7 @@ onMounted(() => {
   align-items: center;
 }
 
-.black-button {
-  background-color: #0a466a !important;
-  color: #ffffff !important;
-  border-color: #0a466a !important;
-  border-radius: 0;
-  padding: 10px 20px;
-  font-weight: 500;
-}
-
-.black-button:hover {
-  background-color: #0d5a87 !important;
-  border-color: #0d5a87 !important;
-}
-
-.black-button.danger {
-  background-color: #f56c6c !important;
-  border-color: #f56c6c !important;
-}
-
-.black-button.danger:hover {
-  background-color: #f78989 !important;
-}
-
-.black-button:disabled {
-  background-color: #c0c4cc !important;
-  border-color: #c0c4cc !important;
-}
+/* 按钮样式 - 使用全局样式 .black-button */
 
 /* 筛选栏 */
 .filter-bar {

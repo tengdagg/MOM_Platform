@@ -413,19 +413,7 @@ onMounted(() => {
   width: 240px;
 }
 
-.black-button {
-  background-color: #0a466a !important;
-  color: #ffffff !important;
-  border-color: #0a466a !important;
-  border-radius: 0;
-  padding: 10px 20px;
-  font-weight: 500;
-}
-
-.black-button:hover {
-  background-color: #0d5a87 !important;
-  border-color: #0d5a87 !important;
-}
+/* 按钮样式 - 使用全局样式 .black-button */
 
 .search-icon {
   color: #909399;
@@ -452,67 +440,7 @@ onMounted(() => {
   width: 280px;
 }
 
-/* 访问控制类型标签栏 */
-.access-types-bar {
-  display: flex;
-  gap: 8px;
-  margin-bottom: 12px;
-  padding: 12px 20px;
-  background: #fff;
-  border-radius: 0;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
-  overflow-x: auto;
-}
-
-.type-tab {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 10px 16px;
-  background: #0a466a;
-  color: #fff;
-  border-radius: 0;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  font-size: 14px;
-  font-weight: 500;
-}
-
-.type-tab:hover {
-  background: #0f69a6;
-}
-
-.type-tab.active {
-  background: #d4af37;
-  color: #1a1a1a;
-  border-color: #ffffff;
-  box-shadow: 0 4px 12px rgba(212, 175, 55, 0.4);
-  font-weight: 600;
-}
-
-.type-tab.active .type-icon {
-  color: #1a1a1a;
-}
-
-.type-icon {
-  font-size: 18px;
-  color: #ffffff;
-  transition: color 0.3s ease;
-}
-
-.type-tab:not(.active) .type-icon {
-  color: #ffffff;
-}
-
-.type-label {
-  font-size: 14px;
-}
-
-.type-count {
-  font-size: 12px;
-  opacity: 0.8;
-  margin-left: 2px;
-}
+/* 访问控制类型标签栏 - 使用全局样式 .type-tab */
 
 /* 内容区域 */
 .content-wrapper {
