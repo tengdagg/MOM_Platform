@@ -1,3 +1,4 @@
+```html
 <template>
   <div class="service-list">
     <!-- 搜索和筛选 -->
@@ -144,17 +145,12 @@
     <!-- YAML 弹窗 -->
     <el-dialog v-model="yamlDialogVisible" :title="`Service YAML - ${selectedService?.name}`" width="900px" :lock-scroll="false" class="yaml-dialog">
       <div class="yaml-editor-wrapper">
-        <div class="yaml-line-numbers">
-          <div v-for="line in yamlLineCount" :key="line" class="line-number">{{ line }}</div>
-        </div>
-        <textarea
+        <YamlEditor
+          v-if="yamlDialogVisible"
           v-model="yamlContent"
-          class="yaml-textarea"
-          spellcheck="false"
-          @input="handleYamlInput"
-          @scroll="handleYamlScroll"
-          ref="yamlTextarea"
-        ></textarea>
+          :theme="'vs-dark'"
+          language="yaml"
+        />
       </div>
       <template #footer>
         <div class="dialog-footer">
@@ -167,17 +163,12 @@
     <!-- YAML 创建弹窗 -->
     <el-dialog v-model="createYamlDialogVisible" title="YAML 创建 Service" width="900px" :lock-scroll="false" class="yaml-dialog">
       <div class="yaml-editor-wrapper">
-        <div class="yaml-line-numbers">
-          <div v-for="line in createYamlLineCount" :key="line" class="line-number">{{ line }}</div>
-        </div>
-        <textarea
+        <YamlEditor
+          v-if="createYamlDialogVisible"
           v-model="createYamlContent"
-          class="yaml-textarea"
-          spellcheck="false"
-          @input="handleCreateYamlInput"
-          @scroll="handleCreateYamlScroll"
-          ref="createYamlTextarea"
-        ></textarea>
+          :theme="'vs-dark'"
+          language="yaml"
+        />
       </div>
       <template #footer>
         <div class="dialog-footer">
@@ -213,6 +204,7 @@ import { getServices, getServiceYAML, updateServiceYAML, createServiceYAML, dele
 import { useKubernetesStore } from '@/stores/kubernetes'
 import ServiceEditDialog from './ServiceEditDialog.vue'
 import ServiceDetailDialog from './ServiceDetailDialog.vue'
+import YamlEditor from '@/components/YamlEditor.vue'
 
 const props = defineProps<{
   clusterId?: number
@@ -262,7 +254,6 @@ const pageSize = ref(10)
 const yamlDialogVisible = ref(false)
 const yamlContent = ref('')
 const selectedService = ref<ServiceInfo | null>(null)
-const yamlTextarea = ref<HTMLTextAreaElement | null>(null)
 const originalJsonData = ref<any>(null) // 保存原始 JSON 数据
 const editDialogRef = ref<any>(null)
 const detailDialogRef = ref<any>(null)
@@ -271,18 +262,6 @@ const detailDialogRef = ref<any>(null)
 const createYamlDialogVisible = ref(false)
 const creating = ref(false)
 const createYamlContent = ref('')
-const createYamlTextarea = ref<HTMLTextAreaElement | null>(null)
-
-// 计算YAML行数
-const yamlLineCount = computed(() => {
-  if (!yamlContent.value) return 1
-  return yamlContent.value.split('\n').length
-})
-
-const createYamlLineCount = computed(() => {
-  if (!createYamlContent.value) return 1
-  return createYamlContent.value.split('\n').length
-})
 
 const filteredServices = computed(() => {
   let result = serviceList.value
@@ -464,14 +443,6 @@ const handleYamlInput = () => {
   // 处理输入
 }
 
-const handleYamlScroll = (e: Event) => {
-  const target = e.target as HTMLTextAreaElement
-  const lineNumbers = document.querySelector('.yaml-line-numbers') as HTMLElement
-  if (lineNumbers) {
-    lineNumbers.scrollTop = target.scrollTop
-  }
-}
-
 const handleDelete = async (service: ServiceInfo) => {
   if (!props.clusterId) return
   try {
@@ -526,14 +497,6 @@ const handleSaveCreateYAML = async () => {
 
 const handleCreateYamlInput = () => {
   // 处理输入
-}
-
-const handleCreateYamlScroll = (e: Event) => {
-  const target = e.target as HTMLTextAreaElement
-  const lineNumbers = document.querySelector('.create-yaml .yaml-line-numbers') as HTMLElement
-  if (lineNumbers) {
-    lineNumbers.scrollTop = target.scrollTop
-  }
 }
 
 watch(() => props.clusterId, () => {

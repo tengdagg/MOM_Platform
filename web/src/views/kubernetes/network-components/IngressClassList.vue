@@ -59,16 +59,13 @@
 
     <el-dialog v-model="yamlDialogVisible" :title="`IngressClass YAML - ${selectedIngressClass?.name}`" width="900px" :lock-scroll="false" class="yaml-dialog">
       <div class="yaml-editor-wrapper">
-        <div class="yaml-line-numbers">
-          <div v-for="line in yamlLineCount" :key="line" class="line-number">{{ line }}</div>
-        </div>
-        <textarea
+        <YamlEditor
+          v-if="yamlDialogVisible"
           v-model="yamlContent"
-          class="yaml-textarea"
-          spellcheck="false"
-          readonly
-          ref="yamlTextarea"
-        ></textarea>
+          :theme="'vs-dark'"
+          language="yaml"
+          readOnly
+        />
       </div>
       <template #footer>
         <div class="dialog-footer">
@@ -85,6 +82,7 @@ import { ElMessage } from 'element-plus'
 import { Search, Document, Connection } from '@element-plus/icons-vue'
 import { getIngressClasses, getIngressClassYAML, type IngressClassInfo } from '@/api/kubernetes'
 import { dump } from 'js-yaml'
+import YamlEditor from '@/components/YamlEditor.vue'
 
 const props = defineProps<{
   clusterId?: number
@@ -100,13 +98,6 @@ const selectedIngressClass = ref<IngressClassInfo | null>(null)
 // YAML 查看相关
 const yamlDialogVisible = ref(false)
 const yamlContent = ref('')
-const yamlTextarea = ref<HTMLTextAreaElement | null>(null)
-
-// 计算YAML行数
-const yamlLineCount = computed(() => {
-  if (!yamlContent.value) return 1
-  return yamlContent.value.split('\n').length
-})
 
 // 过滤后的 IngressClass 列表
 const filteredIngressClasses = computed(() => {
@@ -281,35 +272,6 @@ defineExpose({
   overflow: hidden;
 }
 
-.yaml-line-numbers {
-  width: 50px;
-  background: #252526;
-  color: #858585;
-  text-align: right;
-  padding: 10px 8px;
-  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
-  font-size: 13px;
-  line-height: 1.6;
-  overflow-y: hidden;
-  user-select: none;
-}
-
-.line-number {
-  height: 20.8px;
-}
-
-.yaml-textarea {
-  flex: 1;
-  background: #1e1e1e;
-  color: #d4d4d4;
-  border: none;
-  padding: 10px;
-  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
-  font-size: 13px;
-  line-height: 1.6;
-  resize: none;
-  outline: none;
-}
 
 .dialog-footer {
   display: flex;

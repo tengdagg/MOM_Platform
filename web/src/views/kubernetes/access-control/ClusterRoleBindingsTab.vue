@@ -50,16 +50,12 @@
     <!-- YAML 弹窗 -->
     <el-dialog v-model="yamlDialogVisible" :title="yamlDialogTitle" width="900px" class="yaml-dialog">
       <div class="yaml-editor-wrapper">
-        <div class="yaml-line-numbers">
-          <div v-for="line in yamlLineCount" :key="line" class="line-number">{{ line }}</div>
-        </div>
-        <textarea
+        <YamlEditor
+          v-if="yamlDialogVisible"
           v-model="yamlContent"
-          class="yaml-textarea"
-          spellcheck="false"
-          @scroll="handleYamlScroll"
-          ref="yamlTextarea"
-        ></textarea>
+          :theme="'vs-dark'"
+          language="yaml"
+        />
       </div>
       <template #footer>
         <div class="dialog-footer">
@@ -78,6 +74,7 @@ import { Search, Connection, Edit, Delete, Plus } from '@element-plus/icons-vue'
 import { getClusterRoleBindings, createClusterRoleBindingFromYAML, updateClusterRoleBindingFromYAML, deleteClusterRoleBinding, type ClusterRoleBindingInfo } from '@/api/kubernetes'
 import axios from 'axios'
 import * as yaml from 'js-yaml'
+import YamlEditor from '@/components/YamlEditor.vue'
 
 interface Props {
   clusterId: number
@@ -97,7 +94,6 @@ const pageSize = ref(10)
 const yamlDialogVisible = ref(false)
 const yamlContent = ref('')
 const selectedClusterRoleBinding = ref<ClusterRoleBindingInfo | null>(null)
-const yamlTextarea = ref<HTMLTextAreaElement | null>(null)
 const saving = ref(false)
 const isCreateMode = ref(false)
 
@@ -109,11 +105,6 @@ const yamlDialogTitle = computed(() => {
   return `ClusterRoleBinding YAML - ${selectedClusterRoleBinding.value?.name || ''}`
 })
 
-// 计算YAML行数
-const yamlLineCount = computed(() => {
-  if (!yamlContent.value) return 1
-  return yamlContent.value.split('\n').length
-})
 
 const filteredData = computed(() => {
   let result = clusterRoleBindings.value
@@ -288,14 +279,6 @@ const handleSaveYAML = async () => {
   }
 }
 
-// YAML编辑器滚动处理（同步行号滚动）
-const handleYamlScroll = (e: Event) => {
-  const target = e.target as HTMLTextAreaElement
-  const lineNumbers = document.querySelector('.yaml-line-numbers') as HTMLElement
-  if (lineNumbers) {
-    lineNumbers.scrollTop = target.scrollTop
-  }
-}
 
 watch(() => props.clusterId, () => {
   if (props.clusterId) {
@@ -363,46 +346,6 @@ defineExpose({
   background-color: #000000;
 }
 
-.yaml-line-numbers {
-  background-color: #0d0d0d;
-  color: #666;
-  padding: 16px 8px;
-  text-align: right;
-  font-family: 'Monaco', 'Menlo', 'Courier New', monospace;
-  font-size: 13px;
-  line-height: 1.6;
-  user-select: none;
-  overflow: hidden;
-  min-width: 40px;
-  border-right: 1px solid #333;
-}
-
-.line-number {
-  height: 20.8px;
-  line-height: 1.6;
-}
-
-.yaml-textarea {
-  flex: 1;
-  background-color: #000000;
-  color: #ffffff;
-  border: none;
-  outline: none;
-  padding: 16px;
-  font-family: 'Monaco', 'Menlo', 'Courier New', monospace;
-  font-size: 13px;
-  line-height: 1.6;
-  resize: vertical;
-  min-height: 400px;
-}
-
-.yaml-textarea::placeholder {
-  color: #555;
-}
-
-.yaml-textarea:focus {
-  outline: none;
-}
 
 .dialog-footer {
   display: flex;

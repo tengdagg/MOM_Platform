@@ -871,8 +871,8 @@ defineExpose({
 .rule-item {
   margin-bottom: 24px;
   padding: 20px;
-  background-color: #fff;
-  border: 1px solid #e4e7ed;
+  background-color: #fafafa;
+  border: 1px solid #dcdfe6;
   border-radius: 0;
 }
 
@@ -888,15 +888,23 @@ defineExpose({
 .rule-title {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 12px;
   font-size: 15px;
   font-weight: 600;
   color: #303133;
 }
 
 .rule-title .title-icon {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #c2a025;
+  border-radius: 0;
   color: #ffffff;
   font-size: 18px;
+  flex-shrink: 0;
 }
 
 .rule-host-section {
@@ -905,7 +913,7 @@ defineExpose({
 
 .rule-paths-section {
   padding-top: 16px;
-  border-top: 1px dashed #e4e7ed;
+  border-top: 1px dashed #dcdfe6;
 }
 
 .paths-header {
@@ -929,9 +937,15 @@ defineExpose({
 
 .path-card {
   padding: 16px;
-  background-color: #c2a025;
-  border: none;
+  background-color: #fff;
+  border: 1px solid #e4e7ed;
   border-radius: 0;
+  transition: all 0.3s;
+}
+
+.path-card:hover {
+  border-color: #ffffff;
+  box-shadow: 0 2px 8px rgba(212, 175, 55, 0.1);
 }
 
 .path-card-header {
@@ -956,8 +970,8 @@ defineExpose({
 .tls-item {
   margin-bottom: 20px;
   padding: 20px;
-  background-color: #fff;
-  border: 1px solid #e4e7ed;
+  background-color: #fafafa;
+  border: 1px solid #dcdfe6;
   border-radius: 0;
 }
 
@@ -973,15 +987,23 @@ defineExpose({
 .tls-title {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 12px;
   font-size: 15px;
   font-weight: 600;
   color: #303133;
 }
 
 .tls-title .title-icon {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #c2a025;
+  border-radius: 0;
   color: #ffffff;
   font-size: 18px;
+  flex-shrink: 0;
 }
 
 .tls-hosts-section {
@@ -996,9 +1018,18 @@ defineExpose({
 }
 
 .host-tag {
-  background-color: #c2a025;
-  border-color: #ffffff;
+  background-color: #fff;
+  border-color: #c2a025;
   color: #303133;
+}
+
+.host-tag :deep(.el-tag__close) {
+  color: #909399;
+}
+
+.host-tag :deep(.el-tag__close:hover) {
+  background-color: #c2a025;
+  color: #fff;
 }
 
 .host-input {
@@ -1018,7 +1049,7 @@ defineExpose({
 
 .field-group label {
   font-size: 13px;
-  color: #606266;
+  color: #303133;
   font-weight: 500;
 }
 
@@ -1138,20 +1169,31 @@ defineExpose({
   gap: 12px;
 }
 
-/* 输入框样式 */
-:deep(.el-input__wrapper) {
+/* 输入框和下拉框通用样式 - 复用 ServiceEditDialog 样式 */
+:deep(.el-input__wrapper),
+:deep(.el-select__wrapper) {
   background-color: #fff;
-  border-color: #dcdfe6;
-  box-shadow: none;
+  box-shadow: 0 0 0 1px #dcdfe6 inset !important;
+  height: 32px;
+  line-height: 32px;
+  padding: 0 12px;
 }
 
-:deep(.el-input__wrapper:hover) {
-  border-color: #ffffff;
+:deep(.el-select .el-input__wrapper) {
+  box-shadow: 0 0 0 1px #dcdfe6 inset !important;
+  height: 32px;
 }
 
-:deep(.el-input__wrapper.is-focus) {
-  border-color: #ffffff;
-  box-shadow: 0 0 0 1px #0f69a6;
+:deep(.el-input__wrapper:hover),
+:deep(.el-select__wrapper:hover),
+:deep(.el-select .el-input__wrapper:hover) {
+  box-shadow: 0 0 0 1px #c0c4cc inset !important;
+}
+
+:deep(.el-input__wrapper.is-focus),
+:deep(.el-select__wrapper.is-focused),
+:deep(.el-select .el-input__wrapper.is-focus) {
+  box-shadow: 0 0 0 1px #0f69a6 inset !important;
 }
 
 :deep(.el-input__inner) {
@@ -1186,7 +1228,7 @@ defineExpose({
   color: #ffffff;
 }
 
-/* 按钮样式 */
+/* 按钮样式 - 复用 ServiceEditDialog 样式 */
 :deep(.el-button--primary) {
   background-color: #ffffff;
   border-color: #ffffff;

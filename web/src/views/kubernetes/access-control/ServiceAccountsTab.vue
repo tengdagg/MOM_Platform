@@ -75,17 +75,12 @@
       class="yaml-dialog"
     >
       <div class="yaml-editor-wrapper">
-        <div class="yaml-line-numbers">
-          <div v-for="line in yamlLineCount" :key="line" class="line-number">{{ line }}</div>
-        </div>
-        <textarea
+        <YamlEditor
+          v-if="yamlDialogVisible"
           v-model="yamlContent"
-          class="yaml-textarea"
-          spellcheck="false"
-          @input="handleYamlInput"
-          @scroll="handleYamlScroll"
-          ref="yamlTextarea"
-        ></textarea>
+          :theme="'vs-dark'"
+          language="yaml"
+        />
       </div>
       <template #footer>
         <div class="dialog-footer">
@@ -105,6 +100,7 @@ import { getServiceAccounts, type ServiceAccountInfo } from '@/api/kubernetes'
 import { useKubernetesStore } from '@/stores/kubernetes'
 import axios from 'axios'
 import * as yaml from 'js-yaml'
+import YamlEditor from '@/components/YamlEditor.vue'
 
 interface Props {
   clusterId: number
@@ -129,13 +125,7 @@ const yamlDialogTitle = ref('')
 const yamlContent = ref('')
 const yamlSaving = ref(false)
 const editingItem = ref<ServiceAccountInfo | null>(null)
-const yamlTextarea = ref<HTMLTextAreaElement | null>(null)
 
-// 计算YAML行数
-const yamlLineCount = computed(() => {
-  if (!yamlContent.value) return 1
-  return yamlContent.value.split('\n').length
-})
 
 // 默认 ServiceAccount YAML 模板
 const defaultServiceAccountYaml = `apiVersion: v1
@@ -339,19 +329,6 @@ const handleSaveYaml = async () => {
   }
 }
 
-// YAML编辑器输入处理
-const handleYamlInput = () => {
-  // 可以添加输入验证
-}
-
-// YAML编辑器滚动处理（同步行号滚动）
-const handleYamlScroll = (e: Event) => {
-  const target = e.target as HTMLTextAreaElement
-  const lineNumbers = document.querySelector('.yaml-line-numbers') as HTMLElement
-  if (lineNumbers) {
-    lineNumbers.scrollTop = target.scrollTop
-  }
-}
 
 // 简单的 JSON 转 YAML (临时方案)
 const JSONToYAML = (obj: any): string => {
@@ -582,46 +559,6 @@ defineExpose({
   background-color: #000000;
 }
 
-.yaml-line-numbers {
-  background-color: #0d0d0d;
-  color: #666;
-  padding: 16px 8px;
-  text-align: right;
-  font-family: 'Monaco', 'Menlo', 'Courier New', monospace;
-  font-size: 13px;
-  line-height: 1.6;
-  user-select: none;
-  overflow: hidden;
-  min-width: 40px;
-  border-right: 1px solid #333;
-}
-
-.line-number {
-  height: 20.8px;
-  line-height: 1.6;
-}
-
-.yaml-textarea {
-  flex: 1;
-  background-color: #000000;
-  color: #ffffff;
-  border: none;
-  outline: none;
-  padding: 16px;
-  font-family: 'Monaco', 'Menlo', 'Courier New', monospace;
-  font-size: 13px;
-  line-height: 1.6;
-  resize: vertical;
-  min-height: 400px;
-}
-
-.yaml-textarea::placeholder {
-  color: #555;
-}
-
-.yaml-textarea:focus {
-  outline: none;
-}
 
 .dialog-footer {
   display: flex;

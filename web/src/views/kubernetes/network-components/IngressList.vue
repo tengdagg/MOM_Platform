@@ -628,7 +628,6 @@ defineExpose({
 .path-item {
   padding: 10px 12px;
   margin-bottom: 8px;
-  background-color: #c2a025;
   border: none;
   border-radius: 0;
 }
@@ -654,7 +653,7 @@ defineExpose({
 }
 
 .service-icon {
-  color: #ffffff;
+
   font-size: 14px;
 }
 

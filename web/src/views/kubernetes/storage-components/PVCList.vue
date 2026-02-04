@@ -95,17 +95,12 @@
 
     <el-dialog v-model="yamlDialogVisible" :title="`PVC YAML - ${selectedPVC?.name}`" width="900px" :lock-scroll="false" class="yaml-dialog">
       <div class="yaml-editor-wrapper">
-        <div class="yaml-line-numbers">
-          <div v-for="line in yamlLineCount" :key="line" class="line-number">{{ line }}</div>
-        </div>
-        <textarea
+        <YamlEditor
+          v-if="yamlDialogVisible"
           v-model="yamlContent"
-          class="yaml-textarea"
-          spellcheck="false"
-          @input="handleYamlInput"
-          @scroll="handleYamlScroll"
-          ref="yamlTextarea"
-        ></textarea>
+          :theme="'vs-dark'"
+          language="yaml"
+        />
       </div>
       <template #footer>
         <div class="dialog-footer">
@@ -118,17 +113,12 @@
     <!-- YAML 创建弹窗 -->
     <el-dialog v-model="createYamlDialogVisible" title="YAML 创建 PVC" width="900px" :lock-scroll="false" class="yaml-dialog">
       <div class="yaml-editor-wrapper">
-        <div class="yaml-line-numbers">
-          <div v-for="line in createYamlLineCount" :key="line" class="line-number">{{ line }}</div>
-        </div>
-        <textarea
+        <YamlEditor
+          v-if="createYamlDialogVisible"
           v-model="createYamlContent"
-          class="yaml-textarea"
-          spellcheck="false"
-          @input="handleCreateYamlInput"
-          @scroll="handleCreateYamlScroll"
-          ref="createYamlTextarea"
-        ></textarea>
+          :theme="'vs-dark'"
+          language="yaml"
+        />
       </div>
       <template #footer>
         <div class="dialog-footer">
@@ -155,6 +145,7 @@ import {
   type PVCInfo
 } from '@/api/kubernetes'
 import { useKubernetesStore } from '@/stores/kubernetes'
+import YamlEditor from '@/components/YamlEditor.vue'
 
 const props = defineProps<{
   clusterId?: number
@@ -197,25 +188,12 @@ const handleNamespaceChange = (val: string[]) => {
 const yamlDialogVisible = ref(false)
 const yamlContent = ref('')
 const selectedPVC = ref<PVCInfo | null>(null)
-const yamlTextarea = ref<HTMLTextAreaElement | null>(null)
 const originalJsonData = ref<any>(null)
 
 // YAML 创建相关
 const createYamlDialogVisible = ref(false)
 const creating = ref(false)
 const createYamlContent = ref('')
-const createYamlTextarea = ref<HTMLTextAreaElement | null>(null)
-
-// 计算YAML行数
-const yamlLineCount = computed(() => {
-  if (!yamlContent.value) return 1
-  return yamlContent.value.split('\n').length
-})
-
-const createYamlLineCount = computed(() => {
-  if (!createYamlContent.value) return 1
-  return createYamlContent.value.split('\n').length
-})
 
 const filteredPVCs = computed(() => {
   let result = pvcList.value
@@ -376,14 +354,6 @@ const handleYamlInput = () => {
   // 处理输入
 }
 
-const handleYamlScroll = (e: Event) => {
-  const target = e.target as HTMLTextAreaElement
-  const lineNumbers = document.querySelector('.yaml-line-numbers') as HTMLElement
-  if (lineNumbers) {
-    lineNumbers.scrollTop = target.scrollTop
-  }
-}
-
 const handleDelete = async (pvc: PVCInfo) => {
   if (!props.clusterId) return
   try {
@@ -436,14 +406,6 @@ const handleSaveCreateYAML = async () => {
 
 const handleCreateYamlInput = () => {
   // 处理输入
-}
-
-const handleCreateYamlScroll = (e: Event) => {
-  const target = e.target as HTMLTextAreaElement
-  const lineNumbers = document.querySelector('.create-yaml .yaml-line-numbers') as HTMLElement
-  if (lineNumbers) {
-    lineNumbers.scrollTop = target.scrollTop
-  }
 }
 
 // 修复页面偏移
@@ -615,46 +577,6 @@ defineExpose({
   background-color: #000000;
 }
 
-.yaml-line-numbers {
-  background-color: #0d0d0d;
-  color: #666;
-  padding: 16px 8px;
-  text-align: right;
-  font-family: 'Monaco', 'Menlo', 'Courier New', monospace;
-  font-size: 13px;
-  line-height: 1.6;
-  user-select: none;
-  overflow: hidden;
-  min-width: 40px;
-  border-right: 1px solid #333;
-}
-
-.line-number {
-  height: 20.8px;
-  line-height: 1.6;
-}
-
-.yaml-textarea {
-  flex: 1;
-  background-color: #000000;
-  color: #ffffff;
-  border: none;
-  outline: none;
-  padding: 16px;
-  font-family: 'Monaco', 'Menlo', 'Courier New', monospace;
-  font-size: 13px;
-  line-height: 1.6;
-  resize: vertical;
-  min-height: 400px;
-}
-
-.yaml-textarea::placeholder {
-  color: #555;
-}
-
-.yaml-textarea:focus {
-  outline: none;
-}
 
 .yaml-dialog :deep(.el-dialog__body) {
   padding: 0;

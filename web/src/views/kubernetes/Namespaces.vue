@@ -373,19 +373,13 @@
     >
       <div class="yaml-dialog-content">
         <div class="yaml-editor-wrapper">
-          <div class="yaml-line-numbers">
-            <div v-for="line in yamlLineCount" :key="line" class="line-number">{{ line }}</div>
-          </div>
-          <textarea
+          <YamlEditor
+            v-if="yamlDialogVisible"
             v-model="yamlContent"
-            class="yaml-textarea"
-            placeholder="YAML 内容"
-            spellcheck="false"
-            @input="handleYamlInput"
-            @scroll="handleYamlScroll"
-            ref="yamlTextarea"
-            readonly
-          ></textarea>
+            :theme="'vs-dark'"
+            language="yaml"
+            :read-only="true"
+          />
         </div>
       </div>
       <template #footer>
@@ -418,6 +412,7 @@ import {
   InfoFilled
 } from '@element-plus/icons-vue'
 import { getClusterList, type Cluster, getNamespaces, type NamespaceInfo } from '@/api/kubernetes'
+import YamlEditor from '@/components/YamlEditor.vue'
 
 const loading = ref(false)
 const clusterList = ref<Cluster[]>([])
@@ -471,13 +466,7 @@ const labelOriginalYaml = ref('')
 const yamlDialogVisible = ref(false)
 const yamlContent = ref('')
 const selectedNamespace = ref<NamespaceInfo | null>(null)
-const yamlTextarea = ref<HTMLTextAreaElement | null>(null)
 
-// 计算YAML行数
-const yamlLineCount = computed(() => {
-  if (!yamlContent.value) return 1
-  return yamlContent.value.split('\n').length
-})
 
 // 过滤后的命名空间列表
 const filteredNamespaceList = computed(() => {
@@ -1820,46 +1809,6 @@ onUnmounted(() => {
   background-color: #000000;
 }
 
-.yaml-line-numbers {
-  background-color: #0d0d0d;
-  color: #666;
-  padding: 16px 8px;
-  text-align: right;
-  font-family: 'Monaco', 'Menlo', 'Courier New', monospace;
-  font-size: 13px;
-  line-height: 1.6;
-  user-select: none;
-  overflow: hidden;
-  min-width: 40px;
-  border-right: 1px solid #333;
-}
-
-.line-number {
-  height: 20.8px;
-  line-height: 1.6;
-}
-
-.yaml-textarea {
-  flex: 1;
-  background-color: #000000;
-  color: #ffffff;
-  border: none;
-  outline: none;
-  padding: 16px;
-  font-family: 'Monaco', 'Menlo', 'Courier New', monospace;
-  font-size: 13px;
-  line-height: 1.6;
-  resize: vertical;
-  min-height: 400px;
-}
-
-.yaml-textarea::placeholder {
-  color: #555;
-}
-
-.yaml-textarea:focus {
-  outline: none;
-}
 
 /* 响应式设计 */
 @media (max-width: 1400px) {

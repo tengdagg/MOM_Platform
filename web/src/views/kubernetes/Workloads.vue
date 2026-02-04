@@ -546,18 +546,12 @@
     >
       <div class="yaml-dialog-content">
         <div class="yaml-editor-wrapper">
-          <div class="yaml-line-numbers">
-            <div v-for="line in yamlLineCount" :key="line" class="line-number">{{ line }}</div>
-          </div>
-          <textarea
+          <YamlEditor
+            v-if="yamlDialogVisible"
             v-model="yamlContent"
-            class="yaml-textarea"
-            placeholder="YAML 内容"
-            spellcheck="false"
-            @input="handleYamlInput"
-            @scroll="handleYamlScroll"
-            ref="yamlTextarea"
-          ></textarea>
+            :theme="'vs-dark'"
+            language="yaml"
+          />
         </div>
       </div>
       <template #footer>
@@ -1378,16 +1372,13 @@
     >
       <div class="yaml-dialog-content">
         <div class="yaml-editor-wrapper">
-          <div class="yaml-line-numbers">
-            <div v-for="line in replicaSetYamlLineCount" :key="line" class="line-number">{{ line }}</div>
-          </div>
-          <textarea
+          <YamlEditor
+            v-if="replicaSetYamlDialogVisible"
             v-model="replicaSetYamlContent"
-            class="yaml-textarea"
-            placeholder="YAML 内容"
-            spellcheck="false"
-            readonly
-          ></textarea>
+            :theme="'vs-dark'"
+            language="yaml"
+            :readOnly="true"
+          />
         </div>
       </div>
       <template #footer>
@@ -1412,15 +1403,12 @@
       <div class="yaml-create-mode">
         <div class="yaml-editor-container">
           <div class="yaml-editor-wrapper">
-            <div class="yaml-line-numbers">
-              <div v-for="line in createYamlLineCount" :key="line" class="line-number">{{ line }}</div>
-            </div>
-            <textarea
+            <YamlEditor
+              v-if="createWorkloadDialogVisible"
               v-model="createYamlContent"
-              class="yaml-textarea"
-              placeholder="请输入或修改 YAML 内容..."
-              spellcheck="false"
-            ></textarea>
+              :theme="'vs-dark'"
+              language="yaml"
+            />
           </div>
         </div>
       </div>
@@ -1555,7 +1543,8 @@ import {
   Minus,
   Picture
 } from '@element-plus/icons-vue'
-import { getClusterList, updateWorkload, getConfigMaps, getSecrets, getPersistentVolumeClaims, type Cluster } from '@/api/kubernetes'
+import { getClusterList, updateWorkload, getConfigMaps, getSecrets, getPersistentVolumeClaims, getPodLogs, type Cluster } from '@/api/kubernetes'
+import YamlEditor from '@/components/YamlEditor.vue'
 import { useKubernetesStore } from '@/stores/kubernetes'
 // 导入工作负载编辑组件
 import BasicInfo from './workload-components/BasicInfo.vue'
@@ -1676,7 +1665,6 @@ const yamlDialogVisible = ref(false)
 const yamlContent = ref('')
 const yamlSaving = ref(false)
 const selectedWorkload = ref<Workload | null>(null)
-const yamlTextarea = ref<HTMLTextAreaElement | null>(null)
 
 // 工作负载详情弹窗
 const detailDialogVisible = ref(false)
@@ -1983,17 +1971,7 @@ const paginatedWorkloadList = computed(() => {
   return filteredWorkloadList.value.slice(start, end)
 })
 
-// 计算YAML行数
-const yamlLineCount = computed(() => {
-  if (!yamlContent.value) return 1
-  return yamlContent.value.split('\n').length
-})
 
-// 计算ReplicaSet YAML行数
-const replicaSetYamlLineCount = computed(() => {
-  if (!replicaSetYamlContent.value) return 1
-  return replicaSetYamlContent.value.split('\n').length
-})
 
 // 获取类型图标
 const getTypeIcon = (type: string) => {
@@ -2334,10 +2312,7 @@ const handleCreateFromYaml = async () => {
   }
 }
 
-// 计算YAML行数
-const createYamlLineCount = computed(() => {
-  return createYamlContent.value.split('\n').length
-})
+
 
 // 加载工作负载列表
 const loadWorkloads = async () => {
@@ -4413,13 +4388,13 @@ const handleYamlInput = () => {
 }
 
 // YAML编辑器滚动处理（同步行号滚动）
-const handleYamlScroll = (e: Event) => {
-  const target = e.target as HTMLTextAreaElement
-  const lineNumbers = document.querySelector('.yaml-line-numbers') as HTMLElement
-  if (lineNumbers) {
-    lineNumbers.scrollTop = target.scrollTop
-  }
-}
+// const handleYamlScroll = (e: Event) => {
+//   const target = e.target as HTMLTextAreaElement
+//   const lineNumbers = document.querySelector('.yaml-line-numbers') as HTMLElement
+//   if (lineNumbers) {
+//     lineNumbers.scrollTop = target.scrollTop
+//   }
+// }
 
 // 重启工作负载
 const handleRestart = async () => {
@@ -8585,46 +8560,6 @@ onMounted(() => {
   background-color: #000000;
 }
 
-.yaml-line-numbers {
-  background-color: #0a0a0a;
-  color: #666;
-  padding: 16px 8px;
-  text-align: right;
-  font-family: 'Monaco', 'Menlo', 'Courier New', monospace;
-  font-size: 13px;
-  line-height: 1.6;
-  user-select: none;
-  overflow: hidden;
-  min-width: 40px;
-  border-right: 1px solid #333;
-}
-
-.line-number {
-  height: 20.8px;
-  line-height: 1.6;
-}
-
-.yaml-textarea {
-  flex: 1;
-  background-color: #000000;
-  color: #ffffff;
-  border: none;
-  outline: none;
-  padding: 16px;
-  font-family: 'Monaco', 'Menlo', 'Courier New', monospace;
-  font-size: 13px;
-  line-height: 1.6;
-  resize: vertical;
-  min-height: 400px;
-}
-
-.yaml-textarea::placeholder {
-  color: #555;
-}
-
-.yaml-textarea:focus {
-  outline: none;
-}
 
 /* 响应式设计 */
 @media (max-width: 1400px) {
