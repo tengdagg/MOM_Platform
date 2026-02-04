@@ -65,6 +65,7 @@
           </template>
         </el-input>
         <el-select
+          v-if="!['clusterroles', 'clusterrolebindings'].includes(activeTab)"
           v-model="selectedNamespaces"
           placeholder="选择命名空间"
           class="namespace-select"

@@ -205,7 +205,7 @@ const formatReclaimPolicy = (policy: string) => {
 const getStatusTagType = (status: string) => {
   const map: Record<string, string> = {
     'Available': 'success',
-    'Bound': 'warning',
+    'Bound': 'success',
     'Released': 'info',
     'Failed': 'danger'
   }

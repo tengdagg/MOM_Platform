@@ -117,7 +117,7 @@
       </div>
       <div class="batch-action-right">
         <el-button
-          v-if="selectedType === 'Deployment' || selectedType === 'StatefulSet' || selectedType === 'DaemonSet'"
+          v-if="selectedType === 'Deployment' || selectedType === 'StatefulSet' || selectedType === 'DaemonSet' || selectedType === 'ReplicaSet'"
           @click="handleBatchRestart"
           :loading="batchActionLoading"
           class="batch-btn"
@@ -126,7 +126,7 @@
           批量重启
         </el-button>
         <el-button
-          v-if="selectedType === 'Deployment' || selectedType === 'StatefulSet'"
+          v-if="selectedType === 'Deployment' || selectedType === 'StatefulSet' || selectedType === 'ReplicaSet'"
           @click="handleBatchPause"
           :loading="batchActionLoading"
           type="warning"
@@ -136,7 +136,7 @@
           批量停止
         </el-button>
         <el-button
-          v-if="selectedType === 'Deployment' || selectedType === 'StatefulSet'"
+          v-if="selectedType === 'Deployment' || selectedType === 'StatefulSet' || selectedType === 'ReplicaSet'"
           @click="handleBatchResume"
           :loading="batchActionLoading"
           type="success"
@@ -281,8 +281,8 @@
           </el-table-column>
         </template>
 
-        <!-- Deployment 和 StatefulSet 通用列 -->
-        <template v-if="selectedType === 'Deployment' || selectedType === 'StatefulSet'">
+        <!-- Deployment, StatefulSet, ReplicaSet 通用列 -->
+        <template v-if="selectedType === 'Deployment' || selectedType === 'StatefulSet' || selectedType === 'ReplicaSet'">
           <!-- 标签 -->
           <el-table-column label="标签" width="120" align="center">
             <template #default="{ row }">
@@ -1644,6 +1644,8 @@ const workloadTypes = ref([
   { label: 'Deployment', value: 'Deployment', icon: 'Box', count: 0 },
   { label: 'StatefulSet', value: 'StatefulSet', icon: 'Rank', count: 0 },
   { label: 'DaemonSet', value: 'DaemonSet', icon: 'Connection', count: 0 },
+  { label: 'ReplicaSet', value: 'ReplicaSet', icon: 'CopyDocument', count: 0 },
+  { label: 'ReplicationController', value: 'ReplicationController', icon: 'Files', count: 0 },
   { label: 'Job', value: 'Job', icon: 'Guide', count: 0 },
   { label: 'CronJob', value: 'CronJob', icon: 'Clock', count: 0 },
   { label: 'Pod', value: 'Pod', icon: 'Box', count: 0 }
@@ -1912,8 +1914,49 @@ spec:
           cpu: 100m
           memory: 128Mi
         requests:
-          cpu: 50m
-          memory: 64Mi`
+          memory: 64Mi`,
+
+  ReplicaSet: `apiVersion: apps/v1
+kind: ReplicaSet
+metadata:
+  name: frontend
+  namespace: default
+  labels:
+    app: guestbook
+    tier: frontend
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      tier: frontend
+  template:
+    metadata:
+      labels:
+        tier: frontend
+    spec:
+      containers:
+      - name: php-redis
+        image: gcr.io/google_samples/gb-frontend:v3`,
+
+  ReplicationController: `apiVersion: v1
+kind: ReplicationController
+metadata:
+  name: rc-example
+  namespace: default
+spec:
+  replicas: 1
+  selector:
+    app: rc-example
+  template:
+    metadata:
+      labels:
+        app: rc-example
+    spec:
+      containers:
+      - name: nginx
+        image: nginx:latest
+        ports:
+        - containerPort: 80`
 }
 
 // 亲和性规则
@@ -2407,6 +2450,8 @@ const updateWorkloadTypeCounts = (allWorkloads: Workload[]) => {
     'Deployment': 0,
     'StatefulSet': 0,
     'DaemonSet': 0,
+    'ReplicaSet': 0,
+    'ReplicationController': 0,
     'Job': 0,
     'CronJob': 0,
     'Pod': 0

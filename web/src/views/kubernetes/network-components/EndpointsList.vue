@@ -90,17 +90,12 @@
 
     <el-dialog v-model="yamlDialogVisible" :title="`Endpoints YAML - ${selectedEndpoint?.name}`" width="900px" :lock-scroll="false" class="yaml-dialog">
       <div class="yaml-editor-wrapper">
-        <div class="yaml-line-numbers">
-          <div v-for="line in yamlLineCount" :key="line" class="line-number">{{ line }}</div>
-        </div>
-        <textarea
+        <YamlEditor
+          v-if="yamlDialogVisible"
           v-model="yamlContent"
-          class="yaml-textarea"
-          spellcheck="false"
-          @input="handleYamlInput"
-          @scroll="handleYamlScroll"
-          ref="yamlTextarea"
-        ></textarea>
+          :theme="'vs-dark'"
+          language="yaml"
+        />
       </div>
       <template #footer>
         <div class="dialog-footer">
@@ -138,17 +133,12 @@
     <!-- YAML 创建弹窗 -->
     <el-dialog v-model="createYamlDialogVisible" title="YAML 创建 Endpoints" width="900px" :lock-scroll="false" class="yaml-dialog">
       <div class="yaml-editor-wrapper">
-        <div class="yaml-line-numbers">
-          <div v-for="line in createYamlLineCount" :key="line" class="line-number">{{ line }}</div>
-        </div>
-        <textarea
+        <YamlEditor
+          v-if="createYamlDialogVisible"
           v-model="createYamlContent"
-          class="yaml-textarea"
-          spellcheck="false"
-          @input="handleCreateYamlInput"
-          @scroll="handleCreateYamlScroll"
-          ref="createYamlTextarea"
-        ></textarea>
+          :theme="'vs-dark'"
+          language="yaml"
+        />
       </div>
       <template #footer>
         <div class="dialog-footer">
@@ -167,6 +157,7 @@ import { Search, Document, Connection, Delete } from '@element-plus/icons-vue'
 import { getEndpoints, getEndpointsDetail, createEndpointYAML, getEndpointYAML, updateEndpointYAML, deleteEndpoint, getNamespaces, type EndpointsInfo } from '@/api/kubernetes'
 import { useKubernetesStore } from '@/stores/kubernetes'
 import { load, dump } from 'js-yaml'
+import YamlEditor from '@/components/YamlEditor.vue'
 
 const props = defineProps<{
   clusterId?: number
@@ -226,10 +217,9 @@ const filteredEndpoints = computed(() => {
   if (searchName.value) {
     result = result.filter(e => e.name.toLowerCase().includes(searchName.value.toLowerCase()))
   }
-  if (selectedNamespaces.value.length > 0) {
-    if (selectedNamespaces.value.length > 1) {
-      result = result.filter(e => selectedNamespaces.value.includes(e.namespace))
-    }
+  // 与 SecretList 保持一致的过滤逻辑
+  if (selectedNamespaces.value.length > 0 && !selectedNamespaces.value.includes('')) {
+    result = result.filter(e => selectedNamespaces.value.includes(e.namespace))
   }
   return result
 })
@@ -238,11 +228,8 @@ const loadEndpoints = async (showSuccess = false) => {
   if (!props.clusterId) return
   loading.value = true
   try {
-    let nsParam = undefined
-    if (selectedNamespaces.value.length === 1) {
-      nsParam = selectedNamespaces.value[0]
-    }
-    const data = await getEndpoints(props.clusterId, nsParam)
+    // 与 SecretList 保持一致：总是获取所有数据，前端过滤
+    const data = await getEndpoints(props.clusterId)
     endpointsList.value = data || []
     if (showSuccess) {
       ElMessage.success('刷新成功')
@@ -454,6 +441,7 @@ watch(() => props.clusterId, () => {
       }
     }
     loadEndpoints()
+    // 前端过滤，不需要重新加载数据
   }
 
 // 监听筛选后的数据变化，更新计数

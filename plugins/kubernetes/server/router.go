@@ -254,6 +254,40 @@ func RegisterRoutes(router *gin.RouterGroup, db *gorm.DB) {
 		clusters.PUT("/resources/poddisruptionbudgets/:namespace/:name/yaml", resourceHandler.UpdatePodDisruptionBudgetYAML)
 		clusters.DELETE("/resources/poddisruptionbudgets/:namespace/:name", resourceHandler.DeletePodDisruptionBudget)
 
+		// 配置管理 - PriorityClass
+		clusters.GET("/resources/priorityclasses", resourceHandler.ListPriorityClasses)
+		clusters.POST("/resources/priorityclasses/yaml", resourceHandler.CreatePriorityClassFromYAML)
+		clusters.GET("/resources/priorityclasses/:name/yaml", resourceHandler.GetPriorityClassYAML)
+		clusters.PUT("/resources/priorityclasses/:name/yaml", resourceHandler.UpdatePriorityClassYAML)
+		clusters.DELETE("/resources/priorityclasses/:name", resourceHandler.DeletePriorityClass)
+
+		// 配置管理 - RuntimeClass
+		clusters.GET("/resources/runtimeclasses", resourceHandler.ListRuntimeClasses)
+		clusters.POST("/resources/runtimeclasses/yaml", resourceHandler.CreateRuntimeClassFromYAML)
+		clusters.GET("/resources/runtimeclasses/:name/yaml", resourceHandler.GetRuntimeClassYAML)
+		clusters.PUT("/resources/runtimeclasses/:name/yaml", resourceHandler.UpdateRuntimeClassYAML)
+		clusters.DELETE("/resources/runtimeclasses/:name", resourceHandler.DeleteRuntimeClass)
+
+		// 配置管理 - Lease
+		clusters.GET("/resources/leases", resourceHandler.ListLeases)
+		clusters.POST("/resources/leases/:namespace/yaml", resourceHandler.CreateLeaseFromYAML)
+		clusters.GET("/resources/leases/:namespace/:name/yaml", resourceHandler.GetLeaseYAML)
+		clusters.PUT("/resources/leases/:namespace/:name/yaml", resourceHandler.UpdateLeaseYAML)
+		clusters.DELETE("/resources/leases/:namespace/:name", resourceHandler.DeleteLease)
+
+		// 配置管理 - Webhook Configurations
+		clusters.GET("/resources/mutatingwebhookconfigurations", resourceHandler.ListMutatingWebhookConfigurations)
+		clusters.POST("/resources/mutatingwebhookconfigurations/yaml", resourceHandler.CreateMutatingWebhookConfigurationFromYAML)
+		clusters.GET("/resources/mutatingwebhookconfigurations/:name/yaml", resourceHandler.GetMutatingWebhookConfigurationYAML)
+		clusters.PUT("/resources/mutatingwebhookconfigurations/:name/yaml", resourceHandler.UpdateMutatingWebhookConfigurationYAML)
+		clusters.DELETE("/resources/mutatingwebhookconfigurations/:name", resourceHandler.DeleteMutatingWebhookConfiguration)
+
+		clusters.GET("/resources/validatingwebhookconfigurations", resourceHandler.ListValidatingWebhookConfigurations)
+		clusters.POST("/resources/validatingwebhookconfigurations/yaml", resourceHandler.CreateValidatingWebhookConfigurationFromYAML)
+		clusters.GET("/resources/validatingwebhookconfigurations/:name/yaml", resourceHandler.GetValidatingWebhookConfigurationYAML)
+		clusters.PUT("/resources/validatingwebhookconfigurations/:name/yaml", resourceHandler.UpdateValidatingWebhookConfigurationYAML)
+		clusters.DELETE("/resources/validatingwebhookconfigurations/:name", resourceHandler.DeleteValidatingWebhookConfiguration)
+
 		// 终端审计
 		clusters.GET("/terminal/sessions", resourceHandler.ListTerminalSessions)
 		clusters.GET("/terminal/sessions/:id/play", resourceHandler.PlayTerminalSession)

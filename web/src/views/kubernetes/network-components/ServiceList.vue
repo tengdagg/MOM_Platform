@@ -271,13 +271,9 @@ const filteredServices = computed(() => {
   if (filterType.value) {
     result = result.filter(s => s.type === filterType.value)
   }
-  if (selectedNamespaces.value.length > 0) {
-    // 多选时已经在后端请求时过滤了（单选）或者获取全部（多选），这里做额外保障
-    if (selectedNamespaces.value.length > 1) {
-       result = result.filter(s => selectedNamespaces.value.includes(s.namespace))
-    }
-    // 如果是单选，loadServices 已经通过 API 参数过滤了，不需要额外过滤，或者也可以过滤
-    // 为了通过 client 过滤所有，loadServices 在多选时应不传参数
+  // 与 SecretList 保持一致的过滤逻辑
+  if (selectedNamespaces.value.length > 0 && !selectedNamespaces.value.includes('')) {
+    result = result.filter(s => selectedNamespaces.value.includes(s.namespace))
   }
   return result
 })
@@ -292,13 +288,8 @@ const loadServices = async (showSuccess = false) => {
   if (!props.clusterId) return
   loading.value = true
   try {
-    // 处理多命名空间逻辑：单选传参，多选不传（获取所有）
-    let nsParam = undefined
-    if (selectedNamespaces.value.length === 1) {
-      nsParam = selectedNamespaces.value[0]
-    }
-    
-    const data = await getServices(props.clusterId, nsParam)
+    // 与 SecretList 保持一致：总是获取所有数据，前端过滤
+    const data = await getServices(props.clusterId)
     serviceList.value = data || []
     if (showSuccess) {
       ElMessage.success('刷新成功')

@@ -130,19 +130,13 @@
 
     <!-- YAML 弹窗 -->
     <el-dialog v-model="yamlDialogVisible" :title="yamlDialogTitle" width="900px" class="yaml-dialog">
-      <div class="yaml-editor-wrapper">
-        <div class="yaml-line-numbers">
-          <div v-for="line in yamlLineCount" :key="line" class="line-number">{{ line }}</div>
-        </div>
-        <textarea
-          v-model="yamlContent"
-          class="yaml-textarea"
-          spellcheck="false"
-          @input="handleYamlInput"
-          @scroll="handleYamlScroll"
-          ref="yamlTextarea"
-        ></textarea>
-      </div>
+      <YamlEditor
+        v-if="yamlDialogVisible"
+        v-model="yamlContent"
+        language="yaml"
+        theme="vs-dark"
+        style="height: 500px"
+      />
       <template #footer>
         <div class="dialog-footer">
           <el-button @click="yamlDialogVisible = false">关闭</el-button>
@@ -156,10 +150,11 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Search, Histogram, Document, Delete, Plus } from '@element-plus/icons-vue'
+import { Search, Histogram, Document, Delete, Plus, Edit } from '@element-plus/icons-vue'
 import { getNamespaces } from '@/api/kubernetes'
 import { useKubernetesStore } from '@/stores/kubernetes'
 import axios from 'axios'
+import YamlEditor from '@/components/YamlEditor.vue'
 
 interface ResourceQuotaInfo {
   name: string
@@ -199,7 +194,6 @@ const pageSize = ref(10)
 const yamlDialogVisible = ref(false)
 const yamlContent = ref('')
 const selectedResourceQuota = ref<ResourceQuotaInfo | null>(null)
-const yamlTextarea = ref<HTMLTextAreaElement | null>(null)
 const saving = ref(false)
 const isCreateMode = ref(false)
 
@@ -224,12 +218,6 @@ spec:
     limits.cpu: "8"
     limits.memory: 16Gi
 `
-
-// 计算YAML行数
-const yamlLineCount = computed(() => {
-  if (!yamlContent.value) return 1
-  return yamlContent.value.split('\n').length
-})
 
 // 过滤后的列表
 const filteredResourceQuotas = computed(() => {
@@ -437,20 +425,6 @@ const handleDelete = async (row: ResourceQuotaInfo) => {
   }
 }
 
-// YAML编辑器输入处理
-const handleYamlInput = () => {
-  // 可以添加输入验证
-}
-
-// YAML编辑器滚动处理（同步行号滚动）
-const handleYamlScroll = (e: Event) => {
-  const target = e.target as HTMLTextAreaElement
-  const lineNumbers = document.querySelector('.yaml-line-numbers') as HTMLElement
-  if (lineNumbers) {
-    lineNumbers.scrollTop = target.scrollTop
-  }
-}
-
 // 监听 clusterId 变化
 watch(() => props.clusterId, (newVal) => {
   if (newVal) {
@@ -614,20 +588,21 @@ defineExpose({
 }
 
 .action-btn {
-  color: var(--el-color-primary); /* Use Element Plus primary color variable */
   padding: 4px;
+  color: #ffffff;
+  transition: all 0.3s;
 }
 
 .action-btn:hover {
-  color: var(--el-color-primary-light-3); /* Lighter primary on hover */
+  color: #bfa13f;
 }
 
 .action-btn.danger {
-  color: var(--el-color-danger); /* Use Element Plus danger color variable */
+  color: #f56c6c;
 }
 
 .action-btn.danger:hover {
-  color: var(--el-color-danger-light-3); /* Lighter danger on hover */
+  color: #f78989;
 }
 
 /* 分页 */
@@ -656,55 +631,6 @@ defineExpose({
 .yaml-dialog :deep(.el-dialog__body) {
   padding: 24px;
   background-color: #1a1a1a;
-}
-
-.yaml-editor-wrapper {
-  display: flex;
-  border: none;
-  border-radius: 0;
-  overflow: hidden;
-  background-color: #000000;
-}
-
-.yaml-line-numbers {
-  background-color: #0d0d0d;
-  color: #666;
-  padding: 16px 8px;
-  text-align: right;
-  font-family: 'Monaco', 'Menlo', 'Courier New', monospace;
-  font-size: 13px;
-  line-height: 1.6;
-  user-select: none;
-  overflow: hidden;
-  min-width: 40px;
-  border-right: 1px solid #333;
-}
-
-.line-number {
-  height: 20.8px;
-  line-height: 1.6;
-}
-
-.yaml-textarea {
-  flex: 1;
-  background-color: #000000;
-  color: #ffffff;
-  border: none;
-  outline: none;
-  padding: 16px;
-  font-family: 'Monaco', 'Menlo', 'Courier New', monospace;
-  font-size: 13px;
-  line-height: 1.6;
-  resize: vertical;
-  min-height: 400px;
-}
-
-.yaml-textarea::placeholder {
-  color: #555;
-}
-
-.yaml-textarea:focus {
-  outline: none;
 }
 
 .dialog-footer {

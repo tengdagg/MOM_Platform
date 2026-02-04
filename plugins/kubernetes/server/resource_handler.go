@@ -46,7 +46,12 @@ import (
 	v1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
 	policyv1 "k8s.io/api/policy/v1"
+
+	admissionregistrationv1 "k8s.io/api/admissionregistration/v1"
+	coordinationv1 "k8s.io/api/coordination/v1"
+	nodev1 "k8s.io/api/node/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
+	schedulingv1 "k8s.io/api/scheduling/v1"
 	storagev1 "k8s.io/api/storage/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -4004,6 +4009,28 @@ func (h *ResourceHandler) GetWorkloads(c *gin.Context) {
 		}
 	}
 
+	if workloadType == "" || workloadType == "ReplicationController" {
+		// 获取 ReplicationControllers
+		rcList, err := clientset.CoreV1().ReplicationControllers(namespace).List(ctx, metav1.ListOptions{})
+		if err == nil {
+			for _, rc := range rcList.Items {
+				workload := h.convertReplicationControllerToWorkload(&rc)
+				workloads = append(workloads, workload)
+			}
+		}
+	}
+
+	if workloadType == "" || workloadType == "ReplicaSet" {
+		// 获取 ReplicaSets
+		rsList, err := clientset.AppsV1().ReplicaSets(namespace).List(ctx, metav1.ListOptions{})
+		if err == nil {
+			for _, rs := range rsList.Items {
+				workload := h.convertReplicaSetToWorkload(&rs)
+				workloads = append(workloads, workload)
+			}
+		}
+	}
+
 	if workloadType == "" || workloadType == "StatefulSet" {
 		// 获取 StatefulSets
 		stsList, err := clientset.AppsV1().StatefulSets(namespace).List(ctx, metav1.ListOptions{})
@@ -4131,6 +4158,72 @@ func (h *ResourceHandler) convertStatefulSetToWorkload(sts *appsv1.StatefulSet) 
 		Images:      images,
 		CreatedAt:   sts.CreationTimestamp.Format("2006-01-02 15:04:05"),
 		UpdatedAt:   sts.CreationTimestamp.Format("2006-01-02 15:04:05"),
+	}
+}
+
+// convertReplicaSetToWorkload 将 ReplicaSet 转换为 WorkloadInfo
+func (h *ResourceHandler) convertReplicaSetToWorkload(rs *appsv1.ReplicaSet) WorkloadInfo {
+	readyPods := rs.Status.ReadyReplicas
+	desiredPods := int32(0)
+	if rs.Spec.Replicas != nil {
+		desiredPods = *rs.Spec.Replicas
+	}
+
+	var images []string
+	var requests, limits *ResourceInfo
+
+	if len(rs.Spec.Template.Spec.Containers) > 0 {
+		for _, container := range rs.Spec.Template.Spec.Containers {
+			images = append(images, container.Image)
+		}
+		requests, limits = h.getResourceInfo(rs.Spec.Template.Spec.Containers)
+	}
+
+	return WorkloadInfo{
+		Name:        rs.Name,
+		Namespace:   rs.Namespace,
+		Type:        "ReplicaSet",
+		Labels:      rs.Labels,
+		ReadyPods:   readyPods,
+		DesiredPods: desiredPods,
+		Requests:    requests,
+		Limits:      limits,
+		Images:      images,
+		CreatedAt:   rs.CreationTimestamp.Format("2006-01-02 15:04:05"),
+		UpdatedAt:   rs.CreationTimestamp.Format("2006-01-02 15:04:05"),
+	}
+}
+
+// convertReplicationControllerToWorkload 将 ReplicationController 转换为 WorkloadInfo
+func (h *ResourceHandler) convertReplicationControllerToWorkload(rc *v1.ReplicationController) WorkloadInfo {
+	readyPods := rc.Status.ReadyReplicas
+	desiredPods := int32(0)
+	if rc.Spec.Replicas != nil {
+		desiredPods = *rc.Spec.Replicas
+	}
+
+	var images []string
+	var requests, limits *ResourceInfo
+
+	if len(rc.Spec.Template.Spec.Containers) > 0 {
+		for _, container := range rc.Spec.Template.Spec.Containers {
+			images = append(images, container.Image)
+		}
+		requests, limits = h.getResourceInfo(rc.Spec.Template.Spec.Containers)
+	}
+
+	return WorkloadInfo{
+		Name:        rc.Name,
+		Namespace:   rc.Namespace,
+		Type:        "ReplicationController",
+		Labels:      rc.Labels,
+		ReadyPods:   readyPods,
+		DesiredPods: desiredPods,
+		Requests:    requests,
+		Limits:      limits,
+		Images:      images,
+		CreatedAt:   rc.CreationTimestamp.Format("2006-01-02 15:04:05"),
+		UpdatedAt:   rc.CreationTimestamp.Format("2006-01-02 15:04:05"),
 	}
 }
 
@@ -4506,6 +4599,26 @@ func (h *ResourceHandler) GetWorkloadYAML(c *gin.Context) {
 	// 根据类型获取资源
 	var obj interface{}
 	switch workloadType {
+	case "ReplicationController":
+		rc, err := clientset.CoreV1().ReplicationControllers(namespace).Get(c.Request.Context(), name, metav1.GetOptions{})
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"code":    500,
+				"message": "获取ReplicationController失败: " + err.Error(),
+			})
+			return
+		}
+		obj = rc
+	case "ReplicaSet":
+		rs, err := clientset.AppsV1().ReplicaSets(namespace).Get(c.Request.Context(), name, metav1.GetOptions{})
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"code":    500,
+				"message": "获取ReplicaSet失败: " + err.Error(),
+			})
+			return
+		}
+		obj = rs
 	case "Deployment":
 		deployment, err := clientset.AppsV1().Deployments(namespace).Get(c.Request.Context(), name, metav1.GetOptions{})
 		if err != nil {
@@ -4616,6 +4729,20 @@ func (h *ResourceHandler) GetWorkloadDetail(c *gin.Context) {
 
 	var workload interface{}
 	switch workloadType {
+	case "ReplicationController":
+		rc, err := clientset.CoreV1().ReplicationControllers(namespace).Get(c.Request.Context(), name, metav1.GetOptions{})
+		if err != nil {
+			HandleK8sError(c, err, "ReplicationController")
+			return
+		}
+		workload = rc
+	case "ReplicaSet":
+		rs, err := clientset.AppsV1().ReplicaSets(namespace).Get(c.Request.Context(), name, metav1.GetOptions{})
+		if err != nil {
+			HandleK8sError(c, err, "ReplicaSet")
+			return
+		}
+		workload = rs
 	case "Deployment":
 		deployment, err := clientset.AppsV1().Deployments(namespace).Get(c.Request.Context(), name, metav1.GetOptions{})
 		if err != nil {
@@ -5125,6 +5252,24 @@ func (h *ResourceHandler) UpdateWorkloadYAML(c *gin.Context) {
 
 	// 根据类型更新资源
 	switch req.Type {
+	case "ReplicationController":
+		_, err := clientset.CoreV1().ReplicationControllers(namespace).Patch(c.Request.Context(), name, types.MergePatchType, patchData, metav1.PatchOptions{})
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"code":    500,
+				"message": "更新ReplicationController失败: " + err.Error(),
+			})
+			return
+		}
+	case "ReplicaSet":
+		_, err := clientset.AppsV1().ReplicaSets(namespace).Patch(c.Request.Context(), name, types.MergePatchType, patchData, metav1.PatchOptions{})
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"code":    500,
+				"message": "更新ReplicaSet失败: " + err.Error(),
+			})
+			return
+		}
 	case "Deployment":
 		_, err := clientset.AppsV1().Deployments(namespace).Patch(c.Request.Context(), name, types.MergePatchType, patchData, metav1.PatchOptions{})
 		if err != nil {
@@ -5655,6 +5800,29 @@ func (h *ResourceHandler) CreateWorkloadFromYAML(c *gin.Context) {
 
 	// 根据类型创建资源
 	switch kind {
+	case "ReplicationController":
+		var rc v1.ReplicationController
+		if err := json.Unmarshal(jsonData, &rc); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "解析 ReplicationController 失败: " + err.Error()})
+			return
+		}
+		_, err = clientset.CoreV1().ReplicationControllers(namespace).Create(c.Request.Context(), &rc, metav1.CreateOptions{})
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "创建 ReplicationController 失败: " + err.Error()})
+			return
+		}
+	case "ReplicaSet":
+		var rs appsv1.ReplicaSet
+		if err := json.Unmarshal(jsonData, &rs); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "解析 ReplicaSet 失败: " + err.Error()})
+			return
+		}
+		_, err = clientset.AppsV1().ReplicaSets(namespace).Create(c.Request.Context(), &rs, metav1.CreateOptions{})
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "创建 ReplicaSet 失败: " + err.Error()})
+			return
+		}
+
 	case "Deployment":
 		var deployment appsv1.Deployment
 		if err := json.Unmarshal(jsonData, &deployment); err != nil {
@@ -5790,6 +5958,24 @@ func (h *ResourceHandler) DeleteWorkload(c *gin.Context) {
 
 	// 根据类型删除资源
 	switch workloadType {
+	case "ReplicationController":
+		err = clientset.CoreV1().ReplicationControllers(namespace).Delete(c.Request.Context(), name, metav1.DeleteOptions{})
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"code":    500,
+				"message": "删除ReplicationController失败: " + err.Error(),
+			})
+			return
+		}
+	case "ReplicaSet":
+		err = clientset.AppsV1().ReplicaSets(namespace).Delete(c.Request.Context(), name, metav1.DeleteOptions{})
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"code":    500,
+				"message": "删除ReplicaSet失败: " + err.Error(),
+			})
+			return
+		}
 	case "Deployment":
 		err = clientset.AppsV1().Deployments(namespace).Delete(c.Request.Context(), name, metav1.DeleteOptions{})
 		if err != nil {
@@ -5882,6 +6068,20 @@ func cleanWorkloadForYAML(obj interface{}, workloadType string) map[string]inter
 		if deploy, ok := obj.(*appsv1.Deployment); ok {
 			result["metadata"] = cleanMetadata(deploy.ObjectMeta)
 			result["spec"] = deploy.Spec
+		}
+	case "ReplicationController":
+		result["apiVersion"] = "v1"
+		result["kind"] = "ReplicationController"
+		if rc, ok := obj.(*v1.ReplicationController); ok {
+			result["metadata"] = cleanMetadata(rc.ObjectMeta)
+			result["spec"] = rc.Spec
+		}
+	case "ReplicaSet":
+		result["apiVersion"] = "apps/v1"
+		result["kind"] = "ReplicaSet"
+		if rs, ok := obj.(*appsv1.ReplicaSet); ok {
+			result["metadata"] = cleanMetadata(rs.ObjectMeta)
+			result["spec"] = rs.Spec
 		}
 	case "StatefulSet":
 		result["apiVersion"] = "apps/v1"
@@ -15116,4 +15316,1157 @@ func (h *ResourceHandler) CreateSecretFromYAML(c *gin.Context) {
 			"needRefresh": true,
 		},
 	})
+}
+
+// ==================== PriorityClass Handlers ====================
+
+type PriorityClassInfo struct {
+	Name             string `json:"name"`
+	Value            int32  `json:"value"`
+	GlobalDefault    bool   `json:"globalDefault"`
+	PreemptionPolicy string `json:"preemptionPolicy"`
+	Description      string `json:"description"`
+	Age              string `json:"age"`
+	CreatedAt        string `json:"createdAt"`
+}
+
+// ListPriorityClasses lists PriorityClasses
+func (h *ResourceHandler) ListPriorityClasses(c *gin.Context) {
+	clusterIDStr := c.Query("clusterId")
+	clusterID, err := strconv.ParseUint(clusterIDStr, 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "Invalid Cluster ID"})
+		return
+	}
+
+	currentUserID, ok := GetCurrentUserID(c)
+	if !ok {
+		return
+	}
+
+	clientset, err := h.clusterService.GetClientsetForUser(c.Request.Context(), uint(clusterID), currentUserID)
+	if err != nil {
+		if h.handleGetClientsetError(c, err) {
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "Failed to get cluster client: " + err.Error()})
+		return
+	}
+
+	pcs, err := clientset.SchedulingV1().PriorityClasses().List(c.Request.Context(), metav1.ListOptions{})
+	if err != nil {
+		HandleK8sError(c, err, "PriorityClass")
+		return
+	}
+
+	infos := make([]PriorityClassInfo, 0, len(pcs.Items))
+	for _, pc := range pcs.Items {
+		pp := ""
+		if pc.PreemptionPolicy != nil {
+			pp = string(*pc.PreemptionPolicy)
+		}
+		infos = append(infos, PriorityClassInfo{
+			Name:             pc.Name,
+			Value:            pc.Value,
+			GlobalDefault:    pc.GlobalDefault,
+			PreemptionPolicy: pp,
+			Description:      pc.Description,
+			Age:              calculateAge(pc.CreationTimestamp.Time),
+			CreatedAt:        pc.CreationTimestamp.Format("2006-01-02 15:04:05"),
+		})
+	}
+
+	c.JSON(http.StatusOK, gin.H{"code": 0, "message": "success", "data": infos})
+}
+
+// ==================== RuntimeClass Handlers ====================
+
+type RuntimeClassInfo struct {
+	Name      string `json:"name"`
+	Handler   string `json:"handler"`
+	Age       string `json:"age"`
+	CreatedAt string `json:"createdAt"`
+}
+
+// ListRuntimeClasses lists RuntimeClasses
+func (h *ResourceHandler) ListRuntimeClasses(c *gin.Context) {
+	clusterIDStr := c.Query("clusterId")
+	clusterID, err := strconv.ParseUint(clusterIDStr, 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "Invalid Cluster ID"})
+		return
+	}
+
+	currentUserID, ok := GetCurrentUserID(c)
+	if !ok {
+		return
+	}
+
+	clientset, err := h.clusterService.GetClientsetForUser(c.Request.Context(), uint(clusterID), currentUserID)
+	if err != nil {
+		if h.handleGetClientsetError(c, err) {
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "Failed to get cluster client: " + err.Error()})
+		return
+	}
+
+	rcs, err := clientset.NodeV1().RuntimeClasses().List(c.Request.Context(), metav1.ListOptions{})
+	if err != nil {
+		HandleK8sError(c, err, "RuntimeClass")
+		return
+	}
+
+	infos := make([]RuntimeClassInfo, 0, len(rcs.Items))
+	for _, rc := range rcs.Items {
+		infos = append(infos, RuntimeClassInfo{
+			Name:      rc.Name,
+			Handler:   rc.Handler,
+			Age:       calculateAge(rc.CreationTimestamp.Time),
+			CreatedAt: rc.CreationTimestamp.Format("2006-01-02 15:04:05"),
+		})
+	}
+
+	c.JSON(http.StatusOK, gin.H{"code": 0, "message": "success", "data": infos})
+}
+
+// ==================== Lease Handlers ====================
+
+type LeaseInfo struct {
+	Name           string `json:"name"`
+	Namespace      string `json:"namespace"`
+	HolderIdentity string `json:"holderIdentity"`
+	LeaseDuration  int32  `json:"leaseDuration"`
+	RenewTime      string `json:"renewTime"`
+	Age            string `json:"age"`
+	CreatedAt      string `json:"createdAt"`
+}
+
+// ListLeases lists Leases
+func (h *ResourceHandler) ListLeases(c *gin.Context) {
+	clusterIDStr := c.Query("clusterId")
+	clusterID, err := strconv.ParseUint(clusterIDStr, 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "Invalid Cluster ID"})
+		return
+	}
+
+	namespace := c.Query("namespace")
+	if namespace == "" {
+		namespace = v1.NamespaceAll
+	}
+
+	currentUserID, ok := GetCurrentUserID(c)
+	if !ok {
+		return
+	}
+
+	clientset, err := h.clusterService.GetClientsetForUser(c.Request.Context(), uint(clusterID), currentUserID)
+	if err != nil {
+		if h.handleGetClientsetError(c, err) {
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "Failed to get cluster client: " + err.Error()})
+		return
+	}
+
+	leases, err := clientset.CoordinationV1().Leases(namespace).List(c.Request.Context(), metav1.ListOptions{})
+	if err != nil {
+		HandleK8sError(c, err, "Lease")
+		return
+	}
+
+	infos := make([]LeaseInfo, 0, len(leases.Items))
+	for _, l := range leases.Items {
+		holder := ""
+		if l.Spec.HolderIdentity != nil {
+			holder = *l.Spec.HolderIdentity
+		}
+		duration := int32(0)
+		if l.Spec.LeaseDurationSeconds != nil {
+			duration = *l.Spec.LeaseDurationSeconds
+		}
+		renew := ""
+		if l.Spec.RenewTime != nil {
+			renew = l.Spec.RenewTime.Format("2006-01-02 15:04:05")
+		}
+
+		infos = append(infos, LeaseInfo{
+			Name:           l.Name,
+			Namespace:      l.Namespace,
+			HolderIdentity: holder,
+			LeaseDuration:  duration,
+			RenewTime:      renew,
+			Age:            calculateAge(l.CreationTimestamp.Time),
+			CreatedAt:      l.CreationTimestamp.Format("2006-01-02 15:04:05"),
+		})
+	}
+
+	c.JSON(http.StatusOK, gin.H{"code": 0, "message": "success", "data": infos})
+}
+
+// ==================== Webhook Handlers ====================
+
+type WebhookConfigInfo struct {
+	Name      string   `json:"name"`
+	Webhooks  []string `json:"webhooks"`
+	Age       string   `json:"age"`
+	CreatedAt string   `json:"createdAt"`
+}
+
+// ListMutatingWebhookConfigurations lists MutatingWebhookConfigurations
+func (h *ResourceHandler) ListMutatingWebhookConfigurations(c *gin.Context) {
+	clusterIDStr := c.Query("clusterId")
+	clusterID, err := strconv.ParseUint(clusterIDStr, 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "Invalid Cluster ID"})
+		return
+	}
+
+	currentUserID, ok := GetCurrentUserID(c)
+	if !ok {
+		return
+	}
+
+	clientset, err := h.clusterService.GetClientsetForUser(c.Request.Context(), uint(clusterID), currentUserID)
+	if err != nil {
+		if h.handleGetClientsetError(c, err) {
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "Failed to get cluster client: " + err.Error()})
+		return
+	}
+
+	mwc, err := clientset.AdmissionregistrationV1().MutatingWebhookConfigurations().List(c.Request.Context(), metav1.ListOptions{})
+	if err != nil {
+		HandleK8sError(c, err, "MutatingWebhookConfiguration")
+		return
+	}
+
+	infos := make([]WebhookConfigInfo, 0, len(mwc.Items))
+	for _, w := range mwc.Items {
+		webhooks := make([]string, 0, len(w.Webhooks))
+		for _, hook := range w.Webhooks {
+			webhooks = append(webhooks, hook.Name)
+		}
+		infos = append(infos, WebhookConfigInfo{
+			Name:      w.Name,
+			Webhooks:  webhooks,
+			Age:       calculateAge(w.CreationTimestamp.Time),
+			CreatedAt: w.CreationTimestamp.Format("2006-01-02 15:04:05"),
+		})
+	}
+
+	c.JSON(http.StatusOK, gin.H{"code": 0, "message": "success", "data": infos})
+}
+
+// ListValidatingWebhookConfigurations lists ValidatingWebhookConfigurations
+func (h *ResourceHandler) ListValidatingWebhookConfigurations(c *gin.Context) {
+	clusterIDStr := c.Query("clusterId")
+	clusterID, err := strconv.ParseUint(clusterIDStr, 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "Invalid Cluster ID"})
+		return
+	}
+
+	currentUserID, ok := GetCurrentUserID(c)
+	if !ok {
+		return
+	}
+
+	clientset, err := h.clusterService.GetClientsetForUser(c.Request.Context(), uint(clusterID), currentUserID)
+	if err != nil {
+		if h.handleGetClientsetError(c, err) {
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "Failed to get cluster client: " + err.Error()})
+		return
+	}
+
+	vwc, err := clientset.AdmissionregistrationV1().ValidatingWebhookConfigurations().List(c.Request.Context(), metav1.ListOptions{})
+	if err != nil {
+		HandleK8sError(c, err, "ValidatingWebhookConfiguration")
+		return
+	}
+
+	infos := make([]WebhookConfigInfo, 0, len(vwc.Items))
+	for _, w := range vwc.Items {
+		webhooks := make([]string, 0, len(w.Webhooks))
+		for _, hook := range w.Webhooks {
+			webhooks = append(webhooks, hook.Name)
+		}
+		infos = append(infos, WebhookConfigInfo{
+			Name:      w.Name,
+			Webhooks:  webhooks,
+			Age:       calculateAge(w.CreationTimestamp.Time),
+			CreatedAt: w.CreationTimestamp.Format("2006-01-02 15:04:05"),
+		})
+	}
+
+	c.JSON(http.StatusOK, gin.H{"code": 0, "message": "success", "data": infos})
+}
+
+// ==================== PriorityClass CRUD ====================
+
+func (h *ResourceHandler) GetPriorityClassYAML(c *gin.Context) {
+	name := c.Param("name")
+	if name == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "Name is required"})
+		return
+	}
+
+	clusterIDStr := c.Query("clusterId")
+	clusterID, err := strconv.ParseUint(clusterIDStr, 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "Invalid Cluster ID"})
+		return
+	}
+
+	currentUserID, ok := GetCurrentUserID(c)
+	if !ok {
+		return
+	}
+
+	clientset, err := h.clusterService.GetClientsetForUser(c.Request.Context(), uint(clusterID), currentUserID)
+	if err != nil {
+		if h.handleGetClientsetError(c, err) {
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "Failed to get cluster client: " + err.Error()})
+		return
+	}
+
+	pc, err := clientset.SchedulingV1().PriorityClasses().Get(c.Request.Context(), name, metav1.GetOptions{})
+	if err != nil {
+		HandleK8sError(c, err, "PriorityClass")
+		return
+	}
+
+	yamlBytes, err := yamlMarshal(pc)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "Failed to marshal YAML: " + err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"code": 0, "message": "success", "data": gin.H{"yaml": string(yamlBytes)}})
+}
+
+func (h *ResourceHandler) UpdatePriorityClassYAML(c *gin.Context) {
+	name := c.Param("name")
+	if name == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "Name is required"})
+		return
+	}
+
+	var body struct {
+		ClusterID uint   `json:"clusterId"`
+		YAML      string `json:"yaml"`
+	}
+	if err := c.ShouldBindJSON(&body); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "Invalid request body"})
+		return
+	}
+
+	currentUserID, ok := GetCurrentUserID(c)
+	if !ok {
+		return
+	}
+
+	clientset, err := h.clusterService.GetClientsetForUser(c.Request.Context(), body.ClusterID, currentUserID)
+	if err != nil {
+		if h.handleGetClientsetError(c, err) {
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "Failed to get cluster client: " + err.Error()})
+		return
+	}
+
+	var pc schedulingv1.PriorityClass
+	if err := yamlUnmarshal([]byte(body.YAML), &pc); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "Invalid YAML: " + err.Error()})
+		return
+	}
+
+	if pc.Name != name {
+		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "Name in YAML does not match URL"})
+		return
+	}
+
+	_, err = clientset.SchedulingV1().PriorityClasses().Update(c.Request.Context(), &pc, metav1.UpdateOptions{})
+	if err != nil {
+		HandleK8sError(c, err, "PriorityClass")
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"code": 0, "message": "Update success"})
+}
+
+func (h *ResourceHandler) CreatePriorityClassFromYAML(c *gin.Context) {
+	var body struct {
+		ClusterID uint   `json:"clusterId"`
+		YAML      string `json:"yaml"`
+	}
+	if err := c.ShouldBindJSON(&body); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "Invalid request body"})
+		return
+	}
+
+	currentUserID, ok := GetCurrentUserID(c)
+	if !ok {
+		return
+	}
+
+	clientset, err := h.clusterService.GetClientsetForUser(c.Request.Context(), body.ClusterID, currentUserID)
+	if err != nil {
+		if h.handleGetClientsetError(c, err) {
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "Failed to get cluster client: " + err.Error()})
+		return
+	}
+
+	var pc schedulingv1.PriorityClass
+	if err := yamlUnmarshal([]byte(body.YAML), &pc); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "Invalid YAML: " + err.Error()})
+		return
+	}
+
+	_, err = clientset.SchedulingV1().PriorityClasses().Create(c.Request.Context(), &pc, metav1.CreateOptions{})
+	if err != nil {
+		HandleK8sError(c, err, "PriorityClass")
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"code": 0, "message": "Create success"})
+}
+
+func (h *ResourceHandler) DeletePriorityClass(c *gin.Context) {
+	name := c.Param("name")
+	if name == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "Name is required"})
+		return
+	}
+
+	clusterIDStr := c.Query("clusterId")
+	clusterID, err := strconv.ParseUint(clusterIDStr, 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "Invalid Cluster ID"})
+		return
+	}
+
+	currentUserID, ok := GetCurrentUserID(c)
+	if !ok {
+		return
+	}
+
+	clientset, err := h.clusterService.GetClientsetForUser(c.Request.Context(), uint(clusterID), currentUserID)
+	if err != nil {
+		if h.handleGetClientsetError(c, err) {
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "Failed to get cluster client: " + err.Error()})
+		return
+	}
+
+	err = clientset.SchedulingV1().PriorityClasses().Delete(c.Request.Context(), name, metav1.DeleteOptions{})
+	if err != nil {
+		HandleK8sError(c, err, "PriorityClass")
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"code": 0, "message": "Delete success"})
+}
+
+// ==================== RuntimeClass CRUD ====================
+
+func (h *ResourceHandler) GetRuntimeClassYAML(c *gin.Context) {
+	name := c.Param("name")
+	if name == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "Name is required"})
+		return
+	}
+
+	clusterIDStr := c.Query("clusterId")
+	clusterID, err := strconv.ParseUint(clusterIDStr, 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "Invalid Cluster ID"})
+		return
+	}
+
+	currentUserID, ok := GetCurrentUserID(c)
+	if !ok {
+		return
+	}
+
+	clientset, err := h.clusterService.GetClientsetForUser(c.Request.Context(), uint(clusterID), currentUserID)
+	if err != nil {
+		if h.handleGetClientsetError(c, err) {
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "Failed to get cluster client: " + err.Error()})
+		return
+	}
+
+	rc, err := clientset.NodeV1().RuntimeClasses().Get(c.Request.Context(), name, metav1.GetOptions{})
+	if err != nil {
+		HandleK8sError(c, err, "RuntimeClass")
+		return
+	}
+
+	yamlBytes, err := yamlMarshal(rc)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "Failed to marshal YAML: " + err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"code": 0, "message": "success", "data": gin.H{"yaml": string(yamlBytes)}})
+}
+
+func (h *ResourceHandler) UpdateRuntimeClassYAML(c *gin.Context) {
+	name := c.Param("name")
+	if name == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "Name is required"})
+		return
+	}
+
+	var body struct {
+		ClusterID uint   `json:"clusterId"`
+		YAML      string `json:"yaml"`
+	}
+	if err := c.ShouldBindJSON(&body); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "Invalid request body"})
+		return
+	}
+
+	currentUserID, ok := GetCurrentUserID(c)
+	if !ok {
+		return
+	}
+
+	clientset, err := h.clusterService.GetClientsetForUser(c.Request.Context(), body.ClusterID, currentUserID)
+	if err != nil {
+		if h.handleGetClientsetError(c, err) {
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "Failed to get cluster client: " + err.Error()})
+		return
+	}
+
+	var rc nodev1.RuntimeClass
+	if err := yamlUnmarshal([]byte(body.YAML), &rc); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "Invalid YAML: " + err.Error()})
+		return
+	}
+
+	if rc.Name != name {
+		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "Name in YAML does not match URL"})
+		return
+	}
+
+	_, err = clientset.NodeV1().RuntimeClasses().Update(c.Request.Context(), &rc, metav1.UpdateOptions{})
+	if err != nil {
+		HandleK8sError(c, err, "RuntimeClass")
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"code": 0, "message": "Update success"})
+}
+
+func (h *ResourceHandler) CreateRuntimeClassFromYAML(c *gin.Context) {
+	var body struct {
+		ClusterID uint   `json:"clusterId"`
+		YAML      string `json:"yaml"`
+	}
+	if err := c.ShouldBindJSON(&body); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "Invalid request body"})
+		return
+	}
+
+	currentUserID, ok := GetCurrentUserID(c)
+	if !ok {
+		return
+	}
+
+	clientset, err := h.clusterService.GetClientsetForUser(c.Request.Context(), body.ClusterID, currentUserID)
+	if err != nil {
+		if h.handleGetClientsetError(c, err) {
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "Failed to get cluster client: " + err.Error()})
+		return
+	}
+
+	var rc nodev1.RuntimeClass
+	if err := yamlUnmarshal([]byte(body.YAML), &rc); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "Invalid YAML: " + err.Error()})
+		return
+	}
+
+	_, err = clientset.NodeV1().RuntimeClasses().Create(c.Request.Context(), &rc, metav1.CreateOptions{})
+	if err != nil {
+		HandleK8sError(c, err, "RuntimeClass")
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"code": 0, "message": "Create success"})
+}
+
+func (h *ResourceHandler) DeleteRuntimeClass(c *gin.Context) {
+	name := c.Param("name")
+	if name == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "Name is required"})
+		return
+	}
+
+	clusterIDStr := c.Query("clusterId")
+	clusterID, err := strconv.ParseUint(clusterIDStr, 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "Invalid Cluster ID"})
+		return
+	}
+
+	currentUserID, ok := GetCurrentUserID(c)
+	if !ok {
+		return
+	}
+
+	clientset, err := h.clusterService.GetClientsetForUser(c.Request.Context(), uint(clusterID), currentUserID)
+	if err != nil {
+		if h.handleGetClientsetError(c, err) {
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "Failed to get cluster client: " + err.Error()})
+		return
+	}
+
+	err = clientset.NodeV1().RuntimeClasses().Delete(c.Request.Context(), name, metav1.DeleteOptions{})
+	if err != nil {
+		HandleK8sError(c, err, "RuntimeClass")
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"code": 0, "message": "Delete success"})
+}
+
+// ==================== Lease CRUD ====================
+
+func (h *ResourceHandler) GetLeaseYAML(c *gin.Context) {
+	namespace := c.Param("namespace")
+	name := c.Param("name")
+	if name == "" || namespace == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "Name and Namespace are required"})
+		return
+	}
+
+	clusterIDStr := c.Query("clusterId")
+	clusterID, err := strconv.ParseUint(clusterIDStr, 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "Invalid Cluster ID"})
+		return
+	}
+
+	currentUserID, ok := GetCurrentUserID(c)
+	if !ok {
+		return
+	}
+
+	clientset, err := h.clusterService.GetClientsetForUser(c.Request.Context(), uint(clusterID), currentUserID)
+	if err != nil {
+		if h.handleGetClientsetError(c, err) {
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "Failed to get cluster client: " + err.Error()})
+		return
+	}
+
+	lease, err := clientset.CoordinationV1().Leases(namespace).Get(c.Request.Context(), name, metav1.GetOptions{})
+	if err != nil {
+		HandleK8sError(c, err, "Lease")
+		return
+	}
+
+	yamlBytes, err := yamlMarshal(lease)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "Failed to marshal YAML: " + err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"code": 0, "message": "success", "data": gin.H{"yaml": string(yamlBytes)}})
+}
+
+func (h *ResourceHandler) UpdateLeaseYAML(c *gin.Context) {
+	namespace := c.Param("namespace")
+	name := c.Param("name")
+	if name == "" || namespace == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "Name and Namespace are required"})
+		return
+	}
+
+	var body struct {
+		ClusterID uint   `json:"clusterId"`
+		YAML      string `json:"yaml"`
+	}
+	if err := c.ShouldBindJSON(&body); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "Invalid request body"})
+		return
+	}
+
+	currentUserID, ok := GetCurrentUserID(c)
+	if !ok {
+		return
+	}
+
+	clientset, err := h.clusterService.GetClientsetForUser(c.Request.Context(), body.ClusterID, currentUserID)
+	if err != nil {
+		if h.handleGetClientsetError(c, err) {
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "Failed to get cluster client: " + err.Error()})
+		return
+	}
+
+	var lease coordinationv1.Lease
+	if err := yamlUnmarshal([]byte(body.YAML), &lease); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "Invalid YAML: " + err.Error()})
+		return
+	}
+
+	if lease.Name != name || lease.Namespace != namespace {
+		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "Name/Namespace in YAML does not match URL"})
+		return
+	}
+
+	_, err = clientset.CoordinationV1().Leases(namespace).Update(c.Request.Context(), &lease, metav1.UpdateOptions{})
+	if err != nil {
+		HandleK8sError(c, err, "Lease")
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"code": 0, "message": "Update success"})
+}
+
+func (h *ResourceHandler) CreateLeaseFromYAML(c *gin.Context) {
+	namespace := c.Param("namespace")
+
+	var body struct {
+		ClusterID uint   `json:"clusterId"`
+		YAML      string `json:"yaml"`
+	}
+	if err := c.ShouldBindJSON(&body); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "Invalid request body"})
+		return
+	}
+
+	currentUserID, ok := GetCurrentUserID(c)
+	if !ok {
+		return
+	}
+
+	clientset, err := h.clusterService.GetClientsetForUser(c.Request.Context(), body.ClusterID, currentUserID)
+	if err != nil {
+		if h.handleGetClientsetError(c, err) {
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "Failed to get cluster client: " + err.Error()})
+		return
+	}
+
+	var lease coordinationv1.Lease
+	if err := yamlUnmarshal([]byte(body.YAML), &lease); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "Invalid YAML: " + err.Error()})
+		return
+	}
+
+	if lease.Namespace != namespace {
+		// Could optionally enforce or override namespace
+		lease.Namespace = namespace
+	}
+
+	_, err = clientset.CoordinationV1().Leases(namespace).Create(c.Request.Context(), &lease, metav1.CreateOptions{})
+	if err != nil {
+		HandleK8sError(c, err, "Lease")
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"code": 0, "message": "Create success"})
+}
+
+func (h *ResourceHandler) DeleteLease(c *gin.Context) {
+	namespace := c.Param("namespace")
+	name := c.Param("name")
+	if name == "" || namespace == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "Name and Namespace are required"})
+		return
+	}
+
+	clusterIDStr := c.Query("clusterId")
+	clusterID, err := strconv.ParseUint(clusterIDStr, 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "Invalid Cluster ID"})
+		return
+	}
+
+	currentUserID, ok := GetCurrentUserID(c)
+	if !ok {
+		return
+	}
+
+	clientset, err := h.clusterService.GetClientsetForUser(c.Request.Context(), uint(clusterID), currentUserID)
+	if err != nil {
+		if h.handleGetClientsetError(c, err) {
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "Failed to get cluster client: " + err.Error()})
+		return
+	}
+
+	err = clientset.CoordinationV1().Leases(namespace).Delete(c.Request.Context(), name, metav1.DeleteOptions{})
+	if err != nil {
+		HandleK8sError(c, err, "Lease")
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"code": 0, "message": "Delete success"})
+}
+
+// ==================== MutatingWebhookConfiguration CRUD ====================
+
+func (h *ResourceHandler) GetMutatingWebhookConfigurationYAML(c *gin.Context) {
+	name := c.Param("name")
+	if name == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "Name is required"})
+		return
+	}
+
+	clusterIDStr := c.Query("clusterId")
+	clusterID, err := strconv.ParseUint(clusterIDStr, 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "Invalid Cluster ID"})
+		return
+	}
+
+	currentUserID, ok := GetCurrentUserID(c)
+	if !ok {
+		return
+	}
+
+	clientset, err := h.clusterService.GetClientsetForUser(c.Request.Context(), uint(clusterID), currentUserID)
+	if err != nil {
+		if h.handleGetClientsetError(c, err) {
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "Failed to get cluster client: " + err.Error()})
+		return
+	}
+
+	mwc, err := clientset.AdmissionregistrationV1().MutatingWebhookConfigurations().Get(c.Request.Context(), name, metav1.GetOptions{})
+	if err != nil {
+		HandleK8sError(c, err, "MutatingWebhookConfiguration")
+		return
+	}
+
+	yamlBytes, err := yamlMarshal(mwc)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "Failed to marshal YAML: " + err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"code": 0, "message": "success", "data": gin.H{"yaml": string(yamlBytes)}})
+}
+
+func (h *ResourceHandler) UpdateMutatingWebhookConfigurationYAML(c *gin.Context) {
+	name := c.Param("name")
+	if name == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "Name is required"})
+		return
+	}
+
+	var body struct {
+		ClusterID uint   `json:"clusterId"`
+		YAML      string `json:"yaml"`
+	}
+	if err := c.ShouldBindJSON(&body); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "Invalid request body"})
+		return
+	}
+
+	currentUserID, ok := GetCurrentUserID(c)
+	if !ok {
+		return
+	}
+
+	clientset, err := h.clusterService.GetClientsetForUser(c.Request.Context(), body.ClusterID, currentUserID)
+	if err != nil {
+		if h.handleGetClientsetError(c, err) {
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "Failed to get cluster client: " + err.Error()})
+		return
+	}
+
+	var mwc admissionregistrationv1.MutatingWebhookConfiguration
+	if err := yamlUnmarshal([]byte(body.YAML), &mwc); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "Invalid YAML: " + err.Error()})
+		return
+	}
+
+	if mwc.Name != name {
+		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "Name in YAML does not match URL"})
+		return
+	}
+
+	_, err = clientset.AdmissionregistrationV1().MutatingWebhookConfigurations().Update(c.Request.Context(), &mwc, metav1.UpdateOptions{})
+	if err != nil {
+		HandleK8sError(c, err, "MutatingWebhookConfiguration")
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"code": 0, "message": "Update success"})
+}
+
+func (h *ResourceHandler) CreateMutatingWebhookConfigurationFromYAML(c *gin.Context) {
+	var body struct {
+		ClusterID uint   `json:"clusterId"`
+		YAML      string `json:"yaml"`
+	}
+	if err := c.ShouldBindJSON(&body); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "Invalid request body"})
+		return
+	}
+
+	currentUserID, ok := GetCurrentUserID(c)
+	if !ok {
+		return
+	}
+
+	clientset, err := h.clusterService.GetClientsetForUser(c.Request.Context(), body.ClusterID, currentUserID)
+	if err != nil {
+		if h.handleGetClientsetError(c, err) {
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "Failed to get cluster client: " + err.Error()})
+		return
+	}
+
+	var mwc admissionregistrationv1.MutatingWebhookConfiguration
+	if err := yamlUnmarshal([]byte(body.YAML), &mwc); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "Invalid YAML: " + err.Error()})
+		return
+	}
+
+	_, err = clientset.AdmissionregistrationV1().MutatingWebhookConfigurations().Create(c.Request.Context(), &mwc, metav1.CreateOptions{})
+	if err != nil {
+		HandleK8sError(c, err, "MutatingWebhookConfiguration")
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"code": 0, "message": "Create success"})
+}
+
+func (h *ResourceHandler) DeleteMutatingWebhookConfiguration(c *gin.Context) {
+	name := c.Param("name")
+	if name == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "Name is required"})
+		return
+	}
+
+	clusterIDStr := c.Query("clusterId")
+	clusterID, err := strconv.ParseUint(clusterIDStr, 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "Invalid Cluster ID"})
+		return
+	}
+
+	currentUserID, ok := GetCurrentUserID(c)
+	if !ok {
+		return
+	}
+
+	clientset, err := h.clusterService.GetClientsetForUser(c.Request.Context(), uint(clusterID), currentUserID)
+	if err != nil {
+		if h.handleGetClientsetError(c, err) {
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "Failed to get cluster client: " + err.Error()})
+		return
+	}
+
+	err = clientset.AdmissionregistrationV1().MutatingWebhookConfigurations().Delete(c.Request.Context(), name, metav1.DeleteOptions{})
+	if err != nil {
+		HandleK8sError(c, err, "MutatingWebhookConfiguration")
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"code": 0, "message": "Delete success"})
+}
+
+// ==================== ValidatingWebhookConfiguration CRUD ====================
+
+func (h *ResourceHandler) GetValidatingWebhookConfigurationYAML(c *gin.Context) {
+	name := c.Param("name")
+	if name == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "Name is required"})
+		return
+	}
+
+	clusterIDStr := c.Query("clusterId")
+	clusterID, err := strconv.ParseUint(clusterIDStr, 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "Invalid Cluster ID"})
+		return
+	}
+
+	currentUserID, ok := GetCurrentUserID(c)
+	if !ok {
+		return
+	}
+
+	clientset, err := h.clusterService.GetClientsetForUser(c.Request.Context(), uint(clusterID), currentUserID)
+	if err != nil {
+		if h.handleGetClientsetError(c, err) {
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "Failed to get cluster client: " + err.Error()})
+		return
+	}
+
+	vwc, err := clientset.AdmissionregistrationV1().ValidatingWebhookConfigurations().Get(c.Request.Context(), name, metav1.GetOptions{})
+	if err != nil {
+		HandleK8sError(c, err, "ValidatingWebhookConfiguration")
+		return
+	}
+
+	yamlBytes, err := yamlMarshal(vwc)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "Failed to marshal YAML: " + err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"code": 0, "message": "success", "data": gin.H{"yaml": string(yamlBytes)}})
+}
+
+func (h *ResourceHandler) UpdateValidatingWebhookConfigurationYAML(c *gin.Context) {
+	name := c.Param("name")
+	if name == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "Name is required"})
+		return
+	}
+
+	var body struct {
+		ClusterID uint   `json:"clusterId"`
+		YAML      string `json:"yaml"`
+	}
+	if err := c.ShouldBindJSON(&body); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "Invalid request body"})
+		return
+	}
+
+	currentUserID, ok := GetCurrentUserID(c)
+	if !ok {
+		return
+	}
+
+	clientset, err := h.clusterService.GetClientsetForUser(c.Request.Context(), body.ClusterID, currentUserID)
+	if err != nil {
+		if h.handleGetClientsetError(c, err) {
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "Failed to get cluster client: " + err.Error()})
+		return
+	}
+
+	var vwc admissionregistrationv1.ValidatingWebhookConfiguration
+	if err := yamlUnmarshal([]byte(body.YAML), &vwc); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "Invalid YAML: " + err.Error()})
+		return
+	}
+
+	if vwc.Name != name {
+		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "Name in YAML does not match URL"})
+		return
+	}
+
+	_, err = clientset.AdmissionregistrationV1().ValidatingWebhookConfigurations().Update(c.Request.Context(), &vwc, metav1.UpdateOptions{})
+	if err != nil {
+		HandleK8sError(c, err, "ValidatingWebhookConfiguration")
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"code": 0, "message": "Update success"})
+}
+
+func (h *ResourceHandler) CreateValidatingWebhookConfigurationFromYAML(c *gin.Context) {
+	var body struct {
+		ClusterID uint   `json:"clusterId"`
+		YAML      string `json:"yaml"`
+	}
+	if err := c.ShouldBindJSON(&body); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "Invalid request body"})
+		return
+	}
+
+	currentUserID, ok := GetCurrentUserID(c)
+	if !ok {
+		return
+	}
+
+	clientset, err := h.clusterService.GetClientsetForUser(c.Request.Context(), body.ClusterID, currentUserID)
+	if err != nil {
+		if h.handleGetClientsetError(c, err) {
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "Failed to get cluster client: " + err.Error()})
+		return
+	}
+
+	var vwc admissionregistrationv1.ValidatingWebhookConfiguration
+	if err := yamlUnmarshal([]byte(body.YAML), &vwc); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "Invalid YAML: " + err.Error()})
+		return
+	}
+
+	_, err = clientset.AdmissionregistrationV1().ValidatingWebhookConfigurations().Create(c.Request.Context(), &vwc, metav1.CreateOptions{})
+	if err != nil {
+		HandleK8sError(c, err, "ValidatingWebhookConfiguration")
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"code": 0, "message": "Create success"})
+}
+
+func (h *ResourceHandler) DeleteValidatingWebhookConfiguration(c *gin.Context) {
+	name := c.Param("name")
+	if name == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "Name is required"})
+		return
+	}
+
+	clusterIDStr := c.Query("clusterId")
+	clusterID, err := strconv.ParseUint(clusterIDStr, 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "Invalid Cluster ID"})
+		return
+	}
+
+	currentUserID, ok := GetCurrentUserID(c)
+	if !ok {
+		return
+	}
+
+	clientset, err := h.clusterService.GetClientsetForUser(c.Request.Context(), uint(clusterID), currentUserID)
+	if err != nil {
+		if h.handleGetClientsetError(c, err) {
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "Failed to get cluster client: " + err.Error()})
+		return
+	}
+
+	err = clientset.AdmissionregistrationV1().ValidatingWebhookConfigurations().Delete(c.Request.Context(), name, metav1.DeleteOptions{})
+	if err != nil {
+		HandleK8sError(c, err, "ValidatingWebhookConfiguration")
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"code": 0, "message": "Delete success"})
 }

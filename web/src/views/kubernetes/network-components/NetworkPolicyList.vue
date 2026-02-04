@@ -94,17 +94,12 @@
 
     <el-dialog v-model="yamlDialogVisible" :title="`NetworkPolicy YAML - ${selectedPolicy?.name}`" width="900px" :lock-scroll="false" class="yaml-dialog">
       <div class="yaml-editor-wrapper">
-        <div class="yaml-line-numbers">
-          <div v-for="line in yamlLineCount" :key="line" class="line-number">{{ line }}</div>
-        </div>
-        <textarea
+        <YamlEditor
+          v-if="yamlDialogVisible"
           v-model="yamlContent"
-          class="yaml-textarea"
-          spellcheck="false"
-          @input="handleYamlInput"
-          @scroll="handleYamlScroll"
-          ref="yamlTextarea"
-        ></textarea>
+          :theme="'vs-dark'"
+          language="yaml"
+        />
       </div>
       <template #footer>
         <div class="dialog-footer">
@@ -117,17 +112,12 @@
     <!-- YAML 创建弹窗 -->
     <el-dialog v-model="createYamlDialogVisible" title="YAML 创建 NetworkPolicy" width="900px" :lock-scroll="false" class="yaml-dialog">
       <div class="yaml-editor-wrapper">
-        <div class="yaml-line-numbers">
-          <div v-for="line in createYamlLineCount" :key="line" class="line-number">{{ line }}</div>
-        </div>
-        <textarea
+        <YamlEditor
+          v-if="createYamlDialogVisible"
           v-model="createYamlContent"
-          class="yaml-textarea"
-          spellcheck="false"
-          @input="handleCreateYamlInput"
-          @scroll="handleCreateYamlScroll"
-          ref="createYamlTextarea"
-        ></textarea>
+          :theme="'vs-dark'"
+          language="yaml"
+        />
       </div>
       <template #footer>
         <div class="dialog-footer">
@@ -146,6 +136,7 @@ import { Search, Lock, Document, Delete } from '@element-plus/icons-vue'
 import { getNetworkPolicies, getNetworkPolicyYAML, updateNetworkPolicyYAML, createNetworkPolicy, deleteNetworkPolicy, getNamespaces, type NetworkPolicyDetailInfo } from '@/api/kubernetes'
 import { useKubernetesStore } from '@/stores/kubernetes'
 import { load, dump } from 'js-yaml'
+import YamlEditor from '@/components/YamlEditor.vue'
 
 const props = defineProps<{
   clusterId?: number
@@ -202,11 +193,8 @@ const loadPolicies = async (showSuccess = false) => {
   if (!props.clusterId) return
   loading.value = true
   try {
-    let nsParam: string | undefined = undefined
-    if (selectedNamespaces.value.length > 0 && !selectedNamespaces.value.includes('')) {
-      nsParam = selectedNamespaces.value.join(',')
-    }
-    const data = await getNetworkPolicies(props.clusterId, nsParam)
+    // 与 SecretList 保持一致：总是获取所有数据，前端过滤
+    const data = await getNetworkPolicies(props.clusterId)
     policyList.value = data || []
     if (showSuccess) {
       ElMessage.success('刷新成功')
@@ -505,7 +493,7 @@ const handleNamespaceChange = (val: string[]) => {
        kubernetesStore.setNamespaces(val)
     }
   }
-  loadPolicies()
+  // 前端过滤，不需要重新加载数据
 }
 
 // 监听筛选后的数据变化，更新计数

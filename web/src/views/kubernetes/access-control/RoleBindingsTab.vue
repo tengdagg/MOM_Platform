@@ -118,10 +118,9 @@ const filteredData = computed(() => {
   if (props.searchName) {
     result = result.filter(item => item.name.toLowerCase().includes(props.searchName!.toLowerCase()))
   }
-  if (selectedNamespaces.value.length > 0) {
-    if (selectedNamespaces.value.length > 1) {
-      result = result.filter(item => selectedNamespaces.value.includes(item.namespace))
-    }
+  // 与 SecretList 保持一致的过滤逻辑
+  if (selectedNamespaces.value.length > 0 && !selectedNamespaces.value.includes('')) {
+    result = result.filter(item => selectedNamespaces.value.includes(item.namespace))
   }
   return result
 })
@@ -134,11 +133,8 @@ const paginatedList = computed(() => {
 const loadData = async () => {
   loading.value = true
   try {
-    let nsParam = undefined
-    if (selectedNamespaces.value.length === 1) {
-      nsParam = selectedNamespaces.value[0]
-    }
-    const data = await getRoleBindings(props.clusterId, nsParam)
+    // 与 SecretList 保持一致：总是获取所有数据，前端过滤
+    const data = await getRoleBindings(props.clusterId)
     roleBindings.value = data || []
   } catch (error) {
     ElMessage.error('获取 RoleBinding 列表失败')

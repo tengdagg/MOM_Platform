@@ -116,6 +116,46 @@
         @refresh="loadCurrentResources"
         @count-update="(count) => updateCount('pdb', count)"
       />
+
+      <!-- PriorityClasses -->
+      <PriorityClassList
+        v-show="activeTab === 'priorityclasses' && selectedClusterId"
+        ref="priorityClassListRef"
+        :clusterId="selectedClusterId"
+        @count-update="(count) => updateCount('priorityclasses', count)"
+      />
+
+      <!-- RuntimeClasses -->
+      <RuntimeClassList
+        v-show="activeTab === 'runtimeclasses' && selectedClusterId"
+        ref="runtimeClassListRef"
+        :clusterId="selectedClusterId"
+        @count-update="(count) => updateCount('runtimeclasses', count)"
+      />
+
+      <!-- Leases -->
+      <LeaseList
+        v-show="activeTab === 'leases' && selectedClusterId"
+        ref="leaseListRef"
+        :clusterId="selectedClusterId"
+        @count-update="(count) => updateCount('leases', count)"
+      />
+
+      <!-- MutatingWebhooks -->
+      <MutatingWebhookList
+        v-show="activeTab === 'mutatingwebhooks' && selectedClusterId"
+        ref="mutatingWebhookListRef"
+        :clusterId="selectedClusterId"
+        @count-update="(count) => updateCount('mutatingwebhooks', count)"
+      />
+
+      <!-- ValidatingWebhooks -->
+      <ValidatingWebhookList
+        v-show="activeTab === 'validatingwebhooks' && selectedClusterId"
+        ref="validatingWebhookListRef"
+        :clusterId="selectedClusterId"
+        @count-update="(count) => updateCount('validatingwebhooks', count)"
+      />
     </div>
   </div>
 </template>
@@ -131,7 +171,11 @@ import {
   Histogram,
   Operation,
   TrendCharts,
-  FolderOpened
+  FolderOpened,
+  Trophy,
+  Cpu,
+  Timer,
+  Link
 } from '@element-plus/icons-vue'
 import { getClusterList, getNamespaces, type Cluster } from '@/api/kubernetes'
 import { useKubernetesStore } from '@/stores/kubernetes'
@@ -142,6 +186,11 @@ import ResourceQuotaList from './config-components/ResourceQuotaList.vue'
 import LimitRangeList from './config-components/LimitRangeList.vue'
 import HPAList from './config-components/HPAList.vue'
 import PodDisruptionBudgetList from './config-components/PodDisruptionBudgetList.vue'
+import PriorityClassList from './config-components/PriorityClassList.vue'
+import RuntimeClassList from './config-components/RuntimeClassList.vue'
+import LeaseList from './config-components/LeaseList.vue'
+import MutatingWebhookList from './config-components/MutatingWebhookList.vue'
+import ValidatingWebhookList from './config-components/ValidatingWebhookList.vue'
 
 // 使用全局 Kubernetes store
 const kubernetesStore = useKubernetesStore()
@@ -161,6 +210,11 @@ const configTypes = ref<ConfigType[]>([
   { label: 'LimitRanges', value: 'limitranges', icon: Operation, count: 0 },
   { label: 'HPA', value: 'hpa', icon: TrendCharts, count: 0 },
   { label: 'PodDisruptionBudgets', value: 'pdb', icon: Lock, count: 0 },
+  { label: 'PriorityClasses', value: 'priorityclasses', icon: Trophy, count: 0 },
+  { label: 'RuntimeClasses', value: 'runtimeclasses', icon: Cpu, count: 0 },
+  { label: 'Leases', value: 'leases', icon: Timer, count: 0 },
+  { label: 'MutatingWebhooks', value: 'mutatingwebhooks', icon: Link, count: 0 },
+  { label: 'ValidatingWebhooks', value: 'validatingwebhooks', icon: Link, count: 0 },
 ])
 
 const clusterList = ref<Cluster[]>([])
@@ -193,6 +247,11 @@ const resourceQuotaListRef = ref()
 const limitRangeListRef = ref()
 const hpaListRef = ref()
 const pdbListRef = ref()
+const priorityClassListRef = ref()
+const runtimeClassListRef = ref()
+const leaseListRef = ref()
+const mutatingWebhookListRef = ref()
+const validatingWebhookListRef = ref()
 
 // 加载集群列表
 const loadClusters = async () => {
@@ -262,6 +321,21 @@ const loadCurrentResources = async () => {
       break
     case 'pdb':
       await pdbListRef.value?.loadPDBs?.()
+      break
+    case 'priorityclasses':
+      await priorityClassListRef.value?.loadPriorityClasses?.()
+      break
+    case 'runtimeclasses':
+      await runtimeClassListRef.value?.loadRuntimeClasses?.()
+      break
+    case 'leases':
+      await leaseListRef.value?.loadLeases?.()
+      break
+    case 'mutatingwebhooks':
+      await mutatingWebhookListRef.value?.loadMutatingWebhooks?.()
+      break
+    case 'validatingwebhooks':
+      await validatingWebhookListRef.value?.loadValidatingWebhooks?.()
       break
   }
 }

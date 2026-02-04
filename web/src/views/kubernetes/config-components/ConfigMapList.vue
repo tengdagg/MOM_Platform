@@ -350,7 +350,7 @@ const handleNamespaceChange = (val: string[]) => {
     }
   }
   handleSearch()
-  loadConfigMaps()
+  // 前端过滤，不需要重新加载数据
 }
 
 // 分页
@@ -404,10 +404,9 @@ const filteredConfigMaps = computed(() => {
     )
   }
 
-  if (selectedNamespaces.value.length > 0) {
-    if (selectedNamespaces.value.length > 1) {
-      result = result.filter(cm => selectedNamespaces.value.includes(cm.namespace))
-    }
+  // 与 SecretList 保持一致的过滤逻辑
+  if (selectedNamespaces.value.length > 0 && !selectedNamespaces.value.includes('')) {
+    result = result.filter(cm => selectedNamespaces.value.includes(cm.namespace))
   }
 
   return result
@@ -437,15 +436,9 @@ const loadConfigMaps = async () => {
   loading.value = true
   try {
     const token = localStorage.getItem('token')
-    
-    const params: any = { clusterId: props.clusterId }
-    // 单选传递 namespace，多选不传（获取所有）
-    if (selectedNamespaces.value.length === 1) {
-      params.namespace = selectedNamespaces.value[0]
-    }
-    
+    // 与 SecretList 保持一致：总是获取所有数据，前端过滤
     const response = await axios.get(`/api/v1/plugins/kubernetes/resources/configmaps`, {
-      params,
+      params: { clusterId: props.clusterId },
       headers: { Authorization: `Bearer ${token}` }
     })
     configMapList.value = response.data.data || []

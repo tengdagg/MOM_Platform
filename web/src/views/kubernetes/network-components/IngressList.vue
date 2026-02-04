@@ -103,17 +103,12 @@
 
     <el-dialog v-model="yamlDialogVisible" :title="`Ingress YAML - ${selectedIngress?.name}`" width="900px" :lock-scroll="false" class="yaml-dialog">
       <div class="yaml-editor-wrapper">
-        <div class="yaml-line-numbers">
-          <div v-for="line in yamlLineCount" :key="line" class="line-number">{{ line }}</div>
-        </div>
-        <textarea
+        <YamlEditor
+          v-if="yamlDialogVisible"
           v-model="yamlContent"
-          class="yaml-textarea"
-          spellcheck="false"
-          @input="handleYamlInput"
-          @scroll="handleYamlScroll"
-          ref="yamlTextarea"
-        ></textarea>
+          :theme="'vs-dark'"
+          language="yaml"
+        />
       </div>
       <template #footer>
         <div class="dialog-footer">
@@ -126,17 +121,12 @@
     <!-- YAML 创建弹窗 -->
     <el-dialog v-model="createYamlDialogVisible" title="YAML 创建 Ingress" width="900px" :lock-scroll="false" class="yaml-dialog">
       <div class="yaml-editor-wrapper">
-        <div class="yaml-line-numbers">
-          <div v-for="line in createYamlLineCount" :key="line" class="line-number">{{ line }}</div>
-        </div>
-        <textarea
+        <YamlEditor
+          v-if="createYamlDialogVisible"
           v-model="createYamlContent"
-          class="yaml-textarea"
-          spellcheck="false"
-          @input="handleCreateYamlInput"
-          @scroll="handleCreateYamlScroll"
-          ref="createYamlTextarea"
-        ></textarea>
+          :theme="'vs-dark'"
+          language="yaml"
+        />
       </div>
       <template #footer>
         <div class="dialog-footer">
@@ -163,6 +153,7 @@ import { load, dump } from 'js-yaml'
 import { getIngresses, getIngressYAML, updateIngressYAML, createIngressYAML, createIngress, deleteIngress, getNamespaces, type IngressInfo } from '@/api/kubernetes'
 import { useKubernetesStore } from '@/stores/kubernetes'
 import IngressEditDialog from './IngressEditDialog.vue'
+import YamlEditor from '@/components/YamlEditor.vue'
 
 const props = defineProps<{
   clusterId?: number
@@ -211,10 +202,9 @@ const filteredIngresses = computed(() => {
   if (searchName.value) {
     result = result.filter(i => i.name.toLowerCase().includes(searchName.value.toLowerCase()))
   }
-  if (selectedNamespaces.value.length > 0) {
-    if (selectedNamespaces.value.length > 1) {
-      result = result.filter(i => selectedNamespaces.value.includes(i.namespace))
-    }
+  // 与 SecretList 保持一致的过滤逻辑
+  if (selectedNamespaces.value.length > 0 && !selectedNamespaces.value.includes('')) {
+    result = result.filter(i => selectedNamespaces.value.includes(i.namespace))
   }
   return result
 })
@@ -223,11 +213,8 @@ const loadIngresses = async (showSuccess = false) => {
   if (!props.clusterId) return
   loading.value = true
   try {
-    let nsParam = undefined
-    if (selectedNamespaces.value.length === 1) {
-      nsParam = selectedNamespaces.value[0]
-    }
-    const data = await getIngresses(props.clusterId, nsParam)
+    // 与 SecretList 保持一致：总是获取所有数据，前端过滤
+    const data = await getIngresses(props.clusterId)
     ingressList.value = data || []
     if (showSuccess) {
       ElMessage.success('刷新成功')
@@ -496,6 +483,7 @@ const handleNamespaceChange = (val: string[]) => {
     }
   }
   loadIngresses()
+  // 前端过滤，不需要重新加载数据
 }
 
 // 监听筛选后的数据变化，更新计数
