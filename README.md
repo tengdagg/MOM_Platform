@@ -53,27 +53,34 @@ MOM Platform 是一个功能强大的**插件化运维管理平台**，采用前
 - 数据变更追溯
 
 ### 📜 项目演示图
-  <table>
+  <table width="100%">
     <tr>
-      <td><img src="./docs/images/login.png" alt="登录页面"/></td>
-      <td><img src="./docs/images/dashboard.png" alt="首页概览"/></td>
+      <td width="100%"><img src="./docs/images/login.png" alt="登录页面" width="100%"/></td>
     </tr>
     <tr>
-      <td><img src="./docs/images/hosts.png" alt="资产管理"/></td>
-      <td><img src="./docs/images/terminal.png" alt="终端连接"/></td>
+      <td width="100%"><img src="./docs/images/dashboard.png" alt="首页概览" width="100%"/></td>
     </tr>
     <tr>
-      <td><img src="./docs/images/clusters.png" alt="K8s集群"/></td>
-      <td><img src="./docs/images/workloads.png" alt="节点管理"/></td>
+      <td width="100%"><img src="./docs/images/hosts.png" alt="资产管理" width="100%"/></td>
     </tr>
     <tr>
-      <td><img src="./docs/images/health.png" alt="应用诊断"/></td>
+      <td width="100%"><img src="./docs/images/terminal.png" alt="终端连接" width="100%"/></td>
     </tr>
     <tr>
-      <td><img src="./docs/images/xunjian.png" alt="集群巡检"/></td>
-      <td><img src="./docs/images/domain.png" alt="域名监控"/></td>
+      <td width="100%"><img src="./docs/images/clusters.png" alt="K8s集群" width="100%"/></td>
     </tr>
-
+    <tr>
+      <td width="100%"><img src="./docs/images/workloads.png" alt="节点管理" width="100%"/></td>
+    </tr>
+    <tr>
+      <td width="100%"><img src="./docs/images/health.png" alt="应用诊断" width="100%"/></td>
+    </tr>
+    <tr>
+      <td width="100%"><img src="./docs/images/xunjian.png" alt="集群巡检" width="100%"/></td>
+    </tr>
+    <tr>
+      <td width="100%"><img src="./docs/images/domain.png" alt="域名监控" width="100%"/></td>
+    </tr>
   </table>
 
 ---
