@@ -35,6 +35,7 @@ func RegisterRoutes(router *gin.RouterGroup, db *gorm.DB) {
 	roleBindingHandler := NewRoleBindingHandler(db)
 	arthasHandler := NewArthasHandler(clusterService, db)
 	inspectionHandler := NewInspectionHandler(clusterService, db)
+	crdHandler := NewCRDHandler(clusterService, db)
 
 	clusters := router.Group("/kubernetes")
 	{
@@ -359,7 +360,21 @@ func RegisterRoutes(router *gin.RouterGroup, db *gorm.DB) {
 			inspection.GET("/history", inspectionHandler.GetInspectionHistory)
 			inspection.DELETE("/:inspectionId", inspectionHandler.DeleteInspection)
 			inspection.GET("/export/:inspectionId", inspectionHandler.ExportInspection)
+
 		}
+
+		// CRD 管理
+		clusters.GET("/resources/crds", crdHandler.ListCRDs)
+		clusters.GET("/resources/crds/:name/yaml", crdHandler.GetCRD)
+		clusters.DELETE("/resources/crds/:name", crdHandler.DeleteCRD)
+
+		clusters.GET("/resources/custom", crdHandler.ListCustomResources)
+		// 注意：GetCustomResource 路由参数 namespace 如果是集群级别资源传param可能会有问题，
+		// 但 handler 里处理了 namespace param 为 "-" 或 "undefined" 的情况
+		clusters.GET("/resources/custom/:namespace/:name/yaml", crdHandler.GetCustomResource)
+		clusters.DELETE("/resources/custom/:namespace/:name", crdHandler.DeleteCustomResource)
+		clusters.POST("/resources/custom/yaml", crdHandler.CreateCustomResourceFromYAML)
+		clusters.PUT("/resources/custom/yaml", crdHandler.UpdateCustomResourceFromYAML)
 
 	}
 }

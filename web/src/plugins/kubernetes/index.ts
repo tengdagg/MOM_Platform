@@ -129,6 +129,14 @@ class KubernetesPlugin implements Plugin {
         hidden: false,
         parentPath: parentPath,
       },
+      {
+        name: '自定义资源',
+        path: '/kubernetes/custom-resources',
+        icon: 'Document',
+        sort: 12,
+        hidden: false,
+        parentPath: parentPath,
+      },
     ]
   }
 
@@ -227,9 +235,21 @@ class KubernetesPlugin implements Plugin {
             component: () => import('@/views/kubernetes/ClusterInspection.vue'),
             meta: { title: '集群巡检' },
           },
+          {
+            path: 'custom-resources',
+            name: 'K8sCustomResources',
+            component: () => import('@/views/kubernetes/CustomResources.vue'),
+            meta: { title: '自定义资源' },
+          },
+          {
+            path: 'custom-resources/:crdName',
+            name: 'K8sCustomResourceList',
+            component: () => import('@/views/kubernetes/crd/CustomResourceList.vue'),
+            meta: { title: '自定义资源列表', hidden: true, activeMenu: '/kubernetes/custom-resources' },
+          },
         ],
-    },
-  ]
+      },
+    ]
   }
 }
 

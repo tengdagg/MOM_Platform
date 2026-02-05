@@ -510,6 +510,16 @@ const buildPluginMenuList = () => {
   return pluginMenus
 }
 
+// 递归排序菜单
+const sortMenus = (menus: any[]) => {
+  menus.sort((a, b) => (a.sort || 0) - (b.sort || 0))
+  menus.forEach(menu => {
+    if (menu.children && menu.children.length > 0) {
+      sortMenus(menu.children)
+    }
+  })
+}
+
 // 构建菜单树 - 关键：从一开始就正确处理children
 const buildMenuTree = (menus: any[]) => {
   const menuMap = new Map()
@@ -610,6 +620,9 @@ const loadMenus = async () => {
       // 插件菜单需要根据 parentId 插入到正确的位置
       insertPluginMenus(menuList.value, pluginMenus)
     }
+
+    // 6.5 对最终的菜单树进行排序
+    sortMenus(menuList.value)
 
     // 7. 构建菜单树选项（仅包含系统菜单）
     menuTreeOptions.value = JSON.parse(JSON.stringify(systemMenus || []))

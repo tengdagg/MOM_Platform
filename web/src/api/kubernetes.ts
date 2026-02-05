@@ -2187,3 +2187,139 @@ export function createPodDisruptionBudgetFromYAML(clusterId: number, namespace: 
     }
   })
 }
+
+// ==================== CRD (Custom Resource Definition) Related ====================
+
+export interface CRDInfo {
+  name: string
+  group: string
+  version: string
+  kind: string
+  scope: string
+  creationTimestamp: string
+}
+
+/**
+ * Get CRD List
+ */
+export function getCRDs(clusterId: number) {
+  return request<CRDInfo[]>({
+    url: '/api/v1/plugins/kubernetes/resources/crds',
+    method: 'get',
+    params: { clusterId }
+  })
+}
+
+/**
+ * Get CRD Detail (YAML)
+ */
+export function getCRD(clusterId: number, name: string) {
+  return request<any>({
+    url: `/api/v1/plugins/kubernetes/resources/crds/${name}/yaml`,
+    method: 'get',
+    params: { clusterId }
+  })
+}
+
+/**
+ * Delete CRD
+ */
+export function deleteCRD(clusterId: number, name: string) {
+  return request({
+    url: `/api/v1/plugins/kubernetes/resources/crds/${name}`,
+    method: 'delete',
+    params: { clusterId }
+  })
+}
+
+/**
+ * Get Custom Resource List
+ */
+export function getCustomResources(
+  clusterId: number,
+  group: string,
+  version: string,
+  resource: string,
+  namespace?: string
+) {
+  return request<any[]>({
+    url: '/api/v1/plugins/kubernetes/resources/custom',
+    method: 'get',
+    params: { clusterId, group, version, resource, namespace }
+  })
+}
+
+/**
+ * Get Custom Resource Detail (YAML)
+ */
+export function getCustomResource(
+  clusterId: number,
+  group: string,
+  version: string,
+  resource: string,
+  namespace: string, // Use '-' or 'cluster' or undefined logic via param if needed, but path param is strict usually. Backend handles it?
+                   // Backend route: /resources/custom/:namespace/:name/yaml
+                   // If cluster scoped, frontend should pass a specific value like "cluster". 
+                   // Let's assume frontend passes "cluster" for cluster-scoped, backend handles it.
+  name: string
+) {
+  return request<any>({
+    url: `/api/v1/plugins/kubernetes/resources/custom/${namespace}/${name}/yaml`,
+    method: 'get',
+    params: { clusterId, group, version, resource }
+  })
+}
+
+/**
+ * Delete Custom Resource
+ */
+export function deleteCustomResource(
+  clusterId: number,
+  group: string,
+  version: string,
+  resource: string,
+  namespace: string,
+  name: string
+) {
+  return request({
+    url: `/api/v1/plugins/kubernetes/resources/custom/${namespace}/${name}`,
+    method: 'delete',
+    params: { clusterId, group, version, resource }
+  })
+}
+
+/**
+ * Create Custom Resource (YAML)
+ */
+export function createCustomResource(
+  clusterId: number,
+  group: string,
+  version: string,
+  resource: string,
+  yamlContent: string
+) {
+  return request({
+    url: '/api/v1/plugins/kubernetes/resources/custom/yaml',
+    method: 'post',
+    params: { clusterId, group, version, resource },
+    data: { yaml: yamlContent }
+  })
+}
+
+/**
+ * Update Custom Resource (YAML)
+ */
+export function updateCustomResource(
+  clusterId: number,
+  group: string,
+  version: string,
+  resource: string,
+  yamlContent: string
+) {
+  return request({
+    url: '/api/v1/plugins/kubernetes/resources/custom/yaml',
+    method: 'put',
+    params: { clusterId, group, version, resource },
+    data: { yaml: yamlContent }
+  })
+}
