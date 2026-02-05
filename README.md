@@ -68,11 +68,10 @@ MOM Platform 是一个功能强大的**插件化运维管理平台**，采用前
     </tr>
     <tr>
       <td><img src="./docs/images/health.png" alt="应用诊断"/></td>
-      <td><img src="./docs/images/flame.png" alt="火焰图"/></td>
     </tr>
     <tr>
-      <td><img src="./docs/images/xj.png" alt="集群巡检"/></td>
-      <td><img src="./docs/images/ym.png" alt="域名监控"/></td>
+      <td><img src="./docs/images/xunjian.png" alt="集群巡检"/></td>
+      <td><img src="./docs/images/domain.png" alt="域名监控"/></td>
     </tr>
 
   </table>

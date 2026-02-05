@@ -4,46 +4,62 @@
     <div class="brand-section">
       <div class="curved-divider"></div>
       <div class="brand-content">
-        <h1 class="brand-title">mom 运维管理平台</h1>
+        <h1 class="brand-title">MOM Platform</h1>
         <div class="brand-slogan">
-          <span>高效</span>
-          <span>安全</span>
-          <span>便捷</span>
+          <span>插件化</span>
+          <span>多集群</span>
+          <span>一站式</span>
         </div>
-        <p class="brand-subtitle">一键通达所有应用</p>
+        <p class="brand-subtitle">现代化云原生运维管理专家</p>
         <div class="brand-illustration">
           <svg viewBox="0 0 400 300" class="illustration-svg">
-            <!-- 平台基座 -->
-            <rect x="100" y="200" width="200" height="20" rx="4" fill="url(#goldGradient)" opacity="0.4"/>
-            <rect x="120" y="180" width="160" height="20" rx="4" fill="url(#goldGradient)" opacity="0.6"/>
-            <rect x="140" y="160" width="120" height="20" rx="4" fill="url(#goldGradient)" opacity="0.8"/>
-
-            <!-- 服务器/中心节点 -->
-            <rect x="180" y="100" width="40" height="60" rx="4" fill="url(#goldGradient)" opacity="0.9"/>
-            <circle cx="200" cy="90" r="15" fill="url(#goldGradient)" opacity="0.8"/>
-
-            <!-- 连接线 -->
-            <line x1="200" y1="75" x2="150" y2="50" stroke="url(#goldGradient)" stroke-width="2" opacity="0.7"/>
-            <line x1="200" y1="75" x2="250" y2="50" stroke="url(#goldGradient)" stroke-width="2" opacity="0.7"/>
-            <line x1="200" y1="75" x2="200" y2="40" stroke="url(#goldGradient)" stroke-width="2" opacity="0.7"/>
-
-            <!-- 小图标节点 -->
-            <circle cx="150" cy="50" r="8" fill="url(#goldGradient)" opacity="0.9"/>
-            <circle cx="250" cy="50" r="8" fill="url(#goldGradient)" opacity="0.9"/>
-            <circle cx="200" cy="40" r="8" fill="url(#goldGradient)" opacity="0.9"/>
-
-            <!-- 装饰元素 -->
-            <rect x="80" y="220" width="30" height="30" rx="4" fill="url(#goldGradient)" opacity="0.3"/>
-            <rect x="290" y="220" width="30" height="30" rx="4" fill="url(#goldGradient)" opacity="0.3"/>
-
-            <!-- 定义渐变 -->
             <defs>
-              <linearGradient id="goldGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+              <linearGradient id="blueGradient" x1="0%" y1="0%" x2="100%" y2="100%">
                 <stop offset="0%" style="stop-color:#0f69a6;stop-opacity:1" />
-                <stop offset="50%" style="stop-color:#FFD700;stop-opacity:1" />
-                <stop offset="100%" style="stop-color:#FFA500;stop-opacity:1" />
+                <stop offset="100%" style="stop-color:#00b4db;stop-opacity:1" />
               </linearGradient>
+              <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+                <feGaussianBlur stdDeviation="3" result="blur" />
+                <feComposite in="SourceGraphic" in2="blur" operator="over" />
+              </filter>
             </defs>
+
+            <!-- 底部基座 (Cloud Foundation) -->
+            <ellipse cx="200" cy="230" rx="120" ry="25" fill="url(#blueGradient)" opacity="0.1" />
+            <ellipse cx="200" cy="220" rx="100" ry="20" fill="url(#blueGradient)" opacity="0.2" />
+            
+            <!-- 中心控制塔 (MOM Core) -->
+            <path d="M200,210 L240,190 L240,150 L200,130 L160,150 L160,190 Z" fill="url(#blueGradient)" opacity="0.8" filter="url(#glow)" />
+            <path d="M200,130 L200,170 M200,170 L240,190 M200,170 L160,190" stroke="rgba(255,255,255,0.3)" stroke-width="1" />
+            
+            <!-- 顶部全息投影 (Dashboard) -->
+            <path d="M170,110 L230,110 L240,90 L160,90 Z" fill="url(#blueGradient)" opacity="0.4" />
+            <rect x="180" y="95" width="40" height="2" rx="1" fill="#fff" opacity="0.6" />
+            
+            <!-- 连接线 (Connectivity) -->
+            <line x1="200" y1="130" x2="120" y2="80" stroke="url(#blueGradient)" stroke-width="2" opacity="0.4" stroke-dasharray="4,4" />
+            <line x1="240" y1="150" x2="300" y2="100" stroke="url(#blueGradient)" stroke-width="2" opacity="0.4" stroke-dasharray="4,4" />
+            <line x1="160" y1="150" x2="100" y2="180" stroke="url(#blueGradient)" stroke-width="2" opacity="0.4" stroke-dasharray="4,4" />
+
+            <!-- 分布式节点 (Nodes/Clusters) -->
+            <g transform="translate(120, 80)">
+               <circle r="12" fill="url(#blueGradient)" opacity="0.7" />
+               <path d="M-6,-2 L0,6 L6,-2" stroke="#fff" stroke-width="2" fill="none" transform="scale(0.6)" />
+            </g>
+            
+            <g transform="translate(300, 100)">
+               <rect x="-10" y="-10" width="20" height="20" rx="4" fill="url(#blueGradient)" opacity="0.7" />
+               <circle r="4" fill="#fff" opacity="0.6" />
+            </g>
+            
+            <g transform="translate(100, 180)">
+               <polygon points="0,-12 10,6 -10,6" fill="url(#blueGradient)" opacity="0.7" />
+            </g>
+
+            <!-- 数据粒子 (Data Flow) -->
+            <circle cx="160" cy="105" r="2" fill="#00b4db" opacity="0.9" />
+            <circle cx="270" cy="125" r="2" fill="#00b4db" opacity="0.9" />
+            <circle cx="130" cy="165" r="2" fill="#00b4db" opacity="0.9" />
           </svg>
         </div>
       </div>
@@ -234,7 +250,7 @@ onMounted(() => {
 /* 左侧品牌区 - 黑白风格 */
 .brand-section {
   flex: 0 0 62%;
-  background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 50%, #1a1a1a 100%);
+  background: linear-gradient(135deg, #001529 0%, #003a5c 100%);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -263,13 +279,14 @@ onMounted(() => {
 }
 
 /* 曲线分割效果 - 金色保留 */
+/* 曲线分割效果 - 蓝色主题 */
 .curved-divider {
   position: absolute;
   right: -15%;
   top: 0;
   width: 30%;
   height: 100%;
-  background: linear-gradient(135deg, rgba(212, 175, 55, 0.25) 0%, rgba(255, 215, 0, 0.15) 50%, rgba(255, 165, 0, 0.2) 100%);
+  background: linear-gradient(135deg, rgba(15, 105, 166, 0.25) 0%, rgba(13, 90, 135, 0.15) 50%, rgba(10, 70, 106, 0.2) 100%);
   clip-path: polygon(
     30% 0%,
     70% 0%,
@@ -280,7 +297,7 @@ onMounted(() => {
     0% 95%,
     0% 5%
   );
-  box-shadow: -10px 0 30px rgba(212, 175, 55, 0.35);
+  box-shadow: -10px 0 30px rgba(15, 105, 166, 0.35);
 }
 
 .brand-section::after {
@@ -451,8 +468,9 @@ onMounted(() => {
 
 .captcha-image {
   flex-shrink: 0;
-  width: 110px;
-  height: 36px;
+  width: 120px;
+  height: auto;
+  align-self: stretch;
   border: 1px solid #e0e0e0;
   border-radius: 0;
   overflow: hidden;
