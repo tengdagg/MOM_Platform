@@ -1,8 +1,8 @@
 <p align="center">
-  <img src="web/public/logo.png" alt="mom Logo" width="180"/>
+  <img src="web/public/logo.png" alt="MOM Platform Logo" width="180"/>
 </p>
 
-<h3 align="center">mom —— 现代化、插件化的云原生运维管理平台</h3>
+<h3 align="center">MOM Platform —— 现代化、插件化的云原生运维管理平台</h3>
 
 <p align="center">
   <img src="https://img.shields.io/badge/Go-1.21+-00ADD8?style=flat&logo=go" alt="Go">
@@ -13,11 +13,11 @@
 
 ---
 
-## 💎 mom 是什么？
+## 💎 MOM Platform 是什么？
 
-**🎯 一站式运维管理平台，让运维更简单**
-
-mom 是一个功能强大的**插件化运维管理平台**，采用前后端分离架构，支持多集群 Kubernetes 管理、主机资产管理、RBAC 权限控制、任务编排、监控告警等功能。平台以**插件形式**组织功能模块，支持**一键安装与卸载**，可根据实际需求灵活扩展。
+**🎯 多元运维管理平台，让运维更简单**
+全称 Multi-platform Operations Manager
+MOM Platform 是一个功能强大的**插件化运维管理平台**，采用前后端分离架构，支持多集群 Kubernetes 管理、主机资产管理、RBAC 权限控制、任务编排、监控告警等功能。平台以**插件形式**组织功能模块，支持**一键安装与卸载**，可根据实际需求灵活扩展。
 
 **🔌 插件化架构，按需加载**
 
@@ -102,6 +102,8 @@ mom 是一个功能强大的**插件化运维管理平台**，采用前后端分
 | 工作负载      | Deployment、StatefulSet、DaemonSet、Job 管理 |
 | 网络管理      | Service、Ingress、NetworkPolicy 管理        |
 | 配置存储      | ConfigMap、Secret、PV/PVC 管理              |
+| 自定义资源     | CustomResourceDefinition (CRD)  管理      |
+| Helm      | Helm 插件管理                               |
 | 终端审计      | Web Terminal、会话录制与回放                    |
 | 应用诊断（未完成） | 针对JAVA应用进行分析（堆栈，火焰图生成）                  |
 | 集群巡检      | 一键生成 K8S 巡检报告                           |
@@ -299,13 +301,6 @@ mom/
 ## 📄 许可证
 
 本项目采用 [MIT License](LICENSE) 开源许可证。
-
----
-
-## 📞 联系方式
-
-- 📮 Issue: [GitHub Issues](https://github.com/ydcloud-dy/mom/issues)
-- 📧 Email: dycloudlove@163.com
 
 ---
 
