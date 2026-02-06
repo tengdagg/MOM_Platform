@@ -47,6 +47,7 @@ func RegisterRoutes(router *gin.RouterGroup, db *gorm.DB) {
 		clusters.DELETE("/clusters/:id", clusterHandler.DeleteCluster)
 		clusters.POST("/clusters/:id/test", clusterHandler.TestClusterConnection)
 		clusters.GET("/clusters/:id/config", clusterHandler.GetClusterConfig)
+		clusters.GET("/clusters/:id/certs", clusterHandler.GetClusterCerts)
 
 		// 集群状态同步
 		clusters.POST("/clusters/:id/sync", clusterHandler.SyncClusterStatus)

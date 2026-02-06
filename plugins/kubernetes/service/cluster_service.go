@@ -21,20 +21,25 @@ package service
 
 import (
 	"context"
+	"crypto/tls"
+	"crypto/x509"
 	"encoding/base64"
+	"encoding/pem"
 	"fmt"
+	"math"
+	"net/http"
 	"strings"
 	"sync"
 	"time"
 
 	"gorm.io/gorm"
+	authenticationv1 "k8s.io/api/authentication/v1"
+	v1 "k8s.io/api/core/v1"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	metricsv "k8s.io/metrics/pkg/client/clientset/versioned"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	k8serrors "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/api/core/v1"
-	authenticationv1 "k8s.io/api/authentication/v1"
 
 	rbacBiz "github.com/ydcloud-dy/mom/internal/biz/rbac"
 	rbacData "github.com/ydcloud-dy/mom/internal/data/rbac"
@@ -100,12 +105,21 @@ type ClusterDetailResponse struct {
 	APIEndpoint string `json:"apiEndpoint"`
 	Version     string `json:"version"`
 	Status      int    `json:"status"`
-	NodeCount   int    `json:"nodeCount"`   // 节点数量
+	NodeCount   int    `json:"nodeCount"` // 节点数量
 	Region      string `json:"region"`
 	Provider    string `json:"provider"`
 	Description string `json:"description"`
 	CreatedAt   string `json:"createdAt"`
 	UpdatedAt   string `json:"updatedAt"`
+}
+
+// CertificateInfo 证书信息
+type CertificateInfo struct {
+	Name      string `json:"name"`
+	Expires   string `json:"expires"`
+	Residual  string `json:"residual"`
+	Authority string `json:"authority"`
+	Managed   string `json:"managed"`
 }
 
 // CreateCluster 创建集群
@@ -625,8 +639,8 @@ func (s *ClusterService) hasK8sClusterAdminRole(ctx context.Context, clusterID, 
 	for _, binding := range bindings {
 		// 检查是否有cluster-owner、cluster-admin等管理员角色
 		if binding.RoleName == "cluster-owner" ||
-		   binding.RoleName == "cluster-admin" ||
-		   binding.RoleName == "admin" {
+			binding.RoleName == "cluster-admin" ||
+			binding.RoleName == "admin" {
 			return true, nil
 		}
 	}
@@ -648,6 +662,114 @@ func (s *ClusterService) GetClusterKubeConfig(ctx context.Context, id uint) (str
 	}
 
 	return kubeConfig, nil
+}
+
+// GetClusterCertificates 获取集群证书信息（模拟 kubeadm certs check-expiration）
+// 这是一个 Best-Effort 实现，只能获取到 KubeConfig 中的 Client Cert, CA Cert 以及 API Server 的 Server Cert
+func (s *ClusterService) GetClusterCertificates(ctx context.Context, id uint) ([]CertificateInfo, error) {
+	cluster, err := s.clusterBiz.GetCluster(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+
+	// 解密 KubeConfig
+	kubeConfigStr, err := biz.DecryptKubeConfig(cluster.KubeConfig)
+	if err != nil {
+		return nil, err
+	}
+
+	// 解析 KubeConfig 获取 Client Cert 和 CA
+	config, err := biz.BuildKubeConfig(kubeConfigStr)
+	if err != nil {
+		return nil, err
+	}
+
+	var certs []CertificateInfo
+
+	// 1. 获取 Client Certificate (相当于 admin.conf)
+	// 遍历 AuthInfos 获取第一个用户的证书
+	for _, authInfo := range config.AuthInfos {
+		if len(authInfo.ClientCertificateData) > 0 {
+			clientCert, err := parseCert(authInfo.ClientCertificateData)
+			if err == nil {
+				certs = append(certs, CertificateInfo{
+					Name:      "admin.conf (Client)",
+					Expires:   clientCert.NotAfter.Format("Jan 02, 2006 15:04 UTC"),
+					Residual:  formatResidual(clientCert.NotAfter),
+					Authority: clientCert.Issuer.CommonName,
+					Managed:   "no",
+				})
+				// 只获取第一个有效的
+				break
+			}
+		}
+	}
+
+	// 2. 获取 CA Certificate
+	// 遍历 Clusters 获取第一个集群的 CA
+	for _, clusterInfo := range config.Clusters {
+		if len(clusterInfo.CertificateAuthorityData) > 0 {
+			caCert, err := parseCert(clusterInfo.CertificateAuthorityData)
+			if err == nil {
+				certs = append(certs, CertificateInfo{
+					Name:      "ca (Authority)",
+					Expires:   caCert.NotAfter.Format("Jan 02, 2006 15:04 UTC"),
+					Residual:  formatResidual(caCert.NotAfter),
+					Authority: "Self-signed",
+					Managed:   "no",
+				})
+				// 只获取第一个有效的
+				break
+			}
+		}
+	}
+
+	// 3. 获取 API Server Certificate
+	// 通过 TLS 连接获取
+	tr := &http.Transport{
+		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+	}
+	client := &http.Client{Transport: tr, Timeout: 5 * time.Second}
+	resp, err := client.Head(cluster.APIEndpoint)
+	// 即使请求失败（例如 403/401），只要 TLS 握手成功，我们就能拿到证书
+	if err == nil || resp != nil {
+		if resp != nil && resp.TLS != nil && len(resp.TLS.PeerCertificates) > 0 {
+			serverCert := resp.TLS.PeerCertificates[0]
+			certs = append(certs, CertificateInfo{
+				Name:      "apiserver",
+				Expires:   serverCert.NotAfter.Format("Jan 02, 2006 15:04 UTC"),
+				Residual:  formatResidual(serverCert.NotAfter),
+				Authority: serverCert.Issuer.CommonName,
+				Managed:   "no",
+			})
+		}
+		if resp != nil && resp.Body != nil {
+			resp.Body.Close()
+		}
+	}
+
+	return certs, nil
+}
+
+func parseCert(data []byte) (*x509.Certificate, error) {
+	block, _ := pem.Decode(data)
+	if block == nil {
+		return nil, fmt.Errorf("failed to parse PEM")
+	}
+	return x509.ParseCertificate(block.Bytes)
+}
+
+func formatResidual(expiry time.Time) string {
+	duration := time.Until(expiry)
+	if duration < 0 {
+		return "EXPIRED"
+	}
+	days := int(duration.Hours() / 24)
+	if days > 365 {
+		years := int(math.Ceil(float64(days) / 365.0))
+		return fmt.Sprintf("%dy", years)
+	}
+	return fmt.Sprintf("%dd", days)
 }
 
 // ClearClientsetCache 清除指定集群的 clientset 缓存
@@ -784,7 +906,7 @@ func (s *ClusterService) GetClusterConfig(ctx context.Context, id uint) (string,
 // GenerateKubeConfigRequest 生成 KubeConfig 请求
 type GenerateKubeConfigRequest struct {
 	ClusterID uint   `json:"clusterId" binding:"required"`
-	Username string `json:"username" binding:"required"`
+	Username  string `json:"username" binding:"required"`
 }
 
 // GenerateUserKubeConfig 为指定用户生成 KubeConfig
@@ -1029,7 +1151,7 @@ func (s *ClusterService) createKubeConfigForUser(clientset *kubernetes.Clientset
 					Name: saName,
 					Labels: map[string]string{
 						"mom.ydcloud-dy.com/created-by": "mom",
-						"mom.ydcloud-dy.com/username":  username,
+						"mom.ydcloud-dy.com/username":   username,
 					},
 				},
 			}
@@ -1388,7 +1510,7 @@ func (s *ClusterService) ensuremomAuthNamespace(ctx context.Context, clientset *
 		ObjectMeta: metav1.ObjectMeta{
 			Name: momAuthNamespace,
 			Labels: map[string]string{
-				"name":                                 "mom-auth",
+				"name":                              "mom-auth",
 				"mom.ydcloud-dy.com/purpose":        "authentication",
 				"mom.ydcloud-dy.com/managed-by":     "mom",
 				"mom.ydcloud-dy.com/namespace-type": "system",
@@ -1551,4 +1673,3 @@ func (s *ClusterService) GetRESTConfig(clusterID uint, userID uint) (*rest.Confi
 
 	return restConfig, nil
 }
-

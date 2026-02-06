@@ -16,6 +16,7 @@ export interface Cluster {
   description: string
   createdAt: string
   updatedAt: string
+  certExpire?: string // 证书过期时间
 }
 
 export interface CreateClusterParams {
@@ -109,6 +110,24 @@ export function testClusterConnection(id: number) {
 export function getClusterConfig(id: number) {
   return request<string>({
     url: `/api/v1/plugins/kubernetes/clusters/${id}/config`,
+    method: 'get'
+  })
+}
+
+export interface CertificateInfo {
+  name: string
+  expires: string
+  residual: string
+  authority: string
+  managed: string
+}
+
+/**
+ * 获取集群证书详情
+ */
+export function getClusterCerts(id: number) {
+  return request<CertificateInfo[]>({
+    url: `/api/v1/plugins/kubernetes/clusters/${id}/certs`,
     method: 'get'
   })
 }
@@ -2258,9 +2277,9 @@ export function getCustomResource(
   version: string,
   resource: string,
   namespace: string, // Use '-' or 'cluster' or undefined logic via param if needed, but path param is strict usually. Backend handles it?
-                   // Backend route: /resources/custom/:namespace/:name/yaml
-                   // If cluster scoped, frontend should pass a specific value like "cluster". 
-                   // Let's assume frontend passes "cluster" for cluster-scoped, backend handles it.
+  // Backend route: /resources/custom/:namespace/:name/yaml
+  // If cluster scoped, frontend should pass a specific value like "cluster". 
+  // Let's assume frontend passes "cluster" for cluster-scoped, backend handles it.
   name: string
 ) {
   return request<any>({

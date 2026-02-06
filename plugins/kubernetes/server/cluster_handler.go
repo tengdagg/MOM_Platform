@@ -343,6 +343,42 @@ func (h *ClusterHandler) GetClusterConfig(c *gin.Context) {
 	})
 }
 
+// GetClusterCerts 获取集群证书详情
+// @Summary 获取集群证书详情
+// @Description 获取集群相关证书的过期时间信息
+// @Tags Kubernetes/Cluster
+// @Accept json
+// @Produce json
+// @Param id path int true "集群ID"
+// @Success 200 {object} map[string]interface{} "成功"
+// @Router /plugins/kubernetes/clusters/{id}/certs [get]
+func (h *ClusterHandler) GetClusterCerts(c *gin.Context) {
+	idStr := c.Param("id")
+	id, err := strconv.ParseUint(idStr, 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"code":    400,
+			"message": "无效的集群ID",
+		})
+		return
+	}
+
+	certs, err := h.clusterService.GetClusterCertificates(c.Request.Context(), uint(id))
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"code":    500,
+			"message": err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"code":    0,
+		"message": "success",
+		"data":    certs,
+	})
+}
+
 // GenerateKubeConfig 生成用户的 KubeConfig 凭据
 // @Summary 生成 KubeConfig
 // @Description 为当前用户生成集群的 KubeConfig 凭据

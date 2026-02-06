@@ -4,7 +4,7 @@
     <div class="page-header">
       <div class="header-content">
         <div class="header-top">
-          <el-button class="back-btn" @click="handleBack" :icon="ArrowLeft">返回列表</el-button>
+          <el-button class="black-button" @click="handleBack" :icon="ArrowLeft">返回列表</el-button>
         </div>
         <div class="cluster-name-section">
           <h1 class="cluster-title">
@@ -190,6 +190,37 @@
 
       <!-- 右侧列 -->
       <div class="right-column">
+        <!-- 证书信息 (新增) -->
+        <el-card shadow="hover" class="modern-card">
+          <template #header>
+            <div class="card-title-section">
+              <el-icon class="card-icon" :size="20" color="#0f69a6"><Lock /></el-icon>
+              <span class="card-title">证书有效期</span>
+            </div>
+          </template>
+          <div class="cert-list-container">
+             <el-table :data="certList" style="width: 100%" v-loading="certLoading" size="small" :max-height="300">
+                <el-table-column prop="name" label="组件证书" min-width="180" show-overflow-tooltip />
+                <el-table-column label="剩余天数" width="100">
+                  <template #default="{ row }">
+                     <el-tag :type="calculateCertDays(row.expires) > 30 ? 'success' : 'warning'" size="small">
+                       {{ calculateCertDays(row.expires) }}天
+                     </el-tag>
+                  </template>
+                </el-table-column>
+                <el-table-column label="过期时间" min-width="160">
+                   <template #default="{ row }">
+                      {{ new Date(row.expires).toLocaleDateString() }}
+                   </template>
+                </el-table-column>
+             </el-table>
+             <div class="cert-note">
+               <p>Kubernetes 其他组件（etcd / kube-scheduler / kube-controller-manager 等）的证书文件暂不能在此页面检测</p>
+               <p>更完整的证书过期时间检查，请使用 <code>kubeadm certs check-expiration</code> 命令；</p>
+             </div>
+          </div>
+        </el-card>
+
         <!-- 组件信息 -->
         <el-card shadow="hover" class="modern-card">
           <template #header>
@@ -385,6 +416,7 @@
         <el-table-column prop="lastTimestamp" label="最后发生时间" width="180" />
       </el-table>
     </el-card>
+
   </div>
 </template>
 
@@ -410,7 +442,8 @@ import {
   Folder,
   CircleCheck,
   Refresh,
-  Document
+  Document,
+  Lock
 } from '@element-plus/icons-vue'
 import {
   getClusterDetail,
@@ -419,12 +452,15 @@ import {
   getClusterComponentInfo,
   getNodes,
   getClusterEvents,
+  testClusterConnection,
+  getClusterCerts,
   type Cluster,
   type ClusterStats,
   type ClusterNetworkInfo,
   type ClusterComponentInfo,
   type NodeInfo,
-  type EventInfo
+  type EventInfo,
+  type CertificateInfo
 } from '@/api/kubernetes'
 
 const route = useRoute()
@@ -519,7 +555,7 @@ const quickStats = computed(() => [
     value: clusterStats.value.nodeCount,
     icon: Monitor,
     color: 'linear-gradient(135deg, #0a466a 0%, #083a56 100%)',
-    iconColor: '#0f69a6',
+    iconColor: '#ffffff',
     trend: true
   },
   {
@@ -527,7 +563,7 @@ const quickStats = computed(() => [
     value: clusterStats.value.workloadCount,
     icon: Box,
     color: 'linear-gradient(135deg, #0a466a 0%, #083a56 100%)',
-    iconColor: '#0f69a6',
+    iconColor: '#ffffff',
     trend: true
   },
   {
@@ -535,7 +571,7 @@ const quickStats = computed(() => [
     value: clusterStats.value.podCount,
     icon: Files,
     color: 'linear-gradient(135deg, #0a466a 0%, #083a56 100%)',
-    iconColor: '#0f69a6',
+    iconColor: '#ffffff',
     trend: true
   },
   {
@@ -543,7 +579,7 @@ const quickStats = computed(() => [
     value: Math.round(clusterStats.value.cpuUsage) + '%',
     icon: Cpu,
     color: 'linear-gradient(135deg, #0a466a 0%, #083a56 100%)',
-    iconColor: '#0f69a6',
+    iconColor: '#ffffff',
     trend: false
   }
 ])
@@ -661,9 +697,9 @@ const getProgressColor = (percentage: number) => {
 }
 
 // 返回列表
-const handleBack = () => {
-  router.push('/kubernetes/clusters')
-}
+// 返回列表
+const certLoading = ref(false)
+const certList = ref<CertificateInfo[]>([])
 
 // 获取状态类型
 const getStatusType = (status: number) => {
@@ -705,8 +741,37 @@ const getNodeRoleType = (roles: string) => {
   return 'info'
 }
 
+// 计算证书剩余天数
+const calculateCertDays = (expireTime?: string) => {
+  if (!expireTime) return 0
+  const now = new Date()
+  const expire = new Date(expireTime)
+  const diffTime = expire.getTime() - now.getTime()
+  return Math.ceil(diffTime / (1000 * 60 * 60 * 24)) 
+}
+
+const handleBack = () => {
+  router.push('/kubernetes/clusters')
+}
+
+// 页面加载时由 loadClusterDetail 触发调用（或者独立调用）
+// 加载证书数据
+const loadCertData = async () => {
+  certLoading.value = true
+   try {
+    const res = await getClusterCerts(clusterId.value)
+    // request 拦截器已经解包了 data，这里直接赋值
+    certList.value = res || []
+  } catch (error) {
+    console.error('Failed to load certs', error)
+  } finally {
+    certLoading.value = false
+  }
+}
+
 onMounted(() => {
   loadClusterDetail()
+  loadCertData()
 })
 </script>
 
@@ -730,43 +795,6 @@ onMounted(() => {
 
   .header-top {
     margin-bottom: 20px;
-
-    .back-btn {
-      background: linear-gradient(135deg, #0a466a 0%, #083a56 100%);
-      color: #0f69a6;
-      border: 1px solid rgba(212, 175, 55, 0.3);
-      font-weight: 500;
-      padding: 12px 24px;
-      font-size: 14px;
-      border-radius: 0;
-      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      letter-spacing: 0.5px;
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-
-      &:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 6px 20px rgba(212, 175, 55, 0.4);
-        border-color: rgba(212, 175, 55, 0.5);
-        background: linear-gradient(135deg, #34495e 0%, #1a1a1a 100%);
-      }
-
-      &:active {
-        transform: translateY(0);
-        box-shadow: 0 2px 8px rgba(212, 175, 55, 0.3);
-      }
-
-      :deep(.el-icon) {
-        font-size: 16px;
-        transition: transform 0.3s;
-      }
-
-      &:hover :deep(.el-icon) {
-        transform: translateX(-3px);
-      }
-    }
   }
 
   .cluster-name-section {
@@ -973,7 +1001,6 @@ onMounted(() => {
 
 /* 节点名称链接样式 */
 .node-name-link {
-  color: #ffffff;
   font-weight: 500;
   cursor: pointer;
 }
@@ -1145,11 +1172,13 @@ onMounted(() => {
         font-size: 12px;
         opacity: 0.9;
         margin-bottom: 6px;
+        color: #ffffff;
       }
 
       .runtime-value {
         font-size: 15px;
         font-weight: 600;
+        color: #ffffff;
       }
     }
   }
@@ -1290,6 +1319,27 @@ onMounted(() => {
 
   .quick-stats {
     grid-template-columns: 1fr;
+  }
+}
+.cert-note {
+  margin-top: 16px;
+  padding: 12px;
+  background-color: #f5f7fa;
+  border-radius: 4px;
+  font-size: 13px;
+  color: #909399;
+  line-height: 1.6;
+
+  p {
+    margin: 0;
+  }
+
+  code {
+    background: #e9e9eb;
+    padding: 2px 6px;
+    border-radius: 4px;
+    color: #606266;
+    font-family: monospace;
   }
 }
 </style>

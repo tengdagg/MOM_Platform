@@ -31,6 +31,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
+	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
 
 	"github.com/ydcloud-dy/mom/plugins/kubernetes/data/models"
 	"github.com/ydcloud-dy/mom/plugins/kubernetes/data/repository"
@@ -352,4 +353,9 @@ func CreateRESTConfigFromKubeConfig(kubeConfigContent string) (*rest.Config, err
 		return nil, fmt.Errorf("从 kubeconfig 创建 REST config 失败: %w", err)
 	}
 	return config, nil
+}
+
+// BuildKubeConfig 解析 KubeConfig 字符串为 Config 对象
+func BuildKubeConfig(kubeConfigContent string) (*clientcmdapi.Config, error) {
+	return clientcmd.Load([]byte(kubeConfigContent))
 }
