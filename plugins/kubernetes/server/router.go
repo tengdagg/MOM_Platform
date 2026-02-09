@@ -36,6 +36,8 @@ func RegisterRoutes(router *gin.RouterGroup, db *gorm.DB) {
 	arthasHandler := NewArthasHandler(clusterService, db)
 	inspectionHandler := NewInspectionHandler(clusterService, db)
 	crdHandler := NewCRDHandler(clusterService, db)
+	helmService := service.NewHelmService(db, clusterService)
+	helmHandler := NewHelmHandler(helmService)
 
 	clusters := router.Group("/kubernetes")
 	{
@@ -377,5 +379,20 @@ func RegisterRoutes(router *gin.RouterGroup, db *gorm.DB) {
 		clusters.POST("/resources/custom/yaml", crdHandler.CreateCustomResourceFromYAML)
 		clusters.PUT("/resources/custom/yaml", crdHandler.UpdateCustomResourceFromYAML)
 
+		// Helm 管理
+		helm := clusters.Group("/helm")
+		{
+			helm.GET("/repos", helmHandler.ListRepos)
+			helm.POST("/repos", helmHandler.AddRepo)
+			helm.PUT("/repos/:id", helmHandler.UpdateRepo)
+			helm.DELETE("/repos/:id", helmHandler.DeleteRepo)
+			helm.GET("/repos/:repoId/charts", helmHandler.ListCharts)
+			helm.GET("/repos/:repoId/charts/:chartName/versions", helmHandler.GetChartVersions)
+
+			helm.GET("/clusters/:clusterId/releases", helmHandler.ListReleases)
+			helm.POST("/clusters/:clusterId/releases", helmHandler.InstallRelease)
+			helm.GET("/clusters/:clusterId/releases/:namespace/:name", helmHandler.GetRelease)
+			helm.DELETE("/clusters/:clusterId/releases/:namespace/:name", helmHandler.UninstallRelease)
+		}
 	}
 }

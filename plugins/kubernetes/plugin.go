@@ -74,6 +74,7 @@ func (p *Plugin) Enable(db *gorm.DB) error {
 		&model.UserKubeConfig{},
 		&model.TerminalSession{},
 		&model.ClusterInspection{},
+		&model.HelmRepo{},
 	}
 
 	for _, m := range models {
@@ -102,35 +103,35 @@ func (p *Plugin) RegisterRoutes(router *gin.RouterGroup, db *gorm.DB) {
 func (p *Plugin) GetMenus() []plugin.MenuConfig {
 	return []plugin.MenuConfig{
 		{
-			Name:      "容器管理",
-			Path:      "/kubernetes",
-			Icon:      "Platform",
-			Sort:      100,
-			Hidden:    false,
+			Name:       "容器管理",
+			Path:       "/kubernetes",
+			Icon:       "Platform",
+			Sort:       100,
+			Hidden:     false,
 			ParentPath: "",
 		},
 		{
-			Name:      "集群管理",
-			Path:      "/kubernetes/clusters",
-			Icon:      "Connection",
-			Sort:      101,
-			Hidden:    false,
+			Name:       "集群管理",
+			Path:       "/kubernetes/clusters",
+			Icon:       "Connection",
+			Sort:       101,
+			Hidden:     false,
 			ParentPath: "/kubernetes",
 		},
 		{
-			Name:      "应用诊断",
-			Path:      "/kubernetes/application-diagnosis",
-			Icon:      "Grid",
-			Sort:      102,
-			Hidden:    false,
+			Name:       "应用诊断",
+			Path:       "/kubernetes/application-diagnosis",
+			Icon:       "Grid",
+			Sort:       102,
+			Hidden:     false,
 			ParentPath: "/kubernetes",
 		},
 		{
-			Name:      "集群巡检",
-			Path:      "/kubernetes/cluster-inspection",
-			Icon:      "Grid",
-			Sort:      103,
-			Hidden:    false,
+			Name:       "集群巡检",
+			Path:       "/kubernetes/cluster-inspection",
+			Icon:       "Grid",
+			Sort:       103,
+			Hidden:     false,
 			ParentPath: "/kubernetes",
 		},
 	}

@@ -137,6 +137,14 @@ class KubernetesPlugin implements Plugin {
         hidden: false,
         parentPath: parentPath,
       },
+      {
+        name: 'Helm',
+        path: '/kubernetes/helm',
+        icon: 'Shop',
+        sort: 13,
+        hidden: false,
+        parentPath: parentPath,
+      },
     ]
   }
 
@@ -246,6 +254,12 @@ class KubernetesPlugin implements Plugin {
             name: 'K8sCustomResourceList',
             component: () => import('@/views/kubernetes/crd/CustomResourceList.vue'),
             meta: { title: '自定义资源列表', hidden: true, activeMenu: '/kubernetes/custom-resources' },
+          },
+          {
+            path: 'helm',
+            name: 'K8sHelm',
+            component: () => import('@/views/kubernetes/Helm.vue'),
+            meta: { title: 'Helm' },
           },
         ],
       },

@@ -29,15 +29,36 @@
               <el-icon><component :is="getIcon(menu.icon)" /></el-icon>
               <span>{{ menu.name }}</span>
             </template>
-            <el-menu-item
-              v-for="subMenu in menu.children"
-              :key="subMenu.ID || subMenu.id || subMenu.path"
-              :index="subMenu.status === 0 ? undefined : subMenu.path"
-              :class="{ 'menu-disabled': subMenu.status === 0 }"
-            >
-              <el-icon><component :is="getIcon(subMenu.icon)" /></el-icon>
-              <span>{{ subMenu.name }}</span>
-            </el-menu-item>
+            <template v-for="subMenu in menu.children" :key="subMenu.ID || subMenu.id || subMenu.path">
+              <!-- support 3rd level menu -->
+              <el-sub-menu
+                v-if="subMenu.children && subMenu.children.length > 0"
+                :index="String(subMenu.ID || subMenu.id || subMenu.path)"
+                :class="{ 'menu-disabled': subMenu.status === 0 }"
+              >
+                <template #title>
+                  <el-icon><component :is="getIcon(subMenu.icon)" /></el-icon>
+                  <span>{{ subMenu.name }}</span>
+                </template>
+                <el-menu-item
+                  v-for="child in subMenu.children"
+                  :key="child.ID || child.id || child.path"
+                  :index="child.status === 0 ? undefined : child.path"
+                  :class="{ 'menu-disabled': child.status === 0 }"
+                >
+                  <el-icon><component :is="getIcon(child.icon)" /></el-icon>
+                  <span>{{ child.name }}</span>
+                </el-menu-item>
+              </el-sub-menu>
+              <el-menu-item
+                v-else
+                :index="subMenu.status === 0 ? undefined : subMenu.path"
+                :class="{ 'menu-disabled': subMenu.status === 0 }"
+              >
+                <el-icon><component :is="getIcon(subMenu.icon)" /></el-icon>
+                <span>{{ subMenu.name }}</span>
+              </el-menu-item>
+            </template>
           </el-sub-menu>
 
           <!-- 没有子菜单的情况 -->
