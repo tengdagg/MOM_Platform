@@ -29,6 +29,8 @@
       </div>
     </div>
 
+    <ReadOnlyBanner />
+
     <!-- Charts 网格 -->
     <div class="table-wrapper">
       <!-- Skeleton loading -->
@@ -193,7 +195,7 @@
           </el-form-item>
 
           <el-form-item>
-            <el-button type="primary" @click="installChart" :loading="installing" :disabled="!props.clusterId" class="black-button">
+            <el-button type="primary" @click="installChart" :loading="installing" :disabled="kubernetesStore.isReadOnly || !props.clusterId" class="black-button">
               安装
             </el-button>
             <el-text v-if="!props.clusterId" type="warning" style="margin-left: 10px;">请先选择集群</el-text>
@@ -210,10 +212,14 @@ import { Plus, Delete, Setting, Search, Edit } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import request from '@/utils/request'
 import { getNamespaces } from '@/api/kubernetes'
+import { useKubernetesStore } from '@/stores/kubernetes'
+import ReadOnlyBanner from '@/components/ReadOnlyBanner.vue'
 
 const props = defineProps<{
   clusterId: number | undefined
 }>()
+
+const kubernetesStore = useKubernetesStore()
 
 const defaultIcon = 'https://helm.sh/img/helm.svg'
 const handleImageError = (e: Event) => {

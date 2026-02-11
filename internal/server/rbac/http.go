@@ -125,9 +125,11 @@ func (s *HTTPServer) RegisterRoutes(r *gin.Engine) {
 		{
 			menus.GET("/tree", s.menuService.GetMenuTree)
 			menus.GET("/user", s.menuService.GetUserMenu)
+			menus.PUT("/sort", s.menuService.BatchUpdateMenuSort)
 			menus.GET("/:id", s.menuService.GetMenu)
 			menus.POST("", s.menuService.CreateMenu)
 			menus.PUT("/:id", s.menuService.UpdateMenu)
+			menus.PUT("/:id/sort", s.menuService.UpdateMenuSort)
 			menus.DELETE("/:id", s.menuService.DeleteMenu)
 		}
 

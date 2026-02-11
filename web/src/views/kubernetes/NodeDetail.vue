@@ -937,7 +937,7 @@ onMounted(() => {
 }
 
 .tag-key {
-  color: #ffffff;
+  color: #765b3c;
   font-weight: 600;
   margin-right: 6px;
 }

@@ -48,7 +48,7 @@
           <template #prefix>
              <el-icon class="search-icon"><FolderOpened /></el-icon>
           </template>
-          <el-option label="所有命名空间" value="" />
+          <el-option v-if="kubernetesStore.fullNamespaceAccess" label="所有命名空间" value="" />
           <el-option v-for="item in namespaces" :key="item" :label="item" :value="item" />
         </el-select>
         <el-button class="black-button" @click="handleBack">

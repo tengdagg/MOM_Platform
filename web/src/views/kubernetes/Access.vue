@@ -79,7 +79,7 @@
           <template #prefix>
             <el-icon class="search-icon"><FolderOpened /></el-icon>
           </template>
-          <el-option label="所有命名空间" value="" />
+          <el-option v-if="kubernetesStore.fullNamespaceAccess" label="所有命名空间" value="" />
           <el-option
             v-for="ns in namespaceList"
             :key="ns.name"

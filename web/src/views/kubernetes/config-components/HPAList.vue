@@ -26,7 +26,7 @@
           @change="handleNamespaceChange" 
           class="filter-select"
         >
-          <el-option label="所有命名空间" value="" />
+          <el-option v-if="kubernetesStore.fullNamespaceAccess" label="所有命名空间" value="" />
           <el-option v-for="ns in namespaces" :key="ns.name" :label="ns.name" :value="ns.name" />
         </el-select>
       </div>

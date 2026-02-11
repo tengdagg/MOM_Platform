@@ -393,7 +393,7 @@ const authorizeForm = ref({
 const existingClusterRoles = computed(() => {
   if (!existingBindings.value || existingBindings.value.length === 0) return []
   return existingBindings.value
-    .filter(b => b.roleType === 'ClusterRole')
+    .filter(b => !b.roleNamespace) // 只有没有命名空间的才是集群级别绑定
     .map(b => ({
       id: b.id,
       roleName: b.roleName,
@@ -405,7 +405,8 @@ const existingClusterRoles = computed(() => {
 // 计算属性：已有的命名空间权限（直接从 existingBindings 计算）
 const existingNamespacePermissions = computed(() => {
   if (!existingBindings.value || existingBindings.value.length === 0) return []
-  const nsBindings = existingBindings.value.filter(b => b.roleType === 'Role')
+  // 只要有命名空间的都是命名空间级别绑定（不管绑定的是 Role 还是 ClusterRole）
+  const nsBindings = existingBindings.value.filter(b => b.roleNamespace)
   const grouped: Record<string, typeof nsBindings> = {}
 
   nsBindings.forEach(binding => {
@@ -695,14 +696,25 @@ const handleConfirmAuthorize = async () => {
 
   authorizeLoading.value = true
   try {
-    const roleType = authorizeForm.value.permissionLevel === 'cluster' ? 'ClusterRole' : 'Role'
     const roleNamespace = authorizeForm.value.permissionLevel === 'cluster' ? '' : authorizeForm.value.namespace
-    const roleNames = authorizeForm.value.permissionLevel === 'cluster'
-      ? authorizeForm.value.clusterRoleNames
+    const roleNames = authorizeForm.value.permissionLevel === 'cluster' 
+      ? authorizeForm.value.clusterRoleNames 
       : authorizeForm.value.namespaceRoleNames
 
     // 批量绑定多个角色
     for (const roleName of roleNames) {
+      let roleType = 'Role'
+      
+      if (authorizeForm.value.permissionLevel === 'cluster') {
+        roleType = 'ClusterRole'
+      } else {
+        // 在命名空间级别，根据角色实际类型确定 Kind
+        const roleObj = namespaceRoles.value.find(r => r.name === roleName)
+        if (roleObj && roleObj.kind) {
+          roleType = roleObj.kind
+        }
+      }
+
       await bindUserToRole({
         clusterId: props.cluster.id,
         userId: authorizeUser.value.userId,

@@ -28,8 +28,8 @@ import (
 	"gorm.io/gorm"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 
 	"github.com/ydcloud-dy/mom/plugins/kubernetes/biz"
@@ -108,12 +108,13 @@ func (s *RoleBindingService) BindUserRole(ctx context.Context, clusterID, userID
 	}
 
 	// 在 K8s 中创建 ClusterRoleBinding 或 RoleBinding
-	if roleType == "ClusterRole" {
+	if roleNamespace == "" {
 		if err := s.createClusterRoleBinding(ctx, clientset, roleName, saName, momAuthNamespace); err != nil {
 			return fmt.Errorf("创建ClusterRoleBinding失败: %w", err)
 		}
 	} else {
-		if err := s.createRoleBinding(ctx, clientset, roleName, roleNamespace, saName, momAuthNamespace); err != nil {
+		// 命名空间绑定，roleType 参数即为 RoleKind (Role 或 ClusterRole)
+		if err := s.createRoleBinding(ctx, clientset, roleName, roleNamespace, saName, momAuthNamespace, roleType); err != nil {
 			return fmt.Errorf("创建RoleBinding失败: %w", err)
 		}
 	}
@@ -182,7 +183,7 @@ func (s *RoleBindingService) UnbindUserRole(ctx context.Context, clusterID, user
 		Scan(&roleType)
 
 	// 删除 K8s 绑定
-	if roleType == "ClusterRole" {
+	if roleNamespace == "" {
 		bindingName := fmt.Sprintf("mom-%s-%s", roleName, saName)
 		if err := clientset.RbacV1().ClusterRoleBindings().Delete(ctx, bindingName, metav1.DeleteOptions{}); err != nil {
 			// 忽略不存在的错误
@@ -218,10 +219,10 @@ func (s *RoleBindingService) UnbindUserRole(ctx context.Context, clusterID, user
 // GetRoleBoundUsers 获取角色已绑定的用户列表
 func (s *RoleBindingService) GetRoleBoundUsers(ctx context.Context, clusterID uint64, roleName, roleNamespace string) ([]map[string]interface{}, error) {
 	type Result struct {
-		UserID    uint64 `json:"userId"`
-		Username  string `json:"username"`
-		RealName  string `json:"realName"`
-		BoundAt   string `json:"boundAt"`
+		UserID   uint64 `json:"userId"`
+		Username string `json:"username"`
+		RealName string `json:"realName"`
+		BoundAt  string `json:"boundAt"`
 	}
 
 	var results []Result
@@ -241,10 +242,10 @@ func (s *RoleBindingService) GetRoleBoundUsers(ctx context.Context, clusterID ui
 	users := make([]map[string]interface{}, 0, len(results))
 	for _, r := range results {
 		users = append(users, map[string]interface{}{
-			"userId":    r.UserID,
-			"username":  r.Username,
-			"realName":  r.RealName,
-			"boundAt":   r.BoundAt,
+			"userId":   r.UserID,
+			"username": r.Username,
+			"realName": r.RealName,
+			"boundAt":  r.BoundAt,
 		})
 	}
 
@@ -407,10 +408,10 @@ func (s *RoleBindingService) GetClusterCredentialUsers(ctx context.Context, clus
 		credentialUsers = append(credentialUsers, map[string]interface{}{
 			"username":       username,      // 平台用户名
 			"realName":       user.RealName, // 真实姓名
-			"serviceAccount": saName,       // K8s ServiceAccount 完整名称
-			"namespace":      sa.Namespace, // 命名空间
-			"userId":         user.ID,      // 平台用户ID
-			"createdAt":      createdAt,    // 创建时间
+			"serviceAccount": saName,        // K8s ServiceAccount 完整名称
+			"namespace":      sa.Namespace,  // 命名空间
+			"userId":         user.ID,       // 平台用户ID
+			"createdAt":      createdAt,     // 创建时间
 		})
 	}
 
@@ -531,8 +532,8 @@ func (s *RoleBindingService) createClusterRoleBinding(ctx context.Context, clien
 			},
 		},
 		RoleRef: rbacv1.RoleRef{
-			Kind:     "ClusterRole",
-			Name:     roleName,
+			Kind: "ClusterRole",
+			Name: roleName,
 		},
 	}
 
@@ -545,7 +546,7 @@ func (s *RoleBindingService) createClusterRoleBinding(ctx context.Context, clien
 }
 
 // createRoleBinding 创建命名空间角色绑定
-func (s *RoleBindingService) createRoleBinding(ctx context.Context, clientset *kubernetes.Clientset, roleName, roleNamespace, saName, saNamespace string) error {
+func (s *RoleBindingService) createRoleBinding(ctx context.Context, clientset *kubernetes.Clientset, roleName, roleNamespace, saName, saNamespace, roleKind string) error {
 	rbClient := clientset.RbacV1().RoleBindings(roleNamespace)
 
 	// 绑定名称格式: mom-{roleName}-{saName}
@@ -576,8 +577,8 @@ func (s *RoleBindingService) createRoleBinding(ctx context.Context, clientset *k
 			},
 		},
 		RoleRef: rbacv1.RoleRef{
-			Kind:     "Role",
-			Name:     roleName,
+			Kind: roleKind,
+			Name: roleName,
 		},
 	}
 
@@ -591,7 +592,7 @@ func (s *RoleBindingService) createRoleBinding(ctx context.Context, clientset *k
 
 // rollbackK8sBinding 回滚 K8s 绑定（用于数据库操作失败时）
 func (s *RoleBindingService) rollbackK8sBinding(ctx context.Context, clientset *kubernetes.Clientset, roleType, roleName, roleNamespace, saName, saNamespace string) error {
-	if roleType == "ClusterRole" {
+	if roleNamespace == "" {
 		bindingName := fmt.Sprintf("mom-%s-%s", roleName, saName)
 		_ = clientset.RbacV1().ClusterRoleBindings().Delete(ctx, bindingName, metav1.DeleteOptions{})
 	} else {
@@ -621,7 +622,7 @@ func (s *RoleBindingService) ensuremomAuthNamespace(ctx context.Context, clients
 		ObjectMeta: metav1.ObjectMeta{
 			Name: momAuthNamespace,
 			Labels: map[string]string{
-				"name":                                 "mom-auth",
+				"name":                              "mom-auth",
 				"mom.ydcloud-dy.com/purpose":        "authentication",
 				"mom.ydcloud-dy.com/managed-by":     "mom",
 				"mom.ydcloud-dy.com/namespace-type": "system",

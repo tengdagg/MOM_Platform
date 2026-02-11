@@ -53,6 +53,7 @@ import (
 	rbacv1 "k8s.io/api/rbac/v1"
 	schedulingv1 "k8s.io/api/scheduling/v1"
 	storagev1 "k8s.io/api/storage/v1"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
@@ -62,6 +63,8 @@ import (
 	"k8s.io/metrics/pkg/apis/metrics/v1beta1"
 	"sigs.k8s.io/yaml"
 
+	rbacBiz "github.com/ydcloud-dy/mom/internal/biz/rbac"
+	rbacData "github.com/ydcloud-dy/mom/internal/data/rbac"
 	"github.com/ydcloud-dy/mom/plugins/kubernetes/data/models"
 	"github.com/ydcloud-dy/mom/plugins/kubernetes/model"
 	"github.com/ydcloud-dy/mom/plugins/kubernetes/service"
@@ -678,10 +681,75 @@ func (h *ResourceHandler) ListNamespaces(c *gin.Context) {
 		return
 	}
 
-	namespaces, err := clientset.CoreV1().Namespaces().List(c.Request.Context(), metav1.ListOptions{})
-	if err != nil {
-		HandleK8sError(c, err, "命名空间")
-		return
+	// ===== 基于平台 RBAC 过滤命名空间 =====
+	// 先检查用户是否是平台管理员
+	isPlatformAdmin := h.checkIsPlatformAdmin(currentUserID)
+
+	// 查询用户在该集群的角色绑定
+	roleBindingService := service.NewRoleBindingService(h.db)
+	uid := uint64(currentUserID)
+	bindings, _ := roleBindingService.GetUserRoleBindings(c.Request.Context(), clusterID, &uid)
+
+	// 收集用户绑定的命名空间列表，同时判断用户是否有写权限
+	allowedNamespaces := make(map[string]bool)
+	hasClusterRole := false
+	canWrite := isPlatformAdmin // 平台管理员默认有写权限
+	for _, b := range bindings {
+		nsName, _ := b["roleNamespace"].(string)
+		roleName, _ := b["roleName"].(string)
+		if nsName == "" {
+			// roleNamespace 为空表示集群级别角色
+			hasClusterRole = true
+		} else {
+			allowedNamespaces[nsName] = true
+		}
+		// 检查是否有任何写权限角色
+		if !canWrite && isWriteRole(roleName) {
+			canWrite = true
+		}
+	}
+
+	// 决定是否需要过滤：
+	// - 平台管理员（admin角色）：显示所有命名空间
+	// - 只有集群级别角色、没有命名空间级别绑定：显示所有命名空间
+	// - 有命名空间级别绑定：只显示绑定的命名空间
+	needFilter := !isPlatformAdmin && len(allowedNamespaces) > 0
+
+	var namespaces *v1.NamespaceList
+
+	if needFilter {
+		// 用户有命名空间级别绑定，只获取绑定的命名空间
+		nsList := make([]v1.Namespace, 0, len(allowedNamespaces))
+		for nsName := range allowedNamespaces {
+			nsObj, getErr := clientset.CoreV1().Namespaces().Get(c.Request.Context(), nsName, metav1.GetOptions{})
+			if getErr == nil {
+				nsList = append(nsList, *nsObj)
+			} else {
+				// 如果无法获取详情，构造基本对象
+				nsList = append(nsList, v1.Namespace{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:              nsName,
+						CreationTimestamp: metav1.Now(),
+					},
+					Status: v1.NamespaceStatus{Phase: v1.NamespaceActive},
+				})
+			}
+		}
+		namespaces = &v1.NamespaceList{Items: nsList}
+	} else {
+		// 平台管理员 或 仅有集群级别角色：列出所有命名空间
+		namespaces, err = clientset.CoreV1().Namespaces().List(c.Request.Context(), metav1.ListOptions{})
+		if err != nil {
+			// 如果是 403 且有集群角色绑定，返回空列表而非报错
+			if k8serrors.IsForbidden(err) && hasClusterRole {
+				namespaces = &v1.NamespaceList{Items: []v1.Namespace{}}
+				err = nil
+			}
+			if err != nil {
+				HandleK8sError(c, err, "命名空间")
+				return
+			}
+		}
 	}
 
 	namespaceInfos := make([]NamespaceInfo, 0, len(namespaces.Items))
@@ -705,8 +773,30 @@ func (h *ResourceHandler) ListNamespaces(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"code":    0,
 		"message": "success",
-		"data":    namespaceInfos,
+		"data": gin.H{
+			"items":      namespaceInfos,
+			"fullAccess": !needFilter,
+			"canWrite":   canWrite,
+		},
 	})
+}
+
+// checkIsPlatformAdmin 检查用户是否为平台管理员（不返回HTTP错误）
+func (h *ResourceHandler) checkIsPlatformAdmin(userID uint) bool {
+	roleRepo := rbacData.NewRoleRepo(h.db)
+	roleUseCase := rbacBiz.NewRoleUseCase(roleRepo)
+
+	roles, err := roleUseCase.GetByUserID(context.Background(), userID)
+	if err != nil {
+		return false
+	}
+
+	for _, role := range roles {
+		if role.Code == "admin" {
+			return true
+		}
+	}
+	return false
 }
 
 // ListPods 获取Pod列表

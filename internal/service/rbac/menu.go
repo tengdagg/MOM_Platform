@@ -131,6 +131,75 @@ func (s *MenuService) UpdateMenu(c *gin.Context) {
 	response.Success(c, req)
 }
 
+// UpdateMenuSort 更新菜单排序
+// @Summary 更新菜单排序
+// @Description 仅更新菜单排序字段
+// @Tags 菜单管理
+// @Accept json
+// @Produce json
+// @Security Bearer
+// @Param id path int true "菜单ID"
+// @Param body body object true "排序信息"
+// @Success 200 {object} response.Response "更新成功"
+// @Failure 400 {object} response.Response "参数错误"
+// @Router /api/v1/menus/{id}/sort [put]
+func (s *MenuService) UpdateMenuSort(c *gin.Context) {
+	idStr := c.Param("id")
+	id, err := strconv.ParseUint(idStr, 10, 32)
+	if err != nil {
+		response.ErrorCode(c, http.StatusBadRequest, "无效的菜单ID")
+		return
+	}
+
+	var req struct {
+		Sort int `json:"sort"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.ErrorCode(c, http.StatusBadRequest, "参数错误: "+err.Error())
+		return
+	}
+
+	if err := s.menuUseCase.UpdateSort(c.Request.Context(), uint(id), req.Sort); err != nil {
+		response.ErrorCode(c, http.StatusInternalServerError, "排序更新失败: "+err.Error())
+		return
+	}
+
+	response.SuccessWithMessage(c, "排序更新成功", nil)
+}
+
+// BatchUpdateMenuSort 批量更新菜单排序
+// @Summary 批量更新菜单排序
+// @Description 批量更新多个菜单的排序
+// @Tags 菜单管理
+// @Accept json
+// @Produce json
+// @Security Bearer
+// @Param body body []rbac.MenuSortItem true "排序信息列表"
+// @Success 200 {object} response.Response "更新成功"
+// @Failure 400 {object} response.Response "参数错误"
+// @Router /api/v1/menus/sort [put]
+func (s *MenuService) BatchUpdateMenuSort(c *gin.Context) {
+	var req struct {
+		Items []rbac.MenuSortItem `json:"items"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.ErrorCode(c, http.StatusBadRequest, "参数错误: "+err.Error())
+		return
+	}
+
+	if len(req.Items) == 0 {
+		response.ErrorCode(c, http.StatusBadRequest, "排序列表不能为空")
+		return
+	}
+
+	if err := s.menuUseCase.BatchUpdateSort(c.Request.Context(), req.Items); err != nil {
+		response.ErrorCode(c, http.StatusInternalServerError, "批量排序更新失败: "+err.Error())
+		return
+	}
+
+	response.SuccessWithMessage(c, "排序更新成功", nil)
+}
+
 // DeleteMenu 删除菜单
 // @Summary 删除菜单
 // @Description 管理员删除菜单
@@ -188,15 +257,25 @@ func (s *MenuService) GetMenu(c *gin.Context) {
 
 // GetMenuTree 获取菜单树
 // @Summary 获取菜单树
-// @Description 获取完整的菜单树形结构
+// @Description 获取完整的菜单树形结构，支持 all 参数返回所有菜单（包括隐藏的）
 // @Tags 菜单管理
 // @Accept json
 // @Produce json
 // @Security Bearer
+// @Param all query string false "是否返回所有菜单（包括隐藏的），值为 true 时返回全部"
 // @Success 200 {object} response.Response "获取成功"
 // @Router /api/v1/menus/tree [get]
 func (s *MenuService) GetMenuTree(c *gin.Context) {
-	tree, err := s.menuUseCase.GetTree(c.Request.Context())
+	var tree []*rbac.SysMenu
+	var err error
+
+	// 如果传了 all=true，返回所有菜单（包括隐藏的），用于菜单管理页面
+	if c.Query("all") == "true" {
+		tree, err = s.menuUseCase.GetAllTree(c.Request.Context())
+	} else {
+		tree, err = s.menuUseCase.GetTree(c.Request.Context())
+	}
+
 	if err != nil {
 		response.ErrorCode(c, http.StatusInternalServerError, "查询失败: "+err.Error())
 		return

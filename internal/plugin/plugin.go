@@ -21,9 +21,12 @@ package plugin
 
 import (
 	"fmt"
+	"log"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/ydcloud-dy/mom/internal/biz/rbac"
 	"gorm.io/gorm"
 )
 
@@ -163,6 +166,11 @@ func (m *Manager) Enable(name string) error {
 		return fmt.Errorf("failed to update plugin state: %w", err)
 	}
 
+	// 同步插件菜单到数据库
+	if err := m.syncPluginMenus(plugin); err != nil {
+		log.Printf("[plugin] 同步插件菜单失败 plugin=%s err=%v", name, err)
+	}
+
 	return nil
 }
 
@@ -181,6 +189,11 @@ func (m *Manager) Disable(name string) error {
 	// 更新插件状态为已禁用
 	if err := m.db.Model(&PluginState{}).Where("name = ?", name).Update("enabled", false).Error; err != nil {
 		return fmt.Errorf("failed to update plugin state: %w", err)
+	}
+
+	// 删除插件菜单
+	if err := m.removePluginMenus(name); err != nil {
+		log.Printf("[plugin] 删除插件菜单失败 plugin=%s err=%v", name, err)
 	}
 
 	return nil
@@ -232,4 +245,201 @@ func (m *Manager) GetAllMenus() []MenuConfig {
 		}
 	}
 	return allMenus
+}
+
+// pathToCode 将路由路径转换为菜单编码（与前端 Menus.vue 中的 menu.path.replace(/\//g, '_') 逻辑一致）
+func pathToCode(path string) string {
+	return strings.ReplaceAll(path, "/", "_")
+}
+
+// syncPluginMenus 将插件菜单同步到 sys_menu 数据库表
+func (m *Manager) syncPluginMenus(p Plugin) error {
+	menus := p.GetMenus()
+	if len(menus) == 0 {
+		return nil
+	}
+
+	pluginName := p.Name()
+	// path -> database ID 映射，用于子菜单关联父菜单
+	pathToID := make(map[string]uint)
+
+	// 第一轮：处理顶级菜单（parentPath 为空）
+	for _, menu := range menus {
+		if menu.ParentPath != "" {
+			continue
+		}
+		code := pathToCode(menu.Path)
+		visible := 1
+		if menu.Hidden {
+			visible = 0
+		}
+
+		var existing rbac.SysMenu
+		err := m.db.Where("plugin_name = ? AND code = ?", pluginName, code).First(&existing).Error
+		if err == gorm.ErrRecordNotFound {
+			// 创建新菜单
+			newMenu := &rbac.SysMenu{
+				Name:       menu.Name,
+				Code:       code,
+				Type:       1, // 目录
+				ParentID:   0,
+				Path:       menu.Path,
+				Icon:       menu.Icon,
+				Sort:       menu.Sort,
+				Visible:    visible,
+				Status:     1,
+				PluginName: pluginName,
+			}
+			if err := m.db.Create(newMenu).Error; err != nil {
+				log.Printf("[plugin] 创建插件顶级菜单失败 code=%s err=%v", code, err)
+				continue
+			}
+			pathToID[menu.Path] = newMenu.ID
+
+			// 自动分配给 admin 角色
+			m.assignMenuToAdmin(newMenu.ID)
+		} else if err == nil {
+			// 已存在，更新字段
+			m.db.Model(&rbac.SysMenu{}).Where("id = ?", existing.ID).Updates(map[string]interface{}{
+				"name": menu.Name,
+				"icon": menu.Icon,
+				// "sort":    menu.Sort, // 不更新排序，保留用户自定义的排序
+				"visible": visible,
+				"path":    menu.Path,
+				"status":  1,
+			})
+			pathToID[menu.Path] = existing.ID
+		}
+	}
+
+	// 第二轮：处理子菜单（parentPath 非空）
+	for _, menu := range menus {
+		if menu.ParentPath == "" {
+			continue
+		}
+		code := pathToCode(menu.Path)
+		visible := 1
+		if menu.Hidden {
+			visible = 0
+		}
+
+		// 查找父菜单 ID
+		parentID, ok := pathToID[menu.ParentPath]
+		if !ok {
+			// 父菜单可能已经在数据库中（之前的启动创建的）
+			parentCode := pathToCode(menu.ParentPath)
+			var parentMenu rbac.SysMenu
+			if err := m.db.Where("plugin_name = ? AND code = ?", pluginName, parentCode).First(&parentMenu).Error; err == nil {
+				parentID = parentMenu.ID
+				pathToID[menu.ParentPath] = parentID
+			} else {
+				log.Printf("[plugin] 找不到父菜单 parentPath=%s plugin=%s", menu.ParentPath, pluginName)
+				continue
+			}
+		}
+
+		var existing rbac.SysMenu
+		err := m.db.Where("plugin_name = ? AND code = ?", pluginName, code).First(&existing).Error
+		if err == gorm.ErrRecordNotFound {
+			// 创建新子菜单
+			newMenu := &rbac.SysMenu{
+				Name:       menu.Name,
+				Code:       code,
+				Type:       2, // 菜单
+				ParentID:   parentID,
+				Path:       menu.Path,
+				Icon:       menu.Icon,
+				Sort:       menu.Sort,
+				Visible:    visible,
+				Status:     1,
+				PluginName: pluginName,
+			}
+			if err := m.db.Create(newMenu).Error; err != nil {
+				log.Printf("[plugin] 创建插件子菜单失败 code=%s err=%v", code, err)
+				continue
+			}
+			pathToID[menu.Path] = newMenu.ID
+
+			// 自动分配给 admin 角色
+			m.assignMenuToAdmin(newMenu.ID)
+		} else if err == nil {
+			// 已存在，更新字段
+			m.db.Model(&rbac.SysMenu{}).Where("id = ?", existing.ID).Updates(map[string]interface{}{
+				"name": menu.Name,
+				"icon": menu.Icon,
+				// "sort":      menu.Sort, // 不更新排序，保留用户自定义的排序
+				"visible":   visible,
+				"path":      menu.Path,
+				"parent_id": parentID,
+				"status":    1,
+			})
+			pathToID[menu.Path] = existing.ID
+		}
+	}
+
+	// 清理多余的菜单（例如插件更新后删除了某些菜单，或者路径变更导致旧菜单残留）
+	var currentMenuIDs []uint
+	for _, id := range pathToID {
+		currentMenuIDs = append(currentMenuIDs, id)
+	}
+
+	if len(currentMenuIDs) > 0 {
+		// 删除不在本次同步列表中的该插件菜单
+		if err := m.db.Where("plugin_name = ? AND id NOT IN ?", pluginName, currentMenuIDs).Delete(&rbac.SysMenu{}).Error; err != nil {
+			log.Printf("[plugin] 清理过期菜单失败 plugin=%s err=%v", pluginName, err)
+		} else {
+			// 同时清理角色关联
+			// 注意：GORM Delete 软删除不会自动清理关联表，但这里因为是逻辑删除，关联表记录保留也无所谓，或者需要手动清理
+			// 如果是硬删除（Unscoped）则需要手动清理关联
+			// 这里我们保持软删除
+		}
+	}
+
+	log.Printf("[plugin] 插件菜单同步完成 plugin=%s 菜单数=%d", pluginName, len(menus))
+	return nil
+}
+
+// assignMenuToAdmin 将菜单分配给 admin 角色
+func (m *Manager) assignMenuToAdmin(menuID uint) {
+	// 查找 admin 角色
+	var adminRole rbac.SysRole
+	if err := m.db.Where("code = ?", "admin").First(&adminRole).Error; err != nil {
+		return
+	}
+
+	// 检查是否已存在关联
+	var count int64
+	m.db.Table("sys_role_menu").Where("role_id = ? AND menu_id = ?", adminRole.ID, menuID).Count(&count)
+	if count > 0 {
+		return
+	}
+
+	// 创建关联
+	m.db.Exec("INSERT INTO sys_role_menu (role_id, menu_id) VALUES (?, ?)", adminRole.ID, menuID)
+}
+
+// removePluginMenus 删除指定插件的所有菜单
+func (m *Manager) removePluginMenus(pluginName string) error {
+	// 查找该插件的所有菜单 ID
+	var menuIDs []uint
+	if err := m.db.Model(&rbac.SysMenu{}).Where("plugin_name = ?", pluginName).Pluck("id", &menuIDs).Error; err != nil {
+		return fmt.Errorf("查询插件菜单失败: %w", err)
+	}
+
+	if len(menuIDs) == 0 {
+		return nil
+	}
+
+	// 删除角色-菜单关联
+	if err := m.db.Exec("DELETE FROM sys_role_menu WHERE menu_id IN ?", menuIDs).Error; err != nil {
+		log.Printf("[plugin] 删除角色菜单关联失败 plugin=%s err=%v", pluginName, err)
+	}
+
+	// 删除菜单记录（硬删除，不经过 GORM 的软删除）
+	if err := m.db.Unscoped().Where("plugin_name = ?", pluginName).Delete(&rbac.SysMenu{}).Error; err != nil {
+		return fmt.Errorf("删除插件菜单失败: %w", err)
+	}
+
+	log.Printf("[plugin] 插件菜单已删除 plugin=%s 删除数=%d", pluginName, len(menuIDs))
+	return nil
 }

@@ -56,11 +56,21 @@ type DepartmentRepo interface {
 type MenuRepo interface {
 	Create(ctx context.Context, menu *SysMenu) error
 	Update(ctx context.Context, menu *SysMenu) error
+	UpdateSort(ctx context.Context, id uint, sort int) error
+	BatchUpdateSort(ctx context.Context, sorts []MenuSortItem) error
 	Delete(ctx context.Context, id uint) error
 	GetByID(ctx context.Context, id uint) (*SysMenu, error)
 	GetTree(ctx context.Context) ([]*SysMenu, error)
+	GetAllTree(ctx context.Context) ([]*SysMenu, error)
 	GetByUserID(ctx context.Context, userID uint) ([]*SysMenu, error)
 	GetByRoleID(ctx context.Context, roleID uint) ([]*SysMenu, error)
+	CheckCodeExists(ctx context.Context, code string, excludeID uint) (bool, error)
+}
+
+// MenuSortItem 菜单排序项
+type MenuSortItem struct {
+	ID   uint `json:"id"`
+	Sort int  `json:"sort"`
 }
 
 type PositionRepo interface {

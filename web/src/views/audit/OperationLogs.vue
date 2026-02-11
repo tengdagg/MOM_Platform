@@ -49,7 +49,7 @@
         <el-option label="个人信息" value="个人信息" />
         <el-option label="操作审计" value="操作审计" />
         <el-option label="资产管理" value="资产管理" />
-        <el-option label="容器管理" value="容器管理" />
+        <el-option label="Kubernetes" value="Kubernetes" />
         <el-option label="监控中心" value="监控中心" />
         <el-option label="任务中心" value="任务中心" />
       </el-select>

@@ -236,6 +236,13 @@ func autoMigrate(db *gorm.DB) error {
 		appLogger.Info("成功创建用户名邮箱联合唯一索引")
 	}
 
+	// 4. 修复 sys_menu 表的唯一索引问题
+	// 移除 GORM 自动生成的单列唯一索引 (idx_sys_menu_code)，该索引会导致
+	// 编辑菜单排序时出现 "菜单编码已存在" 的错误（因为与软删除记录冲突）
+	db.Exec("DROP INDEX idx_sys_menu_code ON sys_menu")
+	// 同时尝试移除可能存在的其他单列 code 唯一索引
+	db.Exec("DROP INDEX uk_code ON sys_menu")
+
 	return nil
 }
 

@@ -37,7 +37,7 @@ func RegisterRoutes(router *gin.RouterGroup, db *gorm.DB) {
 	inspectionHandler := NewInspectionHandler(clusterService, db)
 	crdHandler := NewCRDHandler(clusterService, db)
 	helmService := service.NewHelmService(db, clusterService)
-	helmHandler := NewHelmHandler(helmService)
+	helmHandler := NewHelmHandler(helmService, db)
 
 	clusters := router.Group("/kubernetes")
 	{

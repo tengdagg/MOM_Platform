@@ -21,9 +21,10 @@ package monitor
 
 import (
 	"context"
+	"time"
+
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
-	"time"
 
 	"github.com/ydcloud-dy/mom/internal/plugin"
 	"github.com/ydcloud-dy/mom/plugins/monitor/model"
@@ -145,10 +146,44 @@ func (p *Plugin) RegisterRoutes(router *gin.RouterGroup, db *gorm.DB) {
 func (p *Plugin) GetMenus() []plugin.MenuConfig {
 	return []plugin.MenuConfig{
 		{
-			Name: "域名监控",
-			Path: "/monitor/domains",
-			Icon: "Monitor",
-			Sort: 40,
+			Name:       "监控中心",
+			Path:       "/monitor",
+			Icon:       "Monitor",
+			Sort:       20,
+			Hidden:     false,
+			ParentPath: "",
+		},
+		{
+			Name:       "域名监控",
+			Path:       "/monitor/domain",
+			Icon:       "Monitor",
+			Sort:       1,
+			Hidden:     false,
+			ParentPath: "/monitor",
+		},
+		{
+			Name:       "告警通道",
+			Path:       "/monitor/alert-channels",
+			Icon:       "Bell",
+			Sort:       2,
+			Hidden:     false,
+			ParentPath: "/monitor",
+		},
+		{
+			Name:       "告警接收人",
+			Path:       "/monitor/alert-receivers",
+			Icon:       "User",
+			Sort:       3,
+			Hidden:     false,
+			ParentPath: "/monitor",
+		},
+		{
+			Name:       "告警日志",
+			Path:       "/monitor/alert-logs",
+			Icon:       "Document",
+			Sort:       4,
+			Hidden:     false,
+			ParentPath: "/monitor",
 		},
 	}
 }

@@ -263,6 +263,14 @@ func (uc *MenuUseCase) Update(ctx context.Context, menu *SysMenu) error {
 	return uc.menuRepo.Update(ctx, menu)
 }
 
+func (uc *MenuUseCase) UpdateSort(ctx context.Context, id uint, sort int) error {
+	return uc.menuRepo.UpdateSort(ctx, id, sort)
+}
+
+func (uc *MenuUseCase) BatchUpdateSort(ctx context.Context, sorts []MenuSortItem) error {
+	return uc.menuRepo.BatchUpdateSort(ctx, sorts)
+}
+
 func (uc *MenuUseCase) Delete(ctx context.Context, id uint) error {
 	return uc.menuRepo.Delete(ctx, id)
 }
@@ -273,6 +281,10 @@ func (uc *MenuUseCase) GetByID(ctx context.Context, id uint) (*SysMenu, error) {
 
 func (uc *MenuUseCase) GetTree(ctx context.Context) ([]*SysMenu, error) {
 	return uc.menuRepo.GetTree(ctx)
+}
+
+func (uc *MenuUseCase) GetAllTree(ctx context.Context) ([]*SysMenu, error) {
+	return uc.menuRepo.GetAllTree(ctx)
 }
 
 func (uc *MenuUseCase) GetByUserID(ctx context.Context, userID uint) ([]*SysMenu, error) {

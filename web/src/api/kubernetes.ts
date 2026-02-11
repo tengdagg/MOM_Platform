@@ -282,14 +282,58 @@ export function getNodes(clusterId: number) {
 }
 
 /**
- * 获取命名空间列表
+ * 命名空间列表响应（包含权限信息）
  */
-export function getNamespaces(clusterId: number) {
-  return request<NamespaceInfo[]>({
+export interface NamespaceListResponse {
+  items: NamespaceInfo[]
+  fullAccess: boolean
+  canWrite: boolean
+}
+
+/**
+ * 获取命名空间列表（返回包含权限信息的完整响应）
+ */
+export function getNamespacesWithAccess(clusterId: number): Promise<NamespaceListResponse> {
+  return request<NamespaceListResponse>({
     url: '/api/v1/plugins/kubernetes/resources/namespaces',
     method: 'get',
     params: { clusterId }
   })
+}
+
+/**
+ * 获取命名空间列表（兼容旧代码，只返回命名空间数组）
+ * 会自动更新 kubernetes store 中的 fullNamespaceAccess 状态
+ * 当用户无全部命名空间权限时，自动选中所有允许的命名空间
+ */
+export async function getNamespaces(clusterId: number): Promise<NamespaceInfo[]> {
+  const res = await getNamespacesWithAccess(clusterId) as any
+  const fullAccess = res?.fullAccess !== false
+  // 兼容新旧格式：新格式返回 { items: [...], fullAccess: bool }，旧格式直接返回数组
+  const items: NamespaceInfo[] = (res && res.items) ? res.items : (res || [])
+
+  // 自动更新 store 中的 fullAccess 状态，并在受限时自动选中允许的命名空间
+  try {
+    const { useKubernetesStore } = await import('../stores/kubernetes')
+    const store = useKubernetesStore()
+    store.setFullNamespaceAccess(fullAccess)
+    store.setCanWrite(res?.canWrite !== false)
+
+    // 当用户无全部命名空间权限时，自动选中所有允许的命名空间
+    if (!fullAccess && items.length > 0) {
+      const currentNs = store.selectedNamespaces
+      // 当前未选择或选了"所有命名空间"时，自动选中允许的命名空间
+      if (currentNs.length === 0 || (currentNs.length === 1 && currentNs[0] === '')) {
+        const nsNames = items.map((ns: NamespaceInfo) => ns.name)
+        store.selectedNamespaces = nsNames  // 直接赋值避免 guard 逻辑
+        store.persistState()
+      }
+    }
+  } catch {
+    // 忽略 store 更新失败
+  }
+
+  return items
 }
 
 /**
@@ -446,6 +490,7 @@ export interface Role {
   age: string
   rules: any[]
   isCustom?: boolean // 是否为自定义角色（系统角色和默认角色为 false）
+  kind?: string // 角色类型 (Role 或 ClusterRole)
 }
 
 export interface RoleDetail {

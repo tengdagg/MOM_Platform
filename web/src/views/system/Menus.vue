@@ -124,11 +124,11 @@
           </template>
         </el-table-column>
 
-        <el-table-column label="操作" width="150" fixed="right" align="center">
+        <el-table-column label="操作" width="180" fixed="right" align="center">
           <template #default="{ row }">
             <div class="action-buttons">
-              <el-tooltip v-if="row.isPlugin" content="调整排序" placement="top">
-                <el-button link class="action-btn action-sort" @click="handleEditPluginSort(row)">
+              <el-tooltip content="调整排序" placement="top">
+                <el-button link class="action-btn action-sort" @click="handleEditSort(row)">
                   <el-icon><Sort /></el-icon>
                 </el-button>
               </el-tooltip>
@@ -158,28 +158,28 @@
       @close="handleDialogClose"
     >
       <el-alert
-        v-if="editingPluginMenu"
-        title="插件菜单编辑"
+        v-if="editingSortOnly"
+        title="调整排序"
         type="info"
         :closable="false"
         style="margin-bottom: 15px;"
       >
         <template #default>
-          <div>您正在编辑插件菜单，只能修改排序字段</div>
+          <div>您正在调整菜单排序，仅排序字段可修改</div>
           <div style="font-size: 12px; color: #666; margin-top: 5px;">
-            菜单名称: {{ menuForm.name }} | 路径: {{ menuForm.path }}
+            菜单名称: {{ menuForm.name }} | 编码: {{ menuForm.code }}
           </div>
         </template>
       </el-alert>
 
       <el-form :model="menuForm" :rules="rules" ref="formRef" label-width="100px">
-        <el-form-item label="菜单名称" prop="name">
+        <el-form-item label="菜单名称" prop="name" v-if="!editingSortOnly">
           <el-input v-model="menuForm.name" :disabled="editingPluginMenu" placeholder="请输入菜单名称" />
         </el-form-item>
-        <el-form-item label="菜单编码" prop="code">
+        <el-form-item label="菜单编码" prop="code" v-if="!editingSortOnly">
           <el-input v-model="menuForm.code" :disabled="editingPluginMenu" placeholder="请输入菜单编码" />
         </el-form-item>
-        <el-form-item label="类型" prop="type">
+        <el-form-item label="类型" prop="type" v-if="!editingSortOnly">
           <el-radio-group v-model="menuForm.type" :disabled="editingPluginMenu">
             <el-radio :label="1">目录</el-radio>
             <el-radio :label="2">菜单</el-radio>
@@ -191,7 +191,7 @@
             按钮：页面内的功能按钮，用于权限控制
           </div>
         </el-form-item>
-        <el-form-item label="上级菜单" prop="parentId" v-if="!editingPluginMenu">
+        <el-form-item label="上级菜单" prop="parentId" v-if="!editingPluginMenu && !editingSortOnly">
           <el-cascader
             v-model="menuForm.parentId"
             :options="menuTreeOptions"
@@ -201,26 +201,26 @@
             style="width: 100%"
           />
         </el-form-item>
-        <el-form-item label="路由路径" prop="path" v-if="menuForm.type !== 3">
+        <el-form-item label="路由路径" prop="path" v-if="menuForm.type !== 3 && !editingSortOnly">
           <el-input v-model="menuForm.path" :disabled="editingPluginMenu" placeholder="请输入路由路径" />
         </el-form-item>
-        <el-form-item label="组件路径" prop="component" v-if="menuForm.type === 2 && !editingPluginMenu">
+        <el-form-item label="组件路径" prop="component" v-if="menuForm.type === 2 && !editingPluginMenu && !editingSortOnly">
           <el-input v-model="menuForm.component" placeholder="请输入组件路径" />
         </el-form-item>
-        <el-form-item label="图标" prop="icon">
+        <el-form-item label="图标" prop="icon" v-if="!editingSortOnly">
           <el-input v-model="menuForm.icon" :disabled="editingPluginMenu" placeholder="请输入图标名称" />
         </el-form-item>
         <el-form-item label="排序" prop="sort">
           <el-input-number v-model="menuForm.sort" :min="0" style="width: 100%;" />
           <div class="form-tip">数值越小越靠前</div>
         </el-form-item>
-        <el-form-item label="显示状态" prop="visible" v-if="!editingPluginMenu">
+        <el-form-item label="显示状态" prop="visible" v-if="!editingPluginMenu && !editingSortOnly">
           <el-radio-group v-model="menuForm.visible">
             <el-radio :label="1">显示</el-radio>
             <el-radio :label="0">隐藏</el-radio>
           </el-radio-group>
         </el-form-item>
-        <el-form-item label="状态" prop="status" v-if="!editingPluginMenu">
+        <el-form-item label="状态" prop="status" v-if="!editingPluginMenu && !editingSortOnly">
           <el-radio-group v-model="menuForm.status">
             <el-radio :label="1">启用</el-radio>
             <el-radio :label="0">禁用</el-radio>
@@ -271,7 +271,7 @@ import {
   View,
   Odometer
 } from '@element-plus/icons-vue'
-import { getMenuTree, createMenu, updateMenu, deleteMenu } from '@/api/menu'
+import { getAllMenuTree, getMenuTree, createMenu, updateMenu, updateMenuSort, batchUpdateMenuSort, deleteMenu } from '@/api/menu'
 import { pluginManager } from '@/plugins/manager'
 
 const loading = ref(false)
@@ -280,6 +280,7 @@ const dialogVisible = ref(false)
 const dialogTitle = ref('')
 const isEdit = ref(false)
 const editingPluginMenu = ref(false)
+const editingSortOnly = ref(false)
 const formRef = ref<FormInstance>()
 const tableRef = ref<InstanceType<typeof ElTable>>()
 const expandAll = ref(false)
@@ -575,10 +576,10 @@ const buildMenuTree = (menus: any[]) => {
 const loadMenus = async () => {
   loading.value = true
   try {
-    // 1. 获取系统菜单
+    // 1. 获取系统菜单（包括隐藏的，用于管理页面）
     let systemMenus: any[] = []
     try {
-      systemMenus = await getMenuTree() || []
+      systemMenus = await getAllMenuTree() || []
     } catch (error) {
     }
 
@@ -612,13 +613,36 @@ const loadMenus = async () => {
       cleanEmptyChildren(systemMenus)
     }
 
+    // 4.5 标记来自数据库的插件菜单（pluginName 非空则为插件菜单）
+    const dbPluginNames = new Set<string>()
+    const markPluginMenus = (nodes: any[]) => {
+      nodes.forEach(node => {
+        if (node.pluginName && node.pluginName !== '') {
+          node.isPlugin = true
+          node.pluginName = node.pluginName
+          dbPluginNames.add(node.pluginName)
+        }
+        if (node.children && node.children.length > 0) {
+          markPluginMenus(node.children)
+        }
+      })
+    }
+    if (systemMenus && systemMenus.length > 0) {
+      markPluginMenus(systemMenus)
+    }
+
     // 5. 直接使用清理后的系统菜单树
     menuList.value = systemMenus || []
 
     // 6. 将插件菜单添加到树中
     if (pluginMenus.length > 0) {
+      // 过滤掉已经在数据库中存在的插件菜单（不区分大小写）
+      const menusToAdd = pluginMenus.filter(m => !dbPluginNames.has(m.pluginName) && !dbPluginNames.has(m.pluginName.toLowerCase()))
+      
       // 插件菜单需要根据 parentId 插入到正确的位置
-      insertPluginMenus(menuList.value, pluginMenus)
+      if (menusToAdd.length > 0) {
+        insertPluginMenus(menuList.value, menusToAdd)
+      }
     }
 
     // 6.5 对最终的菜单树进行排序
@@ -697,6 +721,7 @@ const findMenuInTree = (tree: any[], menuId: string | number): any => {
 const handleAdd = () => {
   isEdit.value = false
   editingPluginMenu.value = false
+  editingSortOnly.value = false
   dialogTitle.value = '新增菜单'
   resetForm()
   dialogVisible.value = true
@@ -705,6 +730,7 @@ const handleAdd = () => {
 const handleEdit = (row: any) => {
   isEdit.value = true
   editingPluginMenu.value = false
+  editingSortOnly.value = false
   dialogTitle.value = '编辑菜单'
   menuForm.id = row.ID || row.id
   menuForm.name = row.name
@@ -720,11 +746,12 @@ const handleEdit = (row: any) => {
   dialogVisible.value = true
 }
 
-// 处理插件菜单排序编辑
-const handleEditPluginSort = (row: any) => {
+// 处理排序编辑（系统菜单和插件菜单通用）
+const handleEditSort = (row: any) => {
   isEdit.value = true
-  editingPluginMenu.value = true
-  dialogTitle.value = '调整插件菜单排序'
+  editingSortOnly.value = true
+  editingPluginMenu.value = !!row.isPlugin
+  dialogTitle.value = '调整菜单排序'
 
   // 填充表单数据
   menuForm.id = row.ID || row.id
@@ -748,6 +775,8 @@ const handleDelete = async (row: any) => {
     await deleteMenu(row.ID || row.id)
     ElMessage.success('删除成功')
     loadMenus()
+    // 通知侧边栏刷新菜单
+    window.dispatchEvent(new CustomEvent('menus-changed'))
   } catch (error) {
     // 取消操作或错误已在 catch 块中处理
   }
@@ -759,48 +788,43 @@ const handleSubmit = async () => {
     if (valid) {
       submitting.value = true
       try {
-        // 如果是编辑插件菜单，只保存排序到 localStorage
-        if (editingPluginMenu.value) {
-          const menuPath = menuForm.path
-          const sort = menuForm.sort
-
-          // 保存排序到 localStorage
-          savePluginMenuSort(menuPath, sort)
-
-          ElMessage.success(`插件菜单 "${menuForm.name}" 排序已更新`)
-          dialogVisible.value = false
-          resetForm()
-
-          // 重新加载菜单以应用新的排序
-          loadMenus()
-
-          // 通知 Layout 刷新菜单
-          window.dispatchEvent(new CustomEvent('plugins-changed'))
-          return
-        }
-
-        // 系统菜单的正常处理流程
-        const data = { ...menuForm }
-        // 处理 parentId
-        if (Array.isArray(data.parentId)) {
-          const lastValue = data.parentId[data.parentId.length - 1]
-          data.parentId = (lastValue !== null && lastValue !== undefined) ? lastValue : 0
-        }
-        // 确保parentId是数字类型
-        data.parentId = Number(data.parentId)
-
         if (isEdit.value) {
-          await updateMenu(menuForm.id, data)
-          ElMessage.success('更新成功')
+          if (editingPluginMenu.value || editingSortOnly.value) {
+            // 仅更新排序：使用专用的排序接口，避免触发编码唯一性检查
+            await updateMenuSort(menuForm.id, menuForm.sort)
+            ElMessage.success('排序更新成功')
+          } else {
+            // 完整更新：处理所有字段
+            const data = { ...menuForm }
+            // 处理 parentId
+            if (Array.isArray(data.parentId)) {
+              const lastValue = data.parentId[data.parentId.length - 1]
+              data.parentId = (lastValue !== null && lastValue !== undefined) ? lastValue : 0
+            }
+            // 确保parentId是数字类型
+            data.parentId = Number(data.parentId)
+            await updateMenu(menuForm.id, data)
+            ElMessage.success('更新成功')
+          }
         } else {
+          const data = { ...menuForm }
+          // 处理 parentId
+          if (Array.isArray(data.parentId)) {
+            const lastValue = data.parentId[data.parentId.length - 1]
+            data.parentId = (lastValue !== null && lastValue !== undefined) ? lastValue : 0
+          }
+          data.parentId = Number(data.parentId)
           await createMenu(data)
           ElMessage.success('创建成功')
         }
         dialogVisible.value = false
         resetForm()
         loadMenus()
-      } catch (error) {
-        ElMessage.error('操作失败')
+        // 通知侧边栏刷新菜单（排序变更后侧边栏同步更新）
+        window.dispatchEvent(new CustomEvent('menus-changed'))
+      } catch (error: any) {
+        const msg = error?.response?.data?.message || error?.message || '操作失败'
+        ElMessage.error(msg)
       } finally {
         submitting.value = false
       }
@@ -810,6 +834,7 @@ const handleSubmit = async () => {
 
 const resetForm = () => {
   editingPluginMenu.value = false
+  editingSortOnly.value = false
   Object.assign(menuForm, {
     id: 0,
     name: '',

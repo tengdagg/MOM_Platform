@@ -82,7 +82,7 @@
           <template #prefix>
             <el-icon class="search-icon"><FolderOpened /></el-icon>
           </template>
-          <el-option label="所有命名空间" value="" />
+          <el-option v-if="kubernetesStore.fullNamespaceAccess" label="所有命名空间" value="" />
           <el-option
             v-for="ns in namespaceList"
             :key="ns.name"
@@ -93,13 +93,13 @@
       </div>
 
       <div class="action-buttons">
-        <el-button type="primary" @click="handleAddWorkloadYAML" class="add-button">
+        <el-button v-if="!kubernetesStore.isReadOnly" type="primary" @click="handleAddWorkloadYAML" class="add-button">
           <el-icon><Document /></el-icon>
           YAML创建
         </el-button>
 
         <el-button
-          v-if="selectedType !== 'Pod'"
+          v-if="selectedType !== 'Pod' && !kubernetesStore.isReadOnly"
           type="success"
           @click="handleAddWorkloadForm"
           class="add-button-form"
@@ -109,6 +109,8 @@
         </el-button>
       </div>
     </div>
+
+    <ReadOnlyBanner />
 
     <!-- 批量操作栏 -->
     <div v-if="selectedWorkloads.length > 0" class="batch-action-bar">
@@ -148,6 +150,7 @@
         <el-button
           @click="handleBatchDelete"
           :loading="batchActionLoading"
+          :disabled="kubernetesStore.isReadOnly"
           type="danger"
           class="batch-btn"
         >
@@ -460,7 +463,7 @@
                     <!-- 分割线 -->
                     <el-divider style="margin: 8px 0" />
                     <!-- 删除 Pod -->
-                    <div class="menu-item danger" @click="handleDeletePod(row.name, row.namespace)">
+                    <div :class="['menu-item', 'danger', { 'is-disabled': kubernetesStore.isReadOnly }]" @click="!kubernetesStore.isReadOnly && handleDeletePod(row.name, row.namespace)">
                       <el-icon><Delete /></el-icon>
                       <span>删除 Pod</span>
                     </div>
@@ -479,11 +482,11 @@
                   <el-icon :size="16"><Document /></el-icon>
                 </el-button>
                 <!-- 编辑按钮 -->
-                <el-button link class="action-btn" @click="handleWorkloadEdit(row)" title="编辑">
+                <el-button link class="action-btn" :disabled="kubernetesStore.isReadOnly" @click="handleWorkloadEdit(row)" title="编辑">
                   <el-icon :size="16"><Edit /></el-icon>
                 </el-button>
                 <!-- 删除按钮 -->
-                <el-button link class="action-btn danger" @click="handleWorkloadDelete(row)" title="删除">
+                <el-button link class="action-btn danger" :disabled="kubernetesStore.isReadOnly" @click="handleWorkloadDelete(row)" title="删除">
                   <el-icon :size="16"><Delete /></el-icon>
                 </el-button>
               </div>
@@ -1113,6 +1116,7 @@
                           type="warning"
                           size="small"
                           plain
+                          :disabled="kubernetesStore.isReadOnly"
                           @click="handleRollback(row)"
                           class="action-btn rollback-btn"
                         >
@@ -1558,6 +1562,7 @@ import Others from './workload-components/spec/Others.vue'
 import VolumeConfig from './workload-components/VolumeConfig.vue'
 import PodDetail from '@/views/kubernetes/PodDetail.vue'
 import FileBrowser from '@/views/kubernetes/FileBrowser.vue'
+import ReadOnlyBanner from '@/components/ReadOnlyBanner.vue'
 
 const kubeStore = useKubernetesStore()
 
@@ -2162,7 +2167,21 @@ const loadNamespaces = async () => {
         headers: { Authorization: `Bearer ${token}` }
       }
     )
-    namespaceList.value = response.data.data || []
+    const resData = response.data.data
+    namespaceList.value = resData?.items || resData || []
+    const fullAccess = resData?.fullAccess !== false
+    kubernetesStore.setFullNamespaceAccess(fullAccess)
+    kubernetesStore.setCanWrite(resData?.canWrite !== false)
+
+    // 当用户无全部命名空间权限时，自动选中所有允许的命名空间
+    if (!fullAccess && namespaceList.value.length > 0) {
+      const currentNs = kubernetesStore.selectedNamespaces
+      if (currentNs.length === 0 || (currentNs.length === 1 && currentNs[0] === '')) {
+        const nsNames = namespaceList.value.map((ns: any) => ns.name)
+        kubernetesStore.selectedNamespaces = nsNames
+        kubernetesStore.persistState()
+      }
+    }
   } catch (error) {
     namespaceList.value = []
   }

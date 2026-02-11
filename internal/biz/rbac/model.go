@@ -28,45 +28,45 @@ import (
 // SysUser 用户表
 type SysUser struct {
 	gorm.Model
-	Username    string         `gorm:"type:varchar(50);not null;comment:用户名" json:"username"`
-	Password    string         `gorm:"type:varchar(255);not null;comment:密码" json:"password,omitempty"`
-	RealName    string         `gorm:"type:varchar(50);comment:真实姓名" json:"realName"`
-	Email       string         `gorm:"type:varchar(100);comment:邮箱" json:"email"`
-	Phone       string         `gorm:"type:varchar(20);comment:手机号" json:"phone"`
-	Avatar      string         `gorm:"type:varchar(255);comment:头像" json:"avatar"`
-	Status      int            `gorm:"type:tinyint;default:1;comment:状态 1:启用 0:禁用" json:"status"`
-	DepartmentID uint          `gorm:"default:0;comment:部门ID" json:"departmentId"`
-	Department  *SysDepartment `gorm:"foreignKey:DepartmentID;references:ID" json:"department,omitempty"`
-	Roles       []SysRole      `gorm:"many2many:sys_user_role;joinForeignKey:UserID;joinReferences:RoleID" json:"roles"`
-	Positions   []SysPosition `gorm:"many2many:sys_user_position;joinForeignKey:UserID;joinReferences:PositionID" json:"positions,omitempty"`
-	Bio         string         `gorm:"type:text;comment:个人简介" json:"bio"`
-	LastLoginAt *time.Time     `gorm:"comment:最后登录时间" json:"lastLoginAt,omitempty"`
+	Username     string         `gorm:"type:varchar(50);not null;comment:用户名" json:"username"`
+	Password     string         `gorm:"type:varchar(255);not null;comment:密码" json:"password,omitempty"`
+	RealName     string         `gorm:"type:varchar(50);comment:真实姓名" json:"realName"`
+	Email        string         `gorm:"type:varchar(100);comment:邮箱" json:"email"`
+	Phone        string         `gorm:"type:varchar(20);comment:手机号" json:"phone"`
+	Avatar       string         `gorm:"type:varchar(255);comment:头像" json:"avatar"`
+	Status       int            `gorm:"type:tinyint;default:1;comment:状态 1:启用 0:禁用" json:"status"`
+	DepartmentID uint           `gorm:"default:0;comment:部门ID" json:"departmentId"`
+	Department   *SysDepartment `gorm:"foreignKey:DepartmentID;references:ID" json:"department,omitempty"`
+	Roles        []SysRole      `gorm:"many2many:sys_user_role;joinForeignKey:UserID;joinReferences:RoleID" json:"roles"`
+	Positions    []SysPosition  `gorm:"many2many:sys_user_position;joinForeignKey:UserID;joinReferences:PositionID" json:"positions,omitempty"`
+	Bio          string         `gorm:"type:text;comment:个人简介" json:"bio"`
+	LastLoginAt  *time.Time     `gorm:"comment:最后登录时间" json:"lastLoginAt,omitempty"`
 }
 
 // SysRole 角色表
 type SysRole struct {
 	gorm.Model
-	Name        string       `gorm:"type:varchar(50);uniqueIndex;not null;comment:角色名称" json:"name"`
-	Code        string       `gorm:"type:varchar(50);uniqueIndex;not null;comment:角色编码" json:"code"`
-	Description string       `gorm:"type:varchar(200);comment:角色描述" json:"description"`
-	Sort        int          `gorm:"type:int;default:0;comment:排序" json:"sort"`
-	Status      int          `gorm:"type:tinyint;default:1;comment:状态 1:启用 0:禁用" json:"status"`
-	Users       []SysUser    `gorm:"many2many:sys_user_role;joinForeignKey:RoleID;joinReferences:UserID" json:"-"`
-	Menus       []SysMenu    `gorm:"many2many:sys_role_menu;joinForeignKey:RoleID;joinReferences:MenuID" json:"menus,omitempty"`
+	Name        string    `gorm:"type:varchar(50);uniqueIndex;not null;comment:角色名称" json:"name"`
+	Code        string    `gorm:"type:varchar(50);uniqueIndex;not null;comment:角色编码" json:"code"`
+	Description string    `gorm:"type:varchar(200);comment:角色描述" json:"description"`
+	Sort        int       `gorm:"type:int;default:0;comment:排序" json:"sort"`
+	Status      int       `gorm:"type:tinyint;default:1;comment:状态 1:启用 0:禁用" json:"status"`
+	Users       []SysUser `gorm:"many2many:sys_user_role;joinForeignKey:RoleID;joinReferences:UserID" json:"-"`
+	Menus       []SysMenu `gorm:"many2many:sys_role_menu;joinForeignKey:RoleID;joinReferences:MenuID" json:"menus,omitempty"`
 }
 
 // SysDepartment 部门表
 type SysDepartment struct {
 	gorm.Model
-	Name        string            `gorm:"type:varchar(50);not null;comment:部门名称" json:"name"`
-	Code        string            `gorm:"type:varchar(50);uniqueIndex;comment:部门编码" json:"code"`
-	ParentID    uint              `gorm:"column:parent_id;default:0;comment:父部门ID" json:"parentId"`
-	Parent      *SysDepartment    `gorm:"-" json:"parent,omitempty"`
-	Children    []*SysDepartment   `gorm:"-" json:"children,omitempty"`
-	DeptType    int               `gorm:"column:dept_type;type:tinyint;default:3;comment:部门类型 1:公司 2:中心 3:部门" json:"deptType"`
-	Sort        int               `gorm:"type:int;default:0;comment:排序" json:"sort"`
-	Status      int               `gorm:"type:tinyint;default:1;comment:状态 1:启用 0:禁用" json:"status"`
-	UserCount   int               `gorm:"-" json:"userCount"` // 用户数量（仅用于API响应）
+	Name      string           `gorm:"type:varchar(50);not null;comment:部门名称" json:"name"`
+	Code      string           `gorm:"type:varchar(50);uniqueIndex;comment:部门编码" json:"code"`
+	ParentID  uint             `gorm:"column:parent_id;default:0;comment:父部门ID" json:"parentId"`
+	Parent    *SysDepartment   `gorm:"-" json:"parent,omitempty"`
+	Children  []*SysDepartment `gorm:"-" json:"children,omitempty"`
+	DeptType  int              `gorm:"column:dept_type;type:tinyint;default:3;comment:部门类型 1:公司 2:中心 3:部门" json:"deptType"`
+	Sort      int              `gorm:"type:int;default:0;comment:排序" json:"sort"`
+	Status    int              `gorm:"type:tinyint;default:1;comment:状态 1:启用 0:禁用" json:"status"`
+	UserCount int              `gorm:"-" json:"userCount"` // 用户数量（仅用于API响应）
 }
 
 // DepartmentRequest 部门请求（前端使用）
@@ -95,14 +95,14 @@ func (r *DepartmentRequest) ToModel() *SysDepartment {
 
 // DepartmentInfoVO 部门信息VO（用于API响应）
 type DepartmentInfoVO struct {
-	ID         uint               `json:"id"`
-	ParentID   uint               `json:"parentId"`
-	DeptType   int                `json:"deptType"`
-	DeptName   string             `json:"deptName"`
-	Code       string             `json:"code"`
-	DeptStatus int                `json:"deptStatus"`
-	CreateTime string             `json:"createTime"`
-	UserCount  int                `json:"userCount"`
+	ID         uint                `json:"id"`
+	ParentID   uint                `json:"parentId"`
+	DeptType   int                 `json:"deptType"`
+	DeptName   string              `json:"deptName"`
+	Code       string              `json:"code"`
+	DeptStatus int                 `json:"deptStatus"`
+	CreateTime string              `json:"createTime"`
+	UserCount  int                 `json:"userCount"`
 	Children   []*DepartmentInfoVO `json:"children,omitempty"`
 }
 
@@ -117,19 +117,20 @@ type DepartmentParentOptionVO struct {
 // SysMenu 菜单表
 type SysMenu struct {
 	gorm.Model
-	Name        string        `gorm:"type:varchar(50);not null;comment:菜单名称" json:"name"`
-	Code        string        `gorm:"type:varchar(50);uniqueIndex;comment:菜单编码" json:"code"`
-	Type        int           `gorm:"type:tinyint;not null;comment:类型 1:目录 2:菜单 3:按钮" json:"type"`
-	ParentID    uint          `gorm:"default:0;comment:父菜单ID" json:"parentId"`
-	Parent      *SysMenu      `gorm:"-" json:"parent,omitempty"`
-	Children    []*SysMenu     `gorm:"-" json:"children,omitempty"`
-	Path        string        `gorm:"type:varchar(200);comment:路由路径" json:"path"`
-	Component   string        `gorm:"type:varchar(200);comment:组件路径" json:"component"`
-	Icon        string        `gorm:"type:varchar(100);comment:图标" json:"icon"`
-	Sort        int           `gorm:"type:int;default:0;comment:排序" json:"sort"`
-	Visible     int           `gorm:"type:tinyint;default:1;comment:是否显示 1:显示 0:隐藏" json:"visible"`
-	Status      int           `gorm:"type:tinyint;default:1;comment:状态 1:启用 0:禁用" json:"status"`
-	Roles       []SysRole     `gorm:"many2many:sys_role_menu" json:"-"`
+	Name       string     `gorm:"type:varchar(50);not null;comment:菜单名称" json:"name"`
+	Code       string     `gorm:"type:varchar(50);comment:菜单编码" json:"code"`
+	Type       int        `gorm:"type:tinyint;not null;comment:类型 1:目录 2:菜单 3:按钮" json:"type"`
+	ParentID   uint       `gorm:"default:0;comment:父菜单ID" json:"parentId"`
+	Parent     *SysMenu   `gorm:"-" json:"parent,omitempty"`
+	Children   []*SysMenu `gorm:"-" json:"children,omitempty"`
+	Path       string     `gorm:"type:varchar(200);comment:路由路径" json:"path"`
+	Component  string     `gorm:"type:varchar(200);comment:组件路径" json:"component"`
+	Icon       string     `gorm:"type:varchar(100);comment:图标" json:"icon"`
+	Sort       int        `gorm:"type:int;default:0;comment:排序" json:"sort"`
+	Visible    int        `gorm:"type:tinyint;default:1;comment:是否显示 1:显示 0:隐藏" json:"visible"`
+	Status     int        `gorm:"type:tinyint;default:1;comment:状态 1:启用 0:禁用" json:"status"`
+	PluginName string     `gorm:"type:varchar(100);default:'';comment:插件名称,空表示系统菜单" json:"pluginName"`
+	Roles      []SysRole  `gorm:"many2many:sys_role_menu" json:"-"`
 }
 
 // SysUserRole 用户角色关联表

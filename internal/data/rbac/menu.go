@@ -21,6 +21,8 @@ package rbac
 
 import (
 	"context"
+	"fmt"
+
 	"github.com/ydcloud-dy/mom/internal/biz/rbac"
 	"gorm.io/gorm"
 )
@@ -38,6 +40,17 @@ func (r *menuRepo) Create(ctx context.Context, menu *rbac.SysMenu) error {
 }
 
 func (r *menuRepo) Update(ctx context.Context, menu *rbac.SysMenu) error {
+	// 先检查 code 是否与其他记录冲突
+	if menu.Code != "" {
+		exists, err := r.CheckCodeExists(ctx, menu.Code, menu.ID)
+		if err != nil {
+			return err
+		}
+		if exists {
+			return fmt.Errorf("Duplicate entry '%s' for key 'code'", menu.Code)
+		}
+	}
+
 	return r.db.WithContext(ctx).Model(&rbac.SysMenu{}).Where("id = ?", menu.ID).Updates(map[string]interface{}{
 		"name":       menu.Name,
 		"code":       menu.Code,
@@ -50,6 +63,29 @@ func (r *menuRepo) Update(ctx context.Context, menu *rbac.SysMenu) error {
 		"visible":    menu.Visible,
 		"status":     menu.Status,
 	}).Error
+}
+
+func (r *menuRepo) UpdateSort(ctx context.Context, id uint, sort int) error {
+	return r.db.WithContext(ctx).Model(&rbac.SysMenu{}).Where("id = ?", id).Update("sort", sort).Error
+}
+
+func (r *menuRepo) BatchUpdateSort(ctx context.Context, sorts []rbac.MenuSortItem) error {
+	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		for _, item := range sorts {
+			if err := tx.Model(&rbac.SysMenu{}).Where("id = ?", item.ID).Update("sort", item.Sort).Error; err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+}
+
+func (r *menuRepo) CheckCodeExists(ctx context.Context, code string, excludeID uint) (bool, error) {
+	var count int64
+	err := r.db.WithContext(ctx).Model(&rbac.SysMenu{}).
+		Where("code = ? AND id != ?", code, excludeID).
+		Count(&count).Error
+	return count > 0, err
 }
 
 func (r *menuRepo) Delete(ctx context.Context, id uint) error {
@@ -83,7 +119,18 @@ func (r *menuRepo) GetTree(ctx context.Context) ([]*rbac.SysMenu, error) {
 	var menus []*rbac.SysMenu
 	err := r.db.WithContext(ctx).
 		Where("visible = ?", 1).
-		Order("sort ASC").
+		Order("sort ASC, id ASC").
+		Find(&menus).Error
+	if err != nil {
+		return nil, err
+	}
+	return r.buildTree(menus, 0), nil
+}
+
+func (r *menuRepo) GetAllTree(ctx context.Context) ([]*rbac.SysMenu, error) {
+	var menus []*rbac.SysMenu
+	err := r.db.WithContext(ctx).
+		Order("sort ASC, id ASC").
 		Find(&menus).Error
 	if err != nil {
 		return nil, err
@@ -112,7 +159,7 @@ func (r *menuRepo) GetByUserID(ctx context.Context, userID uint) ([]*rbac.SysMen
 		Joins("JOIN sys_user_role ON sys_user_role.role_id = sys_role_menu.role_id").
 		Where("sys_user_role.user_id = ? AND sys_menu.status = 1 AND sys_menu.visible = 1", userID).
 		Distinct().
-		Order("sys_menu.sort ASC").
+		Order("sys_menu.sort ASC, sys_menu.id ASC").
 		Find(&menus).Error
 
 	if err != nil {

@@ -27,9 +27,9 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"gorm.io/gorm"
 	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"gorm.io/gorm"
 
 	"github.com/ydcloud-dy/mom/plugins/kubernetes/service"
 )
@@ -184,8 +184,8 @@ func (h *RoleHandler) ListNamespaces(c *gin.Context) {
 		}
 
 		nsList = append(nsList, map[string]interface{}{
-			"name":      ns.Name,
-			"podCount":  podCount,
+			"name":     ns.Name,
+			"podCount": podCount,
 		})
 	}
 
@@ -271,6 +271,18 @@ func (h *RoleHandler) ListNamespaceRoles(c *gin.Context) {
 		}
 	}
 
+	// 获取命名空间级 ClusterRole (mom.ydcloud-dy.com/namespace-role=true)
+	clusterRoles, err := clientset.RbacV1().ClusterRoles().List(c.Request.Context(), metav1.ListOptions{
+		LabelSelector: "mom.ydcloud-dy.com/namespace-role=true",
+	})
+	if err == nil {
+		for _, role := range clusterRoles.Items {
+			convertedRole := convertClusterRole(role)
+			convertedRole["namespace"] = namespace // 在前端显示为归属于当前命名空间
+			roleList = append(roleList, convertedRole)
+		}
+	}
+
 	c.JSON(http.StatusOK, gin.H{
 		"code":    0,
 		"message": "success",
@@ -343,14 +355,30 @@ func (h *RoleHandler) GetRoleDetail(c *gin.Context) {
 	} else {
 		// 命名空间角色
 		nsRole, err := clientset.RbacV1().Roles(namespace).Get(c.Request.Context(), name, metav1.GetOptions{})
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{
-				"code":    500,
-				"message": "获取命名空间角色失败: " + err.Error(),
-			})
-			return
+		if err == nil {
+			detail = convertNamespaceRoleDetail(*nsRole, namespace)
+		} else {
+			// 如果 Role 不存在，尝试获取 ClusterRole (带有 namespace-role=true 标签)
+			//这对于 default/namespace-owner 这种实际上是 ClusterRole 但在命名空间下使用的角色是必要的
+			foundClusterRole := false
+			if strings.Contains(err.Error(), "not found") {
+				clusterRole, crErr := clientset.RbacV1().ClusterRoles().Get(c.Request.Context(), name, metav1.GetOptions{})
+				if crErr == nil && clusterRole.Labels["mom.ydcloud-dy.com/namespace-role"] == "true" {
+					detail = convertClusterRoleDetail(*clusterRole)
+					// 设置命名空间上下文，以便前端显示
+					detail["namespace"] = namespace
+					foundClusterRole = true
+				}
+			}
+
+			if !foundClusterRole {
+				c.JSON(http.StatusInternalServerError, gin.H{
+					"code":    500,
+					"message": "获取命名空间角色失败: " + err.Error(),
+				})
+				return
+			}
 		}
-		detail = convertNamespaceRoleDetail(*nsRole, namespace)
 	}
 
 	c.JSON(http.StatusOK, gin.H{
@@ -449,7 +477,7 @@ func (h *RoleHandler) CreateDefaultClusterRoles(c *gin.Context) {
 	}
 
 	_ = createStartTime // 忽略未使用的变量
-	_ = startTime // 忽略未使用的变量
+	_ = startTime       // 忽略未使用的变量
 
 	if createErr != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
@@ -476,7 +504,7 @@ func getDefaultClusterRoles() []rbacv1.ClusterRole {
 			ObjectMeta: metav1.ObjectMeta{
 				Name: "cluster-owner",
 				Labels: map[string]string{
-					"mom.ydcloud-dy.com/managed-by": "mom",
+					"mom.ydcloud-dy.com/managed-by":   "mom",
 					"mom.ydcloud-dy.com/default-role": "true",
 				},
 			},
@@ -497,7 +525,7 @@ func getDefaultClusterRoles() []rbacv1.ClusterRole {
 			ObjectMeta: metav1.ObjectMeta{
 				Name: "cluster-viewer",
 				Labels: map[string]string{
-					"mom.ydcloud-dy.com/managed-by": "mom",
+					"mom.ydcloud-dy.com/managed-by":   "mom",
 					"mom.ydcloud-dy.com/default-role": "true",
 				},
 			},
@@ -514,7 +542,7 @@ func getDefaultClusterRoles() []rbacv1.ClusterRole {
 			ObjectMeta: metav1.ObjectMeta{
 				Name: "manage-appmarket",
 				Labels: map[string]string{
-					"mom.ydcloud-dy.com/managed-by": "mom",
+					"mom.ydcloud-dy.com/managed-by":   "mom",
 					"mom.ydcloud-dy.com/default-role": "true",
 				},
 			},
@@ -531,7 +559,7 @@ func getDefaultClusterRoles() []rbacv1.ClusterRole {
 			ObjectMeta: metav1.ObjectMeta{
 				Name: "manage-cluster-rbac",
 				Labels: map[string]string{
-					"mom.ydcloud-dy.com/managed-by": "mom",
+					"mom.ydcloud-dy.com/managed-by":   "mom",
 					"mom.ydcloud-dy.com/default-role": "true",
 				},
 			},
@@ -548,7 +576,7 @@ func getDefaultClusterRoles() []rbacv1.ClusterRole {
 			ObjectMeta: metav1.ObjectMeta{
 				Name: "manage-cluster-storage",
 				Labels: map[string]string{
-					"mom.ydcloud-dy.com/managed-by": "mom",
+					"mom.ydcloud-dy.com/managed-by":   "mom",
 					"mom.ydcloud-dy.com/default-role": "true",
 				},
 			},
@@ -570,7 +598,7 @@ func getDefaultClusterRoles() []rbacv1.ClusterRole {
 			ObjectMeta: metav1.ObjectMeta{
 				Name: "manage-crd",
 				Labels: map[string]string{
-					"mom.ydcloud-dy.com/managed-by": "mom",
+					"mom.ydcloud-dy.com/managed-by":   "mom",
 					"mom.ydcloud-dy.com/default-role": "true",
 				},
 			},
@@ -587,7 +615,7 @@ func getDefaultClusterRoles() []rbacv1.ClusterRole {
 			ObjectMeta: metav1.ObjectMeta{
 				Name: "manage-namespaces",
 				Labels: map[string]string{
-					"mom.ydcloud-dy.com/managed-by": "mom",
+					"mom.ydcloud-dy.com/managed-by":   "mom",
 					"mom.ydcloud-dy.com/default-role": "true",
 				},
 			},
@@ -604,7 +632,7 @@ func getDefaultClusterRoles() []rbacv1.ClusterRole {
 			ObjectMeta: metav1.ObjectMeta{
 				Name: "manage-nodes",
 				Labels: map[string]string{
-					"mom.ydcloud-dy.com/managed-by": "mom",
+					"mom.ydcloud-dy.com/managed-by":   "mom",
 					"mom.ydcloud-dy.com/default-role": "true",
 				},
 			},
@@ -621,7 +649,7 @@ func getDefaultClusterRoles() []rbacv1.ClusterRole {
 			ObjectMeta: metav1.ObjectMeta{
 				Name: "view-cluster-rbac",
 				Labels: map[string]string{
-					"mom.ydcloud-dy.com/managed-by": "mom",
+					"mom.ydcloud-dy.com/managed-by":   "mom",
 					"mom.ydcloud-dy.com/default-role": "true",
 				},
 			},
@@ -638,7 +666,7 @@ func getDefaultClusterRoles() []rbacv1.ClusterRole {
 			ObjectMeta: metav1.ObjectMeta{
 				Name: "view-cluster-storage",
 				Labels: map[string]string{
-					"mom.ydcloud-dy.com/managed-by": "mom",
+					"mom.ydcloud-dy.com/managed-by":   "mom",
 					"mom.ydcloud-dy.com/default-role": "true",
 				},
 			},
@@ -660,7 +688,7 @@ func getDefaultClusterRoles() []rbacv1.ClusterRole {
 			ObjectMeta: metav1.ObjectMeta{
 				Name: "view-crd",
 				Labels: map[string]string{
-					"mom.ydcloud-dy.com/managed-by": "mom",
+					"mom.ydcloud-dy.com/managed-by":   "mom",
 					"mom.ydcloud-dy.com/default-role": "true",
 				},
 			},
@@ -677,7 +705,7 @@ func getDefaultClusterRoles() []rbacv1.ClusterRole {
 			ObjectMeta: metav1.ObjectMeta{
 				Name: "view-events",
 				Labels: map[string]string{
-					"mom.ydcloud-dy.com/managed-by": "mom",
+					"mom.ydcloud-dy.com/managed-by":   "mom",
 					"mom.ydcloud-dy.com/default-role": "true",
 				},
 			},
@@ -694,7 +722,7 @@ func getDefaultClusterRoles() []rbacv1.ClusterRole {
 			ObjectMeta: metav1.ObjectMeta{
 				Name: "view-namespaces",
 				Labels: map[string]string{
-					"mom.ydcloud-dy.com/managed-by": "mom",
+					"mom.ydcloud-dy.com/managed-by":   "mom",
 					"mom.ydcloud-dy.com/default-role": "true",
 				},
 			},
@@ -711,7 +739,7 @@ func getDefaultClusterRoles() []rbacv1.ClusterRole {
 			ObjectMeta: metav1.ObjectMeta{
 				Name: "view-nodes",
 				Labels: map[string]string{
-					"mom.ydcloud-dy.com/managed-by": "mom",
+					"mom.ydcloud-dy.com/managed-by":   "mom",
 					"mom.ydcloud-dy.com/default-role": "true",
 				},
 			},
@@ -844,7 +872,7 @@ func getDefaultNamespaceRoles() []rbacv1.ClusterRole {
 			ObjectMeta: metav1.ObjectMeta{
 				Name: "namespace-owner",
 				Labels: map[string]string{
-					"mom.ydcloud-dy.com/managed-by":      "mom",
+					"mom.ydcloud-dy.com/managed-by":     "mom",
 					"mom.ydcloud-dy.com/default-role":   "true",
 					"mom.ydcloud-dy.com/namespace-role": "true",
 				},
@@ -862,7 +890,7 @@ func getDefaultNamespaceRoles() []rbacv1.ClusterRole {
 			ObjectMeta: metav1.ObjectMeta{
 				Name: "namespace-viewer",
 				Labels: map[string]string{
-					"mom.ydcloud-dy.com/managed-by":      "mom",
+					"mom.ydcloud-dy.com/managed-by":     "mom",
 					"mom.ydcloud-dy.com/default-role":   "true",
 					"mom.ydcloud-dy.com/namespace-role": "true",
 				},
@@ -880,7 +908,7 @@ func getDefaultNamespaceRoles() []rbacv1.ClusterRole {
 			ObjectMeta: metav1.ObjectMeta{
 				Name: "manage-workload",
 				Labels: map[string]string{
-					"mom.ydcloud-dy.com/managed-by":      "mom",
+					"mom.ydcloud-dy.com/managed-by":     "mom",
 					"mom.ydcloud-dy.com/default-role":   "true",
 					"mom.ydcloud-dy.com/namespace-role": "true",
 				},
@@ -908,8 +936,8 @@ func getDefaultNamespaceRoles() []rbacv1.ClusterRole {
 			ObjectMeta: metav1.ObjectMeta{
 				Name: "manage-config",
 				Labels: map[string]string{
-					"mom.ydcloud-dy.com/managed-by":    "mom",
-					"mom.ydcloud-dy.com/default-role": "true",
+					"mom.ydcloud-dy.com/managed-by":     "mom",
+					"mom.ydcloud-dy.com/default-role":   "true",
 					"mom.ydcloud-dy.com/namespace-role": "true",
 				},
 			},
@@ -926,8 +954,8 @@ func getDefaultNamespaceRoles() []rbacv1.ClusterRole {
 			ObjectMeta: metav1.ObjectMeta{
 				Name: "manage-rbac",
 				Labels: map[string]string{
-					"mom.ydcloud-dy.com/managed-by":    "mom",
-					"mom.ydcloud-dy.com/default-role": "true",
+					"mom.ydcloud-dy.com/managed-by":     "mom",
+					"mom.ydcloud-dy.com/default-role":   "true",
 					"mom.ydcloud-dy.com/namespace-role": "true",
 				},
 			},
@@ -944,8 +972,8 @@ func getDefaultNamespaceRoles() []rbacv1.ClusterRole {
 			ObjectMeta: metav1.ObjectMeta{
 				Name: "manage-service-discovery",
 				Labels: map[string]string{
-					"mom.ydcloud-dy.com/managed-by":    "mom",
-					"mom.ydcloud-dy.com/default-role": "true",
+					"mom.ydcloud-dy.com/managed-by":     "mom",
+					"mom.ydcloud-dy.com/default-role":   "true",
 					"mom.ydcloud-dy.com/namespace-role": "true",
 				},
 			},
@@ -967,8 +995,8 @@ func getDefaultNamespaceRoles() []rbacv1.ClusterRole {
 			ObjectMeta: metav1.ObjectMeta{
 				Name: "manage-storage",
 				Labels: map[string]string{
-					"mom.ydcloud-dy.com/managed-by":    "mom",
-					"mom.ydcloud-dy.com/default-role": "true",
+					"mom.ydcloud-dy.com/managed-by":     "mom",
+					"mom.ydcloud-dy.com/default-role":   "true",
 					"mom.ydcloud-dy.com/namespace-role": "true",
 				},
 			},
@@ -985,8 +1013,8 @@ func getDefaultNamespaceRoles() []rbacv1.ClusterRole {
 			ObjectMeta: metav1.ObjectMeta{
 				Name: "view-workload",
 				Labels: map[string]string{
-					"mom.ydcloud-dy.com/managed-by":    "mom",
-					"mom.ydcloud-dy.com/default-role": "true",
+					"mom.ydcloud-dy.com/managed-by":     "mom",
+					"mom.ydcloud-dy.com/default-role":   "true",
 					"mom.ydcloud-dy.com/namespace-role": "true",
 				},
 			},
@@ -1013,8 +1041,8 @@ func getDefaultNamespaceRoles() []rbacv1.ClusterRole {
 			ObjectMeta: metav1.ObjectMeta{
 				Name: "view-config",
 				Labels: map[string]string{
-					"mom.ydcloud-dy.com/managed-by":    "mom",
-					"mom.ydcloud-dy.com/default-role": "true",
+					"mom.ydcloud-dy.com/managed-by":     "mom",
+					"mom.ydcloud-dy.com/default-role":   "true",
 					"mom.ydcloud-dy.com/namespace-role": "true",
 				},
 			},
@@ -1031,8 +1059,8 @@ func getDefaultNamespaceRoles() []rbacv1.ClusterRole {
 			ObjectMeta: metav1.ObjectMeta{
 				Name: "view-rbac",
 				Labels: map[string]string{
-					"mom.ydcloud-dy.com/managed-by":    "mom",
-					"mom.ydcloud-dy.com/default-role": "true",
+					"mom.ydcloud-dy.com/managed-by":     "mom",
+					"mom.ydcloud-dy.com/default-role":   "true",
 					"mom.ydcloud-dy.com/namespace-role": "true",
 				},
 			},
@@ -1049,8 +1077,8 @@ func getDefaultNamespaceRoles() []rbacv1.ClusterRole {
 			ObjectMeta: metav1.ObjectMeta{
 				Name: "view-service-discovery",
 				Labels: map[string]string{
-					"mom.ydcloud-dy.com/managed-by":    "mom",
-					"mom.ydcloud-dy.com/default-role": "true",
+					"mom.ydcloud-dy.com/managed-by":     "mom",
+					"mom.ydcloud-dy.com/default-role":   "true",
 					"mom.ydcloud-dy.com/namespace-role": "true",
 				},
 			},
@@ -1072,8 +1100,8 @@ func getDefaultNamespaceRoles() []rbacv1.ClusterRole {
 			ObjectMeta: metav1.ObjectMeta{
 				Name: "view-storage",
 				Labels: map[string]string{
-					"mom.ydcloud-dy.com/managed-by":    "mom",
-					"mom.ydcloud-dy.com/default-role": "true",
+					"mom.ydcloud-dy.com/managed-by":     "mom",
+					"mom.ydcloud-dy.com/default-role":   "true",
 					"mom.ydcloud-dy.com/namespace-role": "true",
 				},
 			},
@@ -1208,6 +1236,7 @@ func convertClusterRole(role rbacv1.ClusterRole) map[string]interface{} {
 		"age":       age,
 		"rules":     role.Rules,
 		"isCustom":  isCustom,
+		"kind":      "ClusterRole",
 	}
 }
 
@@ -1234,6 +1263,7 @@ func convertNamespaceRole(role rbacv1.Role, namespace string) map[string]interfa
 		"age":       age,
 		"rules":     role.Rules,
 		"isCustom":  isCustom,
+		"kind":      "Role",
 	}
 }
 
@@ -1245,9 +1275,9 @@ func convertClusterRoleDetail(role rbacv1.ClusterRole) map[string]interface{} {
 	rules := make([]map[string]interface{}, 0)
 	for _, rule := range role.Rules {
 		ruleDetail := map[string]interface{}{
-			"apiGroups":        rule.APIGroups,
-			"resources":        rule.Resources,
-			"verbs":            rule.Verbs,
+			"apiGroups": rule.APIGroups,
+			"resources": rule.Resources,
+			"verbs":     rule.Verbs,
 		}
 
 		if len(rule.ResourceNames) > 0 {
@@ -1274,9 +1304,9 @@ func convertNamespaceRoleDetail(role rbacv1.Role, namespace string) map[string]i
 	rules := make([]map[string]interface{}, 0)
 	for _, rule := range role.Rules {
 		ruleDetail := map[string]interface{}{
-			"apiGroups":        rule.APIGroups,
-			"resources":        rule.Resources,
-			"verbs":            rule.Verbs,
+			"apiGroups": rule.APIGroups,
+			"resources": rule.Resources,
+			"verbs":     rule.Verbs,
 		}
 
 		if len(rule.ResourceNames) > 0 {
@@ -1297,17 +1327,17 @@ func convertNamespaceRoleDetail(role rbacv1.Role, namespace string) map[string]i
 
 // CreateRoleRequest 创建角色请求
 type CreateRoleRequest struct {
-	Namespace string                `json:"namespace"`
-	Name      string                `json:"name"`
-	Rules     []CreateRoleRule      `json:"rules"`
+	Namespace string           `json:"namespace"`
+	Name      string           `json:"name"`
+	Rules     []CreateRoleRule `json:"rules"`
 }
 
 // CreateRoleRule 角色规则
 type CreateRoleRule struct {
-	APIGroups    []string `json:"apiGroups"`
-	Resources    []string `json:"resources"`
+	APIGroups     []string `json:"apiGroups"`
+	Resources     []string `json:"resources"`
 	ResourceNames []string `json:"resourceNames"`
-	Verbs        []string `json:"verbs"`
+	Verbs         []string `json:"verbs"`
 }
 
 // CreateRole 创建角色
@@ -1386,10 +1416,10 @@ func (h *RoleHandler) CreateRole(c *gin.Context) {
 	rules := make([]rbacv1.PolicyRule, len(req.Rules))
 	for i, rule := range req.Rules {
 		rules[i] = rbacv1.PolicyRule{
-			APIGroups:    rule.APIGroups,
-			Resources:    rule.Resources,
+			APIGroups:     rule.APIGroups,
+			Resources:     rule.Resources,
 			ResourceNames: rule.ResourceNames,
-			Verbs:        rule.Verbs,
+			Verbs:         rule.Verbs,
 		}
 	}
 

@@ -275,9 +275,9 @@ func getOperationInfo(path string, method string) (module, action, description s
 			description = "操作审计"
 		}
 		action = getActionFromMethod(method)
-	// 容器管理
+	// Kubernetes
 	case strings.HasPrefix(path, "/api/v1/plugins/kubernetes"):
-		module = "容器管理"
+		module = "Kubernetes"
 		action = getActionFromMethod(method)
 		description = getK8sOperationDescription(path, method)
 	// 任务中心
@@ -366,7 +366,7 @@ func getK8sOperationDescription(path string, method string) string {
 	if strings.Contains(path, "/access") {
 		return "访问控制管理"
 	}
-	return "容器管理操作"
+	return "Kubernetes操作"
 }
 
 // getMonitorOperationDescription 获取监控中心操作描述

@@ -19,13 +19,13 @@
           @change="handleNamespaceChange" 
           class="filter-select"
         >
-          <el-option label="所有命名空间" value="" />
+          <el-option v-if="kubernetesStore.fullNamespaceAccess" label="所有命名空间" value="" />
           <el-option v-for="ns in namespaces" :key="ns.name" :label="ns.name" :value="ns.name" />
         </el-select>
       </div>
 
       <div class="search-bar-right">
-        <el-button class="black-button" @click="handleCreateYAML">
+        <el-button v-if="!kubernetesStore.isReadOnly" class="black-button" @click="handleCreateYAML">
           <el-icon><Document /></el-icon> YAML创建
         </el-button>
       </div>
@@ -73,12 +73,12 @@
           <template #default="{ row }">
             <div class="action-buttons">
               <el-tooltip content="编辑 YAML" placement="top">
-                <el-button link class="action-btn" @click="handleEditYAML(row)">
+                <el-button link class="action-btn" :disabled="kubernetesStore.isReadOnly" @click="handleEditYAML(row)">
                   <el-icon :size="18"><Document /></el-icon>
                 </el-button>
               </el-tooltip>
               <el-tooltip content="删除" placement="top">
-                <el-button link class="action-btn danger" @click="handleDelete(row)">
+                <el-button link class="action-btn danger" :disabled="kubernetesStore.isReadOnly" @click="handleDelete(row)">
                   <el-icon :size="18"><Delete /></el-icon>
                 </el-button>
               </el-tooltip>
@@ -100,7 +100,7 @@
       <template #footer>
         <div class="dialog-footer">
           <el-button @click="yamlDialogVisible = false">取消</el-button>
-          <el-button type="primary" @click="handleSaveYAML" :loading="saving">保存</el-button>
+          <el-button type="primary" @click="handleSaveYAML" :loading="saving" :disabled="kubernetesStore.isReadOnly">保存</el-button>
         </div>
       </template>
     </el-dialog>
@@ -143,7 +143,7 @@
       <template #footer>
         <div class="dialog-footer">
           <el-button @click="createYamlDialogVisible = false">取消</el-button>
-          <el-button type="primary" @click="handleSaveCreateYAML" :loading="creating">创建</el-button>
+          <el-button type="primary" @click="handleSaveCreateYAML" :loading="creating" :disabled="kubernetesStore.isReadOnly">创建</el-button>
         </div>
       </template>
     </el-dialog>

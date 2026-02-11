@@ -256,7 +256,8 @@ const getIcon = (iconName: string) => {
 }
 
 // 从插件管理器构建菜单
-const buildPluginMenus = async (authorizedPaths: Set<string>) => {
+// dbSorts: 数据库中插件菜单的排序值（path → sort），优先级最高
+const buildPluginMenus = async (authorizedPaths: Set<string>, dbSorts?: Map<string, number>) => {
   const pluginMenus: any[] = []
   const allPlugins = pluginManager.getAll()
   const roles = userStore.userInfo?.roles || []
@@ -294,7 +295,8 @@ const buildPluginMenus = async (authorizedPaths: Set<string>) => {
       const menus = plugin.getMenus()
       menus.forEach(menu => {
         if (!isSuperAdmin && !authorizedPaths.has(menu.path)) return
-        const sort = customSort.get(menu.path) ?? menu.sort
+        // 排序优先级：数据库值 > localStorage自定义值 > 插件默认值
+        const sort = dbSorts?.get(menu.path) ?? customSort.get(menu.path) ?? menu.sort
         pluginMenus.push({
           ID: menu.path,
           name: menu.name,
@@ -424,20 +426,35 @@ const loadMenu = async () => {
     }
 
     const allAuthorizedPaths = extractPaths(systemMenus)
-    const pluginMenus = await buildPluginMenus(allAuthorizedPaths)
 
-    const pluginProvidedMenuCodes = new Set([
-      'kubernetes_application_diagnosis', 'kubernetes_cluster_inspection',
-      'monitor_domain', 'monitor_alert_channels', 'monitor_alert_receivers', 'monitor_alert_logs',
-      'task_templates', 'task_execute', 'task_file_distribution',
-      'kubernetes_clusters', 'kubernetes_nodes', 'kubernetes_namespaces',
-      'kubernetes_workloads', 'kubernetes_network', 'kubernetes_config',
-      'kubernetes_storage', 'kubernetes_access', 'kubernetes_audit'
-    ])
+    // 1. 收集数据库中所有菜单的排序值（按 path 索引）
+    //    无论菜单是否标记了 pluginName，数据库中的排序值都应该优先
+    const dbPluginMenuCodes = new Set<string>()
+    const dbMenuSortsByPath = new Map<string, number>() // path → sort（数据库中的排序值）
+    const collectMenuData = (menus: any[]) => {
+      menus.forEach(menu => {
+        // 收集所有菜单的 path → sort 映射，用于插件菜单排序
+        if (menu.path) {
+          dbMenuSortsByPath.set(menu.path, menu.sort ?? 0)
+        }
+        // 收集有 pluginName 的菜单编码，用于去重
+        if (menu.pluginName && menu.pluginName !== '') {
+          if (menu.code) dbPluginMenuCodes.add(menu.code)
+        }
+        if (menu.children && menu.children.length > 0) {
+          collectMenuData(menu.children)
+        }
+      })
+    }
+    collectMenuData(systemMenus)
 
+    // 2. 构建插件菜单，优先使用数据库中的排序值
+    const pluginMenus = await buildPluginMenus(allAuthorizedPaths, dbMenuSortsByPath)
+
+    // 3. 展平系统菜单，跳过已在数据库中的插件菜单（避免重复）
     const flattenMenus = (menus: any[], result: any[] = []) => {
       menus.forEach(menu => {
-        if (menu.code && pluginProvidedMenuCodes.has(menu.code)) return
+        if (menu.code && dbPluginMenuCodes.has(menu.code)) return
         const { children, ...menuWithoutChildren } = menu
         result.push(menuWithoutChildren)
         if (children && children.length > 0) flattenMenus(children, result)
@@ -476,10 +493,14 @@ onMounted(async () => {
   loadMenu()
 
   const handlePluginChange = () => loadMenu()
+  const handleMenuChange = () => loadMenu()
   window.removeEventListener('plugins-changed', handlePluginChange)
   window.addEventListener('plugins-changed', handlePluginChange)
+  window.removeEventListener('menus-changed', handleMenuChange)
+  window.addEventListener('menus-changed', handleMenuChange)
   onUnmounted(() => {
     window.removeEventListener('plugins-changed', handlePluginChange)
+    window.removeEventListener('menus-changed', handleMenuChange)
   })
 })
 </script>

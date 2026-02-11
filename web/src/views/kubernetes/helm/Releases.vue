@@ -26,11 +26,13 @@
           @change="handleNamespaceChange" 
           class="filter-select"
         >
-          <el-option label="所有命名空间" value="" />
+          <el-option v-if="kubernetesStore.fullNamespaceAccess" label="所有命名空间" value="" />
           <el-option v-for="ns in namespaces" :key="ns.name" :label="ns.name" :value="ns.name" />
         </el-select>
       </div>
     </div>
+
+    <ReadOnlyBanner />
 
     <!-- Release 列表 -->
     <div class="table-wrapper">
@@ -95,7 +97,7 @@
                 <el-button 
                   link 
                   class="action-btn danger" 
-                  :disabled="uninstallingSet.has(row.namespace + '/' + row.name)"
+                  :disabled="kubernetesStore.isReadOnly || uninstallingSet.has(row.namespace + '/' + row.name)"
                   @click.stop="uninstallRelease(row)"
                 >卸载
                 </el-button>
@@ -128,11 +130,11 @@
             <!-- Values Tab -->
             <el-tab-pane label="Values" name="values">
               <div class="tab-toolbar">
-                <el-button v-if="!upgradeMode" type="primary" size="small" @click="startUpgrade">
+                <el-button v-if="!upgradeMode" type="primary" size="small" :disabled="kubernetesStore.isReadOnly" @click="startUpgrade">
                   <el-icon style="margin-right: 4px;"><Upload /></el-icon>Upgrade
                 </el-button>
                 <template v-if="upgradeMode">
-                  <el-button type="success" size="small" :loading="upgrading" @click="confirmUpgrade">
+                  <el-button type="success" size="small" :loading="upgrading" :disabled="kubernetesStore.isReadOnly" @click="confirmUpgrade">
                     <el-icon style="margin-right: 4px;"><Check /></el-icon>保存并升级
                   </el-button>
                   <el-button size="small" @click="cancelUpgrade">取消</el-button>
@@ -199,6 +201,7 @@ import { getNamespaces } from '@/api/kubernetes'
 import { useKubernetesStore } from '@/stores/kubernetes'
 import MonacoEditor from '@/components/YamlEditor.vue'
 import ResourceDetailDrawer from '@/components/ResourceDetailDrawer.vue'
+import ReadOnlyBanner from '@/components/ReadOnlyBanner.vue'
 
 const props = defineProps<{
   clusterId: number | undefined
