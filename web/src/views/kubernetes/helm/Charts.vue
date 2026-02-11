@@ -14,7 +14,8 @@
           </template>
         </el-input>
 
-        <el-select v-model="selectedRepo" placeholder="选择仓库" clearable @change="fetchCharts" class="filter-select">
+        <el-select v-model="selectedRepo" placeholder="选择仓库" @change="fetchCharts" class="filter-select">
+          <el-option label="所有仓库" :value="0" />
           <el-option v-for="repo in repos" :key="repo.ID" :label="repo.name" :value="repo.ID" />
         </el-select>
       </div>
@@ -30,9 +31,27 @@
 
     <!-- Charts 网格 -->
     <div class="table-wrapper">
-      <div :class="['charts-grid', { 'is-empty': !loading && filteredCharts.length === 0 }]" v-loading="loading">
-        <el-empty v-if="!loading && filteredCharts.length === 0" description="暂无 Chart 或未选择仓库" />
-        <el-card v-for="chart in filteredCharts" :key="chart.name" class="chart-card" shadow="hover" @click="openChartDetail(chart)">
+      <!-- Skeleton loading -->
+      <div v-if="loading" class="charts-grid">
+        <div v-for="i in pageSize" :key="'skeleton-' + i" class="chart-card skeleton-card">
+          <div class="chart-icon skeleton-icon">
+            <div class="skeleton-pulse"></div>
+          </div>
+          <div class="chart-info">
+            <div class="skeleton-line skeleton-title"></div>
+            <div class="skeleton-line skeleton-desc"></div>
+            <div class="skeleton-line skeleton-desc short"></div>
+            <div class="skeleton-meta">
+              <div class="skeleton-tag"></div>
+              <div class="skeleton-tag"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <!-- Actual charts -->
+      <div v-else :class="['charts-grid', { 'is-empty': filteredCharts.length === 0 }]">
+        <el-empty v-if="filteredCharts.length === 0" description="暂无 Chart 或未选择仓库" />
+        <el-card v-for="chart in paginatedCharts" :key="chart.name" class="chart-card" shadow="hover" @click="openChartDetail(chart)">
           <div class="chart-icon">
             <img :src="chart.icon || defaultIcon" @error="handleImageError" alt="icon" />
           </div>
@@ -41,12 +60,27 @@
             <p class="chart-desc" :title="chart.description">{{ chart.description }}</p>
             <div class="chart-meta">
               <el-tag size="small">{{ chart.version }}</el-tag>
+              <el-tag size="small" type="info" class="repo-tag">{{ chart.repoName }}</el-tag>
               <span class="app-version">App: {{ chart.appVersion }}</span>
             </div>
           </div>
         </el-card>
       </div>
-    </div>
+      </div>
+      
+      <!-- 分页 -->
+      <div class="pagination-wrapper" v-if="filteredCharts.length > 0">
+        <el-pagination
+          v-model:current-page="currentPage"
+          v-model:page-size="pageSize"
+          :page-sizes="[12, 24, 36, 48]"
+          layout="total, sizes, prev, pager, next"
+          :total="filteredCharts.length"
+          @size-change="handleSizeChange"
+          @current-change="handleCurrentChange"
+        />
+      </div>
+
 
     <!-- Add/Edit Repo Dialog -->
     <el-dialog v-model="dialogVisible" :title="isEditMode ? '编辑 Helm 仓库' : '添加 Helm 仓库'" width="500px" @closed="resetForm">
@@ -54,8 +88,14 @@
         <el-form-item label="名称" required>
           <el-input v-model="repoForm.name" placeholder="仓库名称" :disabled="isEditMode" />
         </el-form-item>
+        <el-form-item label="类型" required>
+          <el-radio-group v-model="repoForm.type">
+            <el-radio value="helm">Helm (传统)</el-radio>
+            <el-radio  value="oci">OCI (Harbor)</el-radio>
+          </el-radio-group>
+        </el-form-item>
         <el-form-item label="URL" required>
-          <el-input v-model="repoForm.url" placeholder="仓库地址" />
+          <el-input v-model="repoForm.url" :placeholder="repoForm.type === 'oci' ? 'oci://harbor.xxx.com/project-name' : 'https://charts.example.com/repo'" />
         </el-form-item>
         
         <el-collapse>
@@ -97,6 +137,11 @@
       <div class="repo-list">
         <el-table :data="repos" style="width: 100%" class="modern-table">
           <el-table-column prop="name" label="名称" width="120" />
+          <el-table-column prop="type" label="类型" width="80">
+            <template #default="{ row }">
+              <el-tag :type="row.type === 'oci' ? 'warning' : ''" size="small">{{ row.type === 'oci' ? 'OCI' : 'Helm' }}</el-tag>
+            </template>
+          </el-table-column>
           <el-table-column prop="url" label="URL" min-width="200" show-overflow-tooltip />
           <el-table-column label="操作" width="120" align="center">
             <template #default="{ row }">
@@ -120,6 +165,7 @@
           <div class="chart-header-info">
             <h2>{{ selectedChart.name }}</h2>
             <p>{{ selectedChart.description }}</p>
+            <el-tag size="small" type="info" style="margin-top: 6px;">{{ selectedChart.repoName }}</el-tag>
           </div>
         </div>
 
@@ -159,7 +205,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, computed, watch } from 'vue'
 import { Plus, Delete, Setting, Search, Edit } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import request from '@/utils/request'
@@ -179,7 +225,7 @@ const submitting = ref(false)
 const dialogVisible = ref(false)
 const repoDrawerVisible = ref(false)
 const repos = ref<any[]>([])
-const selectedRepo = ref<number | undefined>(undefined)
+const selectedRepo = ref<number>(0)
 const charts = ref<any[]>([])
 const searchQuery = ref('')
 const isEditMode = ref(false)
@@ -200,7 +246,36 @@ const chartVersions = ref<any[]>([])
 const versionsLoading = ref(false)
 const namespaces = ref<string[]>([])
 const namespacesLoading = ref(false)
+
 const installing = ref(false)
+
+// 分页
+const currentPage = ref(1)
+const pageSize = ref(12)
+
+// 分页后的 Charts
+const paginatedCharts = computed(() => {
+  const start = (currentPage.value - 1) * pageSize.value
+  const end = start + pageSize.value
+  return filteredCharts.value.slice(start, end)
+})
+
+const handleSizeChange = (val: number) => {
+  pageSize.value = val
+  currentPage.value = 1
+}
+
+const handleCurrentChange = (val: number) => {
+  currentPage.value = val
+  // 滚动到顶部
+  const wrapper = document.querySelector('.table-wrapper')
+  if (wrapper) wrapper.scrollTop = 0
+}
+
+// 监听搜索和仓库变化，重置分页
+watch([searchQuery, selectedRepo], () => {
+  currentPage.value = 1
+})
 
 const installForm = ref({
   releaseName: '',
@@ -211,6 +286,7 @@ const installForm = ref({
 
 const repoForm = ref({
   name: '',
+  type: 'helm',
   url: '',
   username: '',
   password: '',
@@ -224,8 +300,11 @@ const fetchRepos = async () => {
   try {
     const res = await request.get('/api/v1/plugins/kubernetes/helm/repos')
     repos.value = res || []
-    if (repos.value.length > 0 && !selectedRepo.value) {
-      selectedRepo.value = repos.value[0].ID
+    if (repos.value.length > 0) {
+      // Default to "所有仓库"
+      if (!selectedRepo.value) {
+        selectedRepo.value = 0
+      }
       fetchCharts()
     }
   } catch (error) {
@@ -233,15 +312,40 @@ const fetchRepos = async () => {
   }
 }
 
+const getRepoName = (repoId: number): string => {
+  const repo = repos.value.find((r: any) => r.ID === repoId)
+  return repo ? repo.name : ''
+}
+
 const fetchCharts = async () => {
-  if (!selectedRepo.value) {
-    charts.value = []
-    return
-  }
   loading.value = true
+  charts.value = []
   try {
-    const res = await request.get(`/api/v1/plugins/kubernetes/helm/repos/${selectedRepo.value}/charts`)
-    charts.value = res || []
+    if (selectedRepo.value === 0) {
+      // Fetch from all repos
+      const allCharts: any[] = []
+      for (const repo of repos.value) {
+        try {
+          const res = await request.get(`/api/v1/plugins/kubernetes/helm/repos/${repo.ID}/charts`)
+          const repoCharts = (res || []).map((chart: any) => ({
+            ...chart,
+            repoId: repo.ID,
+            repoName: repo.name
+          }))
+          allCharts.push(...repoCharts)
+        } catch (e) {
+          console.warn(`获取仓库 ${repo.name} Charts 失败`, e)
+        }
+      }
+      charts.value = allCharts
+    } else {
+      const res = await request.get(`/api/v1/plugins/kubernetes/helm/repos/${selectedRepo.value}/charts`)
+      charts.value = (res || []).map((chart: any) => ({
+        ...chart,
+        repoId: selectedRepo.value,
+        repoName: getRepoName(selectedRepo.value)
+      }))
+    }
   } catch (error) {
     console.error(error)
     ElMessage.error('获取 Charts 失败')
@@ -260,6 +364,7 @@ const showAddRepoDialog = () => {
 const resetForm = () => {
   repoForm.value = {
     name: '',
+    type: 'helm',
     url: '',
     username: '',
     password: '',
@@ -273,7 +378,7 @@ const resetForm = () => {
 const editRepo = (repo: any) => {
   isEditMode.value = true
   editingRepoId.value = repo.ID
-  repoForm.value = { ...repo }
+  repoForm.value = { ...repo, type: repo.type || 'helm' }
   repoForm.value.password = '' // Don't show password
   dialogVisible.value = true
 }
@@ -337,7 +442,8 @@ const openChartDetail = async (chart: any) => {
   // Fetch versions
   versionsLoading.value = true
   try {
-    const res = await request.get(`/api/v1/plugins/kubernetes/helm/repos/${selectedRepo.value}/charts/${chart.name}/versions`)
+    const repoId = chart.repoId || selectedRepo.value
+    const res = await request.get(`/api/v1/plugins/kubernetes/helm/repos/${repoId}/charts/${chart.name}/versions`)
     chartVersions.value = res || []
   } catch (error) {
     console.error(error)
@@ -374,7 +480,7 @@ const installChart = async () => {
   installing.value = true
   try {
     await request.post(`/api/v1/plugins/kubernetes/helm/clusters/${props.clusterId}/releases`, {
-      repoId: selectedRepo.value,
+      repoId: selectedChart.value.repoId || selectedRepo.value,
       chartName: selectedChart.value.name,
       version: installForm.value.version,
       releaseName: installForm.value.releaseName,
@@ -448,13 +554,23 @@ defineExpose({
   background: #fff;
   border-radius: 0;
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
 }
 
 .charts-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
   gap: 20px;
+  gap: 20px;
   padding: 16px;
+}
+
+.pagination-wrapper {
+  padding: 16px 20px;
+  background: #fff;
+  border-top: 1px solid #f0f0f0;
+  display: flex;
+  justify-content: flex-end;
 }
 
 .charts-grid.is-empty {
@@ -516,10 +632,21 @@ defineExpose({
 
 .chart-meta {
   display: flex;
-  justify-content: space-between;
   align-items: center;
+  gap: 8px;
   font-size: 12px;
   color: var(--el-text-color-secondary);
+}
+
+.repo-tag {
+  max-width: 100px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.app-version {
+  margin-left: auto;
 }
 
 .credentials-section {
@@ -601,5 +728,71 @@ defineExpose({
 
 .install-form {
   margin-top: 20px;
+}
+
+/* Skeleton Loading */
+.skeleton-card {
+  display: flex;
+  padding: 16px;
+  background: #fff;
+  border: 1px solid var(--el-border-color-lighter);
+  border-radius: 8px;
+}
+
+.skeleton-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.skeleton-icon .skeleton-pulse {
+  width: 48px;
+  height: 48px;
+  border-radius: 8px;
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.5s ease-in-out infinite;
+}
+
+.skeleton-line {
+  height: 14px;
+  border-radius: 4px;
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.5s ease-in-out infinite;
+  margin-bottom: 8px;
+}
+
+.skeleton-title {
+  width: 60%;
+  height: 18px;
+}
+
+.skeleton-desc {
+  width: 90%;
+}
+
+.skeleton-desc.short {
+  width: 55%;
+}
+
+.skeleton-meta {
+  display: flex;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.skeleton-tag {
+  width: 52px;
+  height: 22px;
+  border-radius: 4px;
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.5s ease-in-out infinite;
+}
+
+@keyframes skeleton-shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
 }
 </style>

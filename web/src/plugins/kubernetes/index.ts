@@ -34,9 +34,9 @@ class KubernetesPlugin implements Plugin {
 
     return [
       {
-        name: '容器管理',
+        name: 'Kubernetes',
         path: parentPath,
-        icon: 'Platform',
+        icon: 'Kubernetes',
         sort: 100,
         hidden: false,
         parentPath: '',
@@ -44,7 +44,7 @@ class KubernetesPlugin implements Plugin {
       {
         name: '集群管理',
         path: '/kubernetes/clusters',
-        icon: 'OfficeBuilding',
+        icon: 'Kubernetes',
         sort: 1,
         hidden: false,
         parentPath: parentPath,
@@ -140,7 +140,7 @@ class KubernetesPlugin implements Plugin {
       {
         name: 'Helm',
         path: '/kubernetes/helm',
-        icon: 'Shop',
+        icon: 'Helm',
         sort: 13,
         hidden: false,
         parentPath: parentPath,

@@ -2207,6 +2207,69 @@ export function createPodDisruptionBudgetFromYAML(clusterId: number, namespace: 
   })
 }
 
+// ==================== Generic Resource Detail ====================
+
+export interface GenericResourceDetail {
+  kind: string
+  name: string
+  namespace: string
+  creationTimestamp: string
+  labels: Record<string, string>
+  annotations: Record<string, string>
+  spec?: Record<string, any>
+  status?: Record<string, any>
+  extra?: Record<string, any>
+  events: GenericEvent[]
+  endpoints?: EndpointInfo[]
+  pods?: PodBrief[]
+  replicaSets?: ReplicaSetBrief[]
+}
+
+export interface GenericEvent {
+  type: string
+  reason: string
+  message: string
+  source: string
+  count: number
+  firstTimestamp: string
+  lastTimestamp: string
+}
+
+export interface EndpointInfo {
+  targetName: string
+  addresses: string[]
+}
+
+export interface PodBrief {
+  name: string
+  node: string
+  namespace: string
+  ready: string
+  restarts: number
+  status: string
+  cpu: string
+  memory: string
+}
+
+export interface ReplicaSetBrief {
+  name: string
+  revision: string
+  desired: number
+  ready: number
+  age: string
+}
+
+/**
+ * 获取通用资源详情（metadata + events）
+ */
+export function getResourceDetail(clusterId: number, kind: string, namespace: string, name: string) {
+  return request<GenericResourceDetail>({
+    url: '/api/v1/plugins/kubernetes/resources/detail',
+    method: 'get',
+    params: { clusterId, kind, namespace, name }
+  })
+}
+
 // ==================== CRD (Custom Resource Definition) Related ====================
 
 export interface CRDInfo {

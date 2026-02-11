@@ -26,7 +26,7 @@
             :class="{ 'menu-disabled': menu.status === 0 }"
           >
             <template #title>
-              <el-icon><component :is="getIcon(menu.icon)" /></el-icon>
+              <el-icon><component :is="getIcon(menu.icon)" :name="menu.icon" /></el-icon>
               <span>{{ menu.name }}</span>
             </template>
             <template v-for="subMenu in menu.children" :key="subMenu.ID || subMenu.id || subMenu.path">
@@ -37,7 +37,7 @@
                 :class="{ 'menu-disabled': subMenu.status === 0 }"
               >
                 <template #title>
-                  <el-icon><component :is="getIcon(subMenu.icon)" /></el-icon>
+                  <el-icon><component :is="getIcon(subMenu.icon)" :name="subMenu.icon" /></el-icon>
                   <span>{{ subMenu.name }}</span>
                 </template>
                 <el-menu-item
@@ -46,7 +46,7 @@
                   :index="child.status === 0 ? undefined : child.path"
                   :class="{ 'menu-disabled': child.status === 0 }"
                 >
-                  <el-icon><component :is="getIcon(child.icon)" /></el-icon>
+                  <el-icon><component :is="getIcon(child.icon)" :name="child.icon" /></el-icon>
                   <span>{{ child.name }}</span>
                 </el-menu-item>
               </el-sub-menu>
@@ -55,7 +55,7 @@
                 :index="subMenu.status === 0 ? undefined : subMenu.path"
                 :class="{ 'menu-disabled': subMenu.status === 0 }"
               >
-                <el-icon><component :is="getIcon(subMenu.icon)" /></el-icon>
+                <el-icon><component :is="getIcon(subMenu.icon)" :name="subMenu.icon" /></el-icon>
                 <span>{{ subMenu.name }}</span>
               </el-menu-item>
             </template>
@@ -67,7 +67,7 @@
             :index="menu.status === 0 ? undefined : menu.path"
             :class="{ 'menu-disabled': menu.status === 0 }"
           >
-            <el-icon><component :is="getIcon(menu.icon)" /></el-icon>
+            <el-icon><component :is="getIcon(menu.icon)" :name="menu.icon" /></el-icon>
             <span>{{ menu.name }}</span>
           </el-menu-item>
         </template>
@@ -165,6 +165,7 @@ import {
   Fold,
   Expand
 } from '@element-plus/icons-vue'
+import CustomIcons from '@/components/icons/CustomIcons.vue'
 import { getUserMenu } from '@/api/menu'
 import { pluginManager } from '@/plugins/manager'
 
@@ -245,7 +246,9 @@ const iconMap: Record<string, any> = {
   'Grid': Grid,
   'Cloudy': Cloudy,
   'Grape': Grape,
-  'House': House
+  'House': House,
+  'Helm': CustomIcons,
+  'Kubernetes': CustomIcons
 }
 
 const getIcon = (iconName: string) => {

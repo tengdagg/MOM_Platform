@@ -294,8 +294,10 @@ const handleSaveYAML = async () => {
     )
     ElMessage.success('保存成功')
     yamlDialogVisible.value = false
-    emit('refresh')
-    await loadPVs()
+    // 延迟刷新，等待 API 更新
+    setTimeout(() => {
+      loadPVs()
+    }, 1000)
   } catch (error) {
     ElMessage.error('保存失败')
   } finally {
@@ -329,8 +331,10 @@ const handleSaveCreateYAML = async () => {
     )
     ElMessage.success('创建成功')
     createYamlDialogVisible.value = false
-    emit('refresh')
-    await loadPVs()
+    // 延迟刷新，等待 API 更新
+    setTimeout(() => {
+      loadPVs()
+    }, 1000)
   } catch (error) {
     ElMessage.error('创建失败')
   } finally {
@@ -348,8 +352,10 @@ const handleDelete = async (pv: PVInfo) => {
     await ElMessageBox.confirm(`确定要删除 PV ${pv.name} 吗？`, '删除确认', { type: 'error' })
     await deletePersistentVolume(props.clusterId, pv.name)
     ElMessage.success('删除成功')
-    emit('refresh')
-    await loadPVs()
+    // 延迟刷新，等待 API 更新
+    setTimeout(() => {
+      loadPVs()
+    }, 1000)
   } catch (error) {
     if (error !== 'cancel') {
       ElMessage.error('删除失败')

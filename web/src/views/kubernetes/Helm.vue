@@ -4,7 +4,7 @@
     <div class="page-header">
       <div class="page-title-group">
         <div class="page-title-icon">
-          <el-icon><Shop /></el-icon>
+          <el-icon><CustomIcons name="Helm" /></el-icon>
         </div>
         <div>
           <h2 class="page-title">Helm</h2>
@@ -30,7 +30,7 @@
         </el-select>
         <el-button class="black-button" @click="refreshCurrentView">
           <el-icon style="margin-right: 6px;"><Refresh /></el-icon>
-          Refresh
+          刷新
         </el-button>
       </div>
     </div>
@@ -68,13 +68,14 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, watch, nextTick } from 'vue'
 import { 
   Shop, 
   List, 
   Platform, 
   Refresh 
 } from '@element-plus/icons-vue'
+import CustomIcons from '@/components/icons/CustomIcons.vue'
 import { ElMessage } from 'element-plus'
 import { getClusterList, type Cluster } from '@/api/kubernetes'
 import Charts from './helm/Charts.vue'
@@ -120,9 +121,14 @@ const refreshCurrentView = () => {
   }
 }
 
-// Ensure Charts component exposes a refresh method if we want global refresh to work perfectly,
-// but for now Charts.vue fetches on mount/change. We might need to make fetchRepos public or just re-mount.
-// Actually Charts.vue exposes fetchRepos.
+// Auto-refresh when switching tabs
+watch(activeTab, (val) => {
+  if (val === 'releases') {
+    nextTick(() => {
+      releasesRef.value?.fetchReleases?.()
+    })
+  }
+})
 
 onMounted(() => {
   loadClusters()
@@ -171,6 +177,7 @@ onMounted(() => {
   font-size: 22px;
   color: #ffffff;
 }
+/* Update icon usage in template */
 
 .page-title {
   margin: 0;

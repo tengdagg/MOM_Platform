@@ -261,8 +261,10 @@ const handleSaveYAML = async () => {
     )
     ElMessage.success('保存成功')
     yamlDialogVisible.value = false
-    emit('refresh')
-    await loadStorageClasses()
+    // 延迟刷新，等待 API 更新
+    setTimeout(() => {
+      loadStorageClasses()
+    }, 1000)
   } catch (error) {
     ElMessage.error('保存失败')
   } finally {
@@ -296,8 +298,10 @@ const handleSaveCreateYAML = async () => {
     )
     ElMessage.success('创建成功')
     createYamlDialogVisible.value = false
-    emit('refresh')
-    await loadStorageClasses()
+    // 延迟刷新，等待 API 更新
+    setTimeout(() => {
+      loadStorageClasses()
+    }, 1000)
   } catch (error) {
     ElMessage.error('创建失败')
   } finally {
@@ -315,8 +319,10 @@ const handleDelete = async (sc: StorageClassInfo) => {
     await ElMessageBox.confirm(`确定要删除 StorageClass ${sc.name} 吗？`, '删除确认', { type: 'error' })
     await deleteStorageClass(props.clusterId, sc.name)
     ElMessage.success('删除成功')
-    emit('refresh')
-    await loadStorageClasses()
+    // 延迟刷新，等待 API 更新
+    setTimeout(() => {
+      loadStorageClasses()
+    }, 1000)
   } catch (error) {
     if (error !== 'cancel') {
       ElMessage.error('删除失败')

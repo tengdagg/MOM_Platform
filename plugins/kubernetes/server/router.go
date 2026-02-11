@@ -366,6 +366,9 @@ func RegisterRoutes(router *gin.RouterGroup, db *gorm.DB) {
 
 		}
 
+		// 通用资源详情
+		clusters.GET("/resources/detail", resourceHandler.GetGenericResourceDetail)
+
 		// CRD 管理
 		clusters.GET("/resources/crds", crdHandler.ListCRDs)
 		clusters.GET("/resources/crds/:name/yaml", crdHandler.GetCRD)
@@ -389,10 +392,11 @@ func RegisterRoutes(router *gin.RouterGroup, db *gorm.DB) {
 			helm.GET("/repos/:repoId/charts", helmHandler.ListCharts)
 			helm.GET("/repos/:repoId/charts/:chartName/versions", helmHandler.GetChartVersions)
 
-			helm.GET("/clusters/:clusterId/releases", helmHandler.ListReleases)
-			helm.POST("/clusters/:clusterId/releases", helmHandler.InstallRelease)
-			helm.GET("/clusters/:clusterId/releases/:namespace/:name", helmHandler.GetRelease)
-			helm.DELETE("/clusters/:clusterId/releases/:namespace/:name", helmHandler.UninstallRelease)
+		helm.GET("/clusters/:clusterId/releases", helmHandler.ListReleases)
+		helm.POST("/clusters/:clusterId/releases", helmHandler.InstallRelease)
+		helm.GET("/clusters/:clusterId/releases/:namespace/:name", helmHandler.GetRelease)
+		helm.PUT("/clusters/:clusterId/releases/:namespace/:name", helmHandler.UpgradeRelease)
+		helm.DELETE("/clusters/:clusterId/releases/:namespace/:name", helmHandler.UninstallRelease)
 		}
 	}
 }

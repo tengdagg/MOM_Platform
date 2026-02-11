@@ -26,6 +26,7 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 
 	"github.com/ydcloud-dy/mom/internal/plugin"
+	"github.com/ydcloud-dy/mom/plugins/kubernetes/data/models"
 	"github.com/ydcloud-dy/mom/plugins/kubernetes/model"
 	"github.com/ydcloud-dy/mom/plugins/kubernetes/server"
 )
@@ -69,7 +70,7 @@ func (p *Plugin) Enable(db *gorm.DB) error {
 
 	// 自动迁移所有插件相关的表
 	models := []interface{}{
-		&Cluster{},
+		&models.Cluster{},
 		&model.K8sUserRoleBinding{},
 		&model.UserKubeConfig{},
 		&model.TerminalSession{},
@@ -78,10 +79,8 @@ func (p *Plugin) Enable(db *gorm.DB) error {
 	}
 
 	for _, m := range models {
-		if !db.Migrator().HasTable(m) {
-			if err := db.AutoMigrate(m); err != nil {
-				return err
-			}
+		if err := db.AutoMigrate(m); err != nil {
+			return err
 		}
 	}
 
@@ -145,27 +144,4 @@ func (p *Plugin) GetClusterClientset(clusterID uint, kubeConfig string) (*kubern
 	}
 
 	return kubernetes.NewForConfig(config)
-}
-
-// Cluster 集群模型（用于 AutoMigrate）
-type Cluster struct {
-	ID          uint   `gorm:"primarykey"`
-	CreatedAt   string `json:"createdAt"`
-	UpdatedAt   string `json:"updatedAt"`
-	Name        string `gorm:"size:100;not null;uniqueIndex"`
-	Alias       string `gorm:"size:100"`
-	APIEndpoint string `gorm:"size:500;not null"`
-	KubeConfig  string `gorm:"type:text;not null"`
-	Version     string `gorm:"size:50"`
-	Status      int    `gorm:"default:1"`
-	Region      string `gorm:"size:100"`
-	Provider    string `gorm:"size:50"`
-	Description string `gorm:"size:500"`
-	CreatedBy   uint
-	IsDeleted   bool `gorm:"default:false;index"`
-}
-
-// TableName 指定表名
-func (Cluster) TableName() string {
-	return "k8s_clusters"
 }

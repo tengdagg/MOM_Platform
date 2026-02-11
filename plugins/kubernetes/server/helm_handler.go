@@ -163,6 +163,33 @@ func (h *HelmHandler) UninstallRelease(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"code": 200, "message": "卸载成功"})
 }
 
+// UpgradeRelease 升级 Release
+func (h *HelmHandler) UpgradeRelease(c *gin.Context) {
+	clusterIDStr := c.Param("clusterId")
+	clusterID, err := strconv.ParseUint(clusterIDStr, 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "无效的 Cluster ID"})
+		return
+	}
+
+	namespace := c.Param("namespace")
+	name := c.Param("name")
+
+	var req service.UpgradeReleaseRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	release, err := h.helmService.UpgradeRelease(c.Request.Context(), uint(clusterID), namespace, name, req.Values)
+	if err != nil {
+		HandleK8sError(c, err, "Helm Release")
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"code": 200, "message": "升级成功", "data": release})
+}
+
 // GetChartVersions 获取 Chart 的所有版本
 func (h *HelmHandler) GetChartVersions(c *gin.Context) {
 	repoIDStr := c.Param("repoId")
@@ -206,7 +233,7 @@ func (h *HelmHandler) InstallRelease(c *gin.Context) {
 
 	release, err := h.helmService.InstallRelease(c.Request.Context(), &req)
 	if err != nil {
-		HandleK8sError(c, err, "Helm Install")
+		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "error": "操作失败: " + err.Error()})
 		return
 	}
 
