@@ -4,7 +4,7 @@
     <div class="page-header">
       <div class="header-content">
         <div class="header-top">
-          <el-button class="back-btn" @click="goBack" :icon="ArrowLeft">返回列表</el-button>
+          <el-button class="black-button" @click="goBack" :icon="ArrowLeft">返回列表</el-button>
           <el-button class="black-button" @click="refreshData">
             <el-icon><Refresh /></el-icon>
             刷新
