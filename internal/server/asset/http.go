@@ -21,12 +21,12 @@ package asset
 
 import (
 	"github.com/gin-gonic/gin"
-	assetService "github.com/ydcloud-dy/mom/internal/service/asset"
-	assetdata "github.com/ydcloud-dy/mom/internal/data/asset"
 	assetbiz "github.com/ydcloud-dy/mom/internal/biz/asset"
-	rbacService "github.com/ydcloud-dy/mom/internal/service/rbac"
-	rbacdata "github.com/ydcloud-dy/mom/internal/data/rbac"
 	rbacbiz "github.com/ydcloud-dy/mom/internal/biz/rbac"
+	assetdata "github.com/ydcloud-dy/mom/internal/data/asset"
+	rbacdata "github.com/ydcloud-dy/mom/internal/data/rbac"
+	assetService "github.com/ydcloud-dy/mom/internal/service/asset"
+	rbacService "github.com/ydcloud-dy/mom/internal/service/rbac"
 	"gorm.io/gorm"
 )
 

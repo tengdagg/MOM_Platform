@@ -123,7 +123,7 @@ const router = createRouter({
           path: 'terminal',
           name: 'Terminal',
           component: () => import('@/views/asset/Terminal.vue'),
-          meta: { title: 'Web终端', hideSidebar: true }
+          meta: { title: 'Web终端', hideSidebar: true, hideHeader: true }
         },
         {
           path: 'plugin/list',

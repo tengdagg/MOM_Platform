@@ -205,13 +205,14 @@
               <template #default="{ row }">
                 <div class="hostname-cell" @click="handleShowHostDetail(row)">
                   <div class="host-avatar" :class="`host-status-${row.status}`">
-                    <el-icon><Monitor /></el-icon>
+                    <OsIcon v-if="row.osType === 'windows'" :os="'Windows'" :size="16" />
+                    <el-icon v-else><Monitor /></el-icon>
                   </div>
                   <div class="host-info">
                     <div class="hostname hostname-clickable">{{ row.name }}</div>
                     <div class="host-meta">
                       <span class="ip">{{ row.ip }}</span>
-                      <span class="port">:{{ row.port }}</span>
+                      <span class="port">:{{ row.osType === 'windows' ? (row.rdpPort || 3389) : row.port }}</span>
                     </div>
                   </div>
                 </div>
@@ -310,10 +311,10 @@
 
             <el-table-column label="系统信息" min-width="120" show-overflow-tooltip>
               <template #default="{ row }">
-                <div v-if="row.os || row.arch" class="config-cell">
-                  <div v-if="row.os" class="config-item">
-                    <OsIcon :os="row.os" :size="14" />
-                    <span class="config-text">{{ row.os }}</span>
+                <div v-if="row.os || row.arch || row.osType === 'windows'" class="config-cell">
+                  <div v-if="row.os || row.osType === 'windows'" class="config-item">
+                    <OsIcon :os="row.os || (row.osType === 'windows' ? 'Windows' : '')" :size="14" />
+                    <span class="config-text">{{ row.os || (row.osType === 'windows' ? 'Windows' : '-') }}</span>
                   </div>
                   <div v-if="row.arch" class="config-item">
                     <el-icon><Cpu /></el-icon>
@@ -329,7 +330,7 @@
                 <div class="action-buttons">
                   <el-tooltip content="采集信息" placement="top">
                     <el-button
-                      v-if="hasHostPermission(row.id, PERMISSION.COLLECT)"
+                      v-if="row.osType !== 'windows' && hasHostPermission(row.id, PERMISSION.COLLECT)"
                       link
                       class="action-btn action-refresh"
                       @click="handleCollectHost(row)"
@@ -337,9 +338,19 @@
                       <el-icon><Refresh /></el-icon>
                     </el-button>
                   </el-tooltip>
+                  <el-tooltip content="测试连接" placement="top">
+                    <el-button
+                      v-if="row.osType === 'windows' && hasHostPermission(row.id, PERMISSION.COLLECT)"
+                      link
+                      class="action-btn action-refresh"
+                      @click="handleTestWindowsConnection(row)"
+                    >
+                      <el-icon><Connection /></el-icon>
+                    </el-button>
+                  </el-tooltip>
                   <el-tooltip content="文件管理" placement="top">
                     <el-button
-                      v-if="hasHostPermission(row.id, PERMISSION.FILE)"
+                      v-if="row.osType !== 'windows' && hasHostPermission(row.id, PERMISSION.FILE)"
                       link
                       class="action-btn action-files"
                       @click="handleFileManager(row)"
@@ -490,7 +501,8 @@
               </div>
               <div v-if="activeTerminalHost" class="terminal-body">
                 <div class="terminal-wrapper">
-                  <div ref="terminalRef" class="xterm-container"></div>
+                  <div v-show="activeTerminalHost.osType !== 'windows'" ref="terminalRef" class="xterm-container"></div>
+                  <div v-show="activeTerminalHost.osType === 'windows'" ref="guacamoleRef" class="guacamole-container"></div>
                 </div>
               </div>
             </div>
@@ -515,6 +527,27 @@
             </el-form-item>
           </el-col>
           <el-col :span="12">
+            <el-form-item label="操作系统" prop="osType">
+              <el-select v-model="hostForm.osType" placeholder="请选择操作系统" style="width: 100%">
+                <el-option label="Linux" value="linux">
+                  <div style="display: flex; align-items: center; gap: 8px;">
+                    <span style="font-size: 14px;">🐧</span>
+                    <span>Linux</span>
+                  </div>
+                </el-option>
+                <el-option label="Windows" value="windows">
+                  <div style="display: flex; align-items: center; gap: 8px;">
+                    <span style="font-size: 14px;">🪟</span>
+                    <span>Windows</span>
+                  </div>
+                </el-option>
+              </el-select>
+            </el-form-item>
+          </el-col>
+        </el-row>
+
+        <el-row :gutter="20">
+          <el-col :span="12">
             <el-form-item label="主机类型" prop="type">
               <el-select v-model="hostForm.type" placeholder="请选择主机类型" style="width: 100%">
                 <el-option label="自建主机" value="self">
@@ -532,9 +565,6 @@
               </el-select>
             </el-form-item>
           </el-col>
-        </el-row>
-
-        <el-row :gutter="20">
           <el-col :span="12">
             <el-form-item label="所属分组" prop="groupId">
               <el-tree-select
@@ -547,7 +577,6 @@
               />
             </el-form-item>
           </el-col>
-          <el-col :span="12"></el-col>
         </el-row>
 
         <el-row :gutter="20">
@@ -557,16 +586,27 @@
             </el-form-item>
           </el-col>
           <el-col :span="12">
-            <el-form-item label="SSH端口" prop="port">
-              <el-input-number v-model="hostForm.port" :min="1" :max="65535" :step="1" />
+            <el-form-item 
+              v-if="hostForm.osType === 'linux'" 
+              label="SSH端口" 
+              prop="port"
+            >
+              <el-input-number v-model="hostForm.port" :min="1" :max="65535" :step="1" style="width: 100%" />
+            </el-form-item>
+            <el-form-item 
+              v-if="hostForm.osType === 'windows'" 
+              label="RDP端口" 
+              prop="rdpPort"
+            >
+              <el-input-number v-model="hostForm.rdpPort" :min="1" :max="65535" :step="1" style="width: 100%" />
             </el-form-item>
           </el-col>
         </el-row>
 
         <el-row :gutter="20">
           <el-col :span="12">
-            <el-form-item label="SSH用户名" prop="sshUser">
-              <el-input v-model="hostForm.sshUser" placeholder="如：root" />
+            <el-form-item label="用户名" prop="sshUser">
+              <el-input v-model="hostForm.sshUser" placeholder="请输入用户名" />
             </el-form-item>
           </el-col>
           <el-col :span="12">
@@ -686,14 +726,14 @@
             <div class="info-card">
               <div class="info-card-header">
                 <div class="info-icon info-icon-system">
-                  <OsIcon :os="hostDetail.os || ''" :size="18" />
+                  <OsIcon :os="hostDetail.os || (hostDetail.osType === 'windows' ? 'Windows' : '')" :size="18" />
                 </div>
                 <span class="info-card-title">系统信息</span>
               </div>
               <div class="info-card-body">
                 <div class="info-row">
                   <span class="info-label">操作系统</span>
-                  <span class="info-value"><OsIcon :os="hostDetail.os || ''" :size="14" style="margin-right: 4px;" />{{ hostDetail.os || '-' }}</span>
+                  <span class="info-value"><OsIcon :os="hostDetail.os || (hostDetail.osType === 'windows' ? 'Windows' : '')" :size="14" style="margin-right: 4px;" />{{ hostDetail.os || (hostDetail.osType === 'windows' ? 'Windows' : '-') }}</span>
                 </div>
                 <div class="info-row">
                   <span class="info-label">内核版本</span>
@@ -1300,7 +1340,8 @@ import {
   DataLine,
   InfoFilled,
   Coin,
-  Files
+  Files,
+  Connection
 } from '@element-plus/icons-vue'
 import HostFileBrowser from './components/HostFileBrowser.vue'
 import {
@@ -1334,6 +1375,7 @@ import { PERMISSION, hasPermission } from '@/utils/permission'
 import { getUserHostPermissions } from '@/api/assetPermission'
 import { useUserStore } from '@/stores/user'
 import OsIcon from '@/components/OsIcon.vue'
+import Guacamole from 'guacamole-common-js'
 
 // 用户状态
 const userStore = useUserStore()
@@ -1366,6 +1408,11 @@ const terminalRef = ref<HTMLElement | null>(null)
 const terminal = ref<Terminal | null>(null)
 const fitAddon = ref<FitAddon | null>(null)
 const ws = ref<WebSocket | null>(null)
+
+// Guacamole refs
+const guacamoleRef = ref<HTMLElement | null>(null)
+const guacamoleClient = ref<any>(null)
+const guacamoleTunnel = ref<any>(null)
 
 // 对话框状态
 const directImportVisible = ref(false)
@@ -1442,7 +1489,9 @@ const hostForm = reactive({
   port: 22,
   credentialId: null as number | null,
   tags: '',
-  description: ''
+  description: '',
+  osType: 'linux',
+  rdpPort: 3389,
 })
 
 // 凭证表单
@@ -1510,7 +1559,8 @@ const hostRules: FormRules = {
   type: [{ required: true, message: '请选择主机类型', trigger: 'change' }],
   ip: [{ required: true, message: '请输入IP地址', trigger: 'blur' }],
   sshUser: [{ required: true, message: '请输入SSH用户名', trigger: 'blur' }],
-  port: [{ required: true, message: '请输入SSH端口', trigger: 'blur' }]
+  port: [{ required: true, message: '请输入SSH端口', trigger: 'blur' }],
+  rdpPort: [{ required: true, message: '请输入RDP端口', trigger: 'blur' }]
 }
 
 const credentialRules: FormRules = {
@@ -1941,22 +1991,138 @@ const getTerminalUrl = (host: any): string => {
   return `/api/v1/asset/terminal/${host.id}?token=${token}`
 }
 
+// 连接Windows (RDP via Guacamole)
+const connectWindows = async (host: any) => {
+  await nextTick()
+
+  // Wait for guacamole container ref to be available
+  let retries = 0
+  while (!guacamoleRef.value && retries < 20) {
+    await new Promise(resolve => setTimeout(resolve, 100))
+    await nextTick()
+    retries++
+  }
+
+  if (!guacamoleRef.value) {
+    console.error('Guacamole container ref not available')
+    ElMessage.error('RDP终端容器未就绪')
+    return
+  }
+
+  // 清理现有连接
+  if (guacamoleClient.value) {
+    guacamoleClient.value.disconnect()
+    guacamoleClient.value = null
+  }
+  
+  // 清空容器
+  guacamoleRef.value.innerHTML = ''
+
+  const token = localStorage.getItem('token') || ''
+  // 计算容器大小
+  const width = guacamoleRef.value.clientWidth || 1024
+  const height = guacamoleRef.value.clientHeight || 768
+
+  const isDev = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+  const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
+  const backendHost = window.location.hostname
+  const backendPort = isDev ? ':9876' : (window.location.port ? ':' + window.location.port : '')
+
+  const wsUrl = `${protocol}//${backendHost}${backendPort}/api/v1/asset/terminal/${host.id}`
+  const connectParams = `token=${token}&width=${width}&height=${height}`
+
+  console.log('Guacamole connecting to:', wsUrl, 'params:', connectParams)
+
+  const tunnel = new Guacamole.WebSocketTunnel(wsUrl)
+  const client = new Guacamole.Client(tunnel)
+  guacamoleClient.value = client
+  guacamoleTunnel.value = tunnel
+
+  // 获取显示元素并设置自适应缩放
+  const guacDisplay = client.getDisplay()
+  const display = guacDisplay.getElement()
+  guacamoleRef.value.appendChild(display)
+
+  const containerEl = guacamoleRef.value
+  const fitDisplay = () => {
+    const dw = guacDisplay.getWidth()
+    const dh = guacDisplay.getHeight()
+    if (dw && dh && containerEl.clientWidth && containerEl.clientHeight) {
+      const scale = Math.min(containerEl.clientWidth / dw, containerEl.clientHeight / dh)
+      guacDisplay.scale(scale)
+    }
+  }
+  guacDisplay.onresize = fitDisplay
+
+  // Tunnel 状态变化处理
+  tunnel.onstatechange = (state: number) => {
+    // 0=CONNECTING, 1=OPEN, 2=CLOSED, 3=UNSTABLE
+    if (state === 2) {
+      console.log('Guacamole tunnel closed')
+    }
+  }
+
+  // Tunnel 错误处理
+  tunnel.onerror = (status: any) => {
+    console.error('Guacamole tunnel error:', status)
+    ElMessage.error('RDP连接通道错误，请检查后端服务')
+  }
+
+  // Client 状态变化处理
+  client.onstatechange = (state: number) => {
+    // 0=IDLE, 1=CONNECTING, 2=WAITING, 3=CONNECTED, 4=DISCONNECTING, 5=DISCONNECTED
+    if (state === 3) {
+      console.log('Guacamole RDP connected')
+      ElMessage.success('RDP连接成功')
+    } else if (state === 5) {
+      console.log('Guacamole RDP disconnected')
+    }
+  }
+
+  // Client 错误处理
+  client.onerror = (error: any) => {
+    console.error('Guacamole client error:', error)
+    ElMessage.error(`RDP连接失败: ${error.message || '未知错误'}`)
+  }
+
+  // 鼠标事件
+  const mouse = new Guacamole.Mouse(display)
+  mouse.onmousedown = mouse.onmouseup = mouse.onmousemove = (mouseState: any) => {
+    client.sendMouseState(mouseState)
+  }
+
+  // 键盘事件
+  const keyboard = new Guacamole.Keyboard(document)
+  keyboard.onkeydown = (keysym: any) => {
+    client.sendKeyEvent(1, keysym)
+  }
+  keyboard.onkeyup = (keysym: any) => {
+    client.sendKeyEvent(0, keysym)
+  }
+
+  // 连接 - 查询参数通过 connect(data) 传递，guacamole-common-js 会拼接为 URL?data
+  client.connect(connectParams)
+}
+
 const closeTerminal = () => {
-  // 关闭WebSocket
+  activeTerminalHost.value = null
+  
+  // SSH清理
+  if (terminal.value) {
+    terminal.value.dispose()
+    terminal.value = null
+  }
   if (ws.value) {
     ws.value.close()
     ws.value = null
   }
 
-  // 清理终端
-  if (terminal.value) {
-    terminal.value.dispose()
-    terminal.value = null
+  // Guacamole清理
+  if (guacamoleClient.value) {
+    guacamoleClient.value.disconnect()
+    guacamoleClient.value = null
   }
-
-  activeTerminalHost.value = null
 }
-
 const switchToHostsView = async () => {
   activeView.value = 'hosts'
   activeTerminalHost.value = null
@@ -2346,9 +2512,12 @@ const handleEditHost = async (row: any) => {
     sshUser: row.sshUser,
     ip: row.ip,
     port: row.port,
+    rdpPort: row.rdpPort || 3389,
     credentialId: row.credentialId,
     tags: Array.isArray(row.tags) ? row.tags.join(',') : row.tags,
-    description: row.description
+    description: row.description,
+    osType: row.osType || 'linux',
+    rdpPort: row.rdpPort || 3389,
   })
   directImportVisible.value = true
 }
@@ -2557,12 +2726,30 @@ const handleCollectHost = async (row: any) => {
   }
 }
 
+// 测试 Windows 主机 RDP 连接
+const handleTestWindowsConnection = async (row: any) => {
+  try {
+    await testHostConnection(row.id)
+    ElMessage.success('RDP 端口连通，主机在线')
+    loadHostList()
+  } catch (error: any) {
+    ElMessage.error(error.message || 'RDP 连接测试失败')
+  }
+}
+
 // 监听activeTerminalHost变化，自动连接终端
 watch(activeTerminalHost, async (newHost) => {
   if (newHost) {
-    await initTerminal()
-    await nextTick()
-    connectSSH(newHost)
+    if (newHost.osType === 'windows') {
+      // Windows hosts use RDP via Guacamole
+      await nextTick()
+      connectWindows(newHost)
+    } else {
+      // Linux/other hosts use SSH via xterm
+      await initTerminal()
+      await nextTick()
+      connectSSH(newHost)
+    }
   } else {
     closeTerminal()
   }

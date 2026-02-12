@@ -52,7 +52,35 @@
     </div>
 
     <!-- 右侧终端区域 -->
+    <!-- 右侧终端区域 -->
     <div class="terminal-main">
+      <div class="header-right-absolute">
+          <el-dropdown trigger="click" @command="handleUserCommand">
+            <div class="terminal-user-info">
+              <el-avatar :size="32" :src="avatarUrl" class="user-avatar">
+                <el-icon><UserFilled /></el-icon>
+              </el-avatar>
+              <div class="user-details">
+                <span class="user-name">{{ userStore.userInfo?.realName || userStore.userInfo?.username || 'Guest' }}</span>
+                <span class="user-role">{{ userRoleDisplay }}</span>
+              </div>
+              <el-icon class="dropdown-arrow"><ArrowDown /></el-icon>
+            </div>
+            <template #dropdown>
+              <el-dropdown-menu>
+                <el-dropdown-item command="profile">
+                  <el-icon><User /></el-icon>
+                  <span>个人信息</span>
+                </el-dropdown-item>
+                <el-dropdown-item command="logout" divided>
+                  <el-icon><SwitchButton /></el-icon>
+                  <span>退出登录</span>
+                </el-dropdown-item>
+              </el-dropdown-menu>
+            </template>
+          </el-dropdown>
+      </div>
+
       <div class="tabs-container">
         <el-tabs
           v-model="activeTab"
@@ -81,7 +109,18 @@
               <div class="tab-content">
                 <div v-if="tab.host" class="terminal-connected">
                   <div class="terminal-body">
-                    <div :ref="el => terminalRefs[tab.id] = el" class="xterm-container"></div>
+                    <div v-if="tab.host?.osType === 'windows'" class="terminal-toolbar">
+                      <el-button-group>
+                        <el-button size="small" @click="sendKeyCombination(tab.id, [0xFFE3, 0xFFE9, 0xFFFF])" title="Ctrl+Alt+Del">Ctrl+Alt+Del</el-button>
+                        <el-button size="small" @click="sendKeyCombination(tab.id, [0xFFEB])" title="Windows Key">Win</el-button>
+                        <el-button size="small" @click="sendKeyCombination(tab.id, [0xFFE9, 0xFF09])" title="Alt+Tab">Alt+Tab</el-button>
+                        <el-button size="small" @click="sendKeyCombination(tab.id, [0xFF1B])" title="Esc">Esc</el-button>
+                      </el-button-group>
+                    </div>
+                    <div class="terminal-viewport">
+                      <div v-show="tab.host.osType !== 'windows'" :ref="el => terminalRefs[tab.id] = el as HTMLElement" class="xterm-container"></div>
+                      <div v-show="tab.host.osType === 'windows'" :ref="el => guacamoleRefs[tab.id] = el as HTMLElement" class="guacamole-container"></div>
+                    </div>
                   </div>
                 </div>
                 <div v-else class="terminal-empty">
@@ -108,8 +147,44 @@ import { Collection, Search, Monitor, Folder } from '@element-plus/icons-vue'
 import { Terminal } from 'xterm'
 import { FitAddon } from 'xterm-addon-fit'
 import 'xterm/css/xterm.css'
+import Guacamole from 'guacamole-common-js'
 import { getHostList } from '@/api/host'
 import { getGroupTree } from '@/api/assetGroup'
+import { useUserStore } from '@/stores/user'
+import { useRouter } from 'vue-router'
+import { UserFilled, ArrowDown, User, SwitchButton } from '@element-plus/icons-vue'
+
+const router = useRouter()
+const userStore = useUserStore()
+
+// 头像URL
+const avatarUrl = computed(() => {
+  const avatar = userStore.userInfo?.avatar || ''
+  if (!avatar) return ''
+  if (avatar.startsWith('data:')) return avatar
+  const separator = avatar.includes('?') ? '&' : '?'
+  return `${avatar}${separator}t=${userStore.avatarTimestamp}`
+})
+
+// 获取用户角色显示名称
+const userRoleDisplay = computed(() => {
+  const roles = userStore.userInfo?.roles || []
+  if (roles.length === 0) return '普通用户'
+  const adminRole = roles.find((r: any) => r.code === 'admin')
+  if (adminRole) {
+    return adminRole.name || '管理员'
+  }
+  return roles[0]?.name || '普通用户'
+})
+
+const handleUserCommand = (command: string) => {
+  if (command === 'logout') {
+    userStore.logout()
+    router.push('/login')
+  } else if (command === 'profile') {
+    router.push('/profile')
+  }
+}
 
 const treeRef = ref()
 const searchKeyword = ref('')
@@ -119,6 +194,12 @@ const terminals = ref<Record<string, Terminal>>({})
 const fitAddons = ref<Record<string, FitAddon>>({})
 const wss = ref<Record<string, WebSocket>>({})
 const resizeCleanups = ref<Record<string, () => void>>({})
+
+// Guacamole related refs
+const guacamoleRefs = ref<Record<string, HTMLElement>>({})
+const guacamoleClients = ref<Record<string, any>>({})
+const guacamoleTunnels = ref<Record<string, any>>({})
+const guacamoleResizeObservers = ref<Record<string, ResizeObserver>>({})
 
 // 终端标签页
 interface TerminalTab {
@@ -284,14 +365,174 @@ const openTerminal = async (host: any) => {
   initTerminal(tabId, host)
 }
 
+
+// 初始化 Guacamole (RDP connection for Windows hosts)
+const initGuacamole = async (tabId: string, host: any) => {
+  await nextTick()
+
+  // Wait for the guacamole container ref to become available (retry up to 20 times)
+  let el = guacamoleRefs.value[tabId]
+  let retries = 0
+  while (!el && retries < 20) {
+    await new Promise(resolve => setTimeout(resolve, 100))
+    await nextTick()
+    el = guacamoleRefs.value[tabId]
+    retries++
+  }
+  if (!el) {
+    console.error('Guacamole container not found for tab:', tabId)
+    const tab = terminalTabs.value.find(t => t.id === tabId)
+    if (tab) {
+      tab.connecting = false
+      tab.connected = false
+    }
+    return
+  }
+
+  // Cleanup any existing client for this tab
+  if (guacamoleClients.value[tabId]) {
+    guacamoleClients.value[tabId].disconnect()
+    delete guacamoleClients.value[tabId]
+  }
+  el.innerHTML = ''
+
+  const token = localStorage.getItem('token') || ''
+
+  // Wait for element to have non-zero dimensions
+  let sizeRetries = 0
+  while ((el.clientWidth === 0 || el.clientHeight === 0) && sizeRetries < 20) {
+    await new Promise(resolve => setTimeout(resolve, 100))
+    sizeRetries++
+  }
+  const width = el.clientWidth || 1024
+  const height = el.clientHeight || 768
+
+  const isDev = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+  const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
+  const backendHost = window.location.hostname
+  const backendPort = isDev ? ':9876' : (window.location.port ? ':' + window.location.port : '')
+  
+  const wsUrl = `${protocol}//${backendHost}${backendPort}/api/v1/asset/terminal/${host.id}`
+  const connectParams = `token=${token}&width=${width}&height=${height}`
+
+  console.log('Guacamole connecting to:', wsUrl, 'params:', connectParams)
+  
+  const tunnel = new Guacamole.WebSocketTunnel(wsUrl)
+  const client = new Guacamole.Client(tunnel)
+  guacamoleClients.value[tabId] = client
+  guacamoleTunnels.value[tabId] = tunnel
+
+  // Display setup
+  const guacDisplay = client.getDisplay()
+  const display = guacDisplay.getElement()
+  el.appendChild(display)
+
+  // Auto-scale display to fit container when remote display resizes
+  const fitDisplay = () => {
+    const displayWidth = guacDisplay.getWidth()
+    const displayHeight = guacDisplay.getHeight()
+    if (displayWidth && displayHeight && el.clientWidth && el.clientHeight) {
+      const scale = Math.min(
+        el.clientWidth / displayWidth,
+        el.clientHeight / displayHeight
+      )
+      guacDisplay.scale(scale)
+    }
+  }
+  guacDisplay.onresize = fitDisplay
+
+  // Also fit when container becomes visible / resizes
+  const resizeObs = new ResizeObserver(() => fitDisplay())
+  resizeObs.observe(el)
+  guacamoleResizeObservers.value[tabId] = resizeObs
+
+  // Tunnel state change handler
+  tunnel.onstatechange = (state: number) => {
+    const tab = terminalTabs.value.find(t => t.id === tabId)
+    if (!tab) return
+    // 0=CONNECTING, 1=OPEN, 2=CLOSED, 3=UNSTABLE
+    if (state === 0) {
+      tab.connecting = true
+      tab.connected = false
+    } else if (state === 1) {
+      console.log('Guacamole tunnel open for tab:', tabId)
+    } else if (state === 2) {
+      console.log('Guacamole tunnel closed for tab:', tabId)
+      tab.connecting = false
+      tab.connected = false
+    }
+  }
+
+  // Tunnel error handler
+  tunnel.onerror = (status: any) => {
+    console.error('Guacamole tunnel error:', status)
+    const tab = terminalTabs.value.find(t => t.id === tabId)
+    if (tab) {
+      tab.connecting = false
+      tab.connected = false
+    }
+  }
+
+  // Client state change handler
+  client.onstatechange = (state: number) => {
+    const tab = terminalTabs.value.find(t => t.id === tabId)
+    if (!tab) return
+    // 0=IDLE, 1=CONNECTING, 2=WAITING, 3=CONNECTED, 4=DISCONNECTING, 5=DISCONNECTED
+    if (state === 3) {
+      console.log('Guacamole RDP connected for tab:', tabId)
+      tab.connecting = false
+      tab.connected = true
+    } else if (state === 5) {
+      console.log('Guacamole RDP disconnected for tab:', tabId)
+      tab.connecting = false
+      tab.connected = false
+    }
+  }
+
+  // Client error handler
+  client.onerror = (error: any) => {
+    console.error('Guacamole client error:', error)
+    const tab = terminalTabs.value.find(t => t.id === tabId)
+    if (tab) {
+      tab.connecting = false
+      tab.connected = false
+    }
+  }
+
+  // Mouse input
+  const mouse = new Guacamole.Mouse(display)
+  mouse.onmousedown = mouse.onmouseup = mouse.onmousemove = (mouseState: any) => {
+    client.sendMouseState(mouseState)
+  }
+
+  // Keyboard input (scoped to display element to avoid conflicts with other tabs)
+  const keyboard = new Guacamole.Keyboard(document)
+  keyboard.onkeydown = (keysym: any) => {
+    client.sendKeyEvent(1, keysym)
+  }
+  keyboard.onkeyup = (keysym: any) => {
+    client.sendKeyEvent(0, keysym)
+  }
+
+  // Connect - 查询参数通过 connect(data) 传递，guacamole-common-js 会拼接为 URL?data
+  client.connect(connectParams)
+}
+
 // 初始化终端
 const initTerminal = async (tabId: string, host: any) => {
   await nextTick()
 
   const el = terminalRefs.value[tabId]
-  if (!el) {
+  if (!el && host.osType !== 'windows') {
     return
   }
+
+  // Windows RDP connection
+  if (host.osType === 'windows') {
+    initGuacamole(tabId, host)
+    return
+  }
+
 
   // 等待容器获得正确的尺寸（不为0）
   let attempts = 0
@@ -484,6 +725,8 @@ const initTerminal = async (tabId: string, host: any) => {
     clearTimeout(resizeTimer)
   }
 
+
+
   // 保存到resizeCleanups，以便在标签关闭时调用
   resizeCleanups.value[tabId] = cleanup
 
@@ -496,6 +739,20 @@ const initTerminal = async (tabId: string, host: any) => {
       originalOnClose.call(ws, e as CloseEvent)
     }
   }
+}
+
+
+
+// 发送按键组合
+const sendKeyCombination = (tabId: string, keys: number[]) => {
+  const client = guacamoleClients.value[tabId]
+  if (!client) return
+
+  // 按下按键
+  keys.forEach(k => client.sendKeyEvent(1, k))
+  // 释放按键 (反向)
+  const reversedKeys = [...keys].reverse()
+  reversedKeys.forEach(k => client.sendKeyEvent(0, k))
 }
 
 // 关闭指定标签
@@ -519,6 +776,18 @@ const closeTerminal = (tabId: string) => {
   if (terminals.value[tabId]) {
     terminals.value[tabId]?.dispose()
     delete terminals.value[tabId]
+  }
+
+  // Destruction Guacamole
+  if (guacamoleClients.value[tabId]) {
+    guacamoleClients.value[tabId].disconnect()
+    delete guacamoleClients.value[tabId]
+    delete guacamoleTunnels.value[tabId]
+    delete guacamoleRefs.value[tabId]
+  }
+  if (guacamoleResizeObservers.value[tabId]) {
+    guacamoleResizeObservers.value[tabId].disconnect()
+    delete guacamoleResizeObservers.value[tabId]
   }
 
   // 删除标签
@@ -594,6 +863,11 @@ onBeforeUnmount(() => {
   Object.values(terminals.value).forEach(term => {
     term?.dispose()
   })
+  
+  // Cleanup Guacamole
+  Object.values(guacamoleClients.value).forEach(client => {
+    client?.disconnect()
+  })
 })
 </script>
 
@@ -602,6 +876,26 @@ onBeforeUnmount(() => {
   display: flex;
   height: 100vh;
   background: #1e1e1e;
+}
+
+
+
+.guacamole-container {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background-color: #1e1e1e;
+  overflow: hidden;
+  
+  :deep(div) {
+    cursor: none;
+  }
+
+  :deep(canvas) {
+    image-rendering: auto;
+  }
 }
 
 /* 左侧边栏 */
@@ -790,6 +1084,7 @@ onBeforeUnmount(() => {
   flex-direction: column;
   background: #1e1e1e;
   overflow: hidden;
+  position: relative;
 }
 
 .tabs-container {
@@ -833,6 +1128,12 @@ onBeforeUnmount(() => {
   background: #3c3c3c;
   transition: all 0.2s ease;
   font-size: 12px;
+}
+
+.tab-content {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
 }
 
 .terminal-tabs :deep(.el-tabs__item:hover) {
@@ -907,11 +1208,68 @@ onBeforeUnmount(() => {
   }
 }
 
-.tab-content {
-  height: 100%;
+
+.header-right-absolute {
+  position: absolute;
+  top: 0;
+  right: 0;
+  z-index: 1000;
+  height: 40px; /* Match tab height roughly */
+  display: flex;
+  align-items: center;
+  padding-right: 16px;
+  background: #2d2d30; /* Match tab header background */
+  pointer-events: auto; /* Ensure clickable */
+}
+
+.terminal-tabs {
+  flex: 1;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
+  height: 100%;
 }
+
+.terminal-user-info {
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 4px;
+}
+
+.terminal-user-info:hover {
+  background: #3c3c3c;
+}
+
+.user-avatar {
+  background: #0a466a;
+}
+
+.user-details {
+  display: flex;
+  flex-direction: column;
+  margin-left: 8px;
+  margin-right: 8px;
+}
+
+.user-name {
+  font-size: 14px;
+  color: #cccccc;
+  line-height: 1.2;
+}
+
+.user-role {
+  font-size: 11px;
+  color: #858585;
+  line-height: 1.2;
+}
+
+.dropdown-arrow {
+  font-size: 12px;
+  color: #858585;
+}
+
 
 .terminal-connected {
   flex: 1;
@@ -922,9 +1280,40 @@ onBeforeUnmount(() => {
 
 .terminal-body {
   flex: 1;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  background: #000;
   overflow: hidden;
-  background: #1e1e1e;
 }
+
+.terminal-viewport {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+}
+
+.terminal-toolbar {
+  padding: 6px 12px;
+  background: #252526;
+  border-bottom: 1px solid #3c3c3c;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.terminal-toolbar :deep(.el-button) {
+  background: #3c3c3c;
+  border-color: #4e4e4e;
+  color: #cccccc;
+}
+
+.terminal-toolbar :deep(.el-button:hover) {
+  background: #4e4e4e;
+  border-color: #5e5e5e;
+  color: #ffffff;
+}
+
 
 .xterm-container {
   width: 100%;

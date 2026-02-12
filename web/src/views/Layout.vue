@@ -84,7 +84,7 @@
 
     <el-container>
       <!-- Header -->
-      <el-header class="main-header">
+      <el-header v-if="!hideHeader" class="main-header">
         <div class="header-left">
           <el-breadcrumb separator="/" class="breadcrumb">
             <el-breadcrumb-item :to="{ path: '/' }">首页</el-breadcrumb-item>
@@ -123,7 +123,7 @@
         </div>
       </el-header>
 
-      <el-main>
+      <el-main :style="{ padding: hideHeader ? '0' : '20px' }">
         <NoPermission v-if="hasNoPermission" />
         <router-view v-else />
       </el-main>
@@ -196,6 +196,11 @@ const activeMenu = computed(() => {
 // 是否隐藏侧边栏
 const hideSidebar = computed(() => {
   return route.meta?.hideSidebar === true || false
+})
+
+// 是否隐藏顶部 Header
+const hideHeader = computed(() => {
+  return route.meta?.hideHeader === true || false
 })
 
 // 头像URL

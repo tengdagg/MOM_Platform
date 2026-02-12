@@ -32,6 +32,7 @@ type Config struct {
 	Database DatabaseConfig `mapstructure:"database"`
 	Redis    RedisConfig    `mapstructure:"redis"`
 	Log      LogConfig      `mapstructure:"log"`
+	Guacd    GuacdConfig    `mapstructure:"guacd"`
 }
 
 // ServerConfig 服务器配置
@@ -76,6 +77,25 @@ type LogConfig struct {
 	MaxAge     int    `mapstructure:"max_age"`      // days
 	Compress   bool   `mapstructure:"compress"`
 	Console    bool   `mapstructure:"console"`
+}
+
+// GuacdConfig Guacamole代理守护进程配置 (用于Windows RDP远程连接)
+type GuacdConfig struct {
+	Host string `mapstructure:"host"`
+	Port int    `mapstructure:"port"`
+}
+
+// GetGuacdAddr 获取Guacd地址
+func (c *GuacdConfig) GetGuacdAddr() string {
+	host := c.Host
+	port := c.Port
+	if host == "" {
+		host = "127.0.0.1"
+	}
+	if port == 0 {
+		port = 4822
+	}
+	return fmt.Sprintf("%s:%d", host, port)
 }
 
 var globalConfig *Config

@@ -31,10 +31,10 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
-	"golang.org/x/crypto/ssh"
 	assetbiz "github.com/ydcloud-dy/mom/internal/biz/asset"
 	appLogger "github.com/ydcloud-dy/mom/pkg/logger"
 	"go.uber.org/zap"
+	"golang.org/x/crypto/ssh"
 	"gorm.io/gorm"
 )
 
@@ -66,19 +66,19 @@ type CredentialInfo struct {
 
 // TerminalSession 终端会话
 type TerminalSession struct {
-	ID          string
-	HostID      uint
-	HostName    string
-	HostIP      string
-	UserID      uint
-	Username    string
-	SSHClient   *ssh.Client
-	SSHSession  *ssh.Session
-	StdinPipe   io.WriteCloser
-	StdoutPipe  io.Reader
-	StderrPipe  io.Reader
-	Recorder    *AsciinemaRecorder // 录制器
-	CreatedAt   time.Time
+	ID         string
+	HostID     uint
+	HostName   string
+	HostIP     string
+	UserID     uint
+	Username   string
+	SSHClient  *ssh.Client
+	SSHSession *ssh.Session
+	StdinPipe  io.WriteCloser
+	StdoutPipe io.Reader
+	StderrPipe io.Reader
+	Recorder   *AsciinemaRecorder // 录制器
+	CreatedAt  time.Time
 }
 
 // TerminalManager 终端管理器
@@ -162,7 +162,7 @@ func (tm *TerminalManager) CreateSession(ctx context.Context, hostID uint, userI
 
 	// 设置终端模式
 	modes := ssh.TerminalModes{
-		ssh.ECHO:   1, // 启用回显
+		ssh.ECHO:          1,     // 启用回显
 		ssh.TTY_OP_ISPEED: 14400, // 输入速度
 		ssh.TTY_OP_OSPEED: 14400, // 输出速度
 	}
@@ -360,6 +360,33 @@ func (s *HTTPServer) HandleSSHConnection(c *gin.Context) {
 		zap.Int("hostId", hostId),
 		zap.Uint("userId", uid),
 		zap.String("username", uname))
+
+	// 检查主机类型，如果是Windows则走RDP流程
+	hostVO, err := s.terminalManager.hostUseCase.GetByID(c.Request.Context(), uint(hostId))
+	if err != nil {
+		appLogger.Error("获取主机信息失败", zap.Error(err), zap.Int("hostId", hostId))
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "获取主机信息失败"})
+		return
+	}
+
+	if hostVO.OSType == "windows" {
+		// 获取解密后的凭证
+		if hostVO.CredentialID == 0 {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "主机未配置凭证"})
+			return
+		}
+
+		credRepo := s.terminalManager.hostUseCase.GetCredentialRepo()
+		credential, err := credRepo.GetByIDDecrypted(c.Request.Context(), hostVO.CredentialID)
+		if err != nil {
+			appLogger.Error("获取凭证失败", zap.Error(err))
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "获取凭证失败"})
+			return
+		}
+
+		s.HandleRDPConnection(c, hostVO, credential)
+		return
+	}
 
 	// 从URL参数读取终端尺寸，默认80x24
 	colsStr := c.DefaultQuery("cols", "80")

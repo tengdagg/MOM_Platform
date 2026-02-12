@@ -25,6 +25,10 @@ redis:
   pool_size: 10
   min_idle_conn: 5
 
+guacd:
+  host: 172.20.200.26    # guacd 服务地址，Docker环境下改为 guacd 服务名
+  port: 4822          # guacd 服务端口
+
 log:
   level: info  # debug, info, warn, error
   filename: logs/app.log

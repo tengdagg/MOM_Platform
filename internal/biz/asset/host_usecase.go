@@ -25,17 +25,18 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
 
-	"github.com/aliyun/alibaba-cloud-sdk-go/services/ecs"
 	"github.com/aliyun/alibaba-cloud-sdk-go/sdk/requests"
+	"github.com/aliyun/alibaba-cloud-sdk-go/services/ecs"
 	"github.com/tencentcloud/tencentcloud-sdk-go/tencentcloud/common"
 	"github.com/tencentcloud/tencentcloud-sdk-go/tencentcloud/common/profile"
-	"github.com/tencentcloud/tencentcloud-sdk-go/tencentcloud/cvm/v20170312"
+	v20170312 "github.com/tencentcloud/tencentcloud-sdk-go/tencentcloud/cvm/v20170312"
 	"github.com/xuri/excelize/v2"
 	"github.com/ydcloud-dy/mom/pkg/collector"
 	sshclient "github.com/ydcloud-dy/mom/pkg/ssh"
@@ -93,7 +94,10 @@ func (uc *HostUseCase) Update(ctx context.Context, req *HostRequest) error {
 	host.Port = req.Port
 	host.CredentialID = req.CredentialID
 	host.Tags = req.Tags
+	host.Tags = req.Tags
 	host.Description = req.Description
+	host.OSType = req.OSType
+	host.RDPPort = req.RDPPort
 
 	return uc.hostRepo.Update(ctx, host)
 }
@@ -216,39 +220,41 @@ func (uc *HostUseCase) toInfoVO(host *Host) *HostInfoVO {
 	}
 
 	return &HostInfoVO{
-		ID:               host.ID,
-		Name:             host.Name,
-		GroupID:          host.GroupID,
-		Type:             host.Type,
-		TypeText:         typeText,
-		CloudProvider:    host.CloudProvider,
+		ID:                host.ID,
+		Name:              host.Name,
+		GroupID:           host.GroupID,
+		Type:              host.Type,
+		TypeText:          typeText,
+		CloudProvider:     host.CloudProvider,
 		CloudProviderText: cloudProviderText,
-		CloudInstanceID:  host.CloudInstanceID,
-		SSHUser:          host.SSHUser,
-		IP:               host.IP,
-		Port:             host.Port,
-		CredentialID:     host.CredentialID,
-		Tags:             tags,
-		Description:      host.Description,
-		Status:           host.Status,
-		StatusText:       statusText,
-		LastSeen:         lastSeen,
-		OS:               host.OS,
-		Kernel:           host.Kernel,
-		Arch:             host.Arch,
-		CreateTime:       host.CreatedAt.Format("2006-01-02 15:04:05"),
-		UpdateTime:       host.UpdatedAt.Format("2006-01-02 15:04:05"),
+		CloudInstanceID:   host.CloudInstanceID,
+		SSHUser:           host.SSHUser,
+		IP:                host.IP,
+		Port:              host.Port,
+		CredentialID:      host.CredentialID,
+		Tags:              tags,
+		Description:       host.Description,
+		Status:            host.Status,
+		StatusText:        statusText,
+		LastSeen:          lastSeen,
+		OS:                host.OS,
+		Kernel:            host.Kernel,
+		Arch:              host.Arch,
+		CreateTime:        host.CreatedAt.Format("2006-01-02 15:04:05"),
+		UpdateTime:        host.UpdatedAt.Format("2006-01-02 15:04:05"),
 		// 扩展信息
-		CPUCores:         host.CPUCores,
-		CPUUsage:         host.CPUUsage,
-		MemoryTotal:      host.MemoryTotal,
-		MemoryUsed:       host.MemoryUsed,
-		MemoryUsage:      host.MemoryUsage,
-		DiskTotal:        host.DiskTotal,
-		DiskUsed:         host.DiskUsed,
-		DiskUsage:        host.DiskUsage,
-		Uptime:           host.Uptime,
-		Hostname:         host.Hostname,
+		CPUCores:    host.CPUCores,
+		CPUUsage:    host.CPUUsage,
+		MemoryTotal: host.MemoryTotal,
+		MemoryUsed:  host.MemoryUsed,
+		MemoryUsage: host.MemoryUsage,
+		DiskTotal:   host.DiskTotal,
+		DiskUsed:    host.DiskUsed,
+		DiskUsage:   host.DiskUsage,
+		Uptime:      host.Uptime,
+		Hostname:    host.Hostname,
+		OSType:      host.OSType,
+		RDPPort:     host.RDPPort,
 	}
 }
 
@@ -257,6 +263,11 @@ func (uc *HostUseCase) CollectHostInfo(ctx context.Context, hostID uint) error {
 	host, err := uc.hostRepo.GetByID(ctx, hostID)
 	if err != nil {
 		return fmt.Errorf("获取主机信息失败: %w", err)
+	}
+
+	// Windows 主机不支持通过 SSH 采集资源信息，跳过
+	if host.OSType == "windows" {
+		return fmt.Errorf("Windows 主机暂不支持资源采集")
 	}
 
 	// 如果没有配置凭证，无法连接
@@ -384,6 +395,11 @@ func (uc *HostUseCase) TestConnection(ctx context.Context, hostID uint) error {
 		return fmt.Errorf("获取主机信息失败: %w", err)
 	}
 
+	// Windows 主机使用 RDP 连接，通过 TCP 探测 RDP 端口是否可达
+	if host.OSType == "windows" {
+		return uc.testWindowsConnection(host)
+	}
+
 	// 如果没有配置凭证，无法连接
 	if host.CredentialID == 0 {
 		return fmt.Errorf("主机未配置凭证")
@@ -407,6 +423,30 @@ func (uc *HostUseCase) TestConnection(ctx context.Context, hostID uint) error {
 		return fmt.Errorf("连接测试失败: %w", err)
 	}
 
+	return nil
+}
+
+// testWindowsConnection 测试 Windows 主机 RDP 端口是否可达
+func (uc *HostUseCase) testWindowsConnection(host *Host) error {
+	rdpPort := host.RDPPort
+	if rdpPort == 0 {
+		rdpPort = 3389
+	}
+	addr := fmt.Sprintf("%s:%d", host.IP, rdpPort)
+	conn, err := net.DialTimeout("tcp", addr, 10*time.Second)
+	if err != nil {
+		host.Status = 0
+		uc.hostRepo.Update(context.Background(), host)
+		return fmt.Errorf("Windows RDP 端口 (%s) 不可达: %w", addr, err)
+	}
+	conn.Close()
+
+	// RDP 端口可达，标记为在线
+	now := time.Now()
+	host.Status = 1
+	host.LastSeen = &now
+	host.OS = "Windows"
+	uc.hostRepo.Update(context.Background(), host)
 	return nil
 }
 
@@ -1046,11 +1086,11 @@ func (uc *CloudAccountUseCase) listAliyunInstances(account *CloudAccount, region
 
 			allInstances = append(allInstances, CloudInstance{
 				InstanceID: instance.InstanceId,
-				Name:      instance.InstanceName,
-				PublicIP:  publicIP,
-				PrivateIP: privateIP,
-				OS:        instance.OSName,
-				Status:    instance.Status,
+				Name:       instance.InstanceName,
+				PublicIP:   publicIP,
+				PrivateIP:  privateIP,
+				OS:         instance.OSName,
+				Status:     instance.Status,
 			})
 		}
 
@@ -1147,7 +1187,6 @@ func (uc *CloudAccountUseCase) listTencentInstances(account *CloudAccount, regio
 
 	return allInstances, nil
 }
-
 
 // listJDCloudInstances 获取京东云实例列表
 func (uc *CloudAccountUseCase) listJDCloudInstances(account *CloudAccount, region string) ([]CloudInstance, error) {
@@ -1492,7 +1531,6 @@ func (uc *HostUseCase) ImportFromExcelWithType(ctx context.Context, excelData []
 
 	return result, nil
 }
-
 
 // ListFiles 列出主机目录下的文件
 func (uc *HostUseCase) ListFiles(ctx context.Context, hostID uint, remotePath string) ([]*sshclient.FileInfo, error) {

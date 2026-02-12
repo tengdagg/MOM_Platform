@@ -56,12 +56,25 @@ services:
       mom_REDIS_HOST: redis
       mom_REDIS_PORT: 6379
       mom_REDIS_PASSWORD: ""
+      GUACD_HOST: guacd
+      GUACD_PORT: "4822"
     depends_on:
       - mysql
       - redis
+      - guacd
     volumes:
       - ./config:/app/config
       - ./logs:/app/logs
+    networks:
+      - mom-network
+
+  # Guacamole 代理守护进程 (用于 Windows RDP 远程连接)
+  guacd:
+    image: guacamole/guacd:latest
+    container_name: mom-guacd
+    restart: unless-stopped
+    ports:
+      - "${GUACD_PORT:-4822}:4822"
     networks:
       - mom-network
 
