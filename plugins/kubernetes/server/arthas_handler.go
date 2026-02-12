@@ -1382,7 +1382,7 @@ func (h *ArthasHandler) executeArthasCommandWithResponse(c *gin.Context, command
 
 // execCommand 在Pod中执行命令
 func (h *ArthasHandler) execCommand(ctx context.Context, clusterID, userID uint, namespace, pod, container string, command []string) (string, error) {
-	restConfig, err := h.clusterService.GetRESTConfig(clusterID, userID)
+	restConfig, err := h.clusterService.GetRESTConfig(ctx, clusterID, userID)
 	if err != nil {
 		return "", fmt.Errorf("获取集群配置失败: %w", err)
 	}
@@ -1480,7 +1480,7 @@ func (h *ArthasHandler) ArthasWebSocket(c *gin.Context) {
 	defer conn.Close()
 
 	// 获取REST config
-	restConfig, err := h.clusterService.GetRESTConfig(uint(clusterID), currentUserID.(uint))
+	restConfig, err := h.clusterService.GetRESTConfig(c.Request.Context(), uint(clusterID), currentUserID.(uint))
 	if err != nil {
 		h.sendWSError(conn, "获取集群配置失败: "+err.Error())
 		return
@@ -1671,9 +1671,9 @@ func (h *ArthasHandler) GenerateFlameGraph(c *gin.Context) {
 	container := c.Query("container")
 	processID := c.Query("processId")
 	duration := c.DefaultQuery("duration", "30")
-	event := c.DefaultQuery("event", "cpu")      // cpu, alloc, lock, wall
-	threadId := c.Query("threadId")              // 可选，指定线程ID
-	includeThreads := c.Query("includeThreads")  // 是否按线程分组显示
+	event := c.DefaultQuery("event", "cpu")     // cpu, alloc, lock, wall
+	threadId := c.Query("threadId")             // 可选，指定线程ID
+	includeThreads := c.Query("includeThreads") // 是否按线程分组显示
 
 	if clusterIDStr == "" || namespace == "" || pod == "" || container == "" {
 		c.JSON(http.StatusBadRequest, gin.H{

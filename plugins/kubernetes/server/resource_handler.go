@@ -3338,7 +3338,7 @@ func (h *ResourceHandler) NodeShellWebSocket(c *gin.Context) {
 	}
 
 	// 获取 REST config
-	restConfig, err := h.clusterService.GetRESTConfig(uint(clusterID), currentUserID.(uint))
+	restConfig, err := h.clusterService.GetRESTConfig(c.Request.Context(), uint(clusterID), currentUserID.(uint))
 	if err != nil {
 		conn.WriteMessage(websocket.TextMessage, []byte("获取集群配置失败: "+err.Error()+"\r\n"))
 		return
@@ -4018,13 +4018,14 @@ type WorkloadInfo struct {
 	LastScheduleTime *string `json:"lastScheduleTime,omitempty"`
 	Suspended        *bool   `json:"suspended,omitempty"`
 	// Pod 专用字段
-	Containers   *string `json:"containers,omitempty"`
-	CPU          *string `json:"cpu,omitempty"`
-	Memory       *string `json:"memory,omitempty"`
-	PodStatus    *string `json:"podStatus,omitempty"`
-	RestartCount *int32  `json:"restartCount,omitempty"`
-	PodIP        *string `json:"podIP,omitempty"`
-	Node         *string `json:"node,omitempty"`
+	Containers     *string  `json:"containers,omitempty"`
+	ContainerNames []string `json:"containerNames,omitempty"`
+	CPU            *string  `json:"cpu,omitempty"`
+	Memory         *string  `json:"memory,omitempty"`
+	PodStatus      *string  `json:"podStatus,omitempty"`
+	RestartCount   *int32   `json:"restartCount,omitempty"`
+	PodIP          *string  `json:"podIP,omitempty"`
+	Node           *string  `json:"node,omitempty"`
 }
 
 // ResourceInfo 资源信息
@@ -4528,24 +4529,25 @@ func (h *ResourceHandler) convertPodToWorkload(pod *v1.Pod) WorkloadInfo {
 	node := pod.Spec.NodeName
 
 	return WorkloadInfo{
-		Name:         pod.Name,
-		Namespace:    pod.Namespace,
-		Type:         "Pod",
-		Labels:       pod.Labels,
-		ReadyPods:    readyPods,
-		DesiredPods:  1, // Pod 始终期望 1 个副本（自身）
-		Requests:     requests,
-		Limits:       limits,
-		Images:       images,
-		CreatedAt:    pod.CreationTimestamp.Format("2006-01-02 15:04:05"),
-		UpdatedAt:    pod.CreationTimestamp.Format("2006-01-02 15:04:05"),
-		Containers:   &containers,
-		CPU:          cpu,
-		Memory:       memory,
-		PodStatus:    &podStatus,
-		RestartCount: &restartCount,
-		PodIP:        &podIP,
-		Node:         &node,
+		Name:           pod.Name,
+		Namespace:      pod.Namespace,
+		Type:           "Pod",
+		Labels:         pod.Labels,
+		ReadyPods:      readyPods,
+		DesiredPods:    1, // Pod 始终期望 1 个副本（自身）
+		Requests:       requests,
+		Limits:         limits,
+		Images:         images,
+		CreatedAt:      pod.CreationTimestamp.Format("2006-01-02 15:04:05"),
+		UpdatedAt:      pod.CreationTimestamp.Format("2006-01-02 15:04:05"),
+		Containers:     &containers,
+		ContainerNames: containerNames,
+		CPU:            cpu,
+		Memory:         memory,
+		PodStatus:      &podStatus,
+		RestartCount:   &restartCount,
+		PodIP:          &podIP,
+		Node:           &node,
 	}
 }
 
@@ -9833,7 +9835,7 @@ func (h *ResourceHandler) PodShellWebSocket(c *gin.Context) {
 	fmt.Printf("🐚 WebSocket shell connected to pod %s/%s, container %s, clusterID=%d\n", namespace, podName, containerName, clusterID)
 
 	// 获取 REST config
-	restConfig, err := h.clusterService.GetRESTConfig(uint(clusterID), currentUserID.(uint))
+	restConfig, err := h.clusterService.GetRESTConfig(c.Request.Context(), uint(clusterID), currentUserID.(uint))
 	if err != nil {
 		conn.WriteMessage(websocket.TextMessage, []byte("获取集群配置失败: "+err.Error()+"\r\n"))
 		return
@@ -10791,7 +10793,7 @@ func (h *ResourceHandler) ListContainerFiles(c *gin.Context) {
 		return
 	}
 
-	restConfig, err := h.clusterService.GetRESTConfig(uint(clusterID), currentUserID)
+	restConfig, err := h.clusterService.GetRESTConfig(c.Request.Context(), uint(clusterID), currentUserID)
 	if err != nil {
 		c.JSON(http.StatusOK, gin.H{
 			"code": 500,
@@ -10911,7 +10913,7 @@ func (h *ResourceHandler) DownloadContainerFile(c *gin.Context) {
 		return
 	}
 
-	restConfig, err := h.clusterService.GetRESTConfig(uint(clusterID), currentUserID)
+	restConfig, err := h.clusterService.GetRESTConfig(c.Request.Context(), uint(clusterID), currentUserID)
 	if err != nil {
 		c.JSON(http.StatusOK, gin.H{
 			"code": 500,
@@ -11065,7 +11067,7 @@ func (h *ResourceHandler) UploadContainerFile(c *gin.Context) {
 		return
 	}
 
-	restConfig, err := h.clusterService.GetRESTConfig(uint(clusterID), currentUserID)
+	restConfig, err := h.clusterService.GetRESTConfig(c.Request.Context(), uint(clusterID), currentUserID)
 	if err != nil {
 		c.JSON(http.StatusOK, gin.H{
 			"code": 500,

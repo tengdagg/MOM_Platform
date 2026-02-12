@@ -429,50 +429,92 @@
           <template #default="{ row }">
             <!-- Pod 类型工作负载的特殊菜单 -->
             <template v-if="selectedType === 'Pod'">
-              <el-popover
-                placement="bottom"
-                :width="220"
-                trigger="click"
-                @before-enter="fetchPodDetailsForMenu(row.name, row.namespace)"
-              >
-                <template #reference>
-                  <el-button link class="action-btn">
-                    <el-icon :size="18"><Edit /></el-icon>
+              <div class="action-buttons">
+                <!-- 终端 -->
+                <el-tooltip content="终端" placement="top" :show-after="500">
+                  <span v-if="!hasMultipleContainers(row)">
+                    <el-button link class="action-btn" @click="handleOpenTerminal(row.name, row.containerNames?.[0] || '', row.namespace)">
+                      <el-icon :size="16"><Monitor /></el-icon>
+                    </el-button>
+                  </span>
+                  <el-dropdown v-else trigger="click" @command="(cmd: any) => handleOpenTerminal(row.name, cmd, row.namespace)" @visible-change="(val: boolean) => handleDropdownVisibleChange(val, row)">
+                    <el-button link class="action-btn">
+                      <el-icon :size="16"><Monitor /></el-icon>
+                    </el-button>
+                    <template #dropdown>
+                      <el-dropdown-menu>
+                        <template v-if="row.containerNames && row.containerNames.length > 0">
+                          <el-dropdown-item v-for="cName in row.containerNames" :key="cName" :command="cName">
+                            {{ cName }}
+                          </el-dropdown-item>
+                        </template>
+                        <template v-else>
+                          <el-dropdown-item disabled>正在加载容器...</el-dropdown-item>
+                        </template>
+                      </el-dropdown-menu>
+                    </template>
+                  </el-dropdown>
+                </el-tooltip>
+
+                <!-- 日志 -->
+                <el-tooltip content="日志" placement="top" :show-after="500">
+                  <span v-if="!hasMultipleContainers(row)">
+                    <el-button link class="action-btn" @click="handleOpenLogs(row.name, row.containerNames?.[0] || '', row.namespace)">
+                      <el-icon :size="16"><Document /></el-icon>
+                    </el-button>
+                  </span>
+                  <el-dropdown v-else trigger="click" @command="(cmd: any) => handleOpenLogs(row.name, cmd, row.namespace)" @visible-change="(val: boolean) => handleDropdownVisibleChange(val, row)">
+                    <el-button link class="action-btn">
+                      <el-icon :size="16"><Document /></el-icon>
+                    </el-button>
+                    <template #dropdown>
+                      <el-dropdown-menu>
+                        <template v-if="row.containerNames && row.containerNames.length > 0">
+                          <el-dropdown-item v-for="cName in row.containerNames" :key="cName" :command="cName">
+                            {{ cName }}
+                          </el-dropdown-item>
+                        </template>
+                        <template v-else>
+                          <el-dropdown-item disabled>正在加载容器...</el-dropdown-item>
+                        </template>
+                      </el-dropdown-menu>
+                    </template>
+                  </el-dropdown>
+                </el-tooltip>
+
+                 <!-- 文件浏览 -->
+                 <el-tooltip content="文件浏览" placement="top" :show-after="500">
+                  <span v-if="!hasMultipleContainers(row)">
+                    <el-button link class="action-btn" @click="handleOpenFileBrowser(row.name, row.containerNames?.[0] || '', row.namespace)">
+                      <el-icon :size="16"><FolderOpened /></el-icon>
+                    </el-button>
+                  </span>
+                  <el-dropdown v-else trigger="click" @command="(cmd: any) => handleOpenFileBrowser(row.name, cmd, row.namespace)" @visible-change="(val: boolean) => handleDropdownVisibleChange(val, row)">
+                    <el-button link class="action-btn">
+                      <el-icon :size="16"><FolderOpened /></el-icon>
+                    </el-button>
+                    <template #dropdown>
+                      <el-dropdown-menu>
+                        <template v-if="row.containerNames && row.containerNames.length > 0">
+                          <el-dropdown-item v-for="cName in row.containerNames" :key="cName" :command="cName">
+                            {{ cName }}
+                          </el-dropdown-item>
+                        </template>
+                        <template v-else>
+                          <el-dropdown-item disabled>正在加载容器...</el-dropdown-item>
+                        </template>
+                      </el-dropdown-menu>
+                    </template>
+                  </el-dropdown>
+                </el-tooltip>
+
+                <!-- 删除按钮 -->
+                <el-tooltip content="删除" placement="top" :show-after="500">
+                  <el-button link class="action-btn danger" :disabled="kubernetesStore.isReadOnly" @click="handleDeletePod(row.name, row.namespace)">
+                    <el-icon :size="16"><Delete /></el-icon>
                   </el-button>
-                </template>
-                <div v-loading="podMenuLoading" class="pod-action-menu">
-                  <template v-if="podMenuData && podMenuData.spec?.containers">
-                    <!-- 容器选项 -->
-                    <div v-for="container in podMenuData.spec.containers" :key="container.name" class="container-actions">
-                      <div class="container-name">{{ container.name }}</div>
-                      <div class="container-menu-items">
-                        <div class="menu-item" @click="handleOpenFileBrowser(row.name, container.name, row.namespace)">
-                          <el-icon><FolderOpened /></el-icon>
-                          <span>文件浏览</span>
-                        </div>
-                        <div class="menu-item" @click="handleOpenTerminal(row.name, container.name, row.namespace)">
-                          <el-icon><Monitor /></el-icon>
-                          <span>终端</span>
-                        </div>
-                        <div class="menu-item" @click="handleOpenLogs(row.name, container.name, row.namespace)">
-                          <el-icon><Document /></el-icon>
-                          <span>日志</span>
-                        </div>
-                      </div>
-                    </div>
-                    <!-- 分割线 -->
-                    <el-divider style="margin: 8px 0" />
-                    <!-- 删除 Pod -->
-                    <div :class="['menu-item', 'danger', { 'is-disabled': kubernetesStore.isReadOnly }]" @click="!kubernetesStore.isReadOnly && handleDeletePod(row.name, row.namespace)">
-                      <el-icon><Delete /></el-icon>
-                      <span>删除 Pod</span>
-                    </div>
-                  </template>
-                  <div v-else-if="!podMenuLoading" class="menu-error">
-                    加载失败
-                  </div>
-                </div>
-              </el-popover>
+                </el-tooltip>
+              </div>
             </template>
             <!-- 非Pod 类型工作负载的标准操作 -->
             <template v-else>
@@ -1545,7 +1587,8 @@ import {
   VideoPlay,
   Plus,
   Minus,
-  Picture
+  Picture,
+  Close
 } from '@element-plus/icons-vue'
 import { getClusterList, updateWorkload, getConfigMaps, getSecrets, getPersistentVolumeClaims, getPodLogs, type Cluster } from '@/api/kubernetes'
 import YamlEditor from '@/components/YamlEditor.vue'
@@ -1595,6 +1638,7 @@ interface Workload {
   suspended?: boolean
   // Pod 专用字段
   containers?: string
+  containerNames?: string[]
   cpu?: string
   memory?: string
   podStatus?: string
@@ -2463,6 +2507,22 @@ const loadWorkloads = async () => {
   }
 }
 
+// 临时轮询工作负载列表（用于删除或批量操作后）
+const startWorkloadListPolling = () => {
+  let count = 0
+  // 立即执行一次
+  loadWorkloads()
+  
+  const timer = setInterval(() => {
+    count++
+    loadWorkloads()
+    // 持续刷新 15 秒 (每 3 秒一次，共 5 次)
+    if (count >= 5) {
+      clearInterval(timer)
+    }
+  }, 3000)
+}
+
 // 更新工作负载类型的数量统计
 const updateWorkloadTypeCounts = (allWorkloads: Workload[]) => {
   const typeCounts: Record<string, number> = {
@@ -2588,6 +2648,10 @@ const handleDeletePod = async (podName: string, namespace: string) => {
 
       loadingInstance.close()
       ElMessage.success('Pod 删除成功')
+      
+      // 开始自动刷新列表，持续一段时间，以便捕获新创建的 Pod
+      startWorkloadListPolling()
+
     } catch (err) {
       loadingInstance.close()
       throw err
@@ -4066,16 +4130,107 @@ const handlePodAction = (command: any, pod: any) => {
   }
 }
 
+// 判断是否有多容器
+const hasMultipleContainers = (row: Workload) => {
+  // 如果有 containerNames 且长度 > 1
+  if (row.containerNames && row.containerNames.length > 1) return true
+  
+  // 降级检查 containers 字符串 (格式如 "1/1", "2/2")
+  if (row.containers) {
+    const parts = row.containers.split('/')
+    if (parts.length === 2) {
+      const total = parseInt(parts[1])
+      return total > 1
+    }
+  }
+  return false
+}
+
+// 下拉菜单可见性变化时，确保容器名称列表已加载
+const handleDropdownVisibleChange = async (visible: boolean, row: Workload) => {
+  if (!visible) return
+  // 如果 containerNames 已经加载，无需再次获取
+  if (row.containerNames && row.containerNames.length > 0) return
+
+  try {
+    const token = localStorage.getItem('token')
+    if (!selectedClusterId.value) return
+
+    const response = await axios.get(`/api/v1/plugins/kubernetes/resources/pods/${row.namespace}/${row.name}`, {
+      params: { clusterId: selectedClusterId.value },
+      headers: { Authorization: `Bearer ${token}` }
+    })
+
+    const pod = response.data.data
+    const spec = pod?.spec || pod?.Spec
+    if (spec) {
+      const containers = spec.containers || spec.Containers
+      if (containers && containers.length > 0) {
+        row.containerNames = containers.map((c: any) => c.name || c.Name)
+      }
+    }
+  } catch (error) {
+    console.error('获取容器列表失败:', error)
+    ElMessage.error('获取容器列表失败')
+  }
+}
+
+// 辅助函数：如果容器名称为空，尝试获取 Pod 详情并使用第一个容器
+const ensureContainerName = async (podName: string, containerName: string, namespace: string): Promise<string> => {
+  if (containerName) return containerName
+
+  try {
+    const token = localStorage.getItem('token')
+    if (!selectedClusterId.value) {
+      console.warn('ensureContainerName: No cluster ID selected')
+      return ''
+    }
+    
+    // console.log('Fetching pod details for:', namespace, podName)
+    const response = await axios.get(`/api/v1/plugins/kubernetes/resources/pods/${namespace}/${podName}`, {
+      params: { clusterId: selectedClusterId.value },
+      headers: { Authorization: `Bearer ${token}` }
+    })
+    
+    const pod = response.data.data
+    // 兼容处理 struct/json (Go backend should return lowercase json tags, but being safe)
+    const spec = pod?.spec || pod?.Spec
+    if (spec) {
+      const containers = spec.containers || spec.Containers
+      if (containers && containers.length > 0) {
+        return containers[0].name || containers[0].Name
+      }
+    }
+    console.warn('ensureContainerName: No containers found in pod spec', pod)
+  } catch (error) {
+    console.error('自动获取容器名称失败:', error)
+    ElMessage.error('获取容器信息失败')
+  }
+  return ''
+}
+
 // 打开终端
 const handleOpenTerminal = async (podName: string, containerName: string, namespace: string) => {
-  terminalData.value = {
-    pod: podName,
-    container: containerName,
-    namespace
+  try {
+    // 确保有容器名称
+    const targetContainer = await ensureContainerName(podName, containerName, namespace)
+    if (!targetContainer) {
+      ElMessage.error('无法获取容器名称')
+      return
+    }
+
+    terminalData.value = {
+      pod: podName,
+      container: targetContainer,
+      namespace
+    }
+    terminalConnected.value = false
+    terminalDialogVisible.value = true
+    // 不在这里初始化终端，而是在对话框完全打开后通过 @opened 事件初始化
+  } catch (e) {
+    console.error('handleOpenTerminal error:', e)
+    ElMessage.error('打开终端失败')
   }
-  terminalConnected.value = false
-  terminalDialogVisible.value = true
-  // 不在这里初始化终端，而是在对话框完全打开后通过 @opened 事件初始化
 }
 
 // 对话框完全打开后的回调
@@ -4229,14 +4384,26 @@ const handleCloseTerminal = () => {
 
 // 打开日志
 const handleOpenLogs = async (podName: string, containerName: string, namespace: string) => {
-  logsData.value = {
-    pod: podName,
-    container: containerName,
-    namespace
+  try {
+    // 确保有容器名称
+    const targetContainer = await ensureContainerName(podName, containerName, namespace)
+    if (!targetContainer) {
+      ElMessage.error('无法获取容器信息')
+      return
+    }
+
+    logsData.value = {
+      pod: podName,
+      container: targetContainer,
+      namespace
+    }
+    logsContent.value = ''
+    logsDialogVisible.value = true
+    // 不在这里加载日志，等待对话框打开后再加载
+  } catch (e) {
+    console.error('handleOpenLogs error:', e)
+    ElMessage.error('打开日志失败')
   }
-  logsContent.value = ''
-  logsDialogVisible.value = true
-  // 不在这里加载日志，等待对话框打开后再加载
 }
 
 // 日志对话框打开后的事件处理
@@ -4259,15 +4426,28 @@ const stopLogsAutoRefresh = () => {
 }
 
 // 打开文件浏览器
-const handleOpenFileBrowser = (podName: string, containerName: string, namespace: string) => {
-  if (!selectedClusterId.value) {
-    ElMessage.error('请先选择集群')
-    return
+const handleOpenFileBrowser = async (podName: string, containerName: string, namespace: string) => {
+  try {
+    if (!selectedClusterId.value) {
+      ElMessage.error('请先选择集群')
+      return
+    }
+
+    // 确保有容器名称
+    const targetContainer = await ensureContainerName(podName, containerName, namespace)
+    if (!targetContainer) {
+      ElMessage.error('无法获取容器信息')
+      return
+    }
+
+    selectedFileBrowserPod.value = podName
+    selectedFileBrowserNamespace.value = namespace
+    selectedFileBrowserContainer.value = targetContainer
+    fileBrowserVisible.value = true
+  } catch (e) {
+    console.error('handleOpenFileBrowser error:', e)
+    ElMessage.error('打开文件浏览器失败')
   }
-  selectedFileBrowserPod.value = podName
-  selectedFileBrowserNamespace.value = namespace
-  selectedFileBrowserContainer.value = containerName
-  fileBrowserVisible.value = true
 }
 
 // 加载日志

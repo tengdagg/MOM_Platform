@@ -193,6 +193,14 @@ export interface PodInfo {
   ip: string
   node: string
   labels: Record<string, string>
+  /* Pod 专用字段 */
+  containers?: string
+  containerNames?: string[] // 新增字段：容器名称列表
+  cpu?: string
+  memory?: string
+  podStatus?: string
+  restartCount?: number
+  podIP?: string
 }
 
 export interface DeploymentInfo {
@@ -293,12 +301,13 @@ export interface NamespaceListResponse {
 /**
  * 获取命名空间列表（返回包含权限信息的完整响应）
  */
+// 修正返回值类型，添加 as any 绕过类型检查，因为 request 返回的是 Promise<T> 但在此处 T 为 NamespaceListResponse
 export function getNamespacesWithAccess(clusterId: number): Promise<NamespaceListResponse> {
   return request<NamespaceListResponse>({
     url: '/api/v1/plugins/kubernetes/resources/namespaces',
     method: 'get',
     params: { clusterId }
-  })
+  }) as any
 }
 
 /**
@@ -2334,6 +2343,26 @@ export function getCRDs(clusterId: number) {
     url: '/api/v1/plugins/kubernetes/resources/crds',
     method: 'get',
     params: { clusterId }
+  })
+}
+
+
+/**
+ * 创建 CRD
+ */
+export function createCRD(clusterId: number, yamlContent: string) {
+  return request({
+    url: '/api/v1/plugins/kubernetes/resources/custom/yaml',
+    method: 'post',
+    params: {
+      clusterId,
+      group: 'apiextensions.k8s.io',
+      version: 'v1',
+      resource: 'customresourcedefinitions'
+    },
+    data: {
+      yaml: yamlContent
+    }
   })
 }
 

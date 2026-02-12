@@ -14,7 +14,6 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/dynamic"
-	"k8s.io/client-go/tools/clientcmd"
 	"sigs.k8s.io/yaml"
 
 	"github.com/ydcloud-dy/mom/plugins/kubernetes/service"
@@ -45,22 +44,9 @@ type CRDInfo struct {
 }
 
 // createDynamicClient 创建 Dynamic Client
-func (h *CRDHandler) createDynamicClient(ctx context.Context, clusterID uint) (dynamic.Interface, error) {
-	kubeConfigContent, err := h.clusterService.GetClusterConfig(ctx, clusterID)
-	if err != nil {
-		return nil, err
-	}
-
-	config, err := clientcmd.RESTConfigFromKubeConfig([]byte(kubeConfigContent))
-	if err != nil {
-		return nil, err
-	}
-
-	// 增加 QPS 和 Burst
-	config.QPS = 100
-	config.Burst = 200
-
-	return dynamic.NewForConfig(config)
+// createDynamicClient 创建 Dynamic Client
+func (h *CRDHandler) createDynamicClient(ctx context.Context, clusterID uint, userID uint) (dynamic.Interface, error) {
+	return h.clusterService.GetDynamicClientForUser(ctx, clusterID, userID)
 }
 
 // removeManagedFields 移除 managedFields
@@ -113,8 +99,17 @@ func (h *CRDHandler) ListCRDs(c *gin.Context) {
 	}
 	fmt.Printf("ListCRDs ClusterID: %d\n", clusterID)
 
+	currentUserID, exists := c.Get("user_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{
+			"code":    401,
+			"message": "未授权",
+		})
+		return
+	}
+
 	ctx := c.Request.Context()
-	dynamicClient, err := h.createDynamicClient(ctx, clusterID)
+	dynamicClient, err := h.createDynamicClient(ctx, clusterID, currentUserID.(uint))
 	if err != nil {
 		fmt.Printf("ListCRDs CreateDynamicClient Error: %v\n", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": err.Error()})
@@ -185,8 +180,17 @@ func (h *CRDHandler) GetCRD(c *gin.Context) {
 	}
 	crdName := c.Param("name")
 
+	currentUserID, exists := c.Get("user_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{
+			"code":    401,
+			"message": "未授权",
+		})
+		return
+	}
+
 	ctx := c.Request.Context()
-	dynamicClient, err := h.createDynamicClient(ctx, clusterID)
+	dynamicClient, err := h.createDynamicClient(ctx, clusterID, currentUserID.(uint))
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": err.Error()})
 		return
@@ -212,8 +216,17 @@ func (h *CRDHandler) DeleteCRD(c *gin.Context) {
 	}
 	crdName := c.Param("name")
 
+	currentUserID, exists := c.Get("user_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{
+			"code":    401,
+			"message": "未授权",
+		})
+		return
+	}
+
 	ctx := c.Request.Context()
-	dynamicClient, err := h.createDynamicClient(ctx, clusterID)
+	dynamicClient, err := h.createDynamicClient(ctx, clusterID, currentUserID.(uint))
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": err.Error()})
 		return
@@ -248,7 +261,17 @@ func (h *CRDHandler) ListCustomResources(c *gin.Context) {
 	}
 
 	ctx := c.Request.Context()
-	dynamicClient, err := h.createDynamicClient(ctx, clusterID)
+
+	currentUserID, exists := c.Get("user_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{
+			"code":    401,
+			"message": "未授权",
+		})
+		return
+	}
+
+	dynamicClient, err := h.createDynamicClient(ctx, clusterID, currentUserID.(uint))
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": err.Error()})
 		return
@@ -287,7 +310,17 @@ func (h *CRDHandler) GetCustomResource(c *gin.Context) {
 	name := c.Param("name")
 
 	ctx := c.Request.Context()
-	dynamicClient, err := h.createDynamicClient(ctx, clusterID)
+
+	currentUserID, exists := c.Get("user_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{
+			"code":    401,
+			"message": "未授权",
+		})
+		return
+	}
+
+	dynamicClient, err := h.createDynamicClient(ctx, clusterID, currentUserID.(uint))
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": err.Error()})
 		return
@@ -328,7 +361,17 @@ func (h *CRDHandler) DeleteCustomResource(c *gin.Context) {
 	name := c.Param("name")
 
 	ctx := c.Request.Context()
-	dynamicClient, err := h.createDynamicClient(ctx, clusterID)
+
+	currentUserID, exists := c.Get("user_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{
+			"code":    401,
+			"message": "未授权",
+		})
+		return
+	}
+
+	dynamicClient, err := h.createDynamicClient(ctx, clusterID, currentUserID.(uint))
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": err.Error()})
 		return
@@ -386,7 +429,17 @@ func (h *CRDHandler) CreateCustomResourceFromYAML(c *gin.Context) {
 	namespace := obj.GetNamespace()
 
 	ctx := c.Request.Context()
-	dynamicClient, err := h.createDynamicClient(ctx, clusterID)
+
+	currentUserID, exists := c.Get("user_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{
+			"code":    401,
+			"message": "未授权",
+		})
+		return
+	}
+
+	dynamicClient, err := h.createDynamicClient(ctx, clusterID, currentUserID.(uint))
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": err.Error()})
 		return
@@ -450,7 +503,17 @@ func (h *CRDHandler) UpdateCustomResourceFromYAML(c *gin.Context) {
 	}
 
 	ctx := c.Request.Context()
-	dynamicClient, err := h.createDynamicClient(ctx, clusterID)
+
+	currentUserID, exists := c.Get("user_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{
+			"code":    401,
+			"message": "未授权",
+		})
+		return
+	}
+
+	dynamicClient, err := h.createDynamicClient(ctx, clusterID, currentUserID.(uint))
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": err.Error()})
 		return

@@ -160,6 +160,9 @@
       <template #footer>
         <div class="dialog-footer">
           <el-button @click="dialogFormVisible = false">关闭</el-button>
+          <el-button type="primary" class="black-button" @click="createData" v-if="dialogStatus === 'create'">
+             创建
+          </el-button>
           <el-button type="primary" class="black-button" @click="updateData" v-if="dialogStatus === 'update'">
              更新
           </el-button>
@@ -173,7 +176,7 @@
 import { ref, reactive, computed, onMounted, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { getCRDs, deleteCRD, getCRD, getClusterList, type Cluster } from '@/api/kubernetes'
+import { getCRDs, deleteCRD, getCRD, createCRD, getClusterList, type Cluster } from '@/api/kubernetes'
 import type { CRDInfo } from '@/api/kubernetes'
 import MonacoEditor from '@/components/YamlEditor.vue'
 import dayjs from 'dayjs'
@@ -454,6 +457,18 @@ const handleDelete = (row: CRDInfo) => {
 const updateData = () => {
     // Implement CRD update if needed
     ElMessage.info('功能开发中')
+}
+
+const createData = async () => {
+    if (!currentClusterId.value) return
+    try {
+        await createCRD(currentClusterId.value, tempYaml.value)
+        ElMessage.success('创建成功')
+        dialogFormVisible.value = false
+        getList()
+    } catch (error) {
+        // console.error(error)
+    }
 }
 </script>
 

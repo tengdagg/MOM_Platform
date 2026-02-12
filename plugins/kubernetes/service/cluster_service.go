@@ -37,6 +37,7 @@ import (
 	v1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	metricsv "k8s.io/metrics/pkg/client/clientset/versioned"
@@ -1621,9 +1622,7 @@ func (s *ClusterService) SyncAllClustersStatus(ctx context.Context) error {
 }
 
 // GetRESTConfig 获取用户的 REST Config（用于 WebSocket shell 等）
-func (s *ClusterService) GetRESTConfig(clusterID uint, userID uint) (*rest.Config, error) {
-	ctx := context.Background()
-
+func (s *ClusterService) GetRESTConfig(ctx context.Context, clusterID uint, userID uint) (*rest.Config, error) {
 	// 检查用户是否是平台管理员
 	isPlatformAdmin, err := s.isPlatformAdmin(ctx, userID)
 	if err != nil {
@@ -1632,11 +1631,20 @@ func (s *ClusterService) GetRESTConfig(clusterID uint, userID uint) (*rest.Confi
 		return s.clusterBiz.GetClusterRESTConfig(ctx, clusterID)
 	}
 
+	// 检查用户在K8s集群中是否有管理员角色（如cluster-owner）
+	hasK8sAdminRole, err := s.hasK8sClusterAdminRole(ctx, clusterID, userID)
+	if err != nil {
+		// 如果检查失败，继续使用普通用户逻辑
+	} else if hasK8sAdminRole {
+		// 有K8s管理员角色的用户也使用集群注册的 kubeconfig
+		return s.clusterBiz.GetClusterRESTConfig(ctx, clusterID)
+	}
+
 	// 非平台管理员，使用用户个人的 ServiceAccount 凭据
 
 	// 查询用户的 ServiceAccount 凭据
 	var config model.UserKubeConfig
-	err = s.db.Where("cluster_id = ? AND user_id = ? AND is_active = 1", clusterID, userID).
+	err = s.db.WithContext(ctx).Where("cluster_id = ? AND user_id = ? AND is_active = 1", clusterID, userID).
 		Order("created_at DESC").
 		First(&config).Error
 
@@ -1672,4 +1680,18 @@ func (s *ClusterService) GetRESTConfig(clusterID uint, userID uint) (*rest.Confi
 	}
 
 	return restConfig, nil
+}
+
+// GetDynamicClientForUser 获取基于用户权限的 dynamic client
+func (s *ClusterService) GetDynamicClientForUser(ctx context.Context, clusterID uint, userID uint) (dynamic.Interface, error) {
+	config, err := s.GetRESTConfig(ctx, clusterID, userID)
+	if err != nil {
+		return nil, err
+	}
+
+	// 增加 QPS 和 Burst 以提高性能
+	config.QPS = 100
+	config.Burst = 200
+
+	return dynamic.NewForConfig(config)
 }
