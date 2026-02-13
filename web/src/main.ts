@@ -14,6 +14,7 @@ import '@/plugins/kubernetes'
 import '@/plugins/monitor'
 import '@/plugins/task'
 import '@/plugins/test'
+import '@/plugins/ai'
 const app = createApp(App)
 const pinia = createPinia()
 

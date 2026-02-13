@@ -40,6 +40,7 @@ import (
 	k8splugin "github.com/ydcloud-dy/mom/plugins/kubernetes"
 	monitorplugin "github.com/ydcloud-dy/mom/plugins/monitor"
 	taskplugin "github.com/ydcloud-dy/mom/plugins/task"
+	aiplugin "github.com/ydcloud-dy/mom/plugins/ai"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
 	testplugin "github.com/ydcloud-dy/mom/plugins/test"
@@ -95,6 +96,11 @@ func NewHTTPServer(conf *conf.Config, svc *service.Service, db *gorm.DB) *HTTPSe
 	// 注册 test 插件
 	if err := pluginMgr.Register(testplugin.New()); err != nil {
 		appLogger.Error("注册test插件失败", zap.Error(err))
+	}
+
+	// 注册 AI 助手插件
+	if err := pluginMgr.Register(aiplugin.New()); err != nil {
+		appLogger.Error("注册AI插件失败", zap.Error(err))
 	}
 
 	// 注册路由
