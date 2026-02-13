@@ -21,10 +21,14 @@ package asset
 
 import (
 	"bufio"
+	"crypto/rand"
+	"encoding/hex"
 	"fmt"
 	"io"
 	"net"
 	"net/http"
+	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
@@ -327,6 +331,16 @@ func (p *GuacamoleProxy) readOneInstruction(reader *bufio.Reader) (string, error
 	}
 }
 
+// generateSessionID creates a short random hex string for per-session isolation
+func generateSessionID() string {
+	b := make([]byte, 8) // 16 hex chars
+	if _, err := rand.Read(b); err != nil {
+		// Fallback: use timestamp-based ID (should never happen)
+		return fmt.Sprintf("%d", os.Getpid())
+	}
+	return hex.EncodeToString(b)
+}
+
 // HandleRDPConnection handles RDP connection requests
 func (s *HTTPServer) HandleRDPConnection(c *gin.Context, host *assetbiz.HostInfoVO, credential *assetbiz.Credential) {
 	appLogger.Info("Starting RDP connection",
@@ -370,23 +384,43 @@ func (s *HTTPServer) HandleRDPConnection(c *gin.Context, host *assetbiz.HostInfo
 		rdpPort = 3389
 	}
 
+	// Create a per-session drive directory so files are isolated and can be cleaned up
+	sessionID := generateSessionID()
+	drivePath := filepath.Join("/tmp/guacd-drive", sessionID)
+	if err := os.MkdirAll(drivePath, 0755); err != nil {
+		appLogger.Error("Failed to create drive path", zap.Error(err), zap.String("path", drivePath))
+		proxy.sendGuacamoleError("创建文件传输目录失败", 519)
+		return
+	}
+	// Clean up the per-session drive directory when the RDP connection ends
+	defer func() {
+		if err := os.RemoveAll(drivePath); err != nil {
+			appLogger.Warn("Failed to clean up drive path", zap.Error(err), zap.String("path", drivePath))
+		} else {
+			appLogger.Info("Cleaned up RDP drive path", zap.String("path", drivePath))
+		}
+	}()
+
 	// Build RDP connection config for guacd
 	config := map[string]string{
-		"hostname":       host.IP,
-		"port":           strconv.Itoa(rdpPort),
-		"width":          width,
-		"height":         height,
-		"dpi":            dpi,
-		"color-depth":    "24",
-		"security":       "any",
-		"ignore-cert":    "true",
-		"resize-method":  "display-update",
-		"disable-gfx":    "true",  // Disable GFX pipeline - prevents black screen on many Windows versions
+		"hostname":                   host.IP,
+		"port":                       strconv.Itoa(rdpPort),
+		"width":                      width,
+		"height":                     height,
+		"dpi":                        dpi,
+		"color-depth":                "24",
+		"security":                   "any",
+		"ignore-cert":                "true",
+		"resize-method":              "display-update",
+		"disable-gfx":                "true", // Disable GFX pipeline - prevents black screen on many Windows versions
 		"enable-font-smoothing":      "true",
 		"enable-wallpaper":           "true",
 		"enable-desktop-composition": "true",
 		"enable-theming":             "true",
 		"client-name":                "MOM-Platform",
+		"enable-drive":               "true",
+		"drive-path":                 drivePath,
+		"create-drive-path":          "true",
 	}
 
 	if credential != nil {

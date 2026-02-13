@@ -115,6 +115,9 @@
                         <el-button size="small" @click="sendKeyCombination(tab.id, [0xFFEB])" title="Windows Key">Win</el-button>
                         <el-button size="small" @click="sendKeyCombination(tab.id, [0xFFE9, 0xFF09])" title="Alt+Tab">Alt+Tab</el-button>
                         <el-button size="small" @click="sendKeyCombination(tab.id, [0xFF1B])" title="Esc">Esc</el-button>
+                        <el-button size="small" @click="openFileManager(tab.id)" title="文件管理">
+                          <el-icon><Folder /></el-icon> 文件管理
+                        </el-button>
                       </el-button-group>
                     </div>
                     <div class="terminal-viewport">
@@ -138,9 +141,67 @@
         </el-tabs>
       </div>
     </div>
-  </div>
-</template>
+      </div>
 
+
+    <!-- 文件管理抽屉 -->
+    <el-drawer
+      v-model="fileDrawerVisible"
+      title="文件管理"
+      direction="rtl"
+      size="350px"
+      :show-close="true"
+      :destroy-on-close="true"
+      class="file-drawer-dark"
+    >
+      <div class="file-manager-content">
+        <div class="upload-section">
+          <h3>上传文件至 RDP</h3>
+          <el-upload
+            class="upload-demo"
+            drag
+            action=""
+            :auto-upload="false"
+            :on-change="handleFileSelect"
+            :show-file-list="false"
+            :disabled="isUploading"
+          >
+            <el-icon class="el-icon--upload"><upload-filled /></el-icon>
+            <div class="el-upload__text">
+              拖拽文件到此处或 <em>点击选择</em>
+            </div>
+            <div class="el-upload__tip">选择后自动上传</div>
+          </el-upload>
+
+          <div v-if="selectedFile" class="file-preview">
+            <div class="file-info">
+              <el-icon><Document /></el-icon>
+              <span class="file-name">{{ selectedFile.name }}</span>
+              <span class="file-size">{{ formatFileSize(selectedFile.size) }}</span>
+            </div>
+
+            <div class="progress-area">
+              <el-progress
+                :percentage="uploadProgress"
+                :status="uploadStatus"
+                :stroke-width="6"
+                :show-text="true"
+              />
+              <div class="upload-speed" v-if="uploadSpeed">{{ uploadSpeed }}</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="download-section">
+          <h3>下载提示</h3>
+          <p class="hint-text">
+            在 Windows RDP 中，将文件复制或拖拽到 <b>Download</b> 文件夹（位于 Guacamole Filesystem 驱动器 (G:) 下），浏览器将自动开始下载。
+          </p>
+        </div>
+      </div>
+    </el-drawer>
+
+</template>>
 <script setup lang="ts">
 import { ref, computed, onMounted, nextTick, onBeforeUnmount } from 'vue'
 import { Collection, Search, Monitor, Folder } from '@element-plus/icons-vue'
@@ -152,7 +213,8 @@ import { getHostList } from '@/api/host'
 import { getGroupTree } from '@/api/assetGroup'
 import { useUserStore } from '@/stores/user'
 import { useRouter } from 'vue-router'
-import { UserFilled, ArrowDown, User, SwitchButton } from '@element-plus/icons-vue'
+import { UserFilled, ArrowDown, User, SwitchButton, UploadFilled, Document } from '@element-plus/icons-vue'
+import { ElMessage } from 'element-plus'
 
 const router = useRouter()
 const userStore = useUserStore()
@@ -516,7 +578,159 @@ const initGuacamole = async (tabId: string, host: any) => {
 
   // Connect - 查询参数通过 connect(data) 传递，guacamole-common-js 会拼接为 URL?data
   client.connect(connectParams)
+
+  // 处理文件下载 (remote -> client)
+  client.onfile = (stream: any, mimetype: string, filename: string) => {
+    console.log('Guacamole file download started:', filename, mimetype)
+    const reader = new Guacamole.BlobReader(stream, mimetype)
+
+    // CRITICAL: Send initial ACK to tell guacd we are ready to receive data.
+    // Without this, guacd waits forever and never sends any blob data.
+    stream.sendAck('OK', Guacamole.Status.Code.SUCCESS)
+
+    reader.onend = () => {
+      const blob = reader.getBlob()
+      console.log('Guacamole file download complete:', filename, 'size:', blob.size)
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = filename
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      // Delay revokeObjectURL slightly to ensure the download starts
+      setTimeout(() => URL.revokeObjectURL(url), 1000)
+      ElMessage.success(`文件 ${filename} 下载完成`)
+    }
+
+    reader.onerror = (status: any) => {
+      console.error('Guacamole file download error:', filename, status)
+      ElMessage.error(`文件 ${filename} 下载失败`)
+    }
+  }
+
+  client.onfilesystem = (object: any, name: string) => {
+    console.log('Guacamole filesystem available:', name)
+    // 可以在这里处理文件系统对象，比如浏览文件
+    // 目前 guacd 默认的 native drive 行为已经支持了基础的上传(通过流)和下载(通过 onfile)
+  }
 }
+
+// 文件管理相关状态
+const fileDrawerVisible = ref(false)
+const selectedFile = ref<File | null>(null)
+const isUploading = ref(false)
+const uploadProgress = ref(0)
+const uploadStatus = ref('') // 'success' | 'exception' | 'warning'
+const uploadSpeed = ref('')
+const currentFileManagerTabId = ref('')
+
+const openFileManager = (tabId: string) => {
+  currentFileManagerTabId.value = tabId
+  fileDrawerVisible.value = true
+  // 重置状态
+  selectedFile.value = null
+  isUploading.value = false
+  uploadProgress.value = 0
+  uploadStatus.value = ''
+}
+
+const handleFileSelect = (file: any) => {
+  if (isUploading.value) return
+  selectedFile.value = file.raw
+  uploadProgress.value = 0
+  uploadStatus.value = ''
+  uploadSpeed.value = ''
+  // Auto-start upload immediately after file selection
+  nextTick(() => startUpload())
+}
+
+const formatFileSize = (bytes: number) => {
+  if (bytes === 0) return '0 B'
+  const k = 1024
+  const sizes = ['B', 'KB', 'MB', 'GB', 'TB']
+  const i = Math.floor(Math.log(bytes) / Math.log(k))
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
+}
+
+const startUpload = () => {
+  if (!selectedFile.value || !currentFileManagerTabId.value) return
+  
+  const client = guacamoleClients.value[currentFileManagerTabId.value]
+  if (!client) {
+    ElMessage.error('RDP 连接未就绪')
+    return
+  }
+
+  isUploading.value = true
+  uploadProgress.value = 0
+  uploadStatus.value = ''
+  
+  const file = selectedFile.value
+  const stream = client.createFileStream(file.type, file.name)
+  const writer = new Guacamole.ArrayBufferWriter(stream)
+  
+  const chunkSize = 65536 // 64KB chunks
+  let offset = 0
+  const reader = new FileReader()
+  
+  const startTime = Date.now()
+  
+  reader.onload = (e) => {
+    const buffer = e.target?.result as ArrayBuffer
+    const bytes = new Uint8Array(buffer)
+    
+    const uploadNextChunk = () => {
+      if (offset >= bytes.length) {
+        writer.sendEnd()
+        isUploading.value = false
+        uploadProgress.value = 100
+        uploadStatus.value = 'success'
+        ElMessage.success('上传完成')
+        return
+      }
+      
+      const end = Math.min(offset + chunkSize, bytes.length)
+      const chunk = bytes.subarray(offset, end)
+      writer.sendData(chunk)
+      
+      offset = end
+      const progress = Math.floor((offset / bytes.length) * 100)
+      uploadProgress.value = progress
+      
+      // Calculate speed
+      const elapsed = (Date.now() - startTime) / 1000
+      if (elapsed > 0.5) {
+        const speed = offset / elapsed
+        uploadSpeed.value = formatFileSize(speed) + '/s'
+      }
+
+      // Allow UI update
+      setTimeout(uploadNextChunk, 5)
+    }
+
+    writer.onack = (status: any) => {
+      if (status.isError()) {
+        isUploading.value = false
+        uploadStatus.value = 'exception'
+        ElMessage.error('上传出错: ' + status.message)
+        writer.sendEnd() // Close stream on error
+      }
+    }
+    
+    uploadNextChunk()
+  }
+  
+  reader.onerror = () => {
+    isUploading.value = false
+    uploadStatus.value = 'exception'
+    ElMessage.error('读取文件失败')
+    writer.sendEnd()
+  }
+  
+  reader.readAsArrayBuffer(file)
+}
+
 
 // 初始化终端
 const initTerminal = async (tabId: string, host: any) => {
@@ -1376,4 +1590,163 @@ onBeforeUnmount(() => {
 .terminal-tabs :deep(.el-icon-close:hover) {
   color: #cccccc;
 }
+/* 文件管理抽屉 - 深色主题 */
+.file-drawer-dark {
+  :deep(.el-drawer) {
+    background: #1e1ed9;
+    border-left: 1px solid #3c3c3c;
+  }
+  :deep(.el-drawer__header) {
+    background: #2d2d30;
+    border-bottom: 1px solid #3c3c3c;
+    color: #cccccc;
+    margin-bottom: 0;
+    padding: 16px 20px;
+  }
+  :deep(.el-drawer__title) {
+    color: #cccccc;
+    font-weight: 600;
+  }
+  :deep(.el-drawer__close-btn) {
+    color: #858585;
+  }
+  :deep(.el-drawer__close-btn:hover) {
+    color: #cccccc;
+  }
+  :deep(.el-drawer__body) {
+    background: #252526;
+    padding: 16px;
+  }
+}
+
+.file-manager-content {
+  padding: 0;
+}
+
+.upload-section, .download-section {
+  margin-bottom: 24px;
+}
+
+.upload-section h3, .download-section h3 {
+  font-size: 14px;
+  color: #cccccc;
+  margin-bottom: 12px;
+  font-weight: 600;
+}
+
+.upload-demo {
+  margin-bottom: 12px;
+}
+
+.upload-demo :deep(.el-upload-dragger) {
+  background: #1e1e1e;
+  border: 1px dashed #4e4e4e;
+  border-radius: 4px;
+  padding: 20px;
+  transition: border-color 0.2s;
+}
+
+.upload-demo :deep(.el-upload-dragger:hover) {
+  border-color: #4ec9b0;
+}
+
+.upload-demo :deep(.el-upload-dragger.is-dragover) {
+  border-color: #4ec9b0;
+  background: rgba(78, 201, 176, 0.05);
+}
+
+.upload-demo :deep(.el-icon--upload) {
+  color: #858585;
+  font-size: 32px;
+  margin-bottom: 8px;
+}
+
+.upload-demo :deep(.el-upload__text) {
+  color: #858585;
+  font-size: 13px;
+}
+
+.upload-demo :deep(.el-upload__text em) {
+  color: #4ec9b0;
+}
+
+.upload-demo :deep(.el-upload__tip) {
+  color: #606060;
+  font-size: 11px;
+  margin-top: 4px;
+  text-align: center;
+}
+
+.file-preview {
+  background: #1e1e1e;
+  padding: 12px;
+  border-radius: 4px;
+  border: 1px solid #3c3c3c;
+}
+
+.file-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: #cccccc;
+  margin-bottom: 10px;
+}
+
+.file-info .el-icon {
+  color: #4ec9b0;
+  flex-shrink: 0;
+}
+
+.file-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.file-size {
+  color: #858585;
+  font-size: 12px;
+  flex-shrink: 0;
+}
+
+.progress-area {
+  margin-bottom: 0;
+}
+
+.progress-area :deep(.el-progress-bar__outer) {
+  background: #3c3c3c;
+}
+
+.progress-area :deep(.el-progress-bar__inner) {
+  background: #4ec9b0;
+}
+
+.progress-area :deep(.el-progress__text) {
+  color: #cccccc;
+  font-size: 12px;
+}
+
+.upload-speed {
+  font-size: 11px;
+  color: #858585;
+  text-align: right;
+  margin-top: 4px;
+}
+
+.hint-text {
+  font-size: 13px;
+  color: #b0b0b0;
+  line-height: 1.6;
+  background: #1e1e1e;
+  padding: 12px;
+  border-radius: 4px;
+  border-left: 3px solid #4ec9b0;
+}
+
+.hint-text b {
+  color: #4ec9b0;
+}
+
 </style>
