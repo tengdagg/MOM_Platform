@@ -208,42 +208,68 @@ func autoMigrate(db *gorm.DB) error {
 	// 为用户表创建虚拟列和唯一索引
 	// 问题：MySQL 唯一索引中多个 NULL 值被认为是不同的，无法正确约束
 	// 解决：使用虚拟列 is_deleted (0=未删除, 1=已删除) 来创建唯一索引
+	migrateUserUniqueIndex(db)
 
-	// 1. 检查并添加虚拟列 is_deleted
-	var columnExists bool
-	db.Raw("SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'sys_user' AND COLUMN_NAME = 'is_deleted'").Scan(&columnExists)
-
-	if !columnExists {
-		// 虚拟列不存在，添加它
-		if err := db.Exec("ALTER TABLE sys_user ADD COLUMN is_deleted TINYINT(1) GENERATED ALWAYS AS (CASE WHEN deleted_at IS NULL THEN 0 ELSE 1 END) STORED").Error; err != nil {
-			appLogger.Warn("添加虚拟列失败", zap.Error(err))
-		} else {
-			appLogger.Info("成功添加虚拟列 is_deleted")
-		}
-	}
-
-	// 2. 删除旧的索引
-	db.Exec("DROP INDEX idx_username_deleted_at ON sys_user")
-	db.Exec("DROP INDEX idx_email_deleted_at ON sys_user")
-	db.Exec("DROP INDEX idx_username_email_deleted_at ON sys_user")
-
-	// 3. 创建新的唯一索引：用户名 + 邮箱 + is_deleted
-	// 这样未删除的记录 (is_deleted=0) 中，username + email 的组合必须唯一
-	// 已删除的记录 (is_deleted=1) 不会阻止新记录创建
-	if err := db.Exec("CREATE UNIQUE INDEX idx_username_email_is_deleted ON sys_user(username, email, is_deleted)").Error; err != nil {
-		appLogger.Warn("创建用户名邮箱唯一索引失败", zap.Error(err))
-	} else {
-		appLogger.Info("成功创建用户名邮箱联合唯一索引")
-	}
-
-	// 4. 修复 sys_menu 表的唯一索引问题
+	// 修复 sys_menu 表的唯一索引问题
 	// 移除 GORM 自动生成的单列唯一索引 (idx_sys_menu_code)，该索引会导致
 	// 编辑菜单排序时出现 "菜单编码已存在" 的错误（因为与软删除记录冲突）
-	db.Exec("DROP INDEX idx_sys_menu_code ON sys_menu")
-	// 同时尝试移除可能存在的其他单列 code 唯一索引
-	db.Exec("DROP INDEX uk_code ON sys_menu")
+	dropIndexIfExists(db, "sys_menu", "idx_sys_menu_code")
+	dropIndexIfExists(db, "sys_menu", "uk_code")
 
 	return nil
+}
+
+// columnExists 检查表中是否存在指定列
+func columnExists(db *gorm.DB, table, column string) bool {
+	var count int64
+	db.Raw("SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = ?", table, column).Scan(&count)
+	return count > 0
+}
+
+// indexExists 检查表中是否存在指定索引
+func indexExists(db *gorm.DB, table, index string) bool {
+	var count int64
+	db.Raw("SELECT COUNT(*) FROM information_schema.STATISTICS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND INDEX_NAME = ?", table, index).Scan(&count)
+	return count > 0
+}
+
+// dropIndexIfExists 安全地删除索引（存在才删除）
+func dropIndexIfExists(db *gorm.DB, table, index string) {
+	if indexExists(db, table, index) {
+		if err := db.Exec("DROP INDEX " + index + " ON " + table).Error; err != nil {
+			appLogger.Warn("删除索引失败", zap.String("table", table), zap.String("index", index), zap.Error(err))
+		}
+	}
+}
+
+// migrateUserUniqueIndex 迁移用户表虚拟列和唯一索引
+func migrateUserUniqueIndex(db *gorm.DB) {
+	// 1. 检查并添加虚拟列 is_deleted
+	if !columnExists(db, "sys_user", "is_deleted") {
+		// 使用 VIRTUAL 而非 STORED：MySQL 5.7+ 不支持通过 ALTER TABLE 添加 STORED 生成列
+		// VIRTUAL 列在查询时动态计算，不占用磁盘空间，且支持二级索引
+		if err := db.Exec("ALTER TABLE sys_user ADD COLUMN is_deleted TINYINT(1) GENERATED ALWAYS AS (CASE WHEN deleted_at IS NULL THEN 0 ELSE 1 END) VIRTUAL").Error; err != nil {
+			appLogger.Warn("添加虚拟列失败", zap.Error(err))
+			return // 虚拟列创建失败，后续索引也无法创建
+		}
+		appLogger.Info("成功添加虚拟列 is_deleted")
+	}
+
+	// 2. 删除旧的索引（安全检查后再删除）
+	dropIndexIfExists(db, "sys_user", "idx_username_deleted_at")
+	dropIndexIfExists(db, "sys_user", "idx_email_deleted_at")
+	dropIndexIfExists(db, "sys_user", "idx_username_email_deleted_at")
+
+	// 3. 创建新的唯一索引：用户名 + 邮箱 + is_deleted
+	// 未删除的记录 (is_deleted=0) 中，username + email 组合必须唯一
+	// 已删除的记录 (is_deleted=1) 不会阻止新记录创建
+	if !indexExists(db, "sys_user", "idx_username_email_is_deleted") {
+		if err := db.Exec("CREATE UNIQUE INDEX idx_username_email_is_deleted ON sys_user(username, email, is_deleted)").Error; err != nil {
+			appLogger.Warn("创建用户名邮箱唯一索引失败", zap.Error(err))
+		} else {
+			appLogger.Info("成功创建用户名邮箱联合唯一索引")
+		}
+	}
 }
 
 // initDefaultData 初始化默认数据

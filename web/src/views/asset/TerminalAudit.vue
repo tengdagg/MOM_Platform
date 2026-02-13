@@ -8,7 +8,7 @@
         </div>
         <div>
           <h2 class="page-title">终端审计</h2>
-          <p class="page-subtitle">查看和管理SSH终端会话录制</p>
+          <p class="page-subtitle">查看和管理终端会话记录（SSH / RDP）</p>
         </div>
       </div>
     </div>
@@ -48,6 +48,14 @@
       >
         <el-table-column prop="id" label="ID" width="80" align="center" />
 
+        <el-table-column label="类型" width="90" align="center">
+          <template #default="{ row }">
+            <el-tag :type="row.sessionType === 'rdp' ? 'warning' : 'primary'" size="small">
+              {{ row.sessionTypeText || 'SSH' }}
+            </el-tag>
+          </template>
+        </el-table-column>
+
         <el-table-column label="主机信息" min-width="220">
           <template #default="{ row }">
             <div class="host-info">
@@ -86,12 +94,13 @@
         <el-table-column label="操作" width="160" align="center" fixed="right">
           <template #default="{ row }">
             <div class="action-buttons">
-              <el-tooltip content="播放" placement="top">
+              <el-tooltip :content="row.sessionType === 'rdp' ? 'RDP会话暂不支持回放' : '播放'" placement="top">
                 <el-button
                   link
                   class="action-btn action-play"
                   @click="handlePlay(row)"
                   :loading="playingSession === row.id"
+                  :disabled="row.sessionType === 'rdp'"
                 >
                   <el-icon><VideoPlay /></el-icon>
                 </el-button>
@@ -159,6 +168,8 @@ import AsciinemaPlayer from '@/components/AsciinemaPlayer.vue'
 
 interface TerminalSession {
   id: number
+  sessionType: string
+  sessionTypeText: string
   hostId: number
   hostName: string
   hostIp: string

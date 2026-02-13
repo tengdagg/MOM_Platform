@@ -118,6 +118,9 @@
                         <el-button size="small" @click="openFileManager(tab.id)" title="文件管理">
                           <el-icon><Folder /></el-icon> 文件管理
                         </el-button>
+                        <el-button size="small" @click="toggleVirtualKeyboard(tab.id)" title="虚拟键盘">
+                          <el-icon><Keyboard /></el-icon> 键盘
+                        </el-button>
                       </el-button-group>
                     </div>
                     <div class="terminal-viewport">
@@ -201,10 +204,49 @@
       </div>
     </el-drawer>
 
+    <!-- 虚拟键盘抽屉 -->
+    <el-drawer
+      v-model="virtualKeyboardVisible"
+      title="虚拟键盘 (US)"
+      direction="btt"
+      size="300px"
+      :show-close="true"
+      :modal="false"
+      class="file-drawer-dark"
+    >
+      <div class="virtual-keyboard">
+        <!-- 功能键行 -->
+        <div class="kb-row">
+          <button v-for="key in keyboardLayout.functionRow" :key="key.label" class="kb-key kb-fn" @mousedown.prevent="sendVKey(key.code)" :title="key.label">{{ key.label }}</button>
+        </div>
+        <!-- 数字行 -->
+        <div class="kb-row">
+          <button v-for="key in keyboardLayout.numberRow" :key="key.label" class="kb-key" :class="{ 'kb-wide': key.wide }" @mousedown.prevent="sendVKey(key.code)" :title="key.label">{{ key.label }}</button>
+        </div>
+        <!-- 第一字母行 -->
+        <div class="kb-row">
+          <button v-for="key in keyboardLayout.row1" :key="key.label" class="kb-key" :class="{ 'kb-wide': key.wide }" @mousedown.prevent="sendVKey(key.code)" :title="key.label">{{ key.label }}</button>
+        </div>
+        <!-- 第二字母行 -->
+        <div class="kb-row">
+          <button v-for="key in keyboardLayout.row2" :key="key.label" class="kb-key" :class="{ 'kb-wide': key.wide }" @mousedown.prevent="sendVKey(key.code)" :title="key.label">{{ key.label }}</button>
+        </div>
+        <!-- 第三字母行 -->
+        <div class="kb-row">
+          <button v-for="key in keyboardLayout.row3" :key="key.label" class="kb-key" :class="{ 'kb-wide': key.wide }" @mousedown.prevent="sendVKey(key.code)" :title="key.label">{{ key.label }}</button>
+        </div>
+        <!-- 空格行 -->
+        <div class="kb-row">
+          <button v-for="key in keyboardLayout.spaceRow" :key="key.label" class="kb-key" :class="{ 'kb-space': key.space, 'kb-wide': key.wide }" @mousedown.prevent="sendVKey(key.code)" :title="key.label">{{ key.label }}</button>
+        </div>
+      </div>
+    </el-drawer>
+
 </template>>
+
 <script setup lang="ts">
 import { ref, computed, onMounted, nextTick, onBeforeUnmount } from 'vue'
-import { Collection, Search, Monitor, Folder } from '@element-plus/icons-vue'
+import { Collection, Search, Monitor, Folder, Edit as Keyboard } from '@element-plus/icons-vue'
 import { Terminal } from 'xterm'
 import { FitAddon } from 'xterm-addon-fit'
 import 'xterm/css/xterm.css'
@@ -533,6 +575,7 @@ const initGuacamole = async (tabId: string, host: any) => {
       tab.connecting = false
       tab.connected = false
     }
+    ElMessage.error('RDP 连接失败，请检查主机配置或联系管理员')
   }
 
   // Client state change handler
@@ -558,6 +601,10 @@ const initGuacamole = async (tabId: string, host: any) => {
     if (tab) {
       tab.connecting = false
       tab.connected = false
+    }
+    // Display Guacamole error message if available
+    if (error && error.message) {
+      ElMessage.error(error.message)
     }
   }
 
@@ -732,12 +779,48 @@ const startUpload = () => {
 }
 
 
+// 预检查终端连接权限（在建立 WebSocket 之前，通过 HTTP 请求检测 401/403）
+const checkTerminalPermission = async (host: any): Promise<{ ok: boolean; message: string }> => {
+  const token = localStorage.getItem('token') || ''
+  const isDev = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+  const backendHost = window.location.hostname
+  const backendPort = isDev ? ':9876' : (window.location.port ? ':' + window.location.port : '')
+  const checkUrl = `${window.location.protocol}//${backendHost}${backendPort}/api/v1/asset/terminal/${host.id}?token=${token}`
+
+  try {
+    const resp = await fetch(checkUrl)
+    if (resp.status === 401) {
+      return { ok: false, message: '登录已过期，请重新登录' }
+    }
+    if (resp.status === 403) {
+      return { ok: false, message: '没有访问权限，请联系管理员配置终端连接权限' }
+    }
+    // Any other status (including 400 from failed WS upgrade) means permission is OK
+    return { ok: true, message: '' }
+  } catch {
+    // Network error - let the WebSocket try anyway
+    return { ok: true, message: '' }
+  }
+}
+
 // 初始化终端
 const initTerminal = async (tabId: string, host: any) => {
   await nextTick()
 
   const el = terminalRefs.value[tabId]
   if (!el && host.osType !== 'windows') {
+    return
+  }
+
+  // Pre-check permission before establishing WebSocket
+  const permCheck = await checkTerminalPermission(host)
+  if (!permCheck.ok) {
+    const tab = terminalTabs.value.find(t => t.id === tabId)
+    if (tab) {
+      tab.connecting = false
+      tab.connected = false
+    }
+    ElMessage.warning(permCheck.message)
     return
   }
 
@@ -886,9 +969,9 @@ const initTerminal = async (tabId: string, host: any) => {
     }
   }
 
-  ws.onerror = (error) => {
+  ws.onerror = () => {
     if (term) {
-      term.writeln('\x1b[1;31m✗ 连接错误\x1b[0m')
+      term.writeln('\x1b[1;31m✗ 连接失败，请检查主机配置或联系管理员\x1b[0m')
     }
   }
 
@@ -967,6 +1050,72 @@ const sendKeyCombination = (tabId: string, keys: number[]) => {
   // 释放按键 (反向)
   const reversedKeys = [...keys].reverse()
   reversedKeys.forEach(k => client.sendKeyEvent(0, k))
+}
+
+// 虚拟键盘相关
+const virtualKeyboardVisible = ref(false)
+const virtualKeyboardTabId = ref('')
+
+const toggleVirtualKeyboard = (tabId: string) => {
+  virtualKeyboardTabId.value = tabId
+  virtualKeyboardVisible.value = !virtualKeyboardVisible.value
+}
+
+// US 键盘布局 (X11 keysym)
+const keyboardLayout = {
+  functionRow: [
+    { label: 'Esc', code: 0xFF1B },
+    { label: 'F1', code: 0xFFBE }, { label: 'F2', code: 0xFFBF }, { label: 'F3', code: 0xFFC0 }, { label: 'F4', code: 0xFFC1 },
+    { label: 'F5', code: 0xFFC2 }, { label: 'F6', code: 0xFFC3 }, { label: 'F7', code: 0xFFC4 }, { label: 'F8', code: 0xFFC5 },
+    { label: 'F9', code: 0xFFC6 }, { label: 'F10', code: 0xFFC7 }, { label: 'F11', code: 0xFFC8 }, { label: 'F12', code: 0xFFC9 },
+    { label: 'PrtSc', code: 0xFF61 }, { label: 'Del', code: 0xFFFF }
+  ],
+  numberRow: [
+    { label: '`', code: 0x60 }, { label: '1', code: 0x31 }, { label: '2', code: 0x32 }, { label: '3', code: 0x33 },
+    { label: '4', code: 0x34 }, { label: '5', code: 0x35 }, { label: '6', code: 0x36 }, { label: '7', code: 0x37 },
+    { label: '8', code: 0x38 }, { label: '9', code: 0x39 }, { label: '0', code: 0x30 },
+    { label: '-', code: 0x2D }, { label: '=', code: 0x3D },
+    { label: 'Backspace', code: 0xFF08, wide: true }
+  ],
+  row1: [
+    { label: 'Tab', code: 0xFF09, wide: true },
+    { label: 'Q', code: 0x71 }, { label: 'W', code: 0x77 }, { label: 'E', code: 0x65 }, { label: 'R', code: 0x72 },
+    { label: 'T', code: 0x74 }, { label: 'Y', code: 0x79 }, { label: 'U', code: 0x75 }, { label: 'I', code: 0x69 },
+    { label: 'O', code: 0x6F }, { label: 'P', code: 0x70 },
+    { label: '[', code: 0x5B }, { label: ']', code: 0x5D }, { label: '\\', code: 0x5C }
+  ],
+  row2: [
+    { label: 'Caps', code: 0xFFE5, wide: true },
+    { label: 'A', code: 0x61 }, { label: 'S', code: 0x73 }, { label: 'D', code: 0x64 }, { label: 'F', code: 0x66 },
+    { label: 'G', code: 0x67 }, { label: 'H', code: 0x68 }, { label: 'J', code: 0x6A }, { label: 'K', code: 0x6B },
+    { label: 'L', code: 0x6C }, { label: ';', code: 0x3B }, { label: "'", code: 0x27 },
+    { label: 'Enter', code: 0xFF0D, wide: true }
+  ],
+  row3: [
+    { label: 'Shift', code: 0xFFE1, wide: true },
+    { label: 'Z', code: 0x7A }, { label: 'X', code: 0x78 }, { label: 'C', code: 0x63 }, { label: 'V', code: 0x76 },
+    { label: 'B', code: 0x62 }, { label: 'N', code: 0x6E }, { label: 'M', code: 0x6D },
+    { label: ',', code: 0x2C }, { label: '.', code: 0x2E }, { label: '/', code: 0x2F },
+    { label: '↑', code: 0xFF52 },
+    { label: 'Shift', code: 0xFFE2, wide: true }
+  ],
+  spaceRow: [
+    { label: 'Ctrl', code: 0xFFE3, wide: true },
+    { label: 'Win', code: 0xFFEB },
+    { label: 'Alt', code: 0xFFE9 },
+    { label: 'Space', code: 0x20, space: true },
+    { label: 'Alt', code: 0xFFEA },
+    { label: '←', code: 0xFF51 }, { label: '↓', code: 0xFF54 }, { label: '→', code: 0xFF53 }
+  ]
+}
+
+// 发送虚拟键盘按键
+const sendVKey = (keyCode: number) => {
+  const tabId = virtualKeyboardTabId.value
+  const client = guacamoleClients.value[tabId]
+  if (!client) return
+  client.sendKeyEvent(1, keyCode)
+  client.sendKeyEvent(0, keyCode)
 }
 
 // 关闭指定标签
@@ -1590,55 +1739,61 @@ onBeforeUnmount(() => {
 .terminal-tabs :deep(.el-icon-close:hover) {
   color: #cccccc;
 }
-/* 文件管理抽屉 - 深色主题 */
-.file-drawer-dark {
-  :deep(.el-drawer) {
-    background: #1e1ed9;
-    border-left: 1px solid #3c3c3c;
-  }
-  :deep(.el-drawer__header) {
-    background: #2d2d30;
-    border-bottom: 1px solid #3c3c3c;
-    color: #cccccc;
-    margin-bottom: 0;
-    padding: 16px 20px;
-  }
-  :deep(.el-drawer__title) {
-    color: #cccccc;
-    font-weight: 600;
-  }
-  :deep(.el-drawer__close-btn) {
-    color: #858585;
-  }
-  :deep(.el-drawer__close-btn:hover) {
-    color: #cccccc;
-  }
-  :deep(.el-drawer__body) {
-    background: #252526;
-    padding: 16px;
-  }
+
+</style>
+
+<!-- 非 scoped 样式：el-drawer 会 teleport 到 body，scoped 样式无法生效 -->
+<style>
+/* 文件管理 & 虚拟键盘抽屉 - 深色主题 */
+.file-drawer-dark .el-drawer {
+  background: #1e1e1e !important;
+  border-left: 1px solid #3c3c3c;
+}
+.file-drawer-dark .el-drawer__header {
+  background: #2d2d30;
+  border-bottom: 1px solid #3c3c3c;
+  color: #cccccc;
+  margin-bottom: 0;
+  padding: 16px 20px;
+}
+.file-drawer-dark .el-drawer__title {
+  color: #cccccc;
+  font-weight: 600;
+}
+.file-drawer-dark .el-drawer__close-btn {
+  color: #858585;
+}
+.file-drawer-dark .el-drawer__close-btn:hover {
+  color: #cccccc;
+}
+.file-drawer-dark .el-drawer__body {
+  background: #252526;
+  padding: 16px;
 }
 
-.file-manager-content {
+/* 文件管理内容 */
+.file-drawer-dark .file-manager-content {
   padding: 0;
 }
 
-.upload-section, .download-section {
+.file-drawer-dark .upload-section,
+.file-drawer-dark .download-section {
   margin-bottom: 24px;
 }
 
-.upload-section h3, .download-section h3 {
+.file-drawer-dark .upload-section h3,
+.file-drawer-dark .download-section h3 {
   font-size: 14px;
   color: #cccccc;
   margin-bottom: 12px;
   font-weight: 600;
 }
 
-.upload-demo {
+.file-drawer-dark .upload-demo {
   margin-bottom: 12px;
 }
 
-.upload-demo :deep(.el-upload-dragger) {
+.file-drawer-dark .upload-demo .el-upload-dragger {
   background: #1e1e1e;
   border: 1px dashed #4e4e4e;
   border-radius: 4px;
@@ -1646,45 +1801,45 @@ onBeforeUnmount(() => {
   transition: border-color 0.2s;
 }
 
-.upload-demo :deep(.el-upload-dragger:hover) {
+.file-drawer-dark .upload-demo .el-upload-dragger:hover {
   border-color: #4ec9b0;
 }
 
-.upload-demo :deep(.el-upload-dragger.is-dragover) {
+.file-drawer-dark .upload-demo .el-upload-dragger.is-dragover {
   border-color: #4ec9b0;
   background: rgba(78, 201, 176, 0.05);
 }
 
-.upload-demo :deep(.el-icon--upload) {
+.file-drawer-dark .upload-demo .el-icon--upload {
   color: #858585;
   font-size: 32px;
   margin-bottom: 8px;
 }
 
-.upload-demo :deep(.el-upload__text) {
+.file-drawer-dark .upload-demo .el-upload__text {
   color: #858585;
   font-size: 13px;
 }
 
-.upload-demo :deep(.el-upload__text em) {
+.file-drawer-dark .upload-demo .el-upload__text em {
   color: #4ec9b0;
 }
 
-.upload-demo :deep(.el-upload__tip) {
+.file-drawer-dark .upload-demo .el-upload__tip {
   color: #606060;
   font-size: 11px;
   margin-top: 4px;
   text-align: center;
 }
 
-.file-preview {
+.file-drawer-dark .file-preview {
   background: #1e1e1e;
   padding: 12px;
   border-radius: 4px;
   border: 1px solid #3c3c3c;
 }
 
-.file-info {
+.file-drawer-dark .file-info {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -1693,49 +1848,49 @@ onBeforeUnmount(() => {
   margin-bottom: 10px;
 }
 
-.file-info .el-icon {
+.file-drawer-dark .file-info .el-icon {
   color: #4ec9b0;
   flex-shrink: 0;
 }
 
-.file-name {
+.file-drawer-dark .file-name {
   flex: 1;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.file-size {
+.file-drawer-dark .file-size {
   color: #858585;
   font-size: 12px;
   flex-shrink: 0;
 }
 
-.progress-area {
+.file-drawer-dark .progress-area {
   margin-bottom: 0;
 }
 
-.progress-area :deep(.el-progress-bar__outer) {
+.file-drawer-dark .progress-area .el-progress-bar__outer {
   background: #3c3c3c;
 }
 
-.progress-area :deep(.el-progress-bar__inner) {
+.file-drawer-dark .progress-area .el-progress-bar__inner {
   background: #4ec9b0;
 }
 
-.progress-area :deep(.el-progress__text) {
+.file-drawer-dark .progress-area .el-progress__text {
   color: #cccccc;
   font-size: 12px;
 }
 
-.upload-speed {
+.file-drawer-dark .upload-speed {
   font-size: 11px;
   color: #858585;
   text-align: right;
   margin-top: 4px;
 }
 
-.hint-text {
+.file-drawer-dark .hint-text {
   font-size: 13px;
   color: #b0b0b0;
   line-height: 1.6;
@@ -1745,8 +1900,69 @@ onBeforeUnmount(() => {
   border-left: 3px solid #4ec9b0;
 }
 
-.hint-text b {
+.file-drawer-dark .hint-text b {
   color: #4ec9b0;
 }
 
+/* 虚拟键盘样式 */
+.file-drawer-dark .virtual-keyboard {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 4px 0;
+}
+
+.file-drawer-dark .kb-row {
+  display: flex;
+  gap: 3px;
+  justify-content: center;
+}
+
+.file-drawer-dark .kb-key {
+  min-width: 36px;
+  height: 34px;
+  padding: 0 6px;
+  border: 1px solid #4e4e4e;
+  border-radius: 4px;
+  background: #333333;
+  color: #cccccc;
+  font-size: 11px;
+  font-family: 'Segoe UI', sans-serif;
+  cursor: pointer;
+  transition: all 0.1s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  user-select: none;
+  white-space: nowrap;
+}
+
+.file-drawer-dark .kb-key:hover {
+  background: #4e4e4e;
+  border-color: #6e6e6e;
+}
+
+.file-drawer-dark .kb-key:active {
+  background: #4ec9b0;
+  border-color: #4ec9b0;
+  color: #1e1e1e;
+  transform: scale(0.95);
+}
+
+.file-drawer-dark .kb-fn {
+  min-width: 32px;
+  font-size: 10px;
+  height: 28px;
+  background: #2a2a2a;
+}
+
+.file-drawer-dark .kb-wide {
+  min-width: 56px;
+  flex-shrink: 0;
+}
+
+.file-drawer-dark .kb-space {
+  flex: 1;
+  max-width: 280px;
+}
 </style>

@@ -118,7 +118,7 @@ export const PERMISSION_OPTIONS = [
   { label: '查看', value: PERMISSION.VIEW, description: '查看主机详情' },
   { label: '编辑', value: PERMISSION.EDIT, description: '创建、修改主机配置' },
   { label: '删除', value: PERMISSION.DELETE, description: '删除单个或批量删除主机' },
-  { label: '连接终端', value: PERMISSION.TERMINAL, description: 'SSH连接到主机' },
+  { label: '连接终端', value: PERMISSION.TERMINAL, description: 'SSH / RDP 远程连接主机' },
   { label: '文件管理', value: PERMISSION.FILE, description: '文件上传、下载、删除' },
   { label: '采集信息', value: PERMISSION.COLLECT, description: '采集主机系统信息' },
 ]

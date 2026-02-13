@@ -32,6 +32,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 	"unicode/utf8"
 
 	"github.com/gin-gonic/gin"
@@ -451,8 +452,49 @@ func (s *HTTPServer) HandleRDPConnection(c *gin.Context, host *assetbiz.HostInfo
 	appLogger.Info("RDP connection established, starting proxy",
 		zap.String("host", host.IP))
 
+	// Record RDP session start time for audit
+	sessionStart := time.Now()
+
+	// Extract user info from context for audit
+	var uid uint
+	var uname string
+	if userID, exists := c.Get("user_id"); exists {
+		if id, ok := userID.(uint); ok {
+			uid = id
+		} else if id, ok := userID.(float64); ok {
+			uid = uint(id)
+		}
+	}
+	if username, exists := c.Get("username"); exists {
+		if name, ok := username.(string); ok {
+			uname = name
+		}
+	}
+
 	// Start bidirectional proxying between WebSocket and guacd
 	proxy.Proxy()
+
+	// RDP session ended - save audit record
+	duration := int(time.Since(sessionStart).Seconds())
+	rdpSession := &assetbiz.TerminalSession{
+		SessionType: "rdp",
+		HostID:      host.ID,
+		HostName:    host.Name,
+		HostIP:      host.IP,
+		UserID:      uid,
+		Username:    uname,
+		Duration:    duration,
+		Status:      "completed",
+	}
+	if err := s.terminalManager.db.Create(rdpSession).Error; err != nil {
+		appLogger.Error("Failed to save RDP session audit record", zap.Error(err))
+	} else {
+		appLogger.Info("RDP session audit record saved",
+			zap.Uint("sessionID", rdpSession.ID),
+			zap.String("host", host.IP),
+			zap.String("user", uname),
+			zap.Int("duration", duration))
+	}
 
 	appLogger.Info("RDP connection closed", zap.String("host", host.IP))
 }

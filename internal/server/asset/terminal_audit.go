@@ -98,21 +98,32 @@ func (h *TerminalAuditHandler) ListTerminalSessions(c *gin.Context) {
 	// 转换为VO
 	list := make([]*assetbiz.TerminalSessionInfo, 0, len(sessions))
 	for _, session := range sessions {
+		sessionType := session.SessionType
+		if sessionType == "" {
+			sessionType = "ssh" // 兼容旧数据
+		}
+		sessionTypeText := "SSH"
+		if sessionType == "rdp" {
+			sessionTypeText = "RDP"
+		}
+
 		info := &assetbiz.TerminalSessionInfo{
-			ID:            session.ID,
-			HostID:        session.HostID,
-			HostName:      session.HostName,
-			HostIP:        session.HostIP,
-			UserID:        session.UserID,
-			Username:      session.Username,
-			Duration:      session.Duration,
-			DurationText:  formatDuration(session.Duration),
-			FileSize:      session.FileSize,
-			FileSizeText:  formatFileSize(session.FileSize),
-			Status:        session.Status,
-			StatusText:    getStatusText(session.Status),
-			CreatedAt:     session.CreatedAt,
-			CreatedAtText: session.CreatedAt.Format("2006-01-02 15:04:05"),
+			ID:              session.ID,
+			SessionType:     sessionType,
+			SessionTypeText: sessionTypeText,
+			HostID:          session.HostID,
+			HostName:        session.HostName,
+			HostIP:          session.HostIP,
+			UserID:          session.UserID,
+			Username:        session.Username,
+			Duration:        session.Duration,
+			DurationText:    formatDuration(session.Duration),
+			FileSize:        session.FileSize,
+			FileSizeText:    formatFileSize(session.FileSize),
+			Status:          session.Status,
+			StatusText:      getStatusText(session.Status),
+			CreatedAt:       session.CreatedAt,
+			CreatedAtText:   session.CreatedAt.Format("2006-01-02 15:04:05"),
 		}
 		list = append(list, info)
 	}
@@ -150,6 +161,12 @@ func (h *TerminalAuditHandler) PlayTerminalSession(c *gin.Context) {
 		} else {
 			response.ErrorCode(c, http.StatusInternalServerError, "查询失败")
 		}
+		return
+	}
+
+	// RDP会话没有录制文件
+	if session.SessionType == "rdp" || session.RecordingPath == "" {
+		response.ErrorCode(c, http.StatusBadRequest, "RDP会话暂不支持回放")
 		return
 	}
 

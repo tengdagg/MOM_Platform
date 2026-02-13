@@ -34,6 +34,9 @@ import (
 
 	"github.com/aliyun/alibaba-cloud-sdk-go/sdk/requests"
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/ecs"
+	awsconfig "github.com/aws/aws-sdk-go-v2/config"
+	awscredentials "github.com/aws/aws-sdk-go-v2/credentials"
+	awsec2 "github.com/aws/aws-sdk-go-v2/service/ec2"
 	"github.com/tencentcloud/tencentcloud-sdk-go/tencentcloud/common"
 	"github.com/tencentcloud/tencentcloud-sdk-go/tencentcloud/common/profile"
 	v20170312 "github.com/tencentcloud/tencentcloud-sdk-go/tencentcloud/cvm/v20170312"
@@ -204,6 +207,12 @@ func (uc *HostUseCase) toInfoVO(host *Host) *HostInfoVO {
 			cloudProviderText = "AWS"
 		case "huawei":
 			cloudProviderText = "华为云"
+		case "jdcloud":
+			cloudProviderText = "京东云"
+		case "baidu":
+			cloudProviderText = "百度云"
+		case "ksyun":
+			cloudProviderText = "金山云"
 		default:
 			cloudProviderText = host.CloudProvider
 		}
@@ -738,6 +747,12 @@ func (uc *CloudAccountUseCase) GetRegions(ctx context.Context, accountID uint) (
 		regions, err = uc.listTencentRegions(account)
 	case "jdcloud":
 		regions, err = uc.listJDCloudRegions(account)
+	case "aws":
+		regions, err = uc.listAWSRegions()
+	case "baidu":
+		regions, err = uc.listBaiduRegions()
+	case "ksyun":
+		regions, err = uc.listKsyunRegions()
 	default:
 		return nil, fmt.Errorf("暂不支持该云平台")
 	}
@@ -773,6 +788,12 @@ func (uc *CloudAccountUseCase) GetInstances(ctx context.Context, accountID uint,
 		instances, err = uc.listAliyunInstances(account, region)
 	case "tencent":
 		instances, err = uc.listTencentInstances(account, region)
+	case "aws":
+		instances, err = uc.listAWSInstances(account, region)
+	case "baidu":
+		return nil, fmt.Errorf("百度云实例列表功能正在开发中")
+	case "ksyun":
+		return nil, fmt.Errorf("金山云实例列表功能正在开发中")
 	default:
 		return nil, fmt.Errorf("暂不支持该云平台")
 	}
@@ -807,6 +828,12 @@ func (uc *CloudAccountUseCase) toVO(account *CloudAccount) *CloudAccountVO {
 		providerText = "AWS"
 	case "huawei":
 		providerText = "华为云"
+	case "jdcloud":
+		providerText = "京东云"
+	case "baidu":
+		providerText = "百度云"
+	case "ksyun":
+		providerText = "金山云"
 	}
 
 	return &CloudAccountVO{
@@ -837,6 +864,12 @@ func (uc *CloudAccountUseCase) ImportFromCloud(ctx context.Context, req *CloudIm
 		instances, err = uc.listAliyunInstances(account, req.Region)
 	case "tencent":
 		instances, err = uc.listTencentInstances(account, req.Region)
+	case "aws":
+		instances, err = uc.listAWSInstances(account, req.Region)
+	case "baidu":
+		return fmt.Errorf("百度云导入功能正在开发中")
+	case "ksyun":
+		return fmt.Errorf("金山云导入功能正在开发中")
 	default:
 		return fmt.Errorf("暂不支持该云平台")
 	}
@@ -1043,6 +1076,111 @@ func (uc *CloudAccountUseCase) listJDCloudRegions(account *CloudAccount) ([]Clou
 		{Value: "cn-southwest-1", Label: "西南-成都"},
 		{Value: "ap-southeast-1", Label: "中国香港"},
 	}, nil
+}
+
+// listAWSRegions 获取AWS区域列表
+func (uc *CloudAccountUseCase) listAWSRegions() ([]CloudRegion, error) {
+	return []CloudRegion{
+		{Value: "us-east-1", Label: "美国东部 (弗吉尼亚)"},
+		{Value: "us-east-2", Label: "美国东部 (俄亥俄)"},
+		{Value: "us-west-1", Label: "美国西部 (加利福尼亚)"},
+		{Value: "us-west-2", Label: "美国西部 (俄勒冈)"},
+		{Value: "ap-east-1", Label: "亚太地区 (香港)"},
+		{Value: "ap-south-1", Label: "亚太地区 (孟买)"},
+		{Value: "ap-northeast-1", Label: "亚太地区 (东京)"},
+		{Value: "ap-northeast-2", Label: "亚太地区 (首尔)"},
+		{Value: "ap-northeast-3", Label: "亚太地区 (大阪)"},
+		{Value: "ap-southeast-1", Label: "亚太地区 (新加坡)"},
+		{Value: "ap-southeast-2", Label: "亚太地区 (悉尼)"},
+		{Value: "ca-central-1", Label: "加拿大 (中部)"},
+		{Value: "eu-central-1", Label: "欧洲 (法兰克福)"},
+		{Value: "eu-west-1", Label: "欧洲 (爱尔兰)"},
+		{Value: "eu-west-2", Label: "欧洲 (伦敦)"},
+		{Value: "eu-west-3", Label: "欧洲 (巴黎)"},
+		{Value: "eu-north-1", Label: "欧洲 (斯德哥尔摩)"},
+		{Value: "sa-east-1", Label: "南美洲 (圣保罗)"},
+		{Value: "me-south-1", Label: "中东 (巴林)"},
+		{Value: "af-south-1", Label: "非洲 (开普敦)"},
+		{Value: "cn-north-1", Label: "中国 (北京)"},
+		{Value: "cn-northwest-1", Label: "中国 (宁夏)"},
+	}, nil
+}
+
+// listAWSInstances 获取AWS EC2实例列表
+func (uc *CloudAccountUseCase) listAWSInstances(account *CloudAccount, region string) ([]CloudInstance, error) {
+	ctx := context.Background()
+
+	cfg, err := awsconfig.LoadDefaultConfig(ctx,
+		awsconfig.WithRegion(region),
+		awsconfig.WithCredentialsProvider(
+			awscredentials.NewStaticCredentialsProvider(account.AccessKey, account.SecretKey, ""),
+		),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("创建AWS客户端配置失败: %w", err)
+	}
+
+	client := awsec2.NewFromConfig(cfg)
+
+	var allInstances []CloudInstance
+	var nextToken *string
+
+	for {
+		input := &awsec2.DescribeInstancesInput{
+			NextToken: nextToken,
+		}
+
+		output, err := client.DescribeInstances(ctx, input)
+		if err != nil {
+			return nil, fmt.Errorf("获取AWS EC2实例失败: %w", err)
+		}
+
+		for _, reservation := range output.Reservations {
+			for _, instance := range reservation.Instances {
+				var publicIP, privateIP, name, os string
+
+				if instance.PublicIpAddress != nil {
+					publicIP = *instance.PublicIpAddress
+				}
+				if instance.PrivateIpAddress != nil {
+					privateIP = *instance.PrivateIpAddress
+				}
+				// 从标签中获取名称
+				for _, tag := range instance.Tags {
+					if tag.Key != nil && *tag.Key == "Name" && tag.Value != nil {
+						name = *tag.Value
+						break
+					}
+				}
+				if instance.PlatformDetails != nil {
+					os = *instance.PlatformDetails
+				}
+
+				status := string(instance.State.Name)
+
+				instanceID := ""
+				if instance.InstanceId != nil {
+					instanceID = *instance.InstanceId
+				}
+
+				allInstances = append(allInstances, CloudInstance{
+					InstanceID: instanceID,
+					Name:       name,
+					PublicIP:   publicIP,
+					PrivateIP:  privateIP,
+					OS:         os,
+					Status:     status,
+				})
+			}
+		}
+
+		if output.NextToken == nil {
+			break
+		}
+		nextToken = output.NextToken
+	}
+
+	return allInstances, nil
 }
 
 // listAliyunInstances 获取阿里云实例列表
@@ -1704,4 +1842,29 @@ func (uc *HostUseCase) DeleteFile(ctx context.Context, hostID uint, remotePath s
 	}
 
 	return nil
+}
+
+// listBaiduRegions 获取百度云区域列表
+func (uc *CloudAccountUseCase) listBaiduRegions() ([]CloudRegion, error) {
+	return []CloudRegion{
+		{Value: "bj", Label: "华北-北京"},
+		{Value: "gz", Label: "华南-广州"},
+		{Value: "su", Label: "华东-苏州"},
+		{Value: "hkg", Label: "中国香港"},
+		{Value: "bd", Label: "华北-保定"},
+		{Value: "fwh", Label: "中南-武汉"},
+		{Value: "fsh", Label: "华东-上海"},
+		{Value: "sin", Label: "新加坡"},
+	}, nil
+}
+
+// listKsyunRegions 获取金山云区域列表
+func (uc *CloudAccountUseCase) listKsyunRegions() ([]CloudRegion, error) {
+	return []CloudRegion{
+		{Value: "cn-beijing-6", Label: "华北1 (北京)"},
+		{Value: "cn-shanghai-2", Label: "华东1 (上海)"},
+		{Value: "cn-guangzhou-1", Label: "华南1 (广州)"},
+		{Value: "cn-hongkong-2", Label: "中国香港"},
+		{Value: "eu-east-1", Label: "俄罗斯 (莫斯科)"},
+	}, nil
 }

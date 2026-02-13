@@ -42,7 +42,10 @@
           <el-option label="全部" value="" />
           <el-option label="阿里云" value="aliyun" />
           <el-option label="腾讯云" value="tencent" />
+          <el-option label="AWS" value="aws" />
           <el-option label="京东云" value="jdcloud" />
+          <el-option label="百度云" value="baidu" />
+          <el-option label="金山云" value="ksyun" />
         </el-select>
 
         <el-select
@@ -137,11 +140,16 @@
               <div
                 v-for="provider in providers"
                 :key="provider.value"
-                :class="['provider-option', { active: form.provider === provider.value }]"
+                :class="['provider-chip', `provider-chip--${provider.value}`, { active: form.provider === provider.value }]"
                 @click="form.provider = provider.value"
               >
-                <span class="provider-short">{{ provider.short }}</span>
-                <span class="provider-name">{{ provider.label }}</span>
+                <svg v-if="provider.value === 'aliyun'" class="provider-svg" viewBox="0 0 24 24"><path d="M3.996 6.34C1.794 7.846.552 10.394.552 12.001c0 1.606 1.242 4.154 3.444 5.66h3.09l-.876-1.822c-1.542-1.002-2.598-2.592-2.598-3.838s1.056-2.836 2.598-3.838l.876-1.822h-3.09zm16.008 0h-3.09l.876 1.822c1.542 1.002 2.598 2.592 2.598 3.838s-1.056 2.836-2.598 3.838l-.876 1.822h3.09c2.202-1.506 3.444-4.054 3.444-5.66 0-1.607-1.242-4.155-3.444-5.66zm-5.466 2.188H9.462L8.442 12l1.02 3.472h5.076L15.558 12l-1.02-3.472z" fill="currentColor"/></svg>
+                <svg v-else-if="provider.value === 'tencent'" class="provider-svg" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z" fill="currentColor"/></svg>
+                <svg v-else-if="provider.value === 'aws'" class="provider-svg" viewBox="0 0 24 24"><path d="M7.164 11.61c0 .343.036.621.1.822.072.2.164.422.286.658a.39.39 0 01.064.207c0 .093-.057.186-.179.279l-.593.393a.442.442 0 01-.243.086c-.093 0-.186-.043-.279-.122a2.879 2.879 0 01-.336-.436 7.23 7.23 0 01-.286-.55c-.721.85-1.629 1.279-2.721 1.279-.779 0-1.4-.222-1.857-.665-.457-.443-.69-1.036-.69-1.779 0-.786.279-1.422.843-1.9.564-.479 1.314-.714 2.264-.714.314 0 .636.022.972.064.336.043.679.107 1.036.186v-.672c0-.707-.15-1.2-.443-1.486-.3-.286-.807-.422-1.529-.422-.329 0-.664.036-1.007.114a7.41 7.41 0 00-1.007.307 2.68 2.68 0 01-.329.114.574.574 0 01-.15.029c-.129 0-.193-.093-.193-.286V6.33c0-.15.021-.257.071-.322a.758.758 0 01.279-.157c.329-.164.721-.3 1.179-.407A5.7 5.7 0 014.85 5.3c1.079 0 1.864.243 2.364.729.493.486.743 1.222.743 2.214v2.914l-.793.454zm-3.757 1.4c.3 0 .614-.057.95-.164.336-.107.636-.307.886-.586a1.42 1.42 0 00.307-.557c.057-.214.1-.471.1-.771v-.372a7.38 7.38 0 00-.829-.143 6.74 6.74 0 00-.843-.057c-.621 0-1.079.121-1.386.372-.307.25-.45.6-.45 1.057 0 .422.107.736.329.95.214.221.529.329.936.329v.007-.065zm7.436 1.007c-.171 0-.286-.029-.357-.093-.071-.057-.136-.186-.186-.364l-2.079-6.843a1.661 1.661 0 01-.079-.379c0-.15.079-.236.236-.236h.921c.179 0 .3.029.364.093.071.057.129.186.179.364l1.486 5.857 1.379-5.857c.043-.186.1-.307.171-.364a.618.618 0 01.372-.093h.75c.179 0 .3.029.372.093.071.057.136.186.171.364l1.393 5.929 1.529-5.929c.05-.186.114-.307.179-.364a.588.588 0 01.364-.093h.871c.157 0 .243.079.243.236 0 .043-.007.093-.021.15a1.335 1.335 0 01-.064.236l-2.136 6.843c-.05.186-.114.307-.186.364-.071.057-.2.093-.35.093h-.807c-.179 0-.3-.029-.372-.093-.071-.064-.136-.186-.171-.372l-1.371-5.707-1.364 5.7c-.043.186-.1.307-.171.372-.071.064-.2.093-.379.093h-.807l.003-.005zM21.9 14.12c-.486 0-.971-.057-1.443-.171-.471-.114-.843-.236-1.1-.371-.157-.086-.264-.179-.307-.264a.666.666 0 01-.064-.279v-.457c0-.193.071-.286.207-.286a.517.517 0 01.164.029c.057.021.143.057.236.093a5.15 5.15 0 001.043.329c.379.071.743.107 1.114.107.593 0 1.05-.1 1.364-.307.314-.207.479-.507.479-.886 0-.264-.086-.479-.257-.657-.171-.179-.493-.336-.957-.486l-1.371-.429c-.693-.214-1.207-.536-1.529-.964-.321-.422-.486-.893-.486-1.4 0-.407.086-.764.264-1.079.179-.314.414-.586.707-.807.293-.229.629-.393 1.014-.514A4.354 4.354 0 0121.1 5.3c.243 0 .493.014.75.05.25.036.486.079.707.136.207.064.407.129.593.2.186.079.329.157.429.236.143.093.243.186.293.286.05.093.079.214.079.364v.422c0 .193-.071.293-.207.293-.071 0-.186-.036-.336-.107a4.574 4.574 0 00-1.929-.386c-.536 0-.964.079-1.264.25-.3.171-.45.429-.45.793 0 .264.093.486.279.664.186.179.529.357 1.021.514l1.343.429c.686.214 1.186.514 1.493.9.307.386.457.829.457 1.321 0 .414-.086.793-.257 1.121a2.62 2.62 0 01-.714.836 3.179 3.179 0 01-1.079.529 4.453 4.453 0 01-1.379.2z" fill="currentColor"/></svg>
+                <svg v-else-if="provider.value === 'jdcloud'" class="provider-svg" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 15H8V7h3v10zm6 0h-3V9h3v8z" fill="currentColor"/></svg>
+                <svg v-else-if="provider.value === 'baidu'" class="provider-svg" viewBox="0 0 24 24"><path d="M5.927 12.497c2.063-.443 1.782-2.909 1.72-3.308-.082-.53-.453-1.967-1.908-1.835-1.752.158-1.678 2.396-1.678 2.396-.063 1.076.92 2.955 1.866 2.747zm2.182 4.786c-.083.32-.048.687.245.958.49.453 1.396.296 1.396.296h1.21v-2.21H9.28c-.652.012-1.108.544-1.172.956zm2.184-8.397c1.218 0 2.205-1.17 2.205-2.613C12.498 4.898 11.51 3 10.293 3 9.074 3 8.087 4.898 8.087 6.273c0 1.444.988 2.613 2.206 2.613zm5.003-2.2c1.455.132 1.826-1.305 1.907-1.834.062-.399.344-2.866-1.72-3.309-.946-.208-1.928 1.672-1.865 2.748 0 0-.075 2.238 1.678 2.396zm3.392 5.399c-1.497-1.38-2.97-.498-2.97-.498l-1.675.93c-.576.317-1.236.445-1.9.366-1.002-.122-1.94-.682-1.94-.682-1.47-.825-2.506-.054-2.506-.054-.51.327-.878.816-1.027 1.394-.37 1.444.534 2.962.534 2.962.384.655.863 1.239 1.426 1.733 1.07.951 2.315 1.12 2.315 1.12 1.51.331 2.413-.085 2.413-.085 1.092-.5 1.504-1.09 1.504-1.09 1.553-1.795.558-3.568.558-3.568.392-.63 1.27-.395 1.27-.395.803.256 1.158.13 1.158.13.633-.246.84-1.163.84-1.163.09-.714-.007-1.1-.007-1.1zm-5.065-2.252c.644-.24 1.477.453 1.477.453 1.09.78 1.884.55 1.884.55 1.283-.168 1.272-1.81 1.272-1.81.017-1.166-.583-1.72-.583-1.72-.838-.844-1.52-.387-1.52-.387-.68.37-1.38-.064-1.38-.064-1.58-.94-2.574.146-2.574.146-1.22 1.4.218 2.21.218 2.21.384.495.72.63 1.205.622h.501z" fill="currentColor"/></svg>
+                <svg v-else-if="provider.value === 'ksyun'" class="provider-svg" viewBox="0 0 24 24"><path d="M12 2L2 7v10l10 5 10-5V7L12 2zm0 2.18l7.12 3.56L12 11.31 4.88 7.74 12 4.18zM4 8.96l7 3.5v6.58l-7-3.5V8.96zm9 10.08V12.46l7-3.5v6.58l-7 3.5z" fill="currentColor"/></svg>
+                <span class="provider-chip-label">{{ provider.label }}</span>
               </div>
             </div>
           </el-form-item>
@@ -374,7 +382,10 @@ const formRef = ref()
 const providers = [
   { value: 'aliyun', label: '阿里云', short: '阿里' },
   { value: 'tencent', label: '腾讯云', short: '腾讯' },
-  { value: 'jdcloud', label: '京东云', short: '京东' }
+  { value: 'aws', label: 'AWS', short: 'AWS' },
+  { value: 'jdcloud', label: '京东云', short: '京东' },
+  { value: 'baidu', label: '百度云', short: '百度' },
+  { value: 'ksyun', label: '金山云', short: '金山' }
 ]
 
 // 当前厂商的区域列表（新增/编辑对话框用）
@@ -436,7 +447,10 @@ const getProviderType = (provider: string) => {
   const typeMap: Record<string, string> = {
     aliyun: 'warning',
     tencent: 'info',
-    jdcloud: 'danger'
+    jdcloud: 'danger',
+    aws: '',
+    baidu: 'success',
+    ksyun: 'info'
   }
   return typeMap[provider] || ''
 }
@@ -687,6 +701,36 @@ const getLocalRegions = (provider: string): any[] => {
       { value: 'ap-beijing', label: '华北地区 (北京)' },
       { value: 'ap-chengdu', label: '西南地区 (成都)' },
       { value: 'ap-chongqing', label: '西南地区 (重庆)' }
+    ],
+    aws: [
+      { value: 'us-east-1', label: '美国东部 (弗吉尼亚)' },
+      { value: 'us-west-2', label: '美国西部 (俄勒冈)' },
+      { value: 'ap-southeast-1', label: '亚太 (新加坡)' },
+      { value: 'ap-northeast-1', label: '亚太 (东京)' },
+      { value: 'eu-west-1', label: '欧洲 (爱尔兰)' },
+      { value: 'ap-east-1', label: '亚太 (香港)' },
+      { value: 'cn-north-1', label: '中国 (北京)' },
+      { value: 'cn-northwest-1', label: '中国 (宁夏)' }
+    ],
+    jdcloud: [
+      { value: 'cn-north-1', label: '华北-北京' },
+      { value: 'cn-south-1', label: '华南-广州' },
+      { value: 'cn-east-1', label: '华东-宿迁' },
+      { value: 'cn-east-2', label: '华东-上海' }
+    ],
+    baidu: [
+      { value: 'bj', label: '华北-北京' },
+      { value: 'gz', label: '华南-广州' },
+      { value: 'su', label: '华东-苏州' },
+      { value: 'hkg', label: '中国香港' },
+      { value: 'bd', label: '华北-保定' },
+      { value: 'fwh', label: '中南-武汉' }
+    ],
+    ksyun: [
+      { value: 'cn-beijing-6', label: '华北1 (北京)' },
+      { value: 'cn-shanghai-2', label: '华东1 (上海)' },
+      { value: 'cn-guangzhou-1', label: '华南1 (广州)' },
+      { value: 'cn-hongkong-2', label: '中国香港' }
     ]
   }
   return localMap[provider] || []
@@ -954,67 +998,68 @@ onMounted(() => {
   padding: 0;
 }
 
-/* 云厂商选择器 - 内联样式 */
+/* 云厂商选择器 - 紧凑芯片样式 */
 .provider-options-inline {
   display: flex;
-  gap: 12px;
+  gap: 8px;
   flex-wrap: wrap;
 }
 
-.provider-option {
-  display: flex;
+.provider-chip {
+  display: inline-flex;
   align-items: center;
-  gap: 8px;
-  padding: 10px 16px;
-  border: 2px solid #e4e7ed;
-  border-radius: 0;
+  gap: 5px;
+  padding: 6px 12px;
+  border: 1.5px solid #dcdfe6;
+  border-radius: 4px;
   cursor: pointer;
-  transition: all 0.3s ease;
+  transition: all 0.25s ease;
   background: #fafbfc;
-  min-width: 100px;
-  justify-content: center;
+  user-select: none;
+  font-size: 0;
 }
 
-.provider-option:hover {
-  border-color: #ffffff;
-  background: #fffaf0;
+.provider-chip:hover {
+  border-color: #b0b4bb;
+  background: #f5f7fa;
 }
 
-.provider-option.active {
-  border-color: #ffffff;
-  background: linear-gradient(135deg, #fffaf0 0%, #fef5e7 100%);
+.provider-chip.active {
+  border-color: var(--chip-color, #409eff);
+  background: var(--chip-bg, #ecf5ff);
 }
 
-.provider-short {
-  padding: 4px 10px;
-  border-radius: 0;
-  font-size: 12px;
-  font-weight: 700;
-  color: #fff;
+.provider-svg {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  color: #909399;
+  transition: color 0.25s ease;
 }
 
-.provider-option:nth-child(1) .provider-short {
-  background: linear-gradient(135deg, #ff6a00 0%, #ff9500 100%);
+.provider-chip.active .provider-svg {
+  color: var(--chip-color, #409eff);
 }
 
-.provider-option:nth-child(2) .provider-short {
-  background: linear-gradient(135deg, #00a4ff 0%, #00c6ff 100%);
-}
-
-.provider-option:nth-child(3) .provider-short {
-  background: linear-gradient(135deg, #e1251b 0%, #f363d6 100%);
-}
-
-.provider-name {
-  font-size: 14px;
+.provider-chip-label {
+  font-size: 13px;
   color: #606266;
   font-weight: 500;
+  line-height: 1;
 }
 
-.provider-option.active .provider-name {
-  color: #ffffff;
+.provider-chip.active .provider-chip-label {
+  color: var(--chip-color, #409eff);
   font-weight: 600;
 }
+
+/* 各厂商颜色 */
+.provider-chip--aliyun { --chip-color: #ff6a00; --chip-bg: #fff7f0; }
+.provider-chip--tencent { --chip-color: #00a4ff; --chip-bg: #f0f9ff; }
+.provider-chip--aws { --chip-color: #ff9900; --chip-bg: #fffaf0; }
+.provider-chip--jdcloud { --chip-color: #e1251b; --chip-bg: #fff0f0; }
+.provider-chip--baidu { --chip-color: #306cff; --chip-bg: #f0f4ff; }
+.provider-chip--ksyun { --chip-color: #1ba784; --chip-bg: #f0faf6; }
 
 /* 表单样式 */
 .account-form :deep(.el-form-item) {

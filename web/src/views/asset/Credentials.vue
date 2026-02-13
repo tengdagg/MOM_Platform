@@ -8,7 +8,7 @@
         </div>
         <div>
           <h2 class="page-title">凭证管理</h2>
-          <p class="page-subtitle">管理SSH认证凭证，支持密码和密钥两种认证方式</p>
+          <p class="page-subtitle">管理认证凭证，支持密码和密钥两种认证方式</p>
         </div>
       </div>
       <div class="header-actions">
@@ -182,12 +182,32 @@
         </el-form-item>
 
         <el-form-item v-if="form.type === 'key'" label="私钥" prop="privateKey">
-          <el-input
-            v-model="form.privateKey"
-            type="textarea"
-            :rows="8"
-            :placeholder="isEdit ? '如需修改私钥请在此填写，留空则保持不变' : '请粘贴PEM格式的私钥内容'"
-          />
+          <div
+            class="private-key-drop-zone"
+            :class="{ 'drag-over': isDragOver }"
+            @dragover.prevent="isDragOver = true"
+            @dragleave.prevent="isDragOver = false"
+            @drop.prevent="handleKeyFileDrop"
+          >
+            <el-input
+              v-model="form.privateKey"
+              type="textarea"
+              :rows="8"
+              :placeholder="isEdit ? '如需修改私钥请在此填写，留空则保持不变' : '请粘贴PEM格式的私钥内容，或拖拽/选择私钥文件'"
+            />
+            <div class="key-file-actions">
+              <label class="key-file-btn">
+                <el-icon><Upload /></el-icon>
+                <span>选择文件</span>
+                <input type="file" accept=".pem,.key,.pub,.ppk,.txt,*" @change="handleKeyFileSelect" style="display:none" />
+              </label>
+              <span class="key-file-hint">支持拖拽文件到输入框或点击选择文件</span>
+            </div>
+            <div v-if="isDragOver" class="drag-overlay">
+              <el-icon :size="32"><Upload /></el-icon>
+              <span>释放文件以读取私钥内容</span>
+            </div>
+          </div>
         </el-form-item>
 
         <el-form-item v-if="form.type === 'key'" label="私钥密码">
@@ -219,7 +239,8 @@ import {
   Refresh,
   RefreshLeft,
   Lock,
-  Key
+  Key,
+  Upload
 } from '@element-plus/icons-vue'
 import {
   getCredentialList,
@@ -267,6 +288,49 @@ const form = reactive({
   passphrase: '',
   description: ''
 })
+
+// 私钥文件拖拽状态
+const isDragOver = ref(false)
+
+// 处理私钥文件拖拽
+const handleKeyFileDrop = (e: DragEvent) => {
+  isDragOver.value = false
+  const files = e.dataTransfer?.files
+  if (files && files.length > 0) {
+    readKeyFile(files[0])
+  }
+}
+
+// 处理私钥文件选择
+const handleKeyFileSelect = (e: Event) => {
+  const target = e.target as HTMLInputElement
+  const files = target.files
+  if (files && files.length > 0) {
+    readKeyFile(files[0])
+  }
+  // 重置 input 以便再次选择同一文件
+  target.value = ''
+}
+
+// 读取私钥文件内容
+const readKeyFile = (file: File) => {
+  if (file.size > 64 * 1024) {
+    ElMessage.warning('文件过大，私钥文件一般不超过 64KB')
+    return
+  }
+  const reader = new FileReader()
+  reader.onload = (e) => {
+    const content = e.target?.result as string
+    if (content) {
+      form.privateKey = content.trim()
+      ElMessage.success(`已读取私钥文件：${file.name}`)
+    }
+  }
+  reader.onerror = () => {
+    ElMessage.error('读取文件失败')
+  }
+  reader.readAsText(file)
+}
 
 // 表单验证规则
 const rules: FormRules = {
@@ -715,5 +779,82 @@ onMounted(() => {
     max-width: none;
     min-width: auto;
   }
+}
+
+/* 私钥文件拖拽上传区域 */
+.private-key-drop-zone {
+  position: relative;
+  width: 100%;
+  border: 2px dashed transparent;
+  border-radius: 4px;
+  transition: all 0.3s ease;
+}
+
+.private-key-drop-zone.drag-over {
+  border-color: #409eff;
+  background: rgba(64, 158, 255, 0.04);
+}
+
+.private-key-drop-zone :deep(.el-textarea__inner) {
+  font-family: 'Monaco', 'Menlo', 'Consolas', monospace;
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.key-file-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.key-file-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 12px;
+  background: #f5f7fa;
+  border: 1px solid #dcdfe6;
+  border-radius: 3px;
+  font-size: 12px;
+  color: #606266;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  user-select: none;
+}
+
+.key-file-btn:hover {
+  background: #e8f4ff;
+  border-color: #409eff;
+  color: #409eff;
+}
+
+.key-file-btn .el-icon {
+  font-size: 14px;
+}
+
+.key-file-hint {
+  font-size: 12px;
+  color: #909399;
+}
+
+.drag-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(64, 158, 255, 0.08);
+  border: 2px dashed #409eff;
+  border-radius: 4px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  color: #409eff;
+  font-size: 14px;
+  z-index: 10;
+  pointer-events: none;
 }
 </style>

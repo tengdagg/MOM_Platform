@@ -93,7 +93,7 @@
               <el-tag v-if="(row.permissions & 1) > 0" size="small" type="success">查看</el-tag>
               <el-tag v-if="(row.permissions & 2) > 0" size="small" type="primary">编辑</el-tag>
               <el-tag v-if="(row.permissions & 4) > 0" size="small" type="danger">删除</el-tag>
-              <el-tag v-if="(row.permissions & 8) > 0" size="small" type="warning">终端</el-tag>
+              <el-tag v-if="(row.permissions & 8) > 0" size="small" type="warning">终端(SSH/RDP)</el-tag>
               <el-tag v-if="(row.permissions & 16) > 0" size="small" type="info">文件</el-tag>
               <el-tag v-if="(row.permissions & 32) > 0" size="small">采集</el-tag>
             </div>
@@ -219,7 +219,7 @@
             <el-checkbox :value="1">查看 - 查看主机详情</el-checkbox>
             <el-checkbox :value="2">编辑 - 创建、修改主机配置</el-checkbox>
             <el-checkbox :value="4">删除 - 删除主机</el-checkbox>
-            <el-checkbox :value="8">终端 - SSH连接主机</el-checkbox>
+            <el-checkbox :value="8">终端 - SSH/RDP远程连接</el-checkbox>
             <el-checkbox :value="16">文件 - 文件上传、下载、删除</el-checkbox>
             <el-checkbox :value="32">采集 - 采集主机系统信息</el-checkbox>
           </el-checkbox-group>
@@ -309,7 +309,7 @@
             <el-checkbox :value="1">查看 - 查看主机详情</el-checkbox>
             <el-checkbox :value="2">编辑 - 创建、修改主机配置</el-checkbox>
             <el-checkbox :value="4">删除 - 删除主机</el-checkbox>
-            <el-checkbox :value="8">终端 - SSH连接主机</el-checkbox>
+            <el-checkbox :value="8">终端 - SSH/RDP远程连接</el-checkbox>
             <el-checkbox :value="16">文件 - 文件上传、下载、删除</el-checkbox>
             <el-checkbox :value="32">采集 - 采集主机系统信息</el-checkbox>
           </el-checkbox-group>

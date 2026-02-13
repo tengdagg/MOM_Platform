@@ -280,6 +280,7 @@ func (tm *TerminalManager) CloseSession(sessionID string) error {
 
 		// 保存会话记录到数据库
 		terminalSession := &assetbiz.TerminalSession{
+			SessionType:   "ssh",
 			HostID:        session.HostID,
 			HostName:      session.HostName,
 			HostIP:        session.HostIP,

@@ -25,12 +25,13 @@ import (
 	"gorm.io/gorm"
 )
 
-// TerminalSession SSH终端会话模型
+// TerminalSession 终端会话模型（SSH / RDP）
 type TerminalSession struct {
 	ID            uint           `gorm:"primarykey" json:"id"`
 	CreatedAt     time.Time      `json:"createdAt"`
 	UpdatedAt     time.Time      `json:"updatedAt"`
 	DeletedAt     gorm.DeletedAt `gorm:"index" json:"deletedAt,omitempty"`
+	SessionType   string         `gorm:"type:varchar(10);default:'ssh';comment:会话类型 ssh/rdp" json:"sessionType"`
 	HostID        uint           `gorm:"column:host_id;not null;comment:主机ID" json:"hostId"`
 	HostName      string         `gorm:"type:varchar(100);comment:主机名称" json:"hostName"`
 	HostIP        string         `gorm:"type:varchar(50);comment:主机IP" json:"hostIp"`
@@ -49,20 +50,22 @@ func (TerminalSession) TableName() string {
 
 // TerminalSessionInfo 终端会话信息VO
 type TerminalSessionInfo struct {
-	ID            uint      `json:"id"`
-	HostID        uint      `json:"hostId"`
-	HostName      string    `json:"hostName"`
-	HostIP        string    `json:"hostIp"`
-	UserID        uint      `json:"userId"`
-	Username      string    `json:"username"`
-	Duration      int       `json:"duration"`
-	DurationText  string    `json:"durationText"`  // 格式化的时长，如 "1m 30s"
-	FileSize      int64     `json:"fileSize"`
-	FileSizeText  string    `json:"fileSizeText"`  // 格式化的文件大小，如 "1.5 MB"
-	Status        string    `json:"status"`
-	StatusText    string    `json:"statusText"`
-	CreatedAt     time.Time `json:"createdAt"`
-	CreatedAtText string    `json:"createdAtText"` // 格式化的创建时间
+	ID              uint      `json:"id"`
+	SessionType     string    `json:"sessionType"`
+	SessionTypeText string    `json:"sessionTypeText"` // "SSH" / "RDP"
+	HostID          uint      `json:"hostId"`
+	HostName        string    `json:"hostName"`
+	HostIP          string    `json:"hostIp"`
+	UserID          uint      `json:"userId"`
+	Username        string    `json:"username"`
+	Duration        int       `json:"duration"`
+	DurationText    string    `json:"durationText"`  // 格式化的时长，如 "1m 30s"
+	FileSize        int64     `json:"fileSize"`
+	FileSizeText    string    `json:"fileSizeText"`  // 格式化的文件大小，如 "1.5 MB"
+	Status          string    `json:"status"`
+	StatusText      string    `json:"statusText"`
+	CreatedAt       time.Time `json:"createdAt"`
+	CreatedAtText   string    `json:"createdAtText"` // 格式化的创建时间
 }
 
 // TerminalSessionListRequest 终端会话列表请求
