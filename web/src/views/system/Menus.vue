@@ -132,8 +132,8 @@
                   <el-icon><Sort /></el-icon>
                 </el-button>
               </el-tooltip>
-              <el-tooltip v-if="!row.isPlugin" content="编辑" placement="top">
-                <el-button link class="action-btn action-edit" @click="handleEdit(row)">
+              <el-tooltip v-if="!row.isPlugin || isAIPluginMenu(row)" content="编辑" placement="top">
+                <el-button link class="action-btn action-edit" @click="row.isPlugin ? handleEditPluginMenu(row) : handleEdit(row)">
                   <el-icon><Edit /></el-icon>
                 </el-button>
               </el-tooltip>
@@ -169,6 +169,18 @@
           <div style="font-size: 12px; color: #666; margin-top: 5px;">
             菜单名称: {{ menuForm.name }} | 编码: {{ menuForm.code }}
           </div>
+        </template>
+      </el-alert>
+      <el-alert
+        v-if="editingAIPlugin && !editingSortOnly"
+        title="编辑 AI 助手菜单"
+        type="warning"
+        :closable="false"
+        style="margin-bottom: 15px;"
+      >
+        <template #default>
+          <div>AI 助手菜单的名称、编码、路由由插件定义，不可修改</div>
+          <div style="font-size: 12px; color: #666; margin-top: 5px;">可修改：排序、显示状态（显示/隐藏）、启用状态（启用/禁用）</div>
         </template>
       </el-alert>
 
@@ -208,20 +220,20 @@
           <el-input v-model="menuForm.component" placeholder="请输入组件路径" />
         </el-form-item>
         <el-form-item label="图标" prop="icon" v-if="!editingSortOnly">
-          <el-input v-model="menuForm.icon" :disabled="editingPluginMenu" placeholder="请输入图标名称" />
+          <el-input v-model="menuForm.icon" :disabled="editingPluginMenu && !editingAIPlugin" placeholder="请输入图标名称" />
         </el-form-item>
         <el-form-item label="排序" prop="sort">
           <el-input-number v-model="menuForm.sort" :min="0" style="width: 100%;" />
           <div class="form-tip">数值越小越靠前</div>
         </el-form-item>
-        <el-form-item label="显示状态" prop="visible" v-if="!editingPluginMenu && !editingSortOnly">
-          <el-radio-group v-model="menuForm.visible">
+        <el-form-item label="显示状态" prop="visible" v-if="!editingSortOnly">
+          <el-radio-group v-model="menuForm.visible" :disabled="editingPluginMenu && !editingAIPlugin">
             <el-radio :label="1">显示</el-radio>
             <el-radio :label="0">隐藏</el-radio>
           </el-radio-group>
         </el-form-item>
-        <el-form-item label="状态" prop="status" v-if="!editingPluginMenu && !editingSortOnly">
-          <el-radio-group v-model="menuForm.status">
+        <el-form-item label="状态" prop="status" v-if="!editingSortOnly">
+          <el-radio-group v-model="menuForm.status" :disabled="editingPluginMenu && !editingAIPlugin">
             <el-radio :label="1">启用</el-radio>
             <el-radio :label="0">禁用</el-radio>
           </el-radio-group>
@@ -280,6 +292,7 @@ const dialogVisible = ref(false)
 const dialogTitle = ref('')
 const isEdit = ref(false)
 const editingPluginMenu = ref(false)
+const editingAIPlugin = ref(false)
 const editingSortOnly = ref(false)
 const formRef = ref<FormInstance>()
 const tableRef = ref<InstanceType<typeof ElTable>>()
@@ -721,6 +734,7 @@ const findMenuInTree = (tree: any[], menuId: string | number): any => {
 const handleAdd = () => {
   isEdit.value = false
   editingPluginMenu.value = false
+  editingAIPlugin.value = false
   editingSortOnly.value = false
   dialogTitle.value = '新增菜单'
   resetForm()
@@ -730,6 +744,7 @@ const handleAdd = () => {
 const handleEdit = (row: any) => {
   isEdit.value = true
   editingPluginMenu.value = false
+  editingAIPlugin.value = false
   editingSortOnly.value = false
   dialogTitle.value = '编辑菜单'
   menuForm.id = row.ID || row.id
@@ -743,6 +758,40 @@ const handleEdit = (row: any) => {
   menuForm.sort = row.sort
   menuForm.visible = row.visible
   menuForm.status = row.status
+  dialogVisible.value = true
+}
+
+// 判断是否为 AI 助手插件菜单
+// pathToCode("/ai") => "_ai", pathToCode("/ai/chat") => "_ai_chat" 等
+const isAIPluginMenu = (row: any): boolean => {
+  if (!row.isPlugin) return false
+  const code = (row.code || '').toLowerCase()
+  // 数据库和前端生成的 code 都带前缀下划线: _ai, _ai_chat, _ai_skills, _ai_models
+  return code === '_ai' || code === '_ai_chat' || code === '_ai_skills' || code === '_ai_models'
+    || code === 'ai' || code.startsWith('ai_')
+    // 也兼容 pluginName 判断
+    || (row.pluginName || '').toLowerCase() === 'ai'
+}
+
+// 编辑 AI 插件菜单（可修改显示状态、启用/禁用、排序）
+const handleEditPluginMenu = (row: any) => {
+  isEdit.value = true
+  editingPluginMenu.value = true
+  editingAIPlugin.value = true
+  editingSortOnly.value = false
+  dialogTitle.value = '编辑 AI 助手菜单'
+
+  menuForm.id = row.ID || row.id
+  menuForm.name = row.name
+  menuForm.code = row.code
+  menuForm.type = row.type
+  menuForm.parentId = row.parentId === 0 ? 0 : (row.parentId || 0)
+  menuForm.path = row.path
+  menuForm.component = row.component || ''
+  menuForm.icon = row.icon
+  menuForm.sort = row.sort
+  menuForm.visible = row.visible ?? 1
+  menuForm.status = row.status ?? 1
   dialogVisible.value = true
 }
 
@@ -789,8 +838,20 @@ const handleSubmit = async () => {
       submitting.value = true
       try {
         if (isEdit.value) {
-          if (editingPluginMenu.value || editingSortOnly.value) {
-            // 仅更新排序：使用专用的排序接口，避免触发编码唯一性检查
+          if (editingSortOnly.value) {
+            // 仅更新排序
+            await updateMenuSort(menuForm.id, menuForm.sort)
+            ElMessage.success('排序更新成功')
+          } else if (editingAIPlugin.value) {
+            // AI 插件菜单编辑：更新显示状态、启用状态、排序
+            const data = {
+              ...menuForm,
+              parentId: Number(menuForm.parentId) || 0,
+            }
+            await updateMenu(menuForm.id, data)
+            ElMessage.success('更新成功')
+          } else if (editingPluginMenu.value) {
+            // 其他插件菜单：仅排序
             await updateMenuSort(menuForm.id, menuForm.sort)
             ElMessage.success('排序更新成功')
           } else {
@@ -834,6 +895,7 @@ const handleSubmit = async () => {
 
 const resetForm = () => {
   editingPluginMenu.value = false
+  editingAIPlugin.value = false
   editingSortOnly.value = false
   Object.assign(menuForm, {
     id: 0,

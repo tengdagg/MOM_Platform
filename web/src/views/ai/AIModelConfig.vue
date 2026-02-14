@@ -88,15 +88,41 @@
           <el-input v-model="form.name" placeholder="例如: GPT-4o" />
         </el-form-item>
         <el-form-item label="提供商" prop="provider">
-          <el-select v-model="form.provider" placeholder="选择提供商" style="width: 100%">
-            <el-option label="OpenAI 兼容" value="openai" />
-            <el-option label="Ollama (本地)" value="ollama" />
-            <el-option label="自定义" value="custom" />
+          <el-select v-model="form.provider" placeholder="选择提供商" style="width: 100%" @change="onProviderChange">
+            <el-option-group label="国际厂商">
+              <el-option label="OpenAI" value="openai" />
+              <el-option label="Google Gemini" value="gemini" />
+            </el-option-group>
+            <el-option-group label="国内厂商">
+              <el-option label="通义千问 (阿里)" value="qwen" />
+              <el-option label="DeepSeek" value="deepseek" />
+              <el-option label="豆包 (字节)" value="doubao" />
+            </el-option-group>
+            <el-option-group label="本地 / 其他">
+              <el-option label="Ollama (本地)" value="ollama" />
+              <el-option label="OpenAI 兼容" value="openai_compatible" />
+              <el-option label="自定义" value="custom" />
+            </el-option-group>
           </el-select>
         </el-form-item>
         <el-form-item label="模型名称" prop="modelName">
-          <el-input v-model="form.modelName" placeholder="例如: gpt-4o, qwen-plus, llama3">
-            <template #append v-if="form.provider === 'openai'">
+          <el-select
+            v-if="providerModels[form.provider]"
+            v-model="form.modelName"
+            filterable
+            allow-create
+            placeholder="选择或输入模型名称"
+            style="width: 100%"
+          >
+            <el-option
+              v-for="m in providerModels[form.provider]"
+              :key="m.value"
+              :label="m.label"
+              :value="m.value"
+            />
+          </el-select>
+          <el-input v-else v-model="form.modelName" placeholder="输入模型名称">
+            <template #append>
               <el-tooltip content="模型名称需与 API 提供商支持的模型名一致" placement="top">
                 <el-icon><QuestionFilled /></el-icon>
               </el-tooltip>
@@ -174,10 +200,9 @@ onMounted(() => {
 
 async function loadModels() {
   try {
-    const res = await getModelList()
-    if (res.data?.code === 0) {
-      models.value = res.data.data || []
-    }
+    const data = await getModelList()
+    // request.ts 拦截器成功时直接返回 response.data.data
+    models.value = Array.isArray(data) ? data : (data?.list || [])
   } catch (e) {
     ElMessage.error('获取模型列表失败')
   }
@@ -241,14 +266,10 @@ async function submitForm() {
 
 async function testModelConn(model: any) {
   try {
-    const res = await testModel(model.id)
-    if (res.data?.code === 0) {
-      ElMessage.success(res.data.message || '连接成功')
-    } else {
-      ElMessage.error(res.data?.message || '连接失败')
-    }
-  } catch (e) {
-    ElMessage.error('连接测试失败')
+    const data = await testModel(model.id)
+    ElMessage.success(data?.message || '连接成功')
+  } catch (e: any) {
+    ElMessage.error(e?.message || '连接测试失败')
   }
 }
 
@@ -273,10 +294,85 @@ async function handleDelete(model: any) {
   }
 }
 
+// 各提供商的预设模型列表
+const providerModels: Record<string, { label: string; value: string }[]> = {
+  openai: [
+    { label: 'GPT-4o', value: 'gpt-4o' },
+    { label: 'GPT-4o Mini', value: 'gpt-4o-mini' },
+    { label: 'GPT-4 Turbo', value: 'gpt-4-turbo' },
+    { label: 'GPT-3.5 Turbo', value: 'gpt-3.5-turbo' },
+    { label: 'o1', value: 'o1' },
+    { label: 'o1-mini', value: 'o1-mini' },
+  ],
+  gemini: [
+    { label: 'Gemini 2.0 Flash', value: 'gemini-2.0-flash' },
+    { label: 'Gemini 2.0 Pro', value: 'gemini-2.0-pro-exp-02-05' },
+    { label: 'Gemini 1.5 Pro', value: 'gemini-1.5-pro' },
+    { label: 'Gemini 1.5 Flash', value: 'gemini-1.5-flash' },
+  ],
+  qwen: [
+    { label: 'Qwen-Max', value: 'qwen-max' },
+    { label: 'Qwen-Plus', value: 'qwen-plus' },
+    { label: 'Qwen-Turbo', value: 'qwen-turbo' },
+    { label: 'Qwen-Long', value: 'qwen-long' },
+    { label: 'Qwen2.5-72B', value: 'qwen2.5-72b-instruct' },
+    { label: 'Qwen2.5-32B', value: 'qwen2.5-32b-instruct' },
+  ],
+  deepseek: [
+    { label: 'DeepSeek-V3', value: 'deepseek-chat' },
+    { label: 'DeepSeek-R1', value: 'deepseek-reasoner' },
+  ],
+  doubao: [
+    { label: '豆包-Pro-32K', value: 'doubao-pro-32k' },
+    { label: '豆包-Pro-128K', value: 'doubao-pro-128k' },
+    { label: '豆包-Lite-32K', value: 'doubao-lite-32k' },
+    { label: '豆包-Lite-128K', value: 'doubao-lite-128k' },
+  ],
+  ollama: [
+    { label: 'Llama 3.1 (8B)', value: 'llama3.1' },
+    { label: 'Llama 3.1 (70B)', value: 'llama3.1:70b' },
+    { label: 'Qwen2.5 (7B)', value: 'qwen2.5' },
+    { label: 'DeepSeek-R1 (7B)', value: 'deepseek-r1' },
+    { label: 'Mistral (7B)', value: 'mistral' },
+    { label: 'Gemma 2 (9B)', value: 'gemma2' },
+  ],
+}
+
+// 提供商默认 API 地址
+const providerDefaultUrls: Record<string, string> = {
+  openai: 'https://api.openai.com/v1',
+  gemini: 'https://generativelanguage.googleapis.com/v1beta/openai',
+  qwen: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
+  deepseek: 'https://api.deepseek.com/v1',
+  doubao: 'https://ark.cn-beijing.volces.com/api/v3',
+  ollama: 'http://localhost:11434/v1',
+  openai_compatible: '',
+  custom: '',
+}
+
+// 切换提供商时自动填充
+function onProviderChange(provider: string) {
+  form.value.modelName = ''
+  form.value.baseUrl = ''
+  // 自动填充名称
+  const nameMap: Record<string, string> = {
+    openai: 'OpenAI', gemini: 'Gemini', qwen: '通义千问',
+    deepseek: 'DeepSeek', doubao: '豆包', ollama: 'Ollama',
+  }
+  if (nameMap[provider] && !form.value.name) {
+    form.value.name = nameMap[provider]
+  }
+}
+
 function getProviderLabel(provider: string): string {
   const map: Record<string, string> = {
-    openai: 'OpenAI 兼容',
+    openai: 'OpenAI',
+    gemini: 'Google Gemini',
+    qwen: '通义千问',
+    deepseek: 'DeepSeek',
+    doubao: '豆包',
     ollama: 'Ollama (本地)',
+    openai_compatible: 'OpenAI 兼容',
     custom: '自定义',
   }
   return map[provider] || provider
@@ -285,21 +381,20 @@ function getProviderLabel(provider: string): string {
 function getProviderIcon(provider: string): string {
   const map: Record<string, string> = {
     openai: 'AI',
+    gemini: 'G',
+    qwen: '千',
+    deepseek: 'DS',
+    doubao: '豆',
     ollama: '🦙',
+    openai_compatible: 'AI',
     custom: '⚙',
   }
   return map[provider] || '🤖'
 }
 
 function getBaseUrlPlaceholder(): string {
-  switch (form.value.provider) {
-    case 'openai':
-      return 'https://api.openai.com/v1'
-    case 'ollama':
-      return 'http://localhost:11434/v1'
-    default:
-      return '输入 API 基础地址'
-  }
+  const url = providerDefaultUrls[form.value.provider]
+  return url || '输入 API 基础地址'
 }
 </script>
 
@@ -358,7 +453,12 @@ function getBaseUrlPlaceholder(): string {
 }
 
 .provider-badge.openai { background: linear-gradient(135deg, #10a37f, #1a7f64); }
+.provider-badge.gemini { background: linear-gradient(135deg, #4285f4, #1a73e8); }
+.provider-badge.qwen { background: linear-gradient(135deg, #ff6a00, #ee5a24); }
+.provider-badge.deepseek { background: linear-gradient(135deg, #536dfe, #304ffe); }
+.provider-badge.doubao { background: linear-gradient(135deg, #00d4aa, #00b894); }
 .provider-badge.ollama { background: linear-gradient(135deg, #6366f1, #4f46e5); }
+.provider-badge.openai_compatible { background: linear-gradient(135deg, #10a37f, #1a7f64); }
 .provider-badge.custom { background: linear-gradient(135deg, #f59e0b, #d97706); }
 
 .model-info {

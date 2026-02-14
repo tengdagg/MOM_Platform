@@ -1,35 +1,21 @@
 package skills
 
 import (
-	"encoding/json"
 	"fmt"
 	"strings"
 
 	"github.com/ydcloud-dy/mom/plugins/ai/biz"
 )
 
-// HostListSkill 查询主机列表
-type HostListSkill struct{}
-
-func (s *HostListSkill) Name() string        { return "host.list" }
-func (s *HostListSkill) Description() string {
-	return "查询主机列表，支持按关键词搜索（名称或 IP），按操作系统类型筛选（linux/windows），按状态筛选（1:在线 0:离线），按分组名称筛选"
-}
-func (s *HostListSkill) RiskLevel() string   { return "low" }
-func (s *HostListSkill) Parameters() json.RawMessage {
-	return json.RawMessage(`{
-		"type": "object",
-		"properties": {
-			"keyword": {"type": "string", "description": "搜索关键词（主机名或 IP）"},
-			"os_type": {"type": "string", "description": "操作系统类型: linux 或 windows"},
-			"status": {"type": "integer", "description": "状态: 1=在线 0=离线"},
-			"group_name": {"type": "string", "description": "分组名称"},
-			"limit": {"type": "integer", "description": "返回数量限制，默认 20"}
-		}
-	}`)
+// RegisterHostSkills 注册主机管理 Skills
+func RegisterHostSkills(registry *biz.ToolRegistry) {
+	registry.Register(MustLoadBuiltinSkill("host.list", executeHostList))
+	registry.Register(MustLoadBuiltinSkill("host.detail", executeHostDetail))
+	registry.Register(MustLoadBuiltinSkill("host.analyze", executeHostAnalyze))
 }
 
-func (s *HostListSkill) Execute(ctx biz.SkillContext) (any, error) {
+// executeHostList 查询主机列表
+func executeHostList(ctx biz.SkillContext) (any, error) {
 	keyword, _ := ctx.Params["keyword"].(string)
 	osType, _ := ctx.Params["os_type"].(string)
 	groupName, _ := ctx.Params["group_name"].(string)
@@ -91,26 +77,8 @@ func (s *HostListSkill) Execute(ctx biz.SkillContext) (any, error) {
 	}, nil
 }
 
-// HostDetailSkill 查询主机详情
-type HostDetailSkill struct{}
-
-func (s *HostDetailSkill) Name() string        { return "host.detail" }
-func (s *HostDetailSkill) Description() string {
-	return "查询单台主机的详细信息，包括 CPU、内存、磁盘使用情况，操作系统信息等。通过 IP 地址或主机名查找"
-}
-func (s *HostDetailSkill) RiskLevel() string   { return "low" }
-func (s *HostDetailSkill) Parameters() json.RawMessage {
-	return json.RawMessage(`{
-		"type": "object",
-		"properties": {
-			"ip": {"type": "string", "description": "主机 IP 地址"},
-			"name": {"type": "string", "description": "主机名称"},
-			"id": {"type": "integer", "description": "主机 ID"}
-		}
-	}`)
-}
-
-func (s *HostDetailSkill) Execute(ctx biz.SkillContext) (any, error) {
+// executeHostDetail 查询主机详情
+func executeHostDetail(ctx biz.SkillContext) (any, error) {
 	ip, _ := ctx.Params["ip"].(string)
 	name, _ := ctx.Params["name"].(string)
 	hostID, _ := ctx.Params["id"].(float64)
@@ -158,25 +126,8 @@ func (s *HostDetailSkill) Execute(ctx biz.SkillContext) (any, error) {
 	return host, nil
 }
 
-// HostAnalyzeSkill 分析主机健康状态
-type HostAnalyzeSkill struct{}
-
-func (s *HostAnalyzeSkill) Name() string        { return "host.analyze" }
-func (s *HostAnalyzeSkill) Description() string {
-	return "分析主机健康状态和资源使用情况，找出磁盘使用率、CPU 使用率、内存使用率超过指定阈值的主机"
-}
-func (s *HostAnalyzeSkill) RiskLevel() string   { return "low" }
-func (s *HostAnalyzeSkill) Parameters() json.RawMessage {
-	return json.RawMessage(`{
-		"type": "object",
-		"properties": {
-			"metric": {"type": "string", "description": "指标: cpu / memory / disk / all", "default": "all"},
-			"threshold": {"type": "number", "description": "使用率阈值百分比，默认 80", "default": 80}
-		}
-	}`)
-}
-
-func (s *HostAnalyzeSkill) Execute(ctx biz.SkillContext) (any, error) {
+// executeHostAnalyze 分析主机健康状态
+func executeHostAnalyze(ctx biz.SkillContext) (any, error) {
 	metric, _ := ctx.Params["metric"].(string)
 	if metric == "" {
 		metric = "all"
@@ -187,10 +138,10 @@ func (s *HostAnalyzeSkill) Execute(ctx biz.SkillContext) (any, error) {
 	}
 
 	type AlertHost struct {
-		Name    string  `json:"name"`
-		IP      string  `json:"ip"`
-		Metric  string  `json:"metric"`
-		Usage   float64 `json:"usage"`
+		Name   string  `json:"name"`
+		IP     string  `json:"ip"`
+		Metric string  `json:"metric"`
+		Usage  float64 `json:"usage"`
 	}
 
 	var alerts []AlertHost
@@ -235,11 +186,4 @@ func (s *HostAnalyzeSkill) Execute(ctx biz.SkillContext) (any, error) {
 		"alertCount": len(alerts),
 		"alerts":     alerts,
 	}, nil
-}
-
-// RegisterHostSkills 注册主机管理 Skills
-func RegisterHostSkills(registry *biz.ToolRegistry) {
-	registry.Register(&HostListSkill{})
-	registry.Register(&HostDetailSkill{})
-	registry.Register(&HostAnalyzeSkill{})
 }

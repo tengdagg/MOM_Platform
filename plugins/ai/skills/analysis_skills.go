@@ -1,29 +1,21 @@
 package skills
 
 import (
-	"encoding/json"
 	"fmt"
 	"time"
 
 	"github.com/ydcloud-dy/mom/plugins/ai/biz"
 )
 
-// InfraReportSkill 基础设施综合报告
-type InfraReportSkill struct{}
-
-func (s *InfraReportSkill) Name() string        { return "analysis.infra_report" }
-func (s *InfraReportSkill) Description() string {
-	return "生成基础设施综合报告，汇总主机、K8s 集群、云账号、监控、任务等各模块的概况数据"
-}
-func (s *InfraReportSkill) RiskLevel() string   { return "low" }
-func (s *InfraReportSkill) Parameters() json.RawMessage {
-	return json.RawMessage(`{
-		"type": "object",
-		"properties": {}
-	}`)
+// RegisterAnalysisSkills 注册综合分析 Skills
+func RegisterAnalysisSkills(registry *biz.ToolRegistry) {
+	registry.Register(MustLoadBuiltinSkill("analysis.infra_report", executeInfraReport))
+	registry.Register(MustLoadBuiltinSkill("analysis.security_audit", executeSecurityAudit))
+	registry.Register(MustLoadBuiltinSkill("analysis.capacity_plan", executeCapacityPlan))
 }
 
-func (s *InfraReportSkill) Execute(ctx biz.SkillContext) (any, error) {
+// executeInfraReport 基础设施综合报告
+func executeInfraReport(ctx biz.SkillContext) (any, error) {
 	result := make(map[string]any)
 
 	// 主机概况
@@ -86,24 +78,8 @@ func (s *InfraReportSkill) Execute(ctx biz.SkillContext) (any, error) {
 	return result, nil
 }
 
-// SecurityAuditSkill 安全态势分析
-type SecurityAuditSkill struct{}
-
-func (s *SecurityAuditSkill) Name() string        { return "analysis.security_audit" }
-func (s *SecurityAuditSkill) Description() string {
-	return "安全态势分析，检查登录失败记录、离线主机、SSL 证书到期等安全风险"
-}
-func (s *SecurityAuditSkill) RiskLevel() string   { return "low" }
-func (s *SecurityAuditSkill) Parameters() json.RawMessage {
-	return json.RawMessage(`{
-		"type": "object",
-		"properties": {
-			"days": {"type": "integer", "description": "分析最近 N 天的数据，默认 7", "default": 7}
-		}
-	}`)
-}
-
-func (s *SecurityAuditSkill) Execute(ctx biz.SkillContext) (any, error) {
+// executeSecurityAudit 安全态势分析
+func executeSecurityAudit(ctx biz.SkillContext) (any, error) {
 	days := 7
 	if d, ok := ctx.Params["days"].(float64); ok && d > 0 {
 		days = int(d)
@@ -187,22 +163,8 @@ func (s *SecurityAuditSkill) Execute(ctx biz.SkillContext) (any, error) {
 	}, nil
 }
 
-// CapacityPlanSkill 容量规划建议
-type CapacityPlanSkill struct{}
-
-func (s *CapacityPlanSkill) Name() string        { return "analysis.capacity_plan" }
-func (s *CapacityPlanSkill) Description() string {
-	return "根据当前资源使用情况分析容量，找出 CPU、内存、磁盘使用率较高的主机并给出扩容建议"
-}
-func (s *CapacityPlanSkill) RiskLevel() string   { return "low" }
-func (s *CapacityPlanSkill) Parameters() json.RawMessage {
-	return json.RawMessage(`{
-		"type": "object",
-		"properties": {}
-	}`)
-}
-
-func (s *CapacityPlanSkill) Execute(ctx biz.SkillContext) (any, error) {
+// executeCapacityPlan 容量规划建议
+func executeCapacityPlan(ctx biz.SkillContext) (any, error) {
 	type UsageStats struct {
 		AvgCPU    float64 `json:"avgCpu"`
 		MaxCPU    float64 `json:"maxCpu"`
@@ -235,14 +197,14 @@ func (s *CapacityPlanSkill) Execute(ctx biz.SkillContext) (any, error) {
 		Find(&highUsage)
 
 	return map[string]any{
-		"overallStats":      stats,
-		"highUsageHosts":    highUsage,
-		"highUsageCount":    len(highUsage),
-		"recommendations":   generateRecommendations(stats, len(highUsage)),
+		"overallStats":    stats,
+		"highUsageHosts":  highUsage,
+		"highUsageCount":  len(highUsage),
+		"recommendations": generateCapacityRecommendations(stats, len(highUsage)),
 	}, nil
 }
 
-func generateRecommendations(stats struct {
+func generateCapacityRecommendations(stats struct {
 	AvgCPU    float64 `json:"avgCpu"`
 	MaxCPU    float64 `json:"maxCpu"`
 	AvgMemory float64 `json:"avgMemory"`
@@ -267,11 +229,4 @@ func generateRecommendations(stats struct {
 		recs = append(recs, "当前资源使用情况良好，暂无需扩容")
 	}
 	return recs
-}
-
-// RegisterAnalysisSkills 注册综合分析 Skills
-func RegisterAnalysisSkills(registry *biz.ToolRegistry) {
-	registry.Register(&InfraReportSkill{})
-	registry.Register(&SecurityAuditSkill{})
-	registry.Register(&CapacityPlanSkill{})
 }

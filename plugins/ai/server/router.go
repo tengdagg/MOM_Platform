@@ -11,16 +11,10 @@ import (
 func RegisterRoutes(router *gin.RouterGroup, db *gorm.DB) {
 	registry := biz.NewToolRegistry()
 
-	// 注册内置 Skills
-	skills.RegisterHostSkills(registry)
-	skills.RegisterK8sSkills(registry)
-	skills.RegisterAuditSkills(registry)
-	skills.RegisterTaskSkills(registry)
-	skills.RegisterMonitorSkills(registry)
-	skills.RegisterCloudSkills(registry)
-	skills.RegisterAnalysisSkills(registry)
+	// 从 SKILL.md 加载并注册所有内置 Skills
+	skills.RegisterAllBuiltinSkills(registry)
 
-	// 加载自定义 Skills
+	// 加载自定义 Skills（从数据库）
 	skillEngine := biz.NewSkillEngine(db, registry)
 	skillEngine.LoadCustomSkills()
 
@@ -59,12 +53,12 @@ func RegisterRoutes(router *gin.RouterGroup, db *gorm.DB) {
 		}
 
 		// Skill 管理
-		skills := ai.Group("/skills")
+		skillGroup := ai.Group("/skills")
 		{
-			skills.GET("", handler.ListSkills)
-			skills.PUT("/:id/toggle", handler.ToggleSkill)
-			skills.POST("/upload", handler.UploadSkill)
-			skills.DELETE("/:id", handler.DeleteSkill)
+			skillGroup.GET("", handler.ListSkills)
+			skillGroup.PUT("/:id/toggle", handler.ToggleSkill)
+			skillGroup.POST("/upload", handler.UploadSkill)
+			skillGroup.DELETE("/:id", handler.DeleteSkill)
 		}
 
 		// 对话模板

@@ -28,16 +28,25 @@ type Skill interface {
 	RiskLevel() string // low / medium / high / critical
 }
 
+// SanitizeToolName 将 Skill 名称转换为 LLM 兼容格式
+// LLM API 要求名称匹配 ^[a-zA-Z0-9_-]+$ (不允许包含点号)
+// 例如: host.list -> host-list, k8s.cluster_status -> k8s-cluster_status
+func SanitizeToolName(name string) string {
+	return strings.ReplaceAll(name, ".", "-")
+}
+
 // ToolRegistry 工具注册中心
 type ToolRegistry struct {
-	mu     sync.RWMutex
-	skills map[string]Skill
+	mu       sync.RWMutex
+	skills   map[string]Skill
+	aliasMap map[string]string // LLM 清洗后的名称 -> 原始名称
 }
 
 // NewToolRegistry 创建工具注册中心
 func NewToolRegistry() *ToolRegistry {
 	return &ToolRegistry{
-		skills: make(map[string]Skill),
+		skills:   make(map[string]Skill),
+		aliasMap: make(map[string]string),
 	}
 }
 
@@ -45,15 +54,43 @@ func NewToolRegistry() *ToolRegistry {
 func (r *ToolRegistry) Register(skill Skill) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	r.skills[skill.Name()] = skill
+	originalName := skill.Name()
+	r.skills[originalName] = skill
+	// 建立 LLM 清洗名称到原始名称的映射
+	sanitized := SanitizeToolName(originalName)
+	if sanitized != originalName {
+		r.aliasMap[sanitized] = originalName
+	}
 }
 
-// Get 获取 Skill
+// Get 获取 Skill（支持原始名称和 LLM 清洗后的名称）
 func (r *ToolRegistry) Get(name string) (Skill, bool) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
-	s, ok := r.skills[name]
-	return s, ok
+	// 先用原始名称查找
+	if s, ok := r.skills[name]; ok {
+		return s, ok
+	}
+	// 再用别名查找（LLM 返回的是清洗后的名称）
+	if original, ok := r.aliasMap[name]; ok {
+		if s, ok := r.skills[original]; ok {
+			return s, ok
+		}
+	}
+	return nil, false
+}
+
+// ResolveName 将 LLM 返回的清洗名称解析为原始 Skill 名称
+func (r *ToolRegistry) ResolveName(name string) string {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	if _, ok := r.skills[name]; ok {
+		return name
+	}
+	if original, ok := r.aliasMap[name]; ok {
+		return original
+	}
+	return name
 }
 
 // GetAll 获取所有 Skill
@@ -68,6 +105,7 @@ func (r *ToolRegistry) GetAll() []Skill {
 }
 
 // GetToolDefinitions 获取所有工具定义（发送给 LLM）
+// 名称会被清洗为 LLM 兼容格式（点号替换为连字符）
 func (r *ToolRegistry) GetToolDefinitions() []ToolDefinition {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
@@ -76,7 +114,7 @@ func (r *ToolRegistry) GetToolDefinitions() []ToolDefinition {
 		defs = append(defs, ToolDefinition{
 			Type: "function",
 			Function: ToolFunctionDef{
-				Name:        s.Name(),
+				Name:        SanitizeToolName(s.Name()),
 				Description: s.Description(),
 				Parameters:  s.Parameters(),
 			},
@@ -222,24 +260,33 @@ func (a *Agent) Run(ctx context.Context, adapter *ModelAdapter, sessionID uint, 
 		})
 
 		for _, tc := range assistantMsg.ToolCalls {
-			toolName := tc.Function.Name
+			llmName := tc.Function.Name
 			toolArgs := tc.Function.Arguments
+			// 解析为原始 Skill 名称（LLM 返回的是清洗后的名称）
+			displayName := a.registry.ResolveName(llmName)
+
+			// 获取 Skill 风险等级
+			riskLevel := ""
+			if skill, ok := a.registry.Get(llmName); ok {
+				riskLevel = skill.RiskLevel()
+			}
 
 			// 通知前端工具调用开始
 			eventCh <- AgentEvent{
 				Type:       "tool_call_start",
-				ToolName:   toolName,
+				ToolName:   displayName,
 				ToolParams: toolArgs,
+				RiskLevel:  riskLevel,
 			}
 
 			// 执行工具
-			result := a.executeTool(toolName, toolArgs, userID, username)
+			result := a.executeTool(llmName, toolArgs, userID, username)
 
 			// 通知前端工具调用结果
 			resultJSON, _ := json.Marshal(result)
 			eventCh <- AgentEvent{
 				Type:       "tool_call_result",
-				ToolName:   toolName,
+				ToolName:   displayName,
 				ToolResult: string(resultJSON),
 			}
 
@@ -375,21 +422,28 @@ func (a *Agent) RunStream(ctx context.Context, adapter *ModelAdapter, sessionID 
 		})
 
 		for _, tc := range toolCalls {
-			toolName := tc.Function.Name
+			llmName := tc.Function.Name
 			toolArgs := tc.Function.Arguments
+			displayName := a.registry.ResolveName(llmName)
+
+			riskLevel := ""
+			if skill, ok := a.registry.Get(llmName); ok {
+				riskLevel = skill.RiskLevel()
+			}
 
 			eventCh <- AgentEvent{
 				Type:       "tool_call_start",
-				ToolName:   toolName,
+				ToolName:   displayName,
 				ToolParams: toolArgs,
+				RiskLevel:  riskLevel,
 			}
 
-			result := a.executeTool(toolName, toolArgs, userID, username)
+			result := a.executeTool(llmName, toolArgs, userID, username)
 			resultJSON, _ := json.Marshal(result)
 
 			eventCh <- AgentEvent{
 				Type:       "tool_call_result",
-				ToolName:   toolName,
+				ToolName:   displayName,
 				ToolResult: string(resultJSON),
 			}
 

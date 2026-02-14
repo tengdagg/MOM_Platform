@@ -108,12 +108,24 @@ func NewModelAdapter(config *AIModelConfig) *ModelAdapter {
 }
 
 // getBaseURL 获取 API 基础 URL
+// 所有提供商均兼容 OpenAI Chat Completions API 格式
 func (a *ModelAdapter) getBaseURL() string {
 	baseURL := strings.TrimRight(a.config.BaseURL, "/")
 	if baseURL == "" {
 		switch a.config.Provider {
-		case "openai":
+		case "openai", "openai_compatible":
 			baseURL = "https://api.openai.com/v1"
+		case "gemini":
+			// Google Gemini OpenAI 兼容端点
+			baseURL = "https://generativelanguage.googleapis.com/v1beta/openai"
+		case "qwen":
+			// 阿里通义千问 DashScope OpenAI 兼容端点
+			baseURL = "https://dashscope.aliyuncs.com/compatible-mode/v1"
+		case "deepseek":
+			baseURL = "https://api.deepseek.com/v1"
+		case "doubao":
+			// 字节豆包 ARK OpenAI 兼容端点
+			baseURL = "https://ark.cn-beijing.volces.com/api/v3"
 		case "ollama":
 			baseURL = "http://localhost:11434/v1"
 		default:

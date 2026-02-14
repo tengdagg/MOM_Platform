@@ -13,6 +13,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/ydcloud-dy/mom/pkg/response"
 	"github.com/ydcloud-dy/mom/plugins/ai/biz"
+	"github.com/ydcloud-dy/mom/plugins/ai/skills"
 	"gopkg.in/yaml.v3"
 )
 
@@ -20,38 +21,52 @@ import (
 func (h *Handler) ListSkills(c *gin.Context) {
 	category := c.Query("category")
 
-	var skills []biz.SkillDefinition
+	var dbSkills []biz.SkillDefinition
 	query := h.db.Model(&biz.SkillDefinition{})
 	if category != "" {
 		query = query.Where("category = ?", category)
 	}
-	if err := query.Order("category ASC, name ASC").Find(&skills).Error; err != nil {
+	if err := query.Order("category ASC, name ASC").Find(&dbSkills).Error; err != nil {
 		response.ErrorCode(c, http.StatusInternalServerError, "获取 Skill 列表失败")
 		return
 	}
 
-	// 同步内置 Skills 到列表
+	// 同步内置 Skills 到列表（也需要按分类过滤）
 	registeredSkills := h.registry.GetAll()
 	registeredMap := make(map[string]bool)
-	for _, s := range skills {
+	for _, s := range dbSkills {
 		registeredMap[s.Name] = true
 	}
 
 	for _, rs := range registeredSkills {
-		if !registeredMap[rs.Name()] {
-			skills = append(skills, biz.SkillDefinition{
-				Name:        rs.Name(),
-				DisplayName: rs.Name(),
-				Description: rs.Description(),
-				IsBuiltin:   true,
-				ScriptType:  "builtin",
-				IsEnabled:   true,
-				RiskLevel:   rs.RiskLevel(),
-			})
+		if registeredMap[rs.Name()] {
+			continue
 		}
+
+		skillDef := biz.SkillDefinition{
+			Name:        rs.Name(),
+			DisplayName: rs.Name(),
+			Description: rs.Description(),
+			IsBuiltin:   true,
+			ScriptType:  "builtin",
+			IsEnabled:   true,
+			RiskLevel:   rs.RiskLevel(),
+		}
+		// 提取 BuiltinSkill 的额外信息
+		if bs, ok := rs.(*skills.BuiltinSkill); ok {
+			skillDef.Category = bs.Category()
+			skillDef.Markdown = bs.Markdown()
+		}
+
+		// 如果指定了分类过滤，只添加匹配分类的内置 Skill
+		if category != "" && skillDef.Category != category {
+			continue
+		}
+
+		dbSkills = append(dbSkills, skillDef)
 	}
 
-	response.Success(c, skills)
+	response.Success(c, dbSkills)
 }
 
 // ToggleSkill 启用/禁用 Skill
@@ -74,7 +89,7 @@ func (h *Handler) ToggleSkill(c *gin.Context) {
 	response.Success(c, skill)
 }
 
-// SkillManifest manifest.yaml 结构
+// SkillManifest 传统 manifest.yaml 结构（向后兼容）
 type SkillManifest struct {
 	Name        string `yaml:"name"`
 	DisplayName string `yaml:"displayName"`
@@ -87,7 +102,16 @@ type SkillManifest struct {
 	Parameters  any    `yaml:"parameters"`
 }
 
-// UploadSkill 上传自定义 Skill (.skill.zip)
+// UploadSkill 上传自定义 Skill
+// 支持两种格式:
+//  1. 标准 SKILL.md 格式 (.zip):
+//     skill-name/
+//     ├── SKILL.md          (必需) YAML 前置元数据 + Markdown 指令
+//     └── scripts/
+//     ├── script.js 或 script.py
+//  2. 传统 manifest.yaml 格式 (.skill.zip):
+//     ├── manifest.yaml
+//     ├── script.js / script.py
 func (h *Handler) UploadSkill(c *gin.Context) {
 	file, err := c.FormFile("file")
 	if err != nil {
@@ -96,8 +120,8 @@ func (h *Handler) UploadSkill(c *gin.Context) {
 	}
 
 	// 验证文件扩展名
-	if !strings.HasSuffix(file.Filename, ".skill.zip") && !strings.HasSuffix(file.Filename, ".zip") {
-		response.ErrorCode(c, http.StatusBadRequest, "请上传 .skill.zip 格式的文件")
+	if !strings.HasSuffix(file.Filename, ".zip") {
+		response.ErrorCode(c, http.StatusBadRequest, "请上传 .zip 格式的文件")
 		return
 	}
 
@@ -128,12 +152,14 @@ func (h *Handler) UploadSkill(c *gin.Context) {
 		return
 	}
 
-	var manifest *SkillManifest
+	// 收集文件内容
+	var skillMDContent []byte
+	var manifestContent []byte
 	var scriptBody string
+	var scriptType string
 
 	for _, zf := range reader.File {
 		name := zf.Name
-		// 跳过目录
 		if zf.FileInfo().IsDir() {
 			continue
 		}
@@ -153,25 +179,115 @@ func (h *Handler) UploadSkill(c *gin.Context) {
 			baseName = name[idx+1:]
 		}
 
-		switch baseName {
-		case "manifest.yaml", "manifest.yml":
-			var m SkillManifest
-			if err := yaml.Unmarshal(content, &m); err != nil {
-				response.ErrorCode(c, http.StatusBadRequest, "manifest.yaml 解析失败: "+err.Error())
-				return
-			}
-			manifest = &m
-
-		case "script.js":
+		switch {
+		case baseName == "SKILL.md":
+			skillMDContent = content
+		case baseName == "manifest.yaml" || baseName == "manifest.yml":
+			manifestContent = content
+		case baseName == "script.js" || strings.HasSuffix(name, "/scripts/script.js"):
 			scriptBody = string(content)
-
-		case "script.py":
+			scriptType = "javascript"
+		case baseName == "script.py" || strings.HasSuffix(name, "/scripts/script.py"):
 			scriptBody = string(content)
+			scriptType = "python"
 		}
 	}
 
-	if manifest == nil {
-		response.ErrorCode(c, http.StatusBadRequest, "缺少 manifest.yaml 文件")
+	// 优先使用 SKILL.md 格式
+	if skillMDContent != nil {
+		h.uploadFromSKILLMD(c, skillMDContent, scriptBody, scriptType)
+		return
+	}
+
+	// 回退到传统 manifest.yaml 格式
+	if manifestContent != nil {
+		h.uploadFromManifest(c, manifestContent, scriptBody, scriptType, reader)
+		return
+	}
+
+	response.ErrorCode(c, http.StatusBadRequest, "缺少 SKILL.md 或 manifest.yaml 文件")
+}
+
+// uploadFromSKILLMD 使用 SKILL.md 格式上传
+func (h *Handler) uploadFromSKILLMD(c *gin.Context, content []byte, scriptBody string, scriptType string) {
+	meta, markdown, err := skills.ParseSKILLMD(content)
+	if err != nil {
+		response.ErrorCode(c, http.StatusBadRequest, "SKILL.md 解析失败: "+err.Error())
+		return
+	}
+
+	if scriptBody == "" {
+		response.ErrorCode(c, http.StatusBadRequest, "缺少 scripts/script.js 或 scripts/script.py 执行脚本")
+		return
+	}
+
+	if scriptType == "" && meta.ScriptType != "" && meta.ScriptType != "builtin" {
+		scriptType = meta.ScriptType
+	}
+	if scriptType == "" {
+		response.ErrorCode(c, http.StatusBadRequest, "无法识别脚本类型，请在 SKILL.md 中指定 scriptType 或提供 script.js/script.py")
+		return
+	}
+
+	if meta.RiskLevel == "" {
+		meta.RiskLevel = "low"
+	}
+
+	// 序列化参数
+	var paramsJSON string
+	if meta.Parameters != nil {
+		paramsBytes, _ := json.Marshal(meta.Parameters)
+		paramsJSON = string(paramsBytes)
+	} else {
+		paramsJSON = `{"type":"object","properties":{}}`
+	}
+
+	// 检查是否已存在
+	var existing biz.SkillDefinition
+	if err := h.db.Where("name = ?", meta.Name).First(&existing).Error; err == nil {
+		// 更新现有
+		h.db.Model(&existing).Updates(map[string]interface{}{
+			"display_name": meta.Name,
+			"description":  meta.Description,
+			"category":     meta.Category,
+			"parameters":   paramsJSON,
+			"script_type":  scriptType,
+			"script_body":  scriptBody,
+			"risk_level":   meta.RiskLevel,
+			"markdown":     markdown,
+		})
+		response.SuccessWithMessage(c, fmt.Sprintf("Skill %s 已更新", meta.Name), existing)
+		return
+	}
+
+	// 创建新 Skill
+	skill := biz.SkillDefinition{
+		Name:        meta.Name,
+		DisplayName: meta.Name,
+		Description: meta.Description,
+		Category:    meta.Category,
+		Parameters:  paramsJSON,
+		IsBuiltin:   false,
+		ScriptType:  scriptType,
+		ScriptBody:  scriptBody,
+		IsEnabled:   true,
+		RiskLevel:   meta.RiskLevel,
+		Markdown:    markdown,
+	}
+
+	if err := h.db.Create(&skill).Error; err != nil {
+		response.ErrorCode(c, http.StatusInternalServerError, "保存 Skill 失败: "+err.Error())
+		return
+	}
+
+	response.SuccessWithMessage(c, fmt.Sprintf("Skill %s 上传成功", meta.Name), skill)
+}
+
+// uploadFromManifest 使用传统 manifest.yaml 格式上传（向后兼容）
+func (h *Handler) uploadFromManifest(c *gin.Context, manifestContent []byte, scriptBody string, scriptType string, reader *zip.Reader) {
+	var manifest SkillManifest
+	if err := yaml.Unmarshal(manifestContent, &manifest); err != nil {
+		response.ErrorCode(c, http.StatusBadRequest, "manifest.yaml 解析失败: "+err.Error())
 		return
 	}
 
@@ -185,15 +301,18 @@ func (h *Handler) UploadSkill(c *gin.Context) {
 		return
 	}
 
-	if manifest.ScriptType == "" {
+	if scriptType == "" && manifest.ScriptType != "" {
+		scriptType = manifest.ScriptType
+	}
+	if scriptType == "" {
 		// 根据文件推断
 		for _, zf := range reader.File {
 			if strings.HasSuffix(zf.Name, ".js") {
-				manifest.ScriptType = "javascript"
+				scriptType = "javascript"
 				break
 			}
 			if strings.HasSuffix(zf.Name, ".py") {
-				manifest.ScriptType = "python"
+				scriptType = "python"
 				break
 			}
 		}
@@ -221,7 +340,7 @@ func (h *Handler) UploadSkill(c *gin.Context) {
 			"description":  manifest.Description,
 			"category":     manifest.Category,
 			"parameters":   paramsJSON,
-			"script_type":  manifest.ScriptType,
+			"script_type":  scriptType,
 			"script_body":  scriptBody,
 			"risk_level":   manifest.RiskLevel,
 		})
@@ -237,7 +356,7 @@ func (h *Handler) UploadSkill(c *gin.Context) {
 		Category:    manifest.Category,
 		Parameters:  paramsJSON,
 		IsBuiltin:   false,
-		ScriptType:  manifest.ScriptType,
+		ScriptType:  scriptType,
 		ScriptBody:  scriptBody,
 		IsEnabled:   true,
 		RiskLevel:   manifest.RiskLevel,

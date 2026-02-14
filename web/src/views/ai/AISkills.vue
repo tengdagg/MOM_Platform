@@ -28,6 +28,25 @@
       </div>
     </div>
 
+    <!-- 上传格式说明 -->
+    <el-alert
+      type="info"
+      :closable="true"
+      show-icon
+      style="margin-bottom: 16px"
+    >
+      <template #title>
+        <span>Skill 包标准结构</span>
+      </template>
+      <div class="upload-hint">
+        <code>skill-name.zip</code> 内目录结构:
+        <pre>skill-name/
+├── SKILL.md          # 必需 (YAML 前置元数据 + Markdown 指令)
+└── scripts/          # 可选 (可执行代码)
+    └── script.js 或 script.py</pre>
+      </div>
+    </el-alert>
+
     <div class="skills-grid">
       <el-card
         v-for="skill in skills"
@@ -47,6 +66,7 @@
               </el-tag>
               <el-tag size="small" effect="plain">{{ getCategoryLabel(skill.category) }}</el-tag>
               <el-tag v-if="skill.isBuiltin" type="info" size="small" effect="plain">内置</el-tag>
+              <el-tag v-if="skill.markdown" type="success" size="small" effect="plain">SKILL.md</el-tag>
             </div>
           </div>
           <el-switch
@@ -63,15 +83,26 @@
             <el-icon v-else><Document /></el-icon>
             {{ getScriptLabel(skill.scriptType) }}
           </span>
-          <el-button
-            v-if="!skill.isBuiltin"
-            text
-            type="danger"
-            size="small"
-            @click="handleDeleteSkill(skill)"
-          >
-            删除
-          </el-button>
+          <div class="skill-actions">
+            <el-button
+              v-if="skill.markdown"
+              text
+              type="primary"
+              size="small"
+              @click="showSkillDetail(skill)"
+            >
+              详情
+            </el-button>
+            <el-button
+              v-if="!skill.isBuiltin"
+              text
+              type="danger"
+              size="small"
+              @click="handleDeleteSkill(skill)"
+            >
+              删除
+            </el-button>
+          </div>
         </div>
       </el-card>
 
@@ -79,6 +110,39 @@
         <el-empty description="暂无 Skills，请先添加 AI 模型并启用内置 Skills" />
       </el-card>
     </div>
+
+    <!-- Skill 详情弹窗 -->
+    <el-dialog
+      v-model="detailVisible"
+      :title="detailSkill?.displayName || detailSkill?.name || 'Skill 详情'"
+      width="600px"
+      class="skill-detail-dialog"
+    >
+      <div v-if="detailSkill" class="skill-detail">
+        <div class="detail-meta">
+          <el-descriptions :column="2" size="small" border>
+            <el-descriptions-item label="名称">{{ detailSkill.name }}</el-descriptions-item>
+            <el-descriptions-item label="分类">{{ getCategoryLabel(detailSkill.category) }}</el-descriptions-item>
+            <el-descriptions-item label="风险等级">
+              <el-tag :type="getRiskColor(detailSkill.riskLevel)" size="small">
+                {{ getRiskLabel(detailSkill.riskLevel) }}
+              </el-tag>
+            </el-descriptions-item>
+            <el-descriptions-item label="类型">
+              {{ getScriptLabel(detailSkill.scriptType) }}
+            </el-descriptions-item>
+          </el-descriptions>
+        </div>
+        <div class="detail-desc">
+          <h4>描述</h4>
+          <p>{{ detailSkill.description }}</p>
+        </div>
+        <div v-if="detailSkill.markdown" class="detail-markdown">
+          <h4>SKILL.md 指令</h4>
+          <div class="markdown-content" v-html="renderMarkdown(detailSkill.markdown)" />
+        </div>
+      </div>
+    </el-dialog>
   </div>
 </template>
 
@@ -86,10 +150,12 @@
 import { ref, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Upload, Setting, Document } from '@element-plus/icons-vue'
-import { getSkillList, toggleSkill, deleteSkill } from '@/api/ai'
+import { getSkillList, toggleSkill, deleteSkill, uploadSkill } from '@/api/ai'
 
 const skills = ref<any[]>([])
 const selectedCategory = ref('')
+const detailVisible = ref(false)
+const detailSkill = ref<any>(null)
 
 const categories = [
   { value: 'host', label: '主机管理' },
@@ -107,10 +173,9 @@ onMounted(() => {
 
 async function loadSkills() {
   try {
-    const res = await getSkillList(selectedCategory.value)
-    if (res.data?.code === 0) {
-      skills.value = res.data.data || []
-    }
+    const data = await getSkillList(selectedCategory.value)
+    // request.ts 拦截器成功时直接返回 response.data.data
+    skills.value = Array.isArray(data) ? data : []
   } catch (e) {
     ElMessage.error('获取 Skill 列表失败')
   }
@@ -128,7 +193,7 @@ async function toggleSkillEnabled(skill: any) {
 
 async function handleDeleteSkill(skill: any) {
   try {
-    await ElMessageBox.confirm(`确定删除 Skill "${skill.displayName}" ？`, '提示', { type: 'warning' })
+    await ElMessageBox.confirm(`确定删除 Skill "${skill.displayName || skill.name}" ？`, '提示', { type: 'warning' })
     await deleteSkill(skill.id)
     ElMessage.success('删除成功')
     loadSkills()
@@ -139,7 +204,7 @@ async function handleDeleteSkill(skill: any) {
 
 function handleUploadBefore(file: any) {
   if (!file.name.endsWith('.zip')) {
-    ElMessage.error('请上传 .skill.zip 格式的文件')
+    ElMessage.error('请上传 .zip 格式的文件')
     return false
   }
   if (file.size > 5 * 1024 * 1024) {
@@ -151,16 +216,32 @@ function handleUploadBefore(file: any) {
 
 async function handleUploadRequest(options: any) {
   try {
-    const res = await uploadSkill(options.file)
-    if (res.data?.code === 0) {
-      ElMessage.success(res.data.message || 'Skill 上传成功')
-      loadSkills()
-    } else {
-      ElMessage.error(res.data?.message || '上传失败')
-    }
-  } catch (e) {
-    ElMessage.error('上传失败')
+    await uploadSkill(options.file)
+    ElMessage.success('Skill 上传成功')
+    loadSkills()
+  } catch (e: any) {
+    ElMessage.error(e?.message || '上传失败')
   }
+}
+
+function showSkillDetail(skill: any) {
+  detailSkill.value = skill
+  detailVisible.value = true
+}
+
+function renderMarkdown(md: string): string {
+  // 简单的 Markdown 渲染（标题、列表、代码块、粗体、分隔线）
+  if (!md) return ''
+  return md
+    .replace(/^### (.+)$/gm, '<h5>$1</h5>')
+    .replace(/^## (.+)$/gm, '<h4>$1</h4>')
+    .replace(/^# (.+)$/gm, '<h3>$1</h3>')
+    .replace(/^\- (.+)$/gm, '<li>$1</li>')
+    .replace(/(<li>.*<\/li>)/s, '<ul>$1</ul>')
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/`([^`]+)`/g, '<code>$1</code>')
+    .replace(/^---$/gm, '<hr />')
+    .replace(/\n\n/g, '<br /><br />')
 }
 
 function getCategoryIcon(cat: string): string {
@@ -218,6 +299,28 @@ function getScriptLabel(t: string): string {
   align-items: center;
 }
 
+.upload-hint {
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.upload-hint pre {
+  background: #f5f7fa;
+  padding: 8px 12px;
+  border-radius: 4px;
+  margin: 6px 0 0 0;
+  font-size: 12px;
+  line-height: 1.6;
+  color: #606266;
+}
+
+.upload-hint code {
+  background: #ecf5ff;
+  color: #409eff;
+  padding: 1px 4px;
+  border-radius: 3px;
+}
+
 .skills-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
@@ -265,6 +368,7 @@ function getScriptLabel(t: string): string {
 .skill-meta {
   display: flex;
   gap: 4px;
+  flex-wrap: wrap;
 }
 
 .skill-desc {
@@ -290,8 +394,89 @@ function getScriptLabel(t: string): string {
   color: #909399;
 }
 
+.skill-actions {
+  display: flex;
+  gap: 4px;
+}
+
 .empty-card {
   grid-column: 1 / -1;
   border-radius: 12px;
+}
+
+/* Skill 详情弹窗 */
+.skill-detail .detail-meta {
+  margin-bottom: 16px;
+}
+
+.skill-detail .detail-desc {
+  margin-bottom: 16px;
+}
+
+.skill-detail .detail-desc h4,
+.skill-detail .detail-markdown h4 {
+  font-size: 14px;
+  margin: 0 0 8px 0;
+  color: #303133;
+}
+
+.skill-detail .detail-desc p {
+  font-size: 13px;
+  color: #606266;
+  line-height: 1.6;
+  margin: 0;
+}
+
+.detail-markdown .markdown-content {
+  background: #f8f9fa;
+  border-radius: 8px;
+  padding: 16px;
+  font-size: 13px;
+  line-height: 1.7;
+  color: #303133;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.detail-markdown .markdown-content :deep(h3) {
+  font-size: 16px;
+  margin: 0 0 8px;
+}
+
+.detail-markdown .markdown-content :deep(h4) {
+  font-size: 14px;
+  margin: 12px 0 6px;
+}
+
+.detail-markdown .markdown-content :deep(h5) {
+  font-size: 13px;
+  margin: 10px 0 4px;
+}
+
+.detail-markdown .markdown-content :deep(ul) {
+  margin: 4px 0;
+  padding-left: 20px;
+}
+
+.detail-markdown .markdown-content :deep(li) {
+  margin: 2px 0;
+}
+
+.detail-markdown .markdown-content :deep(code) {
+  background: #ecf5ff;
+  color: #409eff;
+  padding: 1px 4px;
+  border-radius: 3px;
+  font-size: 12px;
+}
+
+.detail-markdown .markdown-content :deep(strong) {
+  color: #e6a23c;
+}
+
+.detail-markdown .markdown-content :deep(hr) {
+  border: none;
+  border-top: 1px solid #dcdfe6;
+  margin: 12px 0;
 }
 </style>

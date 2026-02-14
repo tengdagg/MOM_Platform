@@ -1,30 +1,19 @@
 package skills
 
 import (
-	"encoding/json"
 	"fmt"
 
 	"github.com/ydcloud-dy/mom/plugins/ai/biz"
 )
 
-// K8sClusterStatusSkill 查询集群状态
-type K8sClusterStatusSkill struct{}
-
-func (s *K8sClusterStatusSkill) Name() string        { return "k8s.cluster_status" }
-func (s *K8sClusterStatusSkill) Description() string {
-	return "查询所有 Kubernetes 集群的状态概览，包括集群名称、版本、节点数、Pod 数、状态等信息"
-}
-func (s *K8sClusterStatusSkill) RiskLevel() string   { return "low" }
-func (s *K8sClusterStatusSkill) Parameters() json.RawMessage {
-	return json.RawMessage(`{
-		"type": "object",
-		"properties": {
-			"cluster_name": {"type": "string", "description": "集群名称筛选（可选）"}
-		}
-	}`)
+// RegisterK8sSkills 注册 Kubernetes Skills
+func RegisterK8sSkills(registry *biz.ToolRegistry) {
+	registry.Register(MustLoadBuiltinSkill("k8s.cluster_status", executeK8sClusterStatus))
+	registry.Register(MustLoadBuiltinSkill("k8s.list_resources", executeK8sListResources))
 }
 
-func (s *K8sClusterStatusSkill) Execute(ctx biz.SkillContext) (any, error) {
+// executeK8sClusterStatus 查询集群状态
+func executeK8sClusterStatus(ctx biz.SkillContext) (any, error) {
 	clusterName, _ := ctx.Params["cluster_name"].(string)
 
 	type ClusterInfo struct {
@@ -67,33 +56,15 @@ func (s *K8sClusterStatusSkill) Execute(ctx biz.SkillContext) (any, error) {
 	}
 
 	return map[string]any{
-		"clusters":    result,
-		"total":       len(result),
-		"normal":      normalCount,
-		"abnormal":    len(result) - normalCount,
+		"clusters": result,
+		"total":    len(result),
+		"normal":   normalCount,
+		"abnormal": len(result) - normalCount,
 	}, nil
 }
 
-// K8sListResourcesSkill 查询 K8s 资源
-type K8sListResourcesSkill struct{}
-
-func (s *K8sListResourcesSkill) Name() string        { return "k8s.list_resources" }
-func (s *K8sListResourcesSkill) Description() string {
-	return "查询 Kubernetes 集群中的资源信息概览（从数据库缓存中获取）。返回集群的节点数和 Pod 数统计"
-}
-func (s *K8sListResourcesSkill) RiskLevel() string   { return "low" }
-func (s *K8sListResourcesSkill) Parameters() json.RawMessage {
-	return json.RawMessage(`{
-		"type": "object",
-		"properties": {
-			"cluster_name": {"type": "string", "description": "集群名称（必填）"},
-			"resource_type": {"type": "string", "description": "资源类型: nodes / pods / deployments / services", "default": "pods"}
-		},
-		"required": ["cluster_name"]
-	}`)
-}
-
-func (s *K8sListResourcesSkill) Execute(ctx biz.SkillContext) (any, error) {
+// executeK8sListResources 查询 K8s 资源
+func executeK8sListResources(ctx biz.SkillContext) (any, error) {
 	clusterName, _ := ctx.Params["cluster_name"].(string)
 	if clusterName == "" {
 		return nil, fmt.Errorf("请提供集群名称")
@@ -120,10 +91,4 @@ func (s *K8sListResourcesSkill) Execute(ctx biz.SkillContext) (any, error) {
 		"status":    cluster.Status,
 		"message":   "注意: 详细的实时资源信息需要通过 K8s API 直接查询，当前返回的是数据库缓存的概览数据",
 	}, nil
-}
-
-// RegisterK8sSkills 注册 Kubernetes Skills
-func RegisterK8sSkills(registry *biz.ToolRegistry) {
-	registry.Register(&K8sClusterStatusSkill{})
-	registry.Register(&K8sListResourcesSkill{})
 }

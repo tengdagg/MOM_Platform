@@ -571,10 +571,6 @@ web/src/plugins/ai/                 # AI 前端插件注册
 - 性能优化（缓存、并发控制）
 - 更多云厂商和监控集成
 
-
-
-
-
 ## **实施总结**
 
 ### **Phase 1 - 插件骨架 + 模型适配层 + 基础对话**
@@ -582,73 +578,49 @@ web/src/plugins/ai/                 # AI 前端插件注册
 **后端 (Go):**
 
 - plugins/ai/plugin.go - AI 插件入口，实现 Plugin 接口，自动迁移 4 张数据库表，注册 3 个子菜单（AI 对话、Skill 管理、模型配置）
-
 - plugins/ai/biz/models.go - 数据模型：AIModelConfig、ChatSession、ChatMessage、SkillDefinition、PendingAction
-
 - plugins/ai/biz/model_adapter.go - 统一模型适配层，支持 OpenAI 兼容接口（OpenAI、Claude、DeepSeek、通义千问等）和 Ollama 本地模型，实现流式和非流式对话
-
 - plugins/ai/biz/conversation.go - 对话管理器，负责会话 CRUD、消息历史、自动标题生成
-
 - plugins/ai/server/model_handler.go - 模型配置完整 CRUD + 连通性测试 + 默认模型设置
-
 - plugins/ai/server/chat_handler.go - WebSocket 流式对话 + HTTP 回退模式 + 会话管理
-
 - internal/server/http.go - 注册 AI 插件到系统路由
 
 **前端 (Vue.js):**
 
 - web/src/api/ai.ts - 完整 API 层，覆盖模型、会话、消息、Skill、模板、WebSocket
-
 - web/src/plugins/ai/index.ts - 前端插件注册，定义菜单和路由
-
 - web/src/views/ai/AIChat.vue - 完整对话界面：左侧会话列表、消息流、Markdown 渲染、工具调用卡片、流式输入指示器
-
 - web/src/views/ai/AIModelConfig.vue - 模型配置页面，卡片式 UI，厂商图标，CRUD 对话框
-
 - web/src/main.ts - 添加 AI 插件导入
 
 ### **Phase 2 - Agent ReAct 引擎 + 核心 Skills**
 
 - plugins/ai/biz/agent.go - 完整的 ReAct 引擎，支持流式（RunStream）和非流式（Run）两种执行模式，最多 10 轮工具调用循环，自动注入 RBAC 上下文
-
 - plugins/ai/skills/host_skills.go - 主机管理：host.list（列表查询）、host.detail（详情查询）、host.analyze（健康分析）
-
 - plugins/ai/skills/k8s_skills.go - K8s 管理：k8s.cluster_status（集群状态）、k8s.list_resources（资源概览）
-
 - plugins/ai/skills/audit_skills.go - 审计分析：audit.operation_summary（操作日志统计）、audit.login_analysis（登录行为分析）、audit.session_summary（终端会话汇总）
 
 ### **Phase 3 - 完整 Skill 覆盖 + 快捷指令**
 
 - plugins/ai/skills/task_skills.go - 任务中心：task.history（执行历史）、task.execute（命令执行，高风险）
-
 - plugins/ai/skills/monitor_skills.go - 监控告警：monitor.domain_status（域名监控）、monitor.alert_summary（告警汇总）
-
 - plugins/ai/skills/cloud_skills.go - 云账号：cloud.list_accounts（账号列表）、cloud.list_instances（云主机实例）
-
 - plugins/ai/skills/analysis_skills.go - 综合分析：analysis.infra_report（基础设施报告）、[analysis.security](http://analysis.security)_audit（安全态势）、analysis.capacity_plan（容量规划）
-
 - 对话输入框支持 / 快捷指令面板，内置 8 个预设指令（巡检、主机状态、K8s 诊断、安全检查、容量分析、操作日志、告警汇总、云账号）
-
 - 支持键盘上下方向键选择、Enter 确认、Escape 关闭
 
 ### **Phase 4 - 自定义 Skill 上传 + 沙箱**
 
 - plugins/ai/biz/skill_sandbox.go - 脚本沙箱引擎，支持 JavaScript（通过 Node.js）和 Python（通过子进程），带超时控制、参数注入、输出解析
-
 - plugins/ai/biz/skill_engine.go - Skill 执行引擎，从数据库加载自定义脚本并包装为标准 Skill 接口
-
 - plugins/ai/server/skill_handler.go - .[skill.zip](http://skill.zip) 上传解析器，读取 manifest.yaml + script.js/[script.py](http://script.py)，支持参数校验和更新覆盖
-
 - web/src/views/ai/AISkills.vue - Skill 管理页面，上传按钮已启用，支持分类筛选、启用/禁用、删除
 
 ### **Phase 5 - 模板 + 上下文 + 增强**
 
 - plugins/ai/biz/context_builder.go - 上下文构建器，自动注入当前用户信息、角色权限、平台资源概况到系统提示词；内置 5 个场景模板（每日巡检、周报生成、故障排查、安全检查、容量规划）
-
 - 对话界面已集成多模型切换下拉框
-
 - 欢迎页展示场景模板卡片，点击即可使用
-
 - 模板 API 端点（GET /api/v1/plugins/ai/templates）
 
 ---

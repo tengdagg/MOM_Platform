@@ -1,30 +1,19 @@
 package skills
 
 import (
-	"encoding/json"
 	"fmt"
 
 	"github.com/ydcloud-dy/mom/plugins/ai/biz"
 )
 
-// CloudListAccountsSkill 查询云账号列表
-type CloudListAccountsSkill struct{}
-
-func (s *CloudListAccountsSkill) Name() string        { return "cloud.list_accounts" }
-func (s *CloudListAccountsSkill) Description() string {
-	return "查询所有云平台账号列表，包括账号名称、云厂商、状态等信息"
-}
-func (s *CloudListAccountsSkill) RiskLevel() string   { return "low" }
-func (s *CloudListAccountsSkill) Parameters() json.RawMessage {
-	return json.RawMessage(`{
-		"type": "object",
-		"properties": {
-			"provider": {"type": "string", "description": "按云厂商筛选: aliyun / tencent / aws / jdcloud / baidu / ksyun"}
-		}
-	}`)
+// RegisterCloudSkills 注册云账号 Skills
+func RegisterCloudSkills(registry *biz.ToolRegistry) {
+	registry.Register(MustLoadBuiltinSkill("cloud.list_accounts", executeCloudListAccounts))
+	registry.Register(MustLoadBuiltinSkill("cloud.list_instances", executeCloudListInstances))
 }
 
-func (s *CloudListAccountsSkill) Execute(ctx biz.SkillContext) (any, error) {
+// executeCloudListAccounts 查询云账号列表
+func executeCloudListAccounts(ctx biz.SkillContext) (any, error) {
 	provider, _ := ctx.Params["provider"].(string)
 
 	type AccountInfo struct {
@@ -76,26 +65,8 @@ func (s *CloudListAccountsSkill) Execute(ctx biz.SkillContext) (any, error) {
 	}, nil
 }
 
-// CloudListInstancesSkill 查询云主机实例
-type CloudListInstancesSkill struct{}
-
-func (s *CloudListInstancesSkill) Name() string        { return "cloud.list_instances" }
-func (s *CloudListInstancesSkill) Description() string {
-	return "查询已导入的云主机实例列表，支持按云厂商和区域筛选"
-}
-func (s *CloudListInstancesSkill) RiskLevel() string   { return "low" }
-func (s *CloudListInstancesSkill) Parameters() json.RawMessage {
-	return json.RawMessage(`{
-		"type": "object",
-		"properties": {
-			"provider": {"type": "string", "description": "云厂商: aliyun / tencent / aws 等"},
-			"region": {"type": "string", "description": "区域"},
-			"limit": {"type": "integer", "description": "返回数量，默认 20", "default": 20}
-		}
-	}`)
-}
-
-func (s *CloudListInstancesSkill) Execute(ctx biz.SkillContext) (any, error) {
+// executeCloudListInstances 查询云主机实例
+func executeCloudListInstances(ctx biz.SkillContext) (any, error) {
 	provider, _ := ctx.Params["provider"].(string)
 	limit := 20
 	if l, ok := ctx.Params["limit"].(float64); ok && l > 0 {
@@ -127,10 +98,4 @@ func (s *CloudListInstancesSkill) Execute(ctx biz.SkillContext) (any, error) {
 		"instances": instances,
 		"total":     len(instances),
 	}, nil
-}
-
-// RegisterCloudSkills 注册云账号 Skills
-func RegisterCloudSkills(registry *biz.ToolRegistry) {
-	registry.Register(&CloudListAccountsSkill{})
-	registry.Register(&CloudListInstancesSkill{})
 }

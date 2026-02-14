@@ -61,18 +61,27 @@ func (ChatMessage) TableName() string {
 }
 
 // SkillDefinition Skill 技能定义
+// 每个 Skill 遵循标准目录结构:
+//
+//	skill-name/
+//	├── SKILL.md          (必需) YAML 前置元数据 + Markdown 指令
+//	└── 打包资源           (可选)
+//	    ├── scripts/      可执行代码
+//	    ├── references/   上下文文档
+//	    └── assets/       输出文件（模板等）
 type SkillDefinition struct {
 	ID          uint      `gorm:"primaryKey" json:"id"`
 	Name        string    `gorm:"size:100;uniqueIndex" json:"name"`
 	DisplayName string    `gorm:"size:200" json:"displayName"`
 	Description string    `gorm:"size:1000" json:"description"`
-	Category    string    `gorm:"size:50" json:"category"` // host / k8s / task / monitor / cloud / audit / analysis
-	Parameters  string    `gorm:"type:text" json:"parameters"` // JSON Schema
+	Category    string    `gorm:"size:50" json:"category"`               // host / k8s / task / monitor / cloud / audit / analysis
+	Parameters  string    `gorm:"type:text" json:"parameters"`           // JSON Schema
 	IsBuiltin   bool      `gorm:"default:false" json:"isBuiltin"`
 	ScriptType  string    `gorm:"size:20;default:'builtin'" json:"scriptType"` // builtin / javascript / python
 	ScriptBody  string    `gorm:"type:longtext" json:"scriptBody,omitempty"`
+	Markdown    string    `gorm:"type:longtext" json:"markdown,omitempty"`     // SKILL.md 中的 Markdown 指令部分
 	IsEnabled   bool      `gorm:"default:true" json:"isEnabled"`
-	RiskLevel   string    `gorm:"size:20;default:'low'" json:"riskLevel"` // low / medium / high / critical
+	RiskLevel   string    `gorm:"size:20;default:'low'" json:"riskLevel"`      // low / medium / high / critical
 	CreatedAt   time.Time `json:"createdAt"`
 	UpdatedAt   time.Time `json:"updatedAt"`
 }

@@ -1,32 +1,20 @@
 package skills
 
 import (
-	"encoding/json"
 	"fmt"
 	"time"
 
 	"github.com/ydcloud-dy/mom/plugins/ai/biz"
 )
 
-// MonitorDomainStatusSkill 域名监控状态
-type MonitorDomainStatusSkill struct{}
-
-func (s *MonitorDomainStatusSkill) Name() string        { return "monitor.domain_status" }
-func (s *MonitorDomainStatusSkill) Description() string {
-	return "查询域名监控状态，列出所有被监控的域名及其当前状态（正常/异常/暂停），响应时间，SSL 证书有效期等"
-}
-func (s *MonitorDomainStatusSkill) RiskLevel() string   { return "low" }
-func (s *MonitorDomainStatusSkill) Parameters() json.RawMessage {
-	return json.RawMessage(`{
-		"type": "object",
-		"properties": {
-			"status": {"type": "string", "description": "状态筛选: normal / abnormal / paused"},
-			"domain": {"type": "string", "description": "域名关键词搜索"}
-		}
-	}`)
+// RegisterMonitorSkills 注册监控告警 Skills
+func RegisterMonitorSkills(registry *biz.ToolRegistry) {
+	registry.Register(MustLoadBuiltinSkill("monitor.domain_status", executeMonitorDomainStatus))
+	registry.Register(MustLoadBuiltinSkill("monitor.alert_summary", executeMonitorAlertSummary))
 }
 
-func (s *MonitorDomainStatusSkill) Execute(ctx biz.SkillContext) (any, error) {
+// executeMonitorDomainStatus 域名监控状态
+func executeMonitorDomainStatus(ctx biz.SkillContext) (any, error) {
 	statusFilter, _ := ctx.Params["status"].(string)
 	domainFilter, _ := ctx.Params["domain"].(string)
 
@@ -82,24 +70,8 @@ func (s *MonitorDomainStatusSkill) Execute(ctx biz.SkillContext) (any, error) {
 	}, nil
 }
 
-// MonitorAlertSummarySkill 告警汇总
-type MonitorAlertSummarySkill struct{}
-
-func (s *MonitorAlertSummarySkill) Name() string        { return "monitor.alert_summary" }
-func (s *MonitorAlertSummarySkill) Description() string {
-	return "告警日志汇总分析，按时间范围统计告警数量、类型分布和严重程度"
-}
-func (s *MonitorAlertSummarySkill) RiskLevel() string   { return "low" }
-func (s *MonitorAlertSummarySkill) Parameters() json.RawMessage {
-	return json.RawMessage(`{
-		"type": "object",
-		"properties": {
-			"days": {"type": "integer", "description": "统计最近 N 天，默认 1", "default": 1}
-		}
-	}`)
-}
-
-func (s *MonitorAlertSummarySkill) Execute(ctx biz.SkillContext) (any, error) {
+// executeMonitorAlertSummary 告警汇总
+func executeMonitorAlertSummary(ctx biz.SkillContext) (any, error) {
 	days := 1
 	if d, ok := ctx.Params["days"].(float64); ok && d > 0 {
 		days = int(d)
@@ -140,10 +112,4 @@ func (s *MonitorAlertSummarySkill) Execute(ctx biz.SkillContext) (any, error) {
 		"byType":      typeStats,
 		"byStatus":    statusStats,
 	}, nil
-}
-
-// RegisterMonitorSkills 注册监控告警 Skills
-func RegisterMonitorSkills(registry *biz.ToolRegistry) {
-	registry.Register(&MonitorDomainStatusSkill{})
-	registry.Register(&MonitorAlertSummarySkill{})
 }

@@ -110,12 +110,17 @@
             <div class="message-body" v-html="renderMarkdown(msg.content)"></div>
             <!-- 工具调用卡片 -->
             <div v-if="msg.toolCalls && msg.toolCalls.length > 0" class="tool-calls">
-              <div v-for="(tc, idx) in msg.toolCalls" :key="idx" class="tool-call-card">
+              <div class="tool-calls-title">
+                <el-icon><Operation /></el-icon>
+                <span>调用了 {{ msg.toolCalls.length }} 个 Skill</span>
+              </div>
+              <div v-for="(tc, idx) in msg.toolCalls" :key="idx" class="tool-call-card" :class="'status-' + tc.status">
                 <div class="tool-call-header" @click="tc._expanded = !tc._expanded">
-                  <el-icon><Operation /></el-icon>
+                  <span class="tool-call-step">{{ idx + 1 }}</span>
                   <span class="tool-name">{{ tc.toolName }}</span>
-                  <el-tag :type="tc.status === 'success' ? 'success' : 'danger'" size="small">
+                  <el-tag :type="tc.status === 'success' ? 'success' : 'danger'" size="small" class="status-tag">
                     {{ tc.status === 'success' ? '成功' : '失败' }}
+                    {{ tc.duration ? `(${tc.duration}ms)` : '' }}
                   </el-tag>
                   <el-icon class="expand-icon">
                     <ArrowDown v-if="!tc._expanded" /><ArrowUp v-else />
@@ -123,11 +128,11 @@
                 </div>
                 <div v-if="tc._expanded" class="tool-call-body">
                   <div class="tool-section">
-                    <div class="tool-section-title">参数</div>
+                    <div class="tool-section-title">📥 调用参数</div>
                     <pre>{{ formatJSON(tc.params) }}</pre>
                   </div>
                   <div class="tool-section" v-if="tc.result">
-                    <div class="tool-section-title">结果</div>
+                    <div class="tool-section-title">📤 返回结果</div>
                     <pre>{{ formatJSON(tc.result) }}</pre>
                   </div>
                 </div>
@@ -154,13 +159,38 @@
               </span>
             </div>
             <!-- 流式工具调用 -->
-            <div v-if="currentToolCalls.length > 0" class="tool-calls">
-              <div v-for="(tc, idx) in currentToolCalls" :key="idx" class="tool-call-card">
-                <div class="tool-call-header">
-                  <el-icon><Operation /></el-icon>
+            <div v-if="currentToolCalls.length > 0" class="tool-calls streaming-tools">
+              <div class="tool-calls-title">
+                <el-icon><Operation /></el-icon>
+                <span>Skill 调用过程</span>
+              </div>
+              <div v-for="(tc, idx) in currentToolCalls" :key="idx" class="tool-call-card" :class="'status-' + tc.status">
+                <div class="tool-call-header" @click="tc._expanded = !tc._expanded">
+                  <span class="tool-call-step">{{ idx + 1 }}</span>
                   <span class="tool-name">{{ tc.toolName }}</span>
-                  <el-tag v-if="tc.status === 'running'" type="warning" size="small">执行中</el-tag>
-                  <el-tag v-else-if="tc.status === 'success'" type="success" size="small">完成</el-tag>
+                  <el-tag v-if="tc.riskLevel === 'high' || tc.riskLevel === 'critical'" type="danger" size="small" effect="plain">
+                    {{ tc.riskLevel === 'critical' ? '危险' : '高风险' }}
+                  </el-tag>
+                  <el-tag v-if="tc.status === 'running'" type="warning" size="small" class="status-tag">
+                    <span class="running-dot"></span> 执行中...
+                  </el-tag>
+                  <el-tag v-else-if="tc.status === 'success'" type="success" size="small" class="status-tag">
+                    完成 {{ tc.duration ? `(${tc.duration}ms)` : '' }}
+                  </el-tag>
+                  <el-tag v-else-if="tc.status === 'error'" type="danger" size="small" class="status-tag">失败</el-tag>
+                  <el-icon class="expand-icon" v-if="tc.params || tc.result">
+                    <ArrowDown v-if="!tc._expanded" /><ArrowUp v-else />
+                  </el-icon>
+                </div>
+                <div v-if="tc._expanded || tc.status === 'running'" class="tool-call-body">
+                  <div class="tool-section" v-if="tc.params">
+                    <div class="tool-section-title">📥 调用参数</div>
+                    <pre>{{ formatJSON(tc.params) }}</pre>
+                  </div>
+                  <div class="tool-section" v-if="tc.result">
+                    <div class="tool-section-title">📤 返回结果</div>
+                    <pre>{{ formatJSON(tc.result) }}</pre>
+                  </div>
                 </div>
               </div>
             </div>
@@ -293,15 +323,14 @@ onBeforeUnmount(() => {
 // 加载模型列表
 async function loadModels() {
   try {
-    const res = await getModelList()
-    if (res.data?.code === 0) {
-      models.value = res.data.data || []
-      const defaultModel = models.value.find((m: any) => m.isDefault)
-      if (defaultModel) {
-        selectedModelId.value = defaultModel.id
-      } else if (models.value.length > 0) {
-        selectedModelId.value = models.value[0].id
-      }
+    const data = await getModelList()
+    // request.ts 拦截器成功时直接返回 response.data.data
+    models.value = Array.isArray(data) ? data : (data?.list || [])
+    const defaultModel = models.value.find((m: any) => m.isDefault)
+    if (defaultModel) {
+      selectedModelId.value = defaultModel.id
+    } else if (models.value.length > 0) {
+      selectedModelId.value = models.value[0].id
     }
   } catch (e) {
     // 静默处理
@@ -311,10 +340,8 @@ async function loadModels() {
 // 加载会话列表
 async function loadSessions() {
   try {
-    const res = await getSessions()
-    if (res.data?.code === 0) {
-      sessions.value = res.data.data || []
-    }
+    const data = await getSessions()
+    sessions.value = Array.isArray(data) ? data : []
   } catch (e) {
     // 静默处理
   }
@@ -323,9 +350,8 @@ async function loadSessions() {
 // 创建新会话
 async function createNewSession() {
   try {
-    const res = await createSession({ modelId: selectedModelId.value })
-    if (res.data?.code === 0) {
-      const session = res.data.data
+    const session = await createSession({ modelId: selectedModelId.value })
+    if (session && session.id) {
       sessions.value.unshift(session)
       currentSessionId.value = session.id
       messages.value = []
@@ -344,14 +370,13 @@ async function switchSession(id: number) {
 // 加载会话消息
 async function loadMessages(sessionId: number) {
   try {
-    const res = await getSessionMessages(sessionId)
-    if (res.data?.code === 0) {
-      messages.value = (res.data.data || []).map((m: any) => ({
-        ...m,
-        toolCalls: m.toolCalls ? JSON.parse(m.toolCalls) : [],
-      }))
-      scrollToBottom()
-    }
+    const data = await getSessionMessages(sessionId)
+    const msgList = Array.isArray(data) ? data : []
+    messages.value = msgList.map((m: any) => ({
+      ...m,
+      toolCalls: m.toolCalls ? (typeof m.toolCalls === 'string' ? JSON.parse(m.toolCalls) : m.toolCalls) : [],
+    }))
+    scrollToBottom()
   } catch (e) {
     // 静默处理
   }
@@ -413,18 +438,26 @@ function handleWSEvent(event: any) {
       currentToolCalls.value.push({
         toolName: event.toolName,
         params: event.toolParams,
+        riskLevel: event.riskLevel || 'low',
         status: 'running',
+        startTime: Date.now(),
       })
       scrollToBottom()
       break
 
-    case 'tool_call_result':
-      if (currentToolCalls.value.length > 0) {
-        const last = currentToolCalls.value[currentToolCalls.value.length - 1]
-        last.result = event.toolResult
-        last.status = 'success'
+    case 'tool_call_result': {
+      // 按名称匹配最后一个 running 状态的 tool call
+      const tc = [...currentToolCalls.value].reverse().find(
+        t => t.toolName === event.toolName && t.status === 'running'
+      ) || currentToolCalls.value[currentToolCalls.value.length - 1]
+      if (tc) {
+        tc.result = event.toolResult
+        tc.status = event.toolResult?.includes('"error"') ? 'error' : 'success'
+        tc.duration = Date.now() - (tc.startTime || Date.now())
       }
+      scrollToBottom()
       break
+    }
 
     case 'message_end':
       // 将流式内容合并为正式消息
@@ -485,24 +518,19 @@ async function sendMessage() {
   } else {
     // 回退到 HTTP
     try {
-      const res = await apiSendMessage({
+      const data = await apiSendMessage({
         sessionId: currentSessionId.value,
         content,
         modelId: selectedModelId.value,
       })
-      if (res.data?.code === 0) {
-        const data = res.data.data
-        messages.value.push({
-          id: Date.now(),
-          role: 'assistant',
-          content: data.content,
-          toolCalls: [],
-        })
-      } else {
-        ElMessage.error(res.data?.message || '请求失败')
-      }
-    } catch (e) {
-      ElMessage.error('请求失败')
+      messages.value.push({
+        id: Date.now(),
+        role: 'assistant',
+        content: data?.content || '',
+        toolCalls: [],
+      })
+    } catch (e: any) {
+      ElMessage.error(e?.message || '请求失败')
     }
     isLoading.value = false
     scrollToBottom()
@@ -513,10 +541,8 @@ async function sendMessage() {
 // 加载对话模板
 async function loadTemplates() {
   try {
-    const res = await getTemplates()
-    if (res.data?.code === 0) {
-      templates.value = res.data.data || []
-    }
+    const data = await getTemplates()
+    templates.value = Array.isArray(data) ? data : []
   } catch (e) {
     // 静默处理
   }
@@ -920,33 +946,120 @@ function formatJSON(data: any): string {
 
 /* 工具调用卡片 */
 .tool-calls {
-  margin-top: 8px;
+  margin-top: 12px;
+  background: #f8f9fb;
+  border: 1px solid #e8ecf0;
+  border-radius: 10px;
+  padding: 12px;
+}
+
+.tool-calls-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #606266;
+  margin-bottom: 8px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #e8ecf0;
 }
 
 .tool-call-card {
-  background: #fafafa;
+  background: #ffffff;
   border: 1px solid #e4e7ed;
   border-radius: 8px;
   margin-bottom: 6px;
   overflow: hidden;
+  transition: all 0.2s ease;
+}
+
+.tool-call-card:last-child {
+  margin-bottom: 0;
+}
+
+.tool-call-card.status-running {
+  border-color: #e6a23c;
+  box-shadow: 0 0 0 1px rgba(230, 162, 60, 0.15);
+}
+
+.tool-call-card.status-success {
+  border-color: #67c23a;
+}
+
+.tool-call-card.status-error {
+  border-color: #f56c6c;
 }
 
 .tool-call-header {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 8px 12px;
+  padding: 10px 12px;
   cursor: pointer;
   font-size: 13px;
+  transition: background 0.2s;
+}
+
+.tool-call-header:hover {
+  background: #f5f7fa;
+}
+
+.tool-call-step {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #409eff;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.tool-call-card.status-success .tool-call-step {
+  background: #67c23a;
+}
+
+.tool-call-card.status-error .tool-call-step {
+  background: #f56c6c;
+}
+
+.tool-call-card.status-running .tool-call-step {
+  background: #e6a23c;
 }
 
 .tool-name {
-  font-weight: 500;
+  font-weight: 600;
   flex: 1;
+  font-family: 'Monaco', 'Menlo', monospace;
+  color: #303133;
+}
+
+.status-tag {
+  font-size: 11px !important;
+}
+
+.running-dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #e6a23c;
+  margin-right: 4px;
+  animation: pulse 1s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
 }
 
 .expand-icon {
   color: #909399;
+  transition: transform 0.2s;
 }
 
 .tool-call-body {
@@ -960,19 +1073,28 @@ function formatJSON(data: any): string {
 
 .tool-section-title {
   font-size: 12px;
-  color: #909399;
+  color: #606266;
+  font-weight: 500;
   margin-bottom: 4px;
 }
 
 .tool-section pre {
   background: #1e1e1e;
   color: #d4d4d4;
-  padding: 8px;
-  border-radius: 4px;
+  padding: 10px 12px;
+  border-radius: 6px;
   font-size: 12px;
   overflow-x: auto;
   max-height: 200px;
   overflow-y: auto;
+  line-height: 1.5;
+  margin: 0;
+}
+
+/* 流式工具调用区域特殊样式 */
+.streaming-tools {
+  border-color: #e6a23c;
+  background: #fdf6ec;
 }
 
 /* 正在输入 */
