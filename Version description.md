@@ -56,3 +56,30 @@ cloud.import_hosts: 支持通过账号名称查找、确认后创建导入任务
 host.list: 新增标签搜索、描述搜索、排序支持（CPU/内存/磁盘/名称/IP）、Linux/Windows 分类计数
 host.detail: 新增公网 IP、CPU 型号、云平台信息、结构化资源数据、状态文字、分组名称
 host.analyze: 新增按分组统计资源使用率、整体资源统计、健康评估等级（healthy/warning/critical）
+
+
+### 20260214
+
+AI 操作审计日志不显示
+根因：之前 writeAuditLog 使用 go func() + 原始 SQL 执行，错误被静默吞掉（没有 error 检查和日志），导致即使写入失败也无从得知。
+修复内容（4 个文件）：
+plugins/ai/biz/agent.go — 重写 writeAuditLog：
+定义了 aiOperationLog 结构体，精确映射到 sys_operation_log 表的每一列
+改用 GORM 的 Create() 代替原始 SQL，确保列映射正确
+加入错误日志：log.Printf("[agent] 写入 AI 审计日志失败: %v", err)
+填充 RealName: "AI 助手"，让操作用户列显示更清晰
+Action 字段改为 skill 名称 + 风险等级，例如 k8s.kubectl [critical]
+internal/biz/audit/model.go — 扩展字段宽度：
+Action 从 varchar(50) 改为 varchar(100)
+Method 从 varchar(10) 改为 varchar(20) 以容纳 SKILL
+cmd/server/server.go — 添加 ALTER TABLE 迁移确保现有数据库列宽也被更新
+internal/data/audit/operation_log.go — 优化查询：
+选择 "AI 助手" 模块时自动包含所有 AI-* 子模块
+action 改为 LIKE 模糊匹配
+web/src/views/audit/OperationLogs.vue — 前端增强：
+模块筛选下拉增加 AI 助手分组（AI 助手、AI-Kubernetes、AI-主机管理、AI-任务中心、AI-监控告警、AI-云账号、AI-审计分析、AI-综合分析）
+AI 模块标签以 warning（橙色）区分，便于一眼辨识
+操作类型和请求方法也新增对 AI 操作的样式支持
+现在 AI 操作审计日志的效果是：
+操作用户	模块	操作	操作描述	请求方法	路径
+AI 助手	AI-Kubernetes	k8s.kubectl [critical]	查询到 3 个节点...	SKILL

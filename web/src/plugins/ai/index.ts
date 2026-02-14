@@ -9,7 +9,7 @@ class AIPlugin implements Plugin {
   name = 'ai'
   description = 'AI 智能助手，提供 Agent + Skills 运维管理能力'
   version = '1.0.0'
-  author = 'J'
+  author = 'dat'
 
   async install() {
     // 初始化

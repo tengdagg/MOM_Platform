@@ -604,6 +604,28 @@ func (a *Agent) executeTool(name string, argsJSON string, userID uint, username 
 	return resultMap
 }
 
+// aiOperationLog AI 操作审计日志模型（与 sys_operation_log 表对应）
+type aiOperationLog struct {
+	UserID      uint      `gorm:"column:user_id"`
+	Username    string    `gorm:"column:username"`
+	RealName    string    `gorm:"column:real_name"`
+	Module      string    `gorm:"column:module"`
+	Action      string    `gorm:"column:action"`
+	Description string    `gorm:"column:description"`
+	Method      string    `gorm:"column:method"`
+	Path        string    `gorm:"column:path"`
+	Params      string    `gorm:"column:params"`
+	Status      int       `gorm:"column:status"`
+	ErrorMsg    string    `gorm:"column:error_msg"`
+	CostTime    int64     `gorm:"column:cost_time"`
+	IP          string    `gorm:"column:ip"`
+	UserAgent   string    `gorm:"column:user_agent"`
+	CreatedAt   time.Time `gorm:"column:created_at"`
+	UpdatedAt   time.Time `gorm:"column:updated_at"`
+}
+
+func (aiOperationLog) TableName() string { return "sys_operation_log" }
+
 // writeAuditLog 写入 AI 操作审计日志
 func (a *Agent) writeAuditLog(userID uint, username, skillName, params, description, riskLevel string, costTime int64, success bool) {
 	status := 200
@@ -640,13 +662,37 @@ func (a *Agent) writeAuditLog(userID uint, username, skillName, params, descript
 		description = description[:200] + "..."
 	}
 
-	// 异步写入审计日志
+	// 构建操作描述
+	action := skillName
+	if riskLevel != "" && riskLevel != "low" {
+		action = fmt.Sprintf("%s [%s]", skillName, riskLevel)
+	}
+
+	now := time.Now()
+	logEntry := &aiOperationLog{
+		UserID:      userID,
+		Username:    username + "(AI)",
+		RealName:    "AI 助手",
+		Module:      module,
+		Action:      action,
+		Description: description,
+		Method:      "SKILL",
+		Path:        "/ai/skill/" + skillName,
+		Params:      params,
+		Status:      status,
+		ErrorMsg:    errMsg,
+		CostTime:    costTime,
+		IP:          "AI-Agent",
+		UserAgent:   "MOM-AI-Agent/1.0",
+		CreatedAt:   now,
+		UpdatedAt:   now,
+	}
+
+	// 异步写入审计日志（使用 GORM Create，有错误日志）
 	go func() {
-		a.db.Exec(`INSERT INTO sys_operation_log 
-			(user_id, username, module, action, description, method, path, params, status, error_msg, cost_time, ip, user_agent, created_at, updated_at)
-			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
-			userID, username+"(AI)", module, "AI-Skill:"+skillName, description,
-			"SKILL", "/ai/skill/"+skillName, params, status, errMsg, costTime, "AI-Agent", "MOM-AI-Agent/1.0")
+		if err := a.db.Create(logEntry).Error; err != nil {
+			log.Printf("[agent] 写入 AI 审计日志失败: %v", err)
+		}
 	}()
 }
 

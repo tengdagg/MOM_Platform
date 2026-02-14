@@ -9,7 +9,7 @@ class TaskPlugin implements Plugin {
   name = 'task'
   description = '任务中心插件，提供执行任务、模板管理和文件分发功能'
   version = '1.0.0'
-  author = 'J'
+  author = 'dat'
 
   /**
    * 安装插件

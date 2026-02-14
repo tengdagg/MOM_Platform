@@ -14,7 +14,7 @@ class MonitorPlugin implements Plugin {
   prettyName = '监控中心'
   description = '监控中心插件，提供域名监控、告警管理等功能'
   version = '1.0.0'
-  author = 'J'
+  author = 'dat'
 
   /**
    * 安装插件

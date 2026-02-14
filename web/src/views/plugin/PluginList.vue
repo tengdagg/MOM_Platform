@@ -158,11 +158,16 @@ const loadPlugins = async () => {
       const { listPlugins } = await import('@/api/plugin')
       const backendPlugins = await listPlugins()
 
-      // 合并前端插件和后端状态
+      // 合并前端插件和后端状态（后端数据优先，确保作者/版本/描述等实时准确）
       plugins.value = allPlugins.map(plugin => {
         const backendPlugin = backendPlugins.find((p: any) => p.name === plugin.name)
         return {
           ...plugin,
+          ...(backendPlugin ? {
+            author: backendPlugin.author || plugin.author,
+            version: backendPlugin.version || plugin.version,
+            description: backendPlugin.description || plugin.description,
+          } : {}),
           enabled: backendPlugin?.enabled ?? false,
           loading: false
         }

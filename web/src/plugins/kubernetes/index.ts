@@ -9,7 +9,7 @@ class KubernetesPlugin implements Plugin {
   name = 'kubernetes'
   description = 'Kubernetes容器管理平台,提供集群管理、节点管理、工作负载、命名空间等完整功能'
   version = '1.0.0'
-  author = 'J'
+  author = 'dat'
 
   /**
    * 安装插件

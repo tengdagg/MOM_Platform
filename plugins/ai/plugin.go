@@ -39,7 +39,7 @@ func (p *Plugin) Version() string {
 
 // Author 返回插件作者
 func (p *Plugin) Author() string {
-	return "J"
+	return "dat"
 }
 
 // Enable 启用插件

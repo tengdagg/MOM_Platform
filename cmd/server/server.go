@@ -216,6 +216,10 @@ func autoMigrate(db *gorm.DB) error {
 	dropIndexIfExists(db, "sys_menu", "idx_sys_menu_code")
 	dropIndexIfExists(db, "sys_menu", "uk_code")
 
+	// 扩展 sys_operation_log 列宽度以支持 AI 操作审计
+	db.Exec("ALTER TABLE sys_operation_log MODIFY COLUMN `action` varchar(100) COMMENT '操作类型'")
+	db.Exec("ALTER TABLE sys_operation_log MODIFY COLUMN `method` varchar(20) COMMENT '请求方法'")
+
 	return nil
 }
 

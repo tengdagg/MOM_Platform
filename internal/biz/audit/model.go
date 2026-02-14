@@ -37,12 +37,12 @@ type SysOperationLog struct {
 	RealName string `gorm:"type:varchar(50);comment:真实姓名" json:"realName"`
 
 	// 操作信息
-	Module      string `gorm:"type:varchar(50);comment:模块名称" json:"module"`         // 模块：用户管理、角色管理、主机管理等
-	Action      string `gorm:"type:varchar(50);comment:操作类型" json:"action"`         // 操作：登录、查询、创建、更新、删除
+	Module      string `gorm:"type:varchar(50);comment:模块名称" json:"module"`         // 模块：用户管理、角色管理、主机管理、AI-Kubernetes 等
+	Action      string `gorm:"type:varchar(100);comment:操作类型" json:"action"`        // 操作：登录、查询、创建、更新、删除、k8s.kubectl [critical] 等
 	Description string `gorm:"type:varchar(200);comment:操作描述" json:"description"`   // 操作描述
 
 	// 请求信息
-	Method string `gorm:"type:varchar(10);comment:请求方法" json:"method"` // GET, POST, PUT, DELETE
+	Method string `gorm:"type:varchar(20);comment:请求方法" json:"method"` // GET, POST, PUT, DELETE, SKILL
 	Path   string `gorm:"type:varchar(200);comment:请求路径" json:"path"` // /api/v1/users
 	Params string `gorm:"type:text;comment:请求参数" json:"params"`       // JSON格式的请求参数
 

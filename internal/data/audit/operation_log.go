@@ -55,10 +55,15 @@ func (r *operationLogRepo) List(ctx context.Context, page, pageSize int, usernam
 		query = query.Where("username LIKE ?", "%"+username+"%")
 	}
 	if module != "" {
-		query = query.Where("module = ?", module)
+		if module == "AI 助手" {
+			// AI 助手模块包含所有 AI- 开头的子模块
+			query = query.Where("module = ? OR module LIKE 'AI-%'", module)
+		} else {
+			query = query.Where("module = ?", module)
+		}
 	}
 	if action != "" {
-		query = query.Where("action = ?", action)
+		query = query.Where("action LIKE ?", "%"+action+"%")
 	}
 	if status != "" {
 		// 处理状态码范围查询

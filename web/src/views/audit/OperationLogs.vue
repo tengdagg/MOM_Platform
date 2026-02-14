@@ -45,13 +45,25 @@
         clearable
         class="filter-select"
       >
-        <el-option label="系统管理" value="系统管理" />
-        <el-option label="个人信息" value="个人信息" />
-        <el-option label="操作审计" value="操作审计" />
-        <el-option label="资产管理" value="资产管理" />
-        <el-option label="Kubernetes" value="Kubernetes" />
-        <el-option label="监控中心" value="监控中心" />
-        <el-option label="任务中心" value="任务中心" />
+        <el-option-group label="系统模块">
+          <el-option label="系统管理" value="系统管理" />
+          <el-option label="个人信息" value="个人信息" />
+          <el-option label="操作审计" value="操作审计" />
+          <el-option label="资产管理" value="资产管理" />
+          <el-option label="Kubernetes" value="Kubernetes" />
+          <el-option label="监控中心" value="监控中心" />
+          <el-option label="任务中心" value="任务中心" />
+        </el-option-group>
+        <el-option-group label="AI 助手">
+          <el-option label="AI 助手" value="AI 助手" />
+          <el-option label="AI-Kubernetes" value="AI-Kubernetes" />
+          <el-option label="AI-主机管理" value="AI-主机管理" />
+          <el-option label="AI-任务中心" value="AI-任务中心" />
+          <el-option label="AI-监控告警" value="AI-监控告警" />
+          <el-option label="AI-云账号" value="AI-云账号" />
+          <el-option label="AI-审计分析" value="AI-审计分析" />
+          <el-option label="AI-综合分析" value="AI-综合分析" />
+        </el-option-group>
       </el-select>
       <el-select
         v-model="searchForm.action"
@@ -65,6 +77,7 @@
         <el-option label="删除" value="删除" />
         <el-option label="登录" value="登录" />
         <el-option label="登出" value="登出" />
+        <el-option label="GET" value="GET" />
       </el-select>
       <el-select
         v-model="searchForm.status"
@@ -113,10 +126,12 @@
         </el-table-column>
         <el-table-column label="模块" prop="module" min-width="120">
           <template #default="{ row }">
-            <el-tag size="small" type="info">{{ row.module }}</el-tag>
+            <el-tag size="small" :type="row.module?.startsWith('AI') ? 'warning' : 'info'">
+              {{ row.module }}
+            </el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="操作" prop="action" width="90">
+        <el-table-column label="操作" prop="action" min-width="120" show-overflow-tooltip>
           <template #default="{ row }">
             <el-tag :type="getActionType(row.action)" size="small">
               {{ row.action }}
@@ -300,13 +315,19 @@ const handleSelectionChange = (selection: any[]) => {
 
 // 获取操作类型标签样式
 const getActionType = (action: string) => {
+  if (action?.includes('[critical]')) return 'danger'
+  if (action?.includes('[high]')) return 'warning'
+  if (action?.startsWith?.('k8s') || action?.startsWith?.('host') || action?.startsWith?.('task') ||
+      action?.startsWith?.('monitor') || action?.startsWith?.('cloud') || action?.startsWith?.('audit') ||
+      action?.startsWith?.('analysis')) return 'warning'
   const map: Record<string, string> = {
     '查询': 'info',
     '创建': 'success',
     '更新': 'warning',
     '删除': 'danger',
     '登录': 'success',
-    '登出': 'info'
+    '登出': 'info',
+    'GET': 'info'
   }
   return map[action] || 'info'
 }
@@ -317,7 +338,8 @@ const getMethodType = (method: string) => {
     'GET': 'info',
     'POST': 'success',
     'PUT': 'warning',
-    'DELETE': 'danger'
+    'DELETE': 'danger',
+    'SKILL': 'warning'
   }
   return map[method] || 'info'
 }
