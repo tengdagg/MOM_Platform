@@ -58,6 +58,14 @@ export const toggleSkill = (id: number) => {
   return request.put(`/api/v1/plugins/ai/skills/${id}/toggle`)
 }
 
+export const toggleBuiltinSkill = (name: string) => {
+  return request.put('/api/v1/plugins/ai/skills/toggle-builtin', { name })
+}
+
+export const getSkillStats = () => {
+  return request.get('/api/v1/plugins/ai/skills/stats')
+}
+
 export const uploadSkill = (file: File) => {
   const formData = new FormData()
   formData.append('file', file)

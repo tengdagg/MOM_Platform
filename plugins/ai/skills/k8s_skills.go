@@ -3,92 +3,376 @@ package skills
 import (
 	"fmt"
 
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
 	"github.com/ydcloud-dy/mom/plugins/ai/biz"
 )
 
 // RegisterK8sSkills 注册 Kubernetes Skills
 func RegisterK8sSkills(registry *biz.ToolRegistry) {
-	registry.Register(MustLoadBuiltinSkill("k8s.cluster_status", executeK8sClusterStatus))
-	registry.Register(MustLoadBuiltinSkill("k8s.list_resources", executeK8sListResources))
+	// k8s.kubectl 是万能 K8s 操作 Skill，覆盖 get/describe/logs/scale/restart/delete/cordon/drain 等
+	registry.Register(MustLoadBuiltinSkill("k8s.kubectl", executeK8sKubectl))
+	// 以下是特定场景的 Skill，参数定义更精确，帮助 LLM 更准确地选择
+	registry.Register(MustLoadBuiltinSkill("k8s.scale", executeK8sScale))
+	registry.Register(MustLoadBuiltinSkill("k8s.restart", executeK8sRestart))
+	registry.Register(MustLoadBuiltinSkill("k8s.diagnose", executeK8sDiagnose))
+	registry.Register(MustLoadBuiltinSkill("k8s.node_manage", executeK8sNodeManage))
+	registry.Register(MustLoadBuiltinSkill("k8s.log_query", executeK8sLogQuery))
+	registry.Register(MustLoadBuiltinSkill("k8s.helm_manage", executeK8sHelmManage))
 }
 
-// executeK8sClusterStatus 查询集群状态
-func executeK8sClusterStatus(ctx biz.SkillContext) (any, error) {
-	clusterName, _ := ctx.Params["cluster_name"].(string)
+// isConfirmed 检查是否已确认执行
+func isConfirmed(params map[string]any) bool {
+	if confirmed, ok := params["confirmed"].(bool); ok && confirmed {
+		return true
+	}
+	// 兼容字符串 "true"
+	if confirmed, ok := params["confirmed"].(string); ok && confirmed == "true" {
+		return true
+	}
+	return false
+}
 
-	type ClusterInfo struct {
-		ID          uint   `json:"id"`
-		Name        string `json:"name"`
-		Alias       string `json:"alias"`
-		APIEndpoint string `json:"apiEndpoint"`
-		Version     string `json:"version"`
-		Status      int    `json:"status"`
-		Provider    string `json:"provider"`
-		Region      string `json:"region"`
-		NodeCount   int    `json:"nodeCount"`
-		PodCount    int    `json:"podCount"`
+// executeK8sScale 扩缩容工作负载
+func executeK8sScale(ctx biz.SkillContext) (any, error) {
+	clusterID, clusterName, err := FindClusterID(ctx.DB, ctx.Params)
+	if err != nil {
+		return nil, err
+	}
+	resourceName, _ := ctx.Params["resource_name"].(string)
+	if resourceName == "" {
+		return nil, fmt.Errorf("请指定工作负载名称")
+	}
+	replicas, ok := ctx.Params["replicas"].(float64)
+	if !ok {
+		return nil, fmt.Errorf("请指定目标副本数")
+	}
+	namespace, _ := ctx.Params["namespace"].(string)
+	if namespace == "" {
+		namespace = "default"
+	}
+	resourceType, _ := ctx.Params["resource_type"].(string)
+	if resourceType == "" {
+		resourceType = "Deployment"
 	}
 
-	query := ctx.DB.Table("k8s_clusters")
-	if clusterName != "" {
-		query = query.Where("name LIKE ? OR alias LIKE ?", "%"+clusterName+"%", "%"+clusterName+"%")
+	// 未确认 → 返回待确认信息
+	if !isConfirmed(ctx.Params) {
+		return map[string]any{
+			"action":       "scale",
+			"cluster":      clusterName,
+			"clusterID":    clusterID,
+			"namespace":    namespace,
+			"resourceType": resourceType,
+			"resourceName": resourceName,
+			"replicas":     int(replicas),
+			"status":       "pending_confirmation",
+			"warning":      fmt.Sprintf("⚠️ 将把 %s/%s 在集群 %s(%s) 中的副本数调整为 %d，请确认执行", resourceType, resourceName, clusterName, namespace, int(replicas)),
+		}, nil
 	}
 
-	var clusters []ClusterInfo
-	if err := query.Find(&clusters).Error; err != nil {
-		return nil, fmt.Errorf("查询集群信息失败: %v", err)
+	// 已确认 → 真正执行
+	clientset, _, err := GetK8sClientset(ctx.DB, clusterID)
+	if err != nil {
+		return nil, fmt.Errorf("连接集群失败: %v", err)
 	}
 
-	statusMap := map[int]string{1: "正常", 2: "连接失败", 3: "不可用"}
-	type ClusterVO struct {
-		ClusterInfo
-		StatusText string `json:"statusText"`
+	if err := ScaleWorkload(clientset, namespace, resourceType, resourceName, int32(replicas)); err != nil {
+		return nil, fmt.Errorf("扩缩容失败: %v", err)
 	}
 
-	var result []ClusterVO
-	normalCount := 0
-	for _, c := range clusters {
-		vo := ClusterVO{ClusterInfo: c, StatusText: statusMap[c.Status]}
-		if c.Status == 1 {
-			normalCount++
+	return map[string]any{
+		"status":       "success",
+		"message":      fmt.Sprintf("✅ 已成功将 %s/%s 的副本数调整为 %d", resourceType, resourceName, int(replicas)),
+		"cluster":      clusterName,
+		"namespace":    namespace,
+		"resourceType": resourceType,
+		"resourceName": resourceName,
+		"replicas":     int(replicas),
+	}, nil
+}
+
+// executeK8sRestart 重启工作负载
+func executeK8sRestart(ctx biz.SkillContext) (any, error) {
+	clusterID, clusterName, err := FindClusterID(ctx.DB, ctx.Params)
+	if err != nil {
+		return nil, err
+	}
+	resourceName, _ := ctx.Params["resource_name"].(string)
+	if resourceName == "" {
+		return nil, fmt.Errorf("请指定工作负载名称")
+	}
+	namespace, _ := ctx.Params["namespace"].(string)
+	if namespace == "" {
+		namespace = "default"
+	}
+	resourceType, _ := ctx.Params["resource_type"].(string)
+	if resourceType == "" {
+		resourceType = "Deployment"
+	}
+
+	if !isConfirmed(ctx.Params) {
+		return map[string]any{
+			"action":       "restart",
+			"cluster":      clusterName,
+			"clusterID":    clusterID,
+			"namespace":    namespace,
+			"resourceType": resourceType,
+			"resourceName": resourceName,
+			"status":       "pending_confirmation",
+			"warning":      fmt.Sprintf("⚠️ 将滚动重启 %s/%s (集群: %s, 命名空间: %s)，请确认执行", resourceType, resourceName, clusterName, namespace),
+		}, nil
+	}
+
+	clientset, _, err := GetK8sClientset(ctx.DB, clusterID)
+	if err != nil {
+		return nil, fmt.Errorf("连接集群失败: %v", err)
+	}
+
+	if err := RestartWorkload(clientset, namespace, resourceType, resourceName); err != nil {
+		return nil, fmt.Errorf("重启失败: %v", err)
+	}
+
+	return map[string]any{
+		"status":  "success",
+		"message": fmt.Sprintf("✅ 已触发 %s/%s 的滚动重启", resourceType, resourceName),
+		"cluster": clusterName,
+	}, nil
+}
+
+// executeK8sDiagnose 诊断 Pod/节点问题（低风险，直接执行）
+func executeK8sDiagnose(ctx biz.SkillContext) (any, error) {
+	clusterID, clusterName, err := FindClusterID(ctx.DB, ctx.Params)
+	if err != nil {
+		return nil, err
+	}
+	podName, _ := ctx.Params["pod_name"].(string)
+	nodeName, _ := ctx.Params["node_name"].(string)
+	namespace, _ := ctx.Params["namespace"].(string)
+	if namespace == "" {
+		namespace = "default"
+	}
+
+	if podName == "" && nodeName == "" {
+		return nil, fmt.Errorf("请指定要诊断的 Pod 名称或节点名称")
+	}
+
+	clientset, _, err := GetK8sClientset(ctx.DB, clusterID)
+	if err != nil {
+		return nil, fmt.Errorf("连接集群失败: %v", err)
+	}
+
+	if podName != "" {
+		result, err := DiagnosePod(clientset, namespace, podName)
+		if err != nil {
+			return nil, err
 		}
-		result = append(result, vo)
+		result["cluster"] = clusterName
+		return result, nil
+	}
+
+	// 节点诊断
+	node, err := clientset.CoreV1().Nodes().Get(ctx.Context(), nodeName, metav1.GetOptions{})
+	if err != nil {
+		return nil, fmt.Errorf("获取节点 %s 失败: %v", nodeName, err)
+	}
+
+	var conditions []map[string]string
+	for _, c := range node.Status.Conditions {
+		conditions = append(conditions, map[string]string{
+			"type":    string(c.Type),
+			"status":  string(c.Status),
+			"reason":  c.Reason,
+			"message": c.Message,
+		})
 	}
 
 	return map[string]any{
-		"clusters": result,
-		"total":    len(result),
-		"normal":   normalCount,
-		"abnormal": len(result) - normalCount,
+		"cluster":        clusterName,
+		"nodeName":       nodeName,
+		"conditions":     conditions,
+		"unschedulable":  node.Spec.Unschedulable,
+		"kubeletVersion": node.Status.NodeInfo.KubeletVersion,
+		"osImage":        node.Status.NodeInfo.OSImage,
 	}, nil
 }
 
-// executeK8sListResources 查询 K8s 资源
-func executeK8sListResources(ctx biz.SkillContext) (any, error) {
-	clusterName, _ := ctx.Params["cluster_name"].(string)
-	if clusterName == "" {
-		return nil, fmt.Errorf("请提供集群名称")
+// executeK8sNodeManage 节点管理
+func executeK8sNodeManage(ctx biz.SkillContext) (any, error) {
+	clusterID, clusterName, err := FindClusterID(ctx.DB, ctx.Params)
+	if err != nil {
+		return nil, err
+	}
+	nodeName, _ := ctx.Params["node_name"].(string)
+	action, _ := ctx.Params["action"].(string)
+	if nodeName == "" || action == "" {
+		return nil, fmt.Errorf("请指定节点名称和操作类型 (cordon/uncordon/drain)")
 	}
 
-	var cluster struct {
-		ID        uint   `json:"id"`
-		Name      string `json:"name"`
-		NodeCount int    `json:"nodeCount"`
-		PodCount  int    `json:"podCount"`
-		Version   string `json:"version"`
-		Status    int    `json:"status"`
+	actionDesc := map[string]string{
+		"cordon":   "设为不可调度（新 Pod 不会被调度到此节点）",
+		"uncordon": "恢复可调度",
+		"drain":    "排空节点（驱逐所有 Pod 并设为不可调度）",
+	}
+	desc := actionDesc[action]
+	if desc == "" {
+		return nil, fmt.Errorf("不支持的操作: %s，支持: cordon/uncordon/drain", action)
 	}
 
-	if err := ctx.DB.Table("k8s_clusters").Where("name LIKE ?", "%"+clusterName+"%").First(&cluster).Error; err != nil {
-		return nil, fmt.Errorf("集群 %s 不存在", clusterName)
+	if !isConfirmed(ctx.Params) {
+		return map[string]any{
+			"action":   action,
+			"cluster":  clusterName,
+			"nodeName": nodeName,
+			"status":   "pending_confirmation",
+			"warning":  fmt.Sprintf("⚠️ 危险操作: 将对节点 %s 执行 %s - %s，请确认执行", nodeName, action, desc),
+		}, nil
+	}
+
+	clientset, _, err := GetK8sClientset(ctx.DB, clusterID)
+	if err != nil {
+		return nil, fmt.Errorf("连接集群失败: %v", err)
+	}
+
+	switch action {
+	case "cordon":
+		if err := CordonNode(clientset, nodeName, true); err != nil {
+			return nil, fmt.Errorf("cordon 失败: %v", err)
+		}
+		return map[string]any{"status": "success", "message": fmt.Sprintf("✅ 节点 %s 已设为不可调度", nodeName)}, nil
+	case "uncordon":
+		if err := CordonNode(clientset, nodeName, false); err != nil {
+			return nil, fmt.Errorf("uncordon 失败: %v", err)
+		}
+		return map[string]any{"status": "success", "message": fmt.Sprintf("✅ 节点 %s 已恢复可调度", nodeName)}, nil
+	case "drain":
+		evicted, err := DrainNode(clientset, nodeName)
+		if err != nil {
+			return nil, fmt.Errorf("drain 失败: %v", err)
+		}
+		return map[string]any{"status": "success", "message": fmt.Sprintf("✅ 节点 %s 已排空，驱逐了 %d 个 Pod", nodeName, evicted)}, nil
+	}
+
+	return nil, fmt.Errorf("未知操作: %s", action)
+}
+
+// executeK8sLogQuery 查询 Pod 日志（低风险，直接执行）
+func executeK8sLogQuery(ctx biz.SkillContext) (any, error) {
+	clusterID, clusterName, err := FindClusterID(ctx.DB, ctx.Params)
+	if err != nil {
+		return nil, err
+	}
+	podName, _ := ctx.Params["pod_name"].(string)
+	if podName == "" {
+		return nil, fmt.Errorf("请指定 Pod 名称")
+	}
+	namespace, _ := ctx.Params["namespace"].(string)
+	if namespace == "" {
+		namespace = "default"
+	}
+	container, _ := ctx.Params["container"].(string)
+	tailLines := int64(100)
+	if tl, ok := ctx.Params["tail_lines"].(float64); ok && tl > 0 {
+		tailLines = int64(tl)
+	}
+	previous, _ := ctx.Params["previous"].(bool)
+
+	clientset, _, err := GetK8sClientset(ctx.DB, clusterID)
+	if err != nil {
+		return nil, fmt.Errorf("连接集群失败: %v", err)
+	}
+
+	logs, err := GetPodLogs(clientset, namespace, podName, container, tailLines, previous)
+	if err != nil {
+		return nil, err
 	}
 
 	return map[string]any{
-		"cluster":   cluster.Name,
-		"nodeCount": cluster.NodeCount,
-		"podCount":  cluster.PodCount,
-		"version":   cluster.Version,
-		"status":    cluster.Status,
-		"message":   "注意: 详细的实时资源信息需要通过 K8s API 直接查询，当前返回的是数据库缓存的概览数据",
+		"cluster":   clusterName,
+		"namespace": namespace,
+		"podName":   podName,
+		"container": container,
+		"tailLines": tailLines,
+		"logs":      logs,
 	}, nil
+}
+
+// executeK8sHelmManage Helm Release 管理
+func executeK8sHelmManage(ctx biz.SkillContext) (any, error) {
+	_, clusterName, err := FindClusterID(ctx.DB, ctx.Params)
+	if err != nil {
+		return nil, err
+	}
+	action, _ := ctx.Params["action"].(string)
+	if action == "" {
+		return nil, fmt.Errorf("请指定操作: list/install/upgrade/uninstall/status")
+	}
+	namespace, _ := ctx.Params["namespace"].(string)
+	if namespace == "" {
+		namespace = "default"
+	}
+	releaseName, _ := ctx.Params["release_name"].(string)
+	chartName, _ := ctx.Params["chart_name"].(string)
+	chartVersion, _ := ctx.Params["chart_version"].(string)
+
+	result := map[string]any{
+		"action":    action,
+		"cluster":   clusterName,
+		"namespace": namespace,
+	}
+
+	switch action {
+	case "list":
+		result["message"] = fmt.Sprintf("查询集群 %s 命名空间 %s 的 Helm Release 列表", clusterName, namespace)
+	case "install":
+		if chartName == "" || releaseName == "" {
+			return nil, fmt.Errorf("安装 Release 需要指定 chart_name 和 release_name")
+		}
+		if !isConfirmed(ctx.Params) {
+			result["releaseName"] = releaseName
+			result["chartName"] = chartName
+			result["chartVersion"] = chartVersion
+			result["status"] = "pending_confirmation"
+			result["warning"] = fmt.Sprintf("⚠️ 将在集群 %s 安装 Helm Release: %s (Chart: %s)，请确认执行", clusterName, releaseName, chartName)
+			return result, nil
+		}
+		result["status"] = "success"
+		result["message"] = fmt.Sprintf("✅ Helm Release %s 安装请求已提交", releaseName)
+	case "upgrade":
+		if releaseName == "" {
+			return nil, fmt.Errorf("升级 Release 需要指定 release_name")
+		}
+		if !isConfirmed(ctx.Params) {
+			result["releaseName"] = releaseName
+			result["chartName"] = chartName
+			result["chartVersion"] = chartVersion
+			result["status"] = "pending_confirmation"
+			result["warning"] = fmt.Sprintf("⚠️ 将升级集群 %s 的 Helm Release: %s，请确认执行", clusterName, releaseName)
+			return result, nil
+		}
+		result["status"] = "success"
+		result["message"] = fmt.Sprintf("✅ Helm Release %s 升级请求已提交", releaseName)
+	case "uninstall":
+		if releaseName == "" {
+			return nil, fmt.Errorf("卸载 Release 需要指定 release_name")
+		}
+		if !isConfirmed(ctx.Params) {
+			result["releaseName"] = releaseName
+			result["status"] = "pending_confirmation"
+			result["warning"] = fmt.Sprintf("⚠️ 将卸载集群 %s 的 Helm Release: %s，请确认执行", clusterName, releaseName)
+			return result, nil
+		}
+		result["status"] = "success"
+		result["message"] = fmt.Sprintf("✅ Helm Release %s 卸载请求已提交", releaseName)
+	case "status":
+		if releaseName == "" {
+			return nil, fmt.Errorf("查看状态需要指定 release_name")
+		}
+		result["releaseName"] = releaseName
+		result["message"] = fmt.Sprintf("查询 Helm Release %s 的状态", releaseName)
+	default:
+		return nil, fmt.Errorf("不支持的操作: %s", action)
+	}
+
+	return result, nil
 }

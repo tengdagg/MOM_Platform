@@ -299,14 +299,10 @@ func (m *Manager) syncPluginMenus(p Plugin) error {
 			// 自动分配给 admin 角色
 			m.assignMenuToAdmin(newMenu.ID)
 		} else if err == nil {
-			// 已存在，更新字段
+			// 已存在，仅更新 name 和 path（不覆盖用户自定义的 visible/status/icon/sort）
 			m.db.Model(&rbac.SysMenu{}).Where("id = ?", existing.ID).Updates(map[string]interface{}{
 				"name": menu.Name,
-				"icon": menu.Icon,
-				// "sort":    menu.Sort, // 不更新排序，保留用户自定义的排序
-				"visible": visible,
-				"path":    menu.Path,
-				"status":  1,
+				"path": menu.Path,
 			})
 			pathToID[menu.Path] = existing.ID
 		}
@@ -363,15 +359,11 @@ func (m *Manager) syncPluginMenus(p Plugin) error {
 			// 自动分配给 admin 角色
 			m.assignMenuToAdmin(newMenu.ID)
 		} else if err == nil {
-			// 已存在，更新字段
+			// 已存在，仅更新 name、path、parent_id（不覆盖用户自定义的 visible/status/icon/sort）
 			m.db.Model(&rbac.SysMenu{}).Where("id = ?", existing.ID).Updates(map[string]interface{}{
-				"name": menu.Name,
-				"icon": menu.Icon,
-				// "sort":      menu.Sort, // 不更新排序，保留用户自定义的排序
-				"visible":   visible,
+				"name":      menu.Name,
 				"path":      menu.Path,
 				"parent_id": parentID,
-				"status":    1,
 			})
 			pathToID[menu.Path] = existing.ID
 		}

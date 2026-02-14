@@ -40,6 +40,7 @@ func (h *Handler) ListSkills(c *gin.Context) {
 
 	for _, rs := range registeredSkills {
 		if registeredMap[rs.Name()] {
+			// 已有 DB 记录（可能是用户禁用过的内置 Skill），保留 DB 状态
 			continue
 		}
 
@@ -69,9 +70,10 @@ func (h *Handler) ListSkills(c *gin.Context) {
 	response.Success(c, dbSkills)
 }
 
-// ToggleSkill 启用/禁用 Skill
+// ToggleSkill 启用/禁用 Skill（支持 ID 和内置 Skill 名称）
 func (h *Handler) ToggleSkill(c *gin.Context) {
-	id, _ := strconv.ParseUint(c.Param("id"), 10, 32)
+	idStr := c.Param("id")
+	id, _ := strconv.ParseUint(idStr, 10, 32)
 	if id == 0 {
 		response.ErrorCode(c, http.StatusBadRequest, "无效的 ID")
 		return
@@ -87,6 +89,123 @@ func (h *Handler) ToggleSkill(c *gin.Context) {
 	h.db.Model(&skill).Update("is_enabled", skill.IsEnabled)
 
 	response.Success(c, skill)
+}
+
+// ToggleBuiltinSkill 启用/禁用内置 Skill（通过名称）
+// 内置 Skill 初始不在数据库中，首次禁用时会创建一条数据库记录
+func (h *Handler) ToggleBuiltinSkill(c *gin.Context) {
+	var req struct {
+		Name string `json:"name" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.ErrorCode(c, http.StatusBadRequest, "请提供 skill 名称")
+		return
+	}
+
+	// 验证是否真的是已注册的内置 Skill
+	registeredSkills := h.registry.GetAll()
+	var found biz.Skill
+	for _, s := range registeredSkills {
+		if s.Name() == req.Name {
+			found = s
+			break
+		}
+	}
+	if found == nil {
+		response.ErrorCode(c, http.StatusNotFound, "内置 Skill 不存在: "+req.Name)
+		return
+	}
+
+	// 查找或创建数据库记录
+	var skill biz.SkillDefinition
+	err := h.db.Where("name = ?", req.Name).First(&skill).Error
+	if err != nil {
+		// 首次禁用：创建数据库记录，默认 IsEnabled=false（因为原来是 enabled，现在用户要 toggle）
+		category := ""
+		markdown := ""
+		if bs, ok := found.(*skills.BuiltinSkill); ok {
+			category = bs.Category()
+			markdown = bs.Markdown()
+		}
+		skill = biz.SkillDefinition{
+			Name:        req.Name,
+			DisplayName: req.Name,
+			Description: found.Description(),
+			Category:    category,
+			IsBuiltin:   true,
+			ScriptType:  "builtin",
+			IsEnabled:   false, // toggle: 从 enabled 变为 disabled
+			RiskLevel:   found.RiskLevel(),
+			Markdown:    markdown,
+		}
+		if pBytes := found.Parameters(); len(pBytes) > 0 {
+			skill.Parameters = string(pBytes)
+		}
+		h.db.Create(&skill)
+	} else {
+		// 已有数据库记录，切换状态
+		skill.IsEnabled = !skill.IsEnabled
+		h.db.Model(&skill).Update("is_enabled", skill.IsEnabled)
+	}
+
+	response.Success(c, skill)
+}
+
+// GetSkillStats 获取 Skill 统计信息
+func (h *Handler) GetSkillStats(c *gin.Context) {
+	// 内置 Skills 数量
+	builtinSkills := h.registry.GetAll()
+
+	// 数据库中被禁用的内置 skills
+	var disabledBuiltinCount int64
+	h.db.Model(&biz.SkillDefinition{}).Where("is_builtin = ? AND is_enabled = ?", true, false).Count(&disabledBuiltinCount)
+
+	// 数据库中自定义 skills
+	var customTotal int64
+	h.db.Model(&biz.SkillDefinition{}).Where("is_builtin = ? OR is_builtin IS NULL", false).Count(&customTotal)
+	var customEnabled int64
+	h.db.Model(&biz.SkillDefinition{}).Where("(is_builtin = ? OR is_builtin IS NULL) AND is_enabled = ?", false, true).Count(&customEnabled)
+
+	builtinTotal := int64(len(builtinSkills))
+	builtinEnabled := builtinTotal - disabledBuiltinCount
+
+	// 按分类统计
+	categoryMap := make(map[string]int)
+	for _, s := range builtinSkills {
+		cat := ""
+		if bs, ok := s.(*skills.BuiltinSkill); ok {
+			cat = bs.Category()
+		}
+		if cat == "" {
+			cat = "other"
+		}
+		categoryMap[cat]++
+	}
+
+	// 自定义 skills 按分类
+	type CatStat struct {
+		Category string `json:"category"`
+		Count    int64  `json:"count"`
+	}
+	var customCats []CatStat
+	h.db.Model(&biz.SkillDefinition{}).
+		Select("category, COUNT(*) as count").
+		Where("is_builtin = ? OR is_builtin IS NULL", false).
+		Group("category").
+		Find(&customCats)
+
+	for _, cc := range customCats {
+		categoryMap[cc.Category] += int(cc.Count)
+	}
+
+	response.Success(c, map[string]any{
+		"total":          builtinTotal + customTotal,
+		"builtinTotal":   builtinTotal,
+		"builtinEnabled": builtinEnabled,
+		"customTotal":    customTotal,
+		"customEnabled":  customEnabled,
+		"byCategory":     categoryMap,
+	})
 }
 
 // SkillManifest 传统 manifest.yaml 结构（向后兼容）

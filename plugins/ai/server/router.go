@@ -56,7 +56,9 @@ func RegisterRoutes(router *gin.RouterGroup, db *gorm.DB) {
 		skillGroup := ai.Group("/skills")
 		{
 			skillGroup.GET("", handler.ListSkills)
+			skillGroup.GET("/stats", handler.GetSkillStats)
 			skillGroup.PUT("/:id/toggle", handler.ToggleSkill)
+			skillGroup.PUT("/toggle-builtin", handler.ToggleBuiltinSkill)
 			skillGroup.POST("/upload", handler.UploadSkill)
 			skillGroup.DELETE("/:id", handler.DeleteSkill)
 		}

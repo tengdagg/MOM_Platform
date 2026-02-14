@@ -88,6 +88,21 @@ func (m *ConversationManager) AddMessage(sessionID uint, role string, content st
 	return msg, nil
 }
 
+// AddMessageWithTools 添加带工具调用记录的消息
+func (m *ConversationManager) AddMessageWithTools(sessionID uint, role string, content string, toolCallsJSON string) (*ChatMessage, error) {
+	msg := &ChatMessage{
+		SessionID: sessionID,
+		Role:      role,
+		Content:   content,
+		ToolCalls: toolCallsJSON,
+	}
+	if err := m.db.Create(msg).Error; err != nil {
+		return nil, fmt.Errorf("保存消息失败: %w", err)
+	}
+	m.db.Model(&ChatSession{}).Where("id = ?", sessionID).Update("updated_at", msg.CreatedAt)
+	return msg, nil
+}
+
 // GetMessages 获取会话消息
 func (m *ConversationManager) GetMessages(sessionID uint) ([]ChatMessage, error) {
 	var messages []ChatMessage

@@ -28,6 +28,26 @@
       </div>
     </div>
 
+    <!-- Skills 统计卡片 -->
+    <div class="stats-row" v-if="stats">
+      <div class="stat-card total">
+        <div class="stat-number">{{ stats.total }}</div>
+        <div class="stat-label">Skills 总数</div>
+      </div>
+      <div class="stat-card builtin">
+        <div class="stat-number">{{ stats.builtinEnabled }}<span class="stat-sub">/{{ stats.builtinTotal }}</span></div>
+        <div class="stat-label">内置已启用</div>
+      </div>
+      <div class="stat-card custom">
+        <div class="stat-number">{{ stats.customEnabled }}<span class="stat-sub">/{{ stats.customTotal }}</span></div>
+        <div class="stat-label">自定义已启用</div>
+      </div>
+      <div class="stat-card categories" v-for="(count, cat) in stats.byCategory" :key="cat">
+        <div class="stat-number">{{ count }}</div>
+        <div class="stat-label">{{ getCategoryLabel(cat as string) }}</div>
+      </div>
+    </div>
+
     <!-- 上传格式说明 -->
     <el-alert
       type="info"
@@ -36,7 +56,7 @@
       style="margin-bottom: 16px"
     >
       <template #title>
-        <span>Skill 包标准结构</span>
+        <span>Skill 包标准结构 &amp; 替换说明</span>
       </template>
       <div class="upload-hint">
         <code>skill-name.zip</code> 内目录结构:
@@ -44,6 +64,10 @@
 ├── SKILL.md          # 必需 (YAML 前置元数据 + Markdown 指令)
 └── scripts/          # 可选 (可执行代码)
     └── script.js 或 script.py</pre>
+        <div class="hint-tip">
+          <strong>替换内置 Skill:</strong> 上传与内置 Skill 同名的包，将自动覆盖内置版本。
+          你也可以先禁用内置 Skill，再上传增强版。
+        </div>
       </div>
     </el-alert>
 
@@ -52,6 +76,7 @@
         v-for="skill in skills"
         :key="skill.id || skill.name"
         class="skill-card"
+        :class="{ 'disabled-card': !skill.isEnabled }"
         shadow="hover"
       >
         <div class="skill-header">
@@ -67,13 +92,15 @@
               <el-tag size="small" effect="plain">{{ getCategoryLabel(skill.category) }}</el-tag>
               <el-tag v-if="skill.isBuiltin" type="info" size="small" effect="plain">内置</el-tag>
               <el-tag v-if="skill.markdown" type="success" size="small" effect="plain">SKILL.md</el-tag>
+              <el-tag v-if="!skill.isEnabled" type="danger" size="small" effect="dark">已禁用</el-tag>
             </div>
           </div>
-          <el-switch
-            v-model="skill.isEnabled"
-            @change="toggleSkillEnabled(skill)"
-            :disabled="!skill.id"
-          />
+          <el-tooltip :content="skill.isEnabled ? '点击禁用' : '点击启用'" placement="top">
+            <el-switch
+              v-model="skill.isEnabled"
+              @change="toggleSkillEnabled(skill)"
+            />
+          </el-tooltip>
         </div>
         <div class="skill-desc">{{ skill.description }}</div>
         <div class="skill-footer">
@@ -150,12 +177,13 @@
 import { ref, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Upload, Setting, Document } from '@element-plus/icons-vue'
-import { getSkillList, toggleSkill, deleteSkill, uploadSkill } from '@/api/ai'
+import { getSkillList, toggleSkill, toggleBuiltinSkill, deleteSkill, uploadSkill, getSkillStats } from '@/api/ai'
 
 const skills = ref<any[]>([])
 const selectedCategory = ref('')
 const detailVisible = ref(false)
 const detailSkill = ref<any>(null)
+const stats = ref<any>(null)
 
 const categories = [
   { value: 'host', label: '主机管理' },
@@ -169,6 +197,7 @@ const categories = [
 
 onMounted(() => {
   loadSkills()
+  loadStats()
 })
 
 async function loadSkills() {
@@ -181,10 +210,34 @@ async function loadSkills() {
   }
 }
 
-async function toggleSkillEnabled(skill: any) {
-  if (!skill.id) return
+async function loadStats() {
   try {
-    await toggleSkill(skill.id)
+    const data = await getSkillStats()
+    stats.value = data || null
+  } catch {
+    // 静默
+  }
+}
+
+async function toggleSkillEnabled(skill: any) {
+  try {
+    if (skill.isBuiltin && !skill.id) {
+      // 内置 Skill 没有 DB 记录，通过名称 toggle
+      const result: any = await toggleBuiltinSkill(skill.name)
+      // 更新返回的 id，后续 toggle 就能用 id 了
+      if (result?.id) {
+        skill.id = result.id
+      }
+    } else if (skill.id) {
+      await toggleSkill(skill.id)
+    } else {
+      // 既没有 id 也不是内置的，不应该出现
+      skill.isEnabled = !skill.isEnabled
+      ElMessage.error('操作失败：无法识别 Skill')
+      return
+    }
+    ElMessage.success(skill.isEnabled ? '已启用' : '已禁用')
+    loadStats() // 刷新统计
   } catch (e) {
     skill.isEnabled = !skill.isEnabled
     ElMessage.error('操作失败')
@@ -197,6 +250,7 @@ async function handleDeleteSkill(skill: any) {
     await deleteSkill(skill.id)
     ElMessage.success('删除成功')
     loadSkills()
+    loadStats()
   } catch (e) {
     // cancelled
   }
@@ -219,6 +273,7 @@ async function handleUploadRequest(options: any) {
     await uploadSkill(options.file)
     ElMessage.success('Skill 上传成功')
     loadSkills()
+    loadStats()
   } catch (e: any) {
     ElMessage.error(e?.message || '上传失败')
   }
@@ -299,6 +354,68 @@ function getScriptLabel(t: string): string {
   align-items: center;
 }
 
+/* 统计卡片 */
+.stats-row {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+
+.stat-card {
+  background: #f8f9fa;
+  border-radius: 10px;
+  padding: 12px 20px;
+  min-width: 100px;
+  text-align: center;
+  border: 1px solid #e8e8e8;
+  transition: all 0.3s;
+}
+
+.stat-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.stat-card.total {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+}
+.stat-card.total .stat-label { color: rgba(255,255,255,0.8); }
+
+.stat-card.builtin {
+  background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+  color: #1a3a2a;
+  border: none;
+}
+.stat-card.builtin .stat-label { color: rgba(26,58,42,0.7); }
+
+.stat-card.custom {
+  background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+  color: #3a1a1a;
+  border: none;
+}
+.stat-card.custom .stat-label { color: rgba(58,26,26,0.7); }
+
+.stat-number {
+  font-size: 24px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.stat-sub {
+  font-size: 14px;
+  font-weight: 400;
+  opacity: 0.7;
+}
+
+.stat-label {
+  font-size: 12px;
+  color: #909399;
+  margin-top: 2px;
+}
+
 .upload-hint {
   font-size: 12px;
   line-height: 1.5;
@@ -321,6 +438,15 @@ function getScriptLabel(t: string): string {
   border-radius: 3px;
 }
 
+.hint-tip {
+  margin-top: 8px;
+  padding: 6px 10px;
+  background: #fdf6ec;
+  border-radius: 4px;
+  color: #e6a23c;
+  font-size: 12px;
+}
+
 .skills-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
@@ -329,6 +455,11 @@ function getScriptLabel(t: string): string {
 
 .skill-card {
   border-radius: 12px;
+  transition: opacity 0.3s;
+}
+
+.skill-card.disabled-card {
+  opacity: 0.6;
 }
 
 .skill-header {

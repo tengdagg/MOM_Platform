@@ -107,8 +107,7 @@
           </div>
           <div class="message-content">
             <div class="message-role">{{ msg.role === 'user' ? '你' : 'AI 助手' }}</div>
-            <div class="message-body" v-html="renderMarkdown(msg.content)"></div>
-            <!-- 工具调用卡片 -->
+            <!-- 工具调用卡片（显示在文字上方） -->
             <div v-if="msg.toolCalls && msg.toolCalls.length > 0" class="tool-calls">
               <div class="tool-calls-title">
                 <el-icon><Operation /></el-icon>
@@ -138,6 +137,7 @@
                 </div>
               </div>
             </div>
+            <div class="message-body" v-html="renderMarkdown(msg.content)"></div>
           </div>
         </div>
 
@@ -150,15 +150,7 @@
           </div>
           <div class="message-content">
             <div class="message-role">AI 助手</div>
-            <div class="message-body">
-              <span v-if="streamingContent" v-html="renderMarkdown(streamingContent)"></span>
-              <span v-else class="typing-indicator">
-                <span class="dot"></span>
-                <span class="dot"></span>
-                <span class="dot"></span>
-              </span>
-            </div>
-            <!-- 流式工具调用 -->
+            <!-- 流式工具调用（显示在文字上方） -->
             <div v-if="currentToolCalls.length > 0" class="tool-calls streaming-tools">
               <div class="tool-calls-title">
                 <el-icon><Operation /></el-icon>
@@ -193,6 +185,14 @@
                   </div>
                 </div>
               </div>
+            </div>
+            <div class="message-body">
+              <span v-if="streamingContent" v-html="renderMarkdown(streamingContent)"></span>
+              <span v-else-if="currentToolCalls.length === 0" class="typing-indicator">
+                <span class="dot"></span>
+                <span class="dot"></span>
+                <span class="dot"></span>
+              </span>
             </div>
           </div>
         </div>
@@ -372,10 +372,17 @@ async function loadMessages(sessionId: number) {
   try {
     const data = await getSessionMessages(sessionId)
     const msgList = Array.isArray(data) ? data : []
-    messages.value = msgList.map((m: any) => ({
-      ...m,
-      toolCalls: m.toolCalls ? (typeof m.toolCalls === 'string' ? JSON.parse(m.toolCalls) : m.toolCalls) : [],
-    }))
+    messages.value = msgList.map((m: any) => {
+      let toolCalls: any[] = []
+      if (m.toolCalls) {
+        try {
+          toolCalls = typeof m.toolCalls === 'string' ? JSON.parse(m.toolCalls) : m.toolCalls
+        } catch { toolCalls = [] }
+      }
+      // 给每个 tool call 添加 _expanded 属性
+      toolCalls = (toolCalls || []).map((tc: any) => ({ ...tc, _expanded: false }))
+      return { ...m, toolCalls }
+    })
     scrollToBottom()
   } catch (e) {
     // 静默处理

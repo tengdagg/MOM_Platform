@@ -166,7 +166,7 @@ import {
   Expand
 } from '@element-plus/icons-vue'
 import CustomIcons from '@/components/icons/CustomIcons.vue'
-import { getUserMenu } from '@/api/menu'
+import { getUserMenu, getAllMenuTree } from '@/api/menu'
 import { pluginManager } from '@/plugins/manager'
 
 // Logo 和 Header 图片路径
@@ -260,9 +260,10 @@ const getIcon = (iconName: string) => {
   return iconMap[iconName] || Menu
 }
 
-// 从插件管理器构建菜单
+// 从插件管理器构建菜单（仅添加数据库中不存在的插件菜单）
 // dbSorts: 数据库中插件菜单的排序值（path → sort），优先级最高
-const buildPluginMenus = async (authorizedPaths: Set<string>, dbSorts?: Map<string, number>) => {
+// dbPluginCodes: 已在数据库中的插件菜单编码集合，这些菜单由 systemMenus 提供（带有用户编辑的 visible/status）
+const buildPluginMenus = async (authorizedPaths: Set<string>, dbSorts?: Map<string, number>, dbPluginCodes?: Set<string>) => {
   const pluginMenus: any[] = []
   const allPlugins = pluginManager.getAll()
   const roles = userStore.userInfo?.roles || []
@@ -300,6 +301,9 @@ const buildPluginMenus = async (authorizedPaths: Set<string>, dbSorts?: Map<stri
       const menus = plugin.getMenus()
       menus.forEach(menu => {
         if (!isSuperAdmin && !authorizedPaths.has(menu.path)) return
+        // 如果此菜单已在数据库中，跳过（数据库版本有用户编辑的 visible/status/icon）
+        const menuCode = menu.path.replace(/\//g, '_')
+        if (dbPluginCodes && dbPluginCodes.has(menuCode)) return
         // 排序优先级：数据库值 > localStorage自定义值 > 插件默认值
         const sort = dbSorts?.get(menu.path) ?? customSort.get(menu.path) ?? menu.sort
         pluginMenus.push({
@@ -438,11 +442,9 @@ const loadMenu = async () => {
     const dbMenuSortsByPath = new Map<string, number>() // path → sort（数据库中的排序值）
     const collectMenuData = (menus: any[]) => {
       menus.forEach(menu => {
-        // 收集所有菜单的 path → sort 映射，用于插件菜单排序
         if (menu.path) {
           dbMenuSortsByPath.set(menu.path, menu.sort ?? 0)
         }
-        // 收集有 pluginName 的菜单编码，用于去重
         if (menu.pluginName && menu.pluginName !== '') {
           if (menu.code) dbPluginMenuCodes.add(menu.code)
         }
@@ -453,13 +455,33 @@ const loadMenu = async () => {
     }
     collectMenuData(systemMenus)
 
-    // 2. 构建插件菜单，优先使用数据库中的排序值
-    const pluginMenus = await buildPluginMenus(allAuthorizedPaths, dbMenuSortsByPath)
+    // 1.5 查询所有菜单（包括隐藏的），确保隐藏的插件菜单也加入 dbPluginMenuCodes
+    //     这样 buildPluginMenus 不会把已隐藏的插件菜单重新创建出来
+    try {
+      const allMenusFromDB = await getAllMenuTree() || []
+      const collectHiddenPluginCodes = (menus: any[]) => {
+        menus.forEach(menu => {
+          if (menu.pluginName && menu.pluginName !== '' && menu.code) {
+            dbPluginMenuCodes.add(menu.code)
+          }
+          if (menu.path) {
+            dbMenuSortsByPath.set(menu.path, menu.sort ?? 0)
+          }
+          if (menu.children && menu.children.length > 0) {
+            collectHiddenPluginCodes(menu.children)
+          }
+        })
+      }
+      collectHiddenPluginCodes(Array.isArray(allMenusFromDB) ? allMenusFromDB : [])
+    } catch { /* 静默处理 */ }
 
-    // 3. 展平系统菜单，跳过已在数据库中的插件菜单（避免重复）
+    // 2. 构建插件菜单，优先使用数据库中的排序值
+    //    传入 dbPluginMenuCodes，跳过已在数据库中的插件菜单（数据库版本有用户编辑的 visible/status）
+    const pluginMenus = await buildPluginMenus(allAuthorizedPaths, dbMenuSortsByPath, dbPluginMenuCodes)
+
+    // 3. 展平系统菜单（保留数据库中的插件菜单，它们有用户编辑的 visible/status/icon 等字段）
     const flattenMenus = (menus: any[], result: any[] = []) => {
       menus.forEach(menu => {
-        if (menu.code && dbPluginMenuCodes.has(menu.code)) return
         const { children, ...menuWithoutChildren } = menu
         result.push(menuWithoutChildren)
         if (children && children.length > 0) flattenMenus(children, result)
