@@ -96,6 +96,12 @@ const router = createRouter({
           meta: { title: '云账号管理' }
         },
         {
+          path: 'asset/network-devices',
+          name: 'AssetNetworkDevices',
+          component: () => import('@/views/asset/NetworkDevices.vue'),
+          meta: { title: '网络设备' }
+        },
+        {
           path: 'asset/terminal-audit',
           name: 'AssetTerminalAudit',
           component: () => import('@/views/asset/TerminalAudit.vue'),

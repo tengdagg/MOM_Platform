@@ -163,6 +163,7 @@ type Credential struct {
 	DeletedAt   gorm.DeletedAt `gorm:"index" json:"deletedAt,omitempty"`
 	Name        string         `gorm:"type:varchar(100);not null;comment:凭证名称" json:"name"`
 	Type        string         `gorm:"type:varchar(20);not null;comment:认证方式 password/key" json:"type"`
+	Category    string         `gorm:"type:varchar(20);default:'all';comment:凭证类别 all:通用 host:主机 network:网络设备" json:"category"`
 	Username    string         `gorm:"type:varchar(100);comment:用户名" json:"username"`
 	Password    string         `gorm:"type:varchar(500);comment:密码(加密)" json:"password,omitempty"`
 	PrivateKey  string         `gorm:"type:text;comment:私钥(加密)" json:"privateKey,omitempty"`
@@ -175,6 +176,7 @@ type CredentialRequest struct {
 	ID          uint   `json:"id"`
 	Name        string `json:"name" binding:"required,min=2,max=100"`
 	Type        string `json:"type" binding:"required,oneof=password key"`
+	Category    string `json:"category"`
 	Username    string `json:"username"`
 	Password    string `json:"password"`
 	PrivateKey  string `json:"privateKey"`
@@ -188,6 +190,7 @@ type CredentialVO struct {
 	Name        string `json:"name"`
 	Type        string `json:"type"`
 	TypeText    string `json:"typeText"`
+	Category    string `json:"category"`
 	Username    string `json:"username"`
 	Description string `json:"description"`
 	CreateTime  string `json:"createTime"`
@@ -196,9 +199,14 @@ type CredentialVO struct {
 
 // ToModel 转换为模型
 func (req *CredentialRequest) ToModel() *Credential {
+	category := req.Category
+	if category == "" {
+		category = "all"
+	}
 	return &Credential{
 		Name:        req.Name,
 		Type:        req.Type,
+		Category:    category,
 		Username:    req.Username,
 		Password:    req.Password,
 		PrivateKey:  req.PrivateKey,
@@ -279,4 +287,76 @@ type CloudInstanceVO struct {
 type CloudRegionVO struct {
 	Value string `json:"value"`
 	Label string `json:"label"`
+}
+
+// ===================== 网络设备 =====================
+
+// NetworkDevice 网络设备模型
+type NetworkDevice struct {
+	ID           uint           `gorm:"primarykey" json:"id"`
+	CreatedAt    time.Time      `json:"createdAt"`
+	UpdatedAt    time.Time      `json:"updatedAt"`
+	DeletedAt    gorm.DeletedAt `gorm:"index" json:"deletedAt,omitempty"`
+	Name         string         `gorm:"type:varchar(100);not null;comment:设备名称" json:"name"`
+	IP           string         `gorm:"type:varchar(50);not null;comment:设备IP地址" json:"ip"`
+	Brand        string         `gorm:"type:varchar(50);comment:品牌" json:"brand"`
+	BrandModel   string         `gorm:"type:varchar(200);comment:设备型号" json:"brandModel"`
+	SerialNumber string         `gorm:"type:varchar(100);comment:SN序列号" json:"serialNumber"`
+	DeviceType   string         `gorm:"type:varchar(20);not null;default:'switch';comment:设备类型 switch/router/firewall/ac/ap/other" json:"deviceType"`
+	Protocol     string         `gorm:"type:varchar(10);not null;default:'ssh';comment:连接协议 ssh/telnet" json:"protocol"`
+	Port         int            `gorm:"type:int;default:22;comment:连接端口" json:"port"`
+	CredentialID uint           `gorm:"column:credential_id;comment:凭证ID" json:"credentialId"`
+	Credential   *Credential    `gorm:"-" json:"credential,omitempty"`
+	GroupID      uint           `gorm:"column:group_id;comment:分组ID" json:"groupId"`
+	Group        *AssetGroup    `gorm:"-" json:"group,omitempty"`
+	Description  string         `gorm:"type:varchar(500);comment:备注" json:"description"`
+	Status       int            `gorm:"type:tinyint;default:-1;comment:状态 1:在线 0:离线 -1:未知" json:"status"`
+	Tags         string         `gorm:"type:varchar(500);comment:标签" json:"tags"`
+}
+
+func (NetworkDevice) TableName() string {
+	return "network_devices"
+}
+
+// NetworkDeviceRequest 网络设备请求
+type NetworkDeviceRequest struct {
+	ID           uint   `json:"id"`
+	Name         string `json:"name" binding:"required,min=1,max=100"`
+	IP           string `json:"ip" binding:"required"`
+	Brand        string `json:"brand"`
+	BrandModel   string `json:"brandModel"`
+	SerialNumber string `json:"serialNumber"`
+	DeviceType   string `json:"deviceType" binding:"required,oneof=switch router firewall ac ap other"`
+	Protocol     string `json:"protocol" binding:"required,oneof=ssh telnet"`
+	Port         int    `json:"port"`
+	CredentialID uint   `json:"credentialId"`
+	GroupID      uint   `json:"groupId"`
+	Description  string `json:"description"`
+	Tags         string `json:"tags"`
+}
+
+// ToModel 转换为模型
+func (req *NetworkDeviceRequest) ToModel() *NetworkDevice {
+	port := req.Port
+	if port == 0 {
+		if req.Protocol == "telnet" {
+			port = 23
+		} else {
+			port = 22
+		}
+	}
+	return &NetworkDevice{
+		Name:         req.Name,
+		IP:           req.IP,
+		Brand:        req.Brand,
+		BrandModel:   req.BrandModel,
+		SerialNumber: req.SerialNumber,
+		DeviceType:   req.DeviceType,
+		Protocol:     req.Protocol,
+		Port:         port,
+		CredentialID: req.CredentialID,
+		GroupID:      req.GroupID,
+		Description:  req.Description,
+		Tags:         req.Tags,
+	}
 }

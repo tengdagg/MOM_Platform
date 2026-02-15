@@ -26,8 +26,10 @@ export const getCredentialList = (params: any) => {
   return request.get('/api/v1/credentials', { params })
 }
 
-export const getCredentials = () => {
-  return request.get('/api/v1/credentials/all')
+export const getCredentials = (category?: string) => {
+  const params: any = {}
+  if (category) params.category = category
+  return request.get('/api/v1/credentials/all', { params })
 }
 
 export const getCredential = (id: number) => {
@@ -142,4 +144,34 @@ export const downloadHostFile = (hostId: number, path: string) => {
 
 export const deleteHostFile = (hostId: number, path: string) => {
   return request.delete(`/api/v1/hosts/${hostId}/files`, { data: { path } })
+}
+
+// ===================== 网络设备管理 =====================
+
+export const getNetworkDeviceList = (params: any) => {
+  return request.get('/api/v1/network-devices', { params })
+}
+
+export const getAllNetworkDevices = () => {
+  return request.get('/api/v1/network-devices/all')
+}
+
+export const getNetworkDevice = (id: number) => {
+  return request.get(`/api/v1/network-devices/${id}`)
+}
+
+export const createNetworkDevice = (data: any) => {
+  return request.post('/api/v1/network-devices', data)
+}
+
+export const updateNetworkDevice = (id: number, data: any) => {
+  return request.put(`/api/v1/network-devices/${id}`, data)
+}
+
+export const deleteNetworkDevice = (id: number) => {
+  return request.delete(`/api/v1/network-devices/${id}`)
+}
+
+export const testNetworkDeviceConnection = (id: number) => {
+  return request.post(`/api/v1/network-devices/${id}/test`)
 }

@@ -8,7 +8,7 @@
         </div>
         <div>
           <h2 class="page-title">业务分组</h2>
-          <p class="page-subtitle">管理主机业务分组，支持多级层级结构</p>
+          <p class="page-subtitle">管理资产业务分组，支持主机和网络设备分类，支持多级层级结构</p>
         </div>
       </div>
       <div class="header-actions">
@@ -36,6 +36,17 @@
             <el-icon class="search-icon"><Search /></el-icon>
           </template>
         </el-input>
+
+        <el-select
+          v-model="searchForm.category"
+          placeholder="分组类别"
+          clearable
+          class="search-input"
+        >
+          <el-option label="通用" value="all" />
+          <el-option label="主机" value="host" />
+          <el-option label="网络设备" value="network" />
+        </el-select>
 
         <el-select
           v-model="searchForm.status"
@@ -88,7 +99,15 @@
           </template>
         </el-table-column>
 
-        <el-table-column label="描述" prop="description" min-width="300" show-overflow-tooltip />
+        <el-table-column label="分组类别" width="120" align="center">
+          <template #default="{ row }">
+            <el-tag v-if="row.category === 'host'" type="primary" size="small">主机</el-tag>
+            <el-tag v-else-if="row.category === 'network'" type="warning" size="small">网络设备</el-tag>
+            <el-tag v-else type="info" size="small">通用</el-tag>
+          </template>
+        </el-table-column>
+
+        <el-table-column label="描述" prop="description" min-width="200" show-overflow-tooltip />
 
         <el-table-column label="主机数量" width="120" align="center">
           <template #default="{ row }">
@@ -154,6 +173,15 @@
 
         <el-form-item label="分组编码" prop="code">
           <el-input v-model="groupForm.code" placeholder="请输入分组编码" />
+        </el-form-item>
+
+        <el-form-item label="分组类别" prop="category">
+          <el-radio-group v-model="groupForm.category">
+            <el-radio label="all">通用</el-radio>
+            <el-radio label="host">主机</el-radio>
+            <el-radio label="network">网络设备</el-radio>
+          </el-radio-group>
+          <div class="form-tip">通用分组在主机和网络设备管理中均可使用</div>
         </el-form-item>
 
         <el-form-item label="描述" prop="description">
@@ -224,6 +252,7 @@ const groupTree = ref<any[]>([])
 // 搜索表单
 const searchForm = reactive({
   name: '',
+  category: '' as string,
   status: undefined as number | undefined
 })
 
@@ -232,7 +261,7 @@ const isExpandAll = ref(true)
 
 // 过滤后的分组树
 const filteredGroupTree = computed(() => {
-  if (!searchForm.name && searchForm.status === undefined) {
+  if (!searchForm.name && !searchForm.category && searchForm.status === undefined) {
     return groupTree.value
   }
   return filterTree(groupTree.value)
@@ -245,6 +274,7 @@ const filterTree = (nodes: any[]): any[] => {
   for (const node of nodes) {
     const matchName = !searchForm.name || node.name?.includes(searchForm.name)
     const matchStatus = searchForm.status === undefined || node.status === searchForm.status
+    const matchCategory = !searchForm.category || (node.category || 'all') === searchForm.category
 
     let filteredChildren: any[] = []
     if (node.children && node.children.length > 0) {
@@ -252,7 +282,7 @@ const filterTree = (nodes: any[]): any[] => {
     }
 
     // 如果当前节点匹配或有匹配的子节点，则保留
-    if ((matchName && matchStatus) || filteredChildren.length > 0) {
+    if ((matchName && matchStatus && matchCategory) || filteredChildren.length > 0) {
       result.push({
         ...node,
         children: filteredChildren.length > 0 ? filteredChildren : undefined
@@ -282,6 +312,7 @@ const groupForm = reactive({
   parentId: 0,
   name: '',
   code: '',
+  category: 'all',
   description: '',
   sort: 0,
   status: 1
@@ -320,6 +351,7 @@ watch([() => searchForm.name, () => searchForm.status], () => {
 // 重置搜索
 const handleReset = () => {
   searchForm.name = ''
+  searchForm.category = ''
   searchForm.status = undefined
   isExpandAll.value = false
   nextTick(() => {
@@ -380,6 +412,7 @@ const resetForm = () => {
   groupForm.parentId = 0
   groupForm.name = ''
   groupForm.code = ''
+  groupForm.category = 'all'
   groupForm.description = ''
   groupForm.sort = 0
   groupForm.status = 1
@@ -405,6 +438,7 @@ const handleEdit = (row: any) => {
     parentId: row.parentId || 0,
     name: row.name,
     code: row.code || '',
+    category: row.category || 'all',
     description: row.description || '',
     sort: row.sort || 0,
     status: row.status

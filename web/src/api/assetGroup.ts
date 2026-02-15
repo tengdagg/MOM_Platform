@@ -1,8 +1,10 @@
 import request from '@/utils/request'
 
-// 获取分组树
-export const getGroupTree = () => {
-  return request.get('/api/v1/asset-groups/tree')
+// 获取分组树（可选按类别过滤: host/network）
+export const getGroupTree = (category?: string) => {
+  const params: any = {}
+  if (category) params.category = category
+  return request.get('/api/v1/asset-groups/tree', { params })
 }
 
 // 获取分组详情

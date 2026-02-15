@@ -202,6 +202,8 @@ func autoMigrate(db *gorm.DB) error {
 		&assetmodel.Credential{},
 		&assetmodel.CloudAccount{},
 		&assetmodel.TerminalSession{},
+		&assetmodel.NetworkDevice{},
+		&assetmodel.SystemConfig{},
 	); err != nil {
 		return err
 	}
@@ -220,6 +222,43 @@ func autoMigrate(db *gorm.DB) error {
 	// 扩展 sys_operation_log 列宽度以支持 AI 操作审计
 	db.Exec("ALTER TABLE sys_operation_log MODIFY COLUMN `action` varchar(100) COMMENT '操作类型'")
 	db.Exec("ALTER TABLE sys_operation_log MODIFY COLUMN `method` varchar(20) COMMENT '请求方法'")
+
+	// 为 asset_group 和 credentials 表添加 category 列（用于区分主机/网络设备分组）
+	if !columnExists(db, "asset_group", "category") {
+		db.Exec("ALTER TABLE asset_group ADD COLUMN `category` varchar(20) DEFAULT 'all' COMMENT '分组类别 all:通用 host:主机 network:网络设备'")
+	}
+	if !columnExists(db, "credentials", "category") {
+		db.Exec("ALTER TABLE credentials ADD COLUMN `category` varchar(20) DEFAULT 'all' COMMENT '凭证类别 all:通用 host:主机 network:网络设备'")
+	}
+
+	// 为 network_devices 表添加 brand 列（品牌和型号拆分）
+	if !columnExists(db, "network_devices", "brand") {
+		db.Exec("ALTER TABLE network_devices ADD COLUMN `brand` varchar(50) DEFAULT '' COMMENT '品牌' AFTER `ip`")
+	}
+
+	// 为 sys_role_asset_permission 表添加 asset_type 列（区分主机/网络设备权限）
+	if !columnExists(db, "sys_role_asset_permission", "asset_type") {
+		db.Exec("ALTER TABLE sys_role_asset_permission ADD COLUMN `asset_type` varchar(20) DEFAULT 'host' COMMENT '资产类型 host:主机 network_device:网络设备'")
+	}
+
+	// 自动添加网络设备菜单（如果不存在）
+	var networkDeviceMenuCount int64
+	db.Raw("SELECT COUNT(*) FROM sys_menu WHERE code = 'network-devices' AND deleted_at IS NULL").Scan(&networkDeviceMenuCount)
+	if networkDeviceMenuCount == 0 {
+		var assetMenuID uint
+		db.Raw("SELECT id FROM sys_menu WHERE code = 'asset-management' AND deleted_at IS NULL LIMIT 1").Scan(&assetMenuID)
+		if assetMenuID > 0 {
+			db.Exec("INSERT INTO sys_menu (name, code, type, parent_id, path, component, icon, sort, visible, status, created_at, updated_at) VALUES ('网络设备', 'network-devices', 2, ?, '/asset/network-devices', 'asset/NetworkDevices', 'SetUp', 5, 1, 1, NOW(), NOW())", assetMenuID)
+			// 给管理员角色授权
+			var adminRoleID uint
+			db.Raw("SELECT id FROM sys_role WHERE code = 'admin' AND deleted_at IS NULL LIMIT 1").Scan(&adminRoleID)
+			var newMenuID uint
+			db.Raw("SELECT id FROM sys_menu WHERE code = 'network-devices' AND deleted_at IS NULL LIMIT 1").Scan(&newMenuID)
+			if adminRoleID > 0 && newMenuID > 0 {
+				db.Exec("INSERT IGNORE INTO sys_role_menu (role_id, menu_id) VALUES (?, ?)", adminRoleID, newMenuID)
+			}
+		}
+	}
 
 	return nil
 }
@@ -400,7 +439,8 @@ func initDefaultData(db *gorm.DB) error {
 		{Name: "凭据管理", Code: "asset:credentials", Type: 2, ParentID: assetMenu.ID, Path: "/asset/credentials", Component: "asset/Credentials", Icon: "Lock", Sort: 2, Visible: 1, Status: 1},
 		{Name: "业务分组", Code: "business-group", Type: 2, ParentID: assetMenu.ID, Path: "/asset/groups", Component: "asset/Groups", Icon: "Collection", Sort: 3, Visible: 1, Status: 1},
 		{Name: "云账号管理", Code: "cloud-accounts", Type: 2, ParentID: assetMenu.ID, Path: "/asset/cloud-accounts", Component: "asset/CloudAccounts", Icon: "Cloudy", Sort: 4, Visible: 1, Status: 1},
-		{Name: "终端审计", Code: "asset_terminal_audit", Type: 2, ParentID: assetMenu.ID, Path: "/asset/terminal-audit", Component: "asset/TerminalAudit", Icon: "View", Sort: 5, Visible: 1, Status: 1},
+		{Name: "网络设备", Code: "network-devices", Type: 2, ParentID: assetMenu.ID, Path: "/asset/network-devices", Component: "asset/NetworkDevices", Icon: "SetUp", Sort: 5, Visible: 1, Status: 1},
+		{Name: "终端审计", Code: "asset_terminal_audit", Type: 2, ParentID: assetMenu.ID, Path: "/asset/terminal-audit", Component: "asset/TerminalAudit", Icon: "View", Sort: 6, Visible: 1, Status: 1},
 		{Name: "权限配置", Code: "asset_permission", Type: 2, ParentID: assetMenu.ID, Path: "/asset/permissions", Component: "asset/AssetPermission", Icon: "Lock", Sort: 6, Visible: 1, Status: 1},
 	}
 

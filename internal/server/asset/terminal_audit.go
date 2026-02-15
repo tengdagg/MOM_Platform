@@ -24,10 +24,13 @@ import (
 	"net/http"
 	"os"
 	"strconv"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	assetbiz "github.com/ydcloud-dy/mom/internal/biz/asset"
+	appLogger "github.com/ydcloud-dy/mom/pkg/logger"
 	"github.com/ydcloud-dy/mom/pkg/response"
+	"go.uber.org/zap"
 	"gorm.io/gorm"
 )
 
@@ -265,4 +268,136 @@ func getStatusText(status string) string {
 		return text
 	}
 	return status
+}
+
+// GetRetentionConfig 获取终端审计保留配置
+func (h *TerminalAuditHandler) GetRetentionConfig(c *gin.Context) {
+	var config assetbiz.SystemConfig
+	result := h.db.Where("config_key = ?", "terminal_audit_retention_days").First(&config)
+	if result.Error != nil {
+		// 默认30天
+		response.Success(c, gin.H{
+			"retentionDays": 30,
+			"autoCleanup":  true,
+		})
+		return
+	}
+
+	days, _ := strconv.Atoi(config.Value)
+	if days == 0 {
+		days = 30
+	}
+
+	response.Success(c, gin.H{
+		"retentionDays": days,
+		"autoCleanup":  true,
+	})
+}
+
+// UpdateRetentionConfig 更新终端审计保留配置
+func (h *TerminalAuditHandler) UpdateRetentionConfig(c *gin.Context) {
+	var req struct {
+		RetentionDays int  `json:"retentionDays" binding:"required,min=1,max=3650"`
+		AutoCleanup   bool `json:"autoCleanup"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.ErrorCode(c, http.StatusBadRequest, "参数错误: "+err.Error())
+		return
+	}
+
+	config := assetbiz.SystemConfig{
+		ConfigKey: "terminal_audit_retention_days",
+		Value:     strconv.Itoa(req.RetentionDays),
+		Remark:    "终端审计记录保留天数",
+	}
+
+	// Upsert
+	result := h.db.Where("config_key = ?", "terminal_audit_retention_days").First(&assetbiz.SystemConfig{})
+	if result.Error != nil {
+		h.db.Create(&config)
+	} else {
+		h.db.Model(&assetbiz.SystemConfig{}).Where("config_key = ?", "terminal_audit_retention_days").
+			Updates(map[string]interface{}{"value": config.Value, "remark": config.Remark})
+	}
+
+	response.SuccessWithMessage(c, "保存成功", nil)
+}
+
+// CleanupExpiredSessions 手动触发清理过期会话
+func (h *TerminalAuditHandler) CleanupExpiredSessions(c *gin.Context) {
+	deleted, err := h.doCleanup()
+	if err != nil {
+		response.ErrorCode(c, http.StatusInternalServerError, "清理失败: "+err.Error())
+		return
+	}
+
+	response.SuccessWithMessage(c, fmt.Sprintf("清理完成，共删除 %d 条过期记录", deleted), gin.H{
+		"deletedCount": deleted,
+	})
+}
+
+// doCleanup 执行清理逻辑
+func (h *TerminalAuditHandler) doCleanup() (int, error) {
+	// 获取保留天数
+	retentionDays := 30
+	var config assetbiz.SystemConfig
+	if err := h.db.Where("config_key = ?", "terminal_audit_retention_days").First(&config).Error; err == nil {
+		if d, err := strconv.Atoi(config.Value); err == nil && d > 0 {
+			retentionDays = d
+		}
+	}
+
+	cutoffTime := time.Now().AddDate(0, 0, -retentionDays)
+
+	// 查询过期会话
+	var sessions []*assetbiz.TerminalSession
+	if err := h.db.Where("created_at < ? AND status != 'recording'", cutoffTime).Find(&sessions).Error; err != nil {
+		return 0, err
+	}
+
+	if len(sessions) == 0 {
+		return 0, nil
+	}
+
+	// 删除录制文件和数据库记录
+	deletedCount := 0
+	for _, session := range sessions {
+		// 删除录制文件
+		if session.RecordingPath != "" {
+			_ = os.Remove(session.RecordingPath)
+		}
+		// 删除数据库记录
+		if err := h.db.Unscoped().Delete(session).Error; err == nil {
+			deletedCount++
+		}
+	}
+
+	return deletedCount, nil
+}
+
+// StartCleanupScheduler 启动定时清理任务
+func (h *TerminalAuditHandler) StartCleanupScheduler() {
+	go func() {
+		// 启动后先执行一次清理
+		time.Sleep(30 * time.Second)
+		deleted, err := h.doCleanup()
+		if err != nil {
+			appLogger.Error("终端审计初始清理失败", zap.Error(err))
+		} else if deleted > 0 {
+			appLogger.Info("终端审计初始清理完成", zap.Int("deletedCount", deleted))
+		}
+
+		// 每24小时执行一次
+		ticker := time.NewTicker(24 * time.Hour)
+		defer ticker.Stop()
+
+		for range ticker.C {
+			deleted, err := h.doCleanup()
+			if err != nil {
+				appLogger.Error("终端审计定时清理失败", zap.Error(err))
+			} else if deleted > 0 {
+				appLogger.Info("终端审计定时清理完成", zap.Int("deletedCount", deleted))
+			}
+		}
+	}()
 }

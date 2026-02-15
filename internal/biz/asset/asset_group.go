@@ -29,6 +29,7 @@ type AssetGroup struct {
 	ParentID    uint          `gorm:"column:parent_id;default:0;comment:父分组ID" json:"parentId"`
 	Parent      *AssetGroup   `gorm:"-" json:"parent,omitempty"`
 	Children    []*AssetGroup `gorm:"-" json:"children,omitempty"`
+	Category    string        `gorm:"type:varchar(20);default:'all';comment:分组类别 all:通用 host:主机 network:网络设备" json:"category"`
 	Description string        `gorm:"type:varchar(500);comment:分组描述" json:"description"`
 	Sort        int           `gorm:"type:int;default:0;comment:排序" json:"sort"`
 	Status      int           `gorm:"type:tinyint;default:1;comment:状态 1:启用 0:禁用" json:"status"`
@@ -41,6 +42,7 @@ type AssetGroupRequest struct {
 	ParentID    uint   `json:"parentId"`
 	Name        string `json:"name" binding:"required,min=2,max=100"`
 	Code        string `json:"code" binding:"required,min=2,max=50"`
+	Category    string `json:"category"`
 	Description string `json:"description"`
 	Sort        int    `json:"sort"`
 	Status      int    `json:"status" binding:"required"`
@@ -48,11 +50,16 @@ type AssetGroupRequest struct {
 
 // ToModel 转换为AssetGroup模型
 func (r *AssetGroupRequest) ToModel() *AssetGroup {
+	category := r.Category
+	if category == "" {
+		category = "all"
+	}
 	return &AssetGroup{
 		Model:       gorm.Model{ID: r.ID},
 		Name:        r.Name,
 		Code:        r.Code,
 		ParentID:    r.ParentID,
+		Category:    category,
 		Description: r.Description,
 		Sort:        r.Sort,
 		Status:      r.Status,
@@ -65,6 +72,7 @@ type AssetGroupInfoVO struct {
 	ParentID    uint                 `json:"parentId"`
 	Name        string               `json:"name"`
 	Code        string               `json:"code"`
+	Category    string               `json:"category"`
 	Description string               `json:"description"`
 	Sort        int                  `json:"sort"`
 	Status      int                  `json:"status"`

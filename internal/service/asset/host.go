@@ -374,7 +374,8 @@ func (s *HostService) ListCredentials(c *gin.Context) {
 // @Success 200 {object} response.Response "获取成功"
 // @Router /api/v1/credentials/all [get]
 func (s *HostService) GetAllCredentials(c *gin.Context) {
-	credentials, err := s.credentialUseCase.GetAll(c.Request.Context())
+	category := c.Query("category")
+	credentials, err := s.credentialUseCase.GetAll(c.Request.Context(), category)
 	if err != nil {
 		response.ErrorCode(c, http.StatusInternalServerError, "查询失败: "+err.Error())
 		return

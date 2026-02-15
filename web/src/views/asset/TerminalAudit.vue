@@ -8,8 +8,18 @@
         </div>
         <div>
           <h2 class="page-title">终端审计</h2>
-          <p class="page-subtitle">查看和管理终端会话记录（SSH / RDP）</p>
+          <p class="page-subtitle">查看和管理终端会话记录（SSH / RDP / Telnet）</p>
         </div>
+      </div>
+      <div class="header-actions">
+        <el-button @click="handleManualCleanup" :loading="cleaning" plain>
+          <el-icon style="margin-right: 6px;"><Delete /></el-icon>
+          清理过期记录
+        </el-button>
+        <el-button class="black-button" @click="retentionDialogVisible = true">
+          <el-icon style="margin-right: 6px;"><Setting /></el-icon>
+          保留配置
+        </el-button>
       </div>
     </div>
 
@@ -149,11 +159,50 @@
         :autoplay="true"
       />
     </el-dialog>
+
+    <!-- 保留配置对话框 -->
+    <el-dialog
+      v-model="retentionDialogVisible"
+      title="审计记录保留配置"
+      width="480px"
+      class="retention-dialog"
+      :close-on-click-modal="false"
+    >
+      <el-form :model="retentionForm" label-width="130px">
+        <el-form-item label="保留天数">
+          <el-input-number
+            v-model="retentionForm.retentionDays"
+            :min="1"
+            :max="3650"
+            :step="1"
+            style="width: 200px;"
+          />
+          <span style="margin-left: 10px; color: #909399; font-size: 13px;">天</span>
+        </el-form-item>
+        <el-form-item label="自动清理">
+          <el-switch v-model="retentionForm.autoCleanup" />
+          <span style="margin-left: 10px; color: #909399; font-size: 12px;">每天自动清理超过保留天数的记录</span>
+        </el-form-item>
+        <el-alert
+          type="info"
+          :closable="false"
+          style="margin-top: 8px;"
+        >
+          超过设定保留天数的终端会话记录和录制文件将被自动清理。正在录制中的会话不会被清理。
+        </el-alert>
+      </el-form>
+      <template #footer>
+        <div class="dialog-footer">
+          <el-button @click="retentionDialogVisible = false">取消</el-button>
+          <el-button class="black-button" @click="handleSaveRetention" :loading="savingRetention">保存</el-button>
+        </div>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   Search,
@@ -161,9 +210,10 @@ import {
   User,
   VideoPlay,
   Delete,
-  RefreshLeft
+  RefreshLeft,
+  Setting
 } from '@element-plus/icons-vue'
-import { getTerminalSessions, playTerminalSession, deleteTerminalSession } from '@/api/terminal'
+import { getTerminalSessions, playTerminalSession, deleteTerminalSession, getRetentionConfig, updateRetentionConfig, cleanupExpiredSessions } from '@/api/terminal'
 import AsciinemaPlayer from '@/components/AsciinemaPlayer.vue'
 
 interface TerminalSession {
@@ -311,8 +361,74 @@ const getStatusType = (status: string): 'success' | 'info' | 'warning' | 'danger
   return typeMap[status] || 'info'
 }
 
+// 保留配置相关
+const retentionDialogVisible = ref(false)
+const savingRetention = ref(false)
+const cleaning = ref(false)
+const retentionForm = reactive({
+  retentionDays: 30,
+  autoCleanup: true
+})
+
+// 加载保留配置
+const loadRetentionConfig = async () => {
+  try {
+    const data: any = await getRetentionConfig()
+    if (data) {
+      retentionForm.retentionDays = data.retentionDays || 30
+      retentionForm.autoCleanup = data.autoCleanup !== false
+    }
+  } catch { /* ignore */ }
+}
+
+// 保存保留配置
+const handleSaveRetention = async () => {
+  savingRetention.value = true
+  try {
+    await updateRetentionConfig({
+      retentionDays: retentionForm.retentionDays,
+      autoCleanup: retentionForm.autoCleanup
+    })
+    ElMessage.success('保留配置已保存')
+    retentionDialogVisible.value = false
+  } catch (error: any) {
+    ElMessage.error('保存失败: ' + (error.message || '未知错误'))
+  } finally {
+    savingRetention.value = false
+  }
+}
+
+// 手动清理
+const handleManualCleanup = async () => {
+  try {
+    await ElMessageBox.confirm(
+      `确定清理超过 ${retentionForm.retentionDays} 天的审计记录吗？此操作不可恢复。`,
+      '清理确认',
+      {
+        confirmButtonText: '确定清理',
+        cancelButtonText: '取消',
+        type: 'warning'
+      }
+    )
+  } catch {
+    return
+  }
+
+  cleaning.value = true
+  try {
+    const res: any = await cleanupExpiredSessions()
+    ElMessage.success(res?.message || '清理完成')
+    loadSessions()
+  } catch (error: any) {
+    ElMessage.error('清理失败: ' + (error.message || '未知错误'))
+  } finally {
+    cleaning.value = false
+  }
+}
+
 onMounted(() => {
   loadSessions()
+  loadRetentionConfig()
 })
 </script>
 
@@ -332,6 +448,32 @@ onMounted(() => {
   background: #fff;
   border-radius: 0;
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
+}
+
+.header-actions {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.dialog-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+:deep(.retention-dialog .el-dialog__header) {
+  padding: 20px 24px 16px;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+:deep(.retention-dialog .el-dialog__body) {
+  padding: 24px;
+}
+
+:deep(.retention-dialog .el-dialog__footer) {
+  padding: 16px 24px;
+  border-top: 1px solid #f0f0f0;
 }
 
 .page-title-group {

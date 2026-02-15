@@ -76,6 +76,9 @@
             </el-form-item>
             <el-form-item label="日志保留天数">
               <el-input-number v-model="config.logRetentionDays" :min="7" :max="365" />
+              <span style="margin-left: 10px; color: #999; font-size: 12px;">
+                适用于操作日志、登录日志、数据变更日志，超过天数自动清理
+              </span>
             </el-form-item>
           </el-form>
         </el-card>
@@ -331,18 +334,34 @@ async function syncLDAPUsers() {
 
 const loadConfig = async () => {
   try {
-    const savedConfig = localStorage.getItem('system_config')
-    if (savedConfig) {
-      Object.assign(config, JSON.parse(savedConfig))
+    const data: any = await request.get('/api/v1/system-config')
+    if (data && typeof data === 'object') {
+      // 将后端字符串值转为正确的类型赋值
+      if (data.systemName !== undefined) config.systemName = data.systemName
+      if (data.systemLogo !== undefined) config.systemLogo = data.systemLogo
+      if (data.systemDescription !== undefined) config.systemDescription = data.systemDescription
+      if (data.copyright !== undefined) config.copyright = data.copyright
+      if (data.passwordMinLength !== undefined) config.passwordMinLength = parseInt(data.passwordMinLength) || 6
+      if (data.sessionTimeout !== undefined) config.sessionTimeout = parseInt(data.sessionTimeout) || 3600
+      if (data.enableCaptcha !== undefined) config.enableCaptcha = data.enableCaptcha === 'true' || data.enableCaptcha === true
+      if (data.maxLoginAttempts !== undefined) config.maxLoginAttempts = parseInt(data.maxLoginAttempts) || 5
+      if (data.enableEmailNotification !== undefined) config.enableEmailNotification = data.enableEmailNotification === 'true' || data.enableEmailNotification === true
+      if (data.smtpHost !== undefined) config.smtpHost = data.smtpHost
+      if (data.smtpPort !== undefined) config.smtpPort = parseInt(data.smtpPort) || 587
+      if (data.smtpFrom !== undefined) config.smtpFrom = data.smtpFrom
+      if (data.enableRegister !== undefined) config.enableRegister = data.enableRegister === 'true' || data.enableRegister === true
+      if (data.defaultUserRole !== undefined) config.defaultUserRole = data.defaultUserRole
+      if (data.logRetentionDays !== undefined) config.logRetentionDays = parseInt(data.logRetentionDays) || 30
     }
-  } catch { /* ignore */ }
+  } catch {
+    // 后端未返回数据时使用默认值
+  }
 }
 
 const handleSave = async () => {
   saving.value = true
   try {
-    localStorage.setItem('system_config', JSON.stringify(config))
-    await new Promise(resolve => setTimeout(resolve, 500))
+    await request.put('/api/v1/system-config', config)
     ElMessage.success('保存成功')
   } catch {
     ElMessage.error('保存失败')

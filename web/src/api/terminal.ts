@@ -28,3 +28,24 @@ export const playTerminalSession = (id: number) => {
 export const deleteTerminalSession = (id: number) => {
   return request.delete(`/api/v1/terminal-sessions/${id}`)
 }
+
+/**
+ * 获取终端审计保留配置
+ */
+export const getRetentionConfig = () => {
+  return request.get('/api/v1/terminal-sessions/retention')
+}
+
+/**
+ * 更新终端审计保留配置
+ */
+export const updateRetentionConfig = (data: { retentionDays: number; autoCleanup: boolean }) => {
+  return request.put('/api/v1/terminal-sessions/retention', data)
+}
+
+/**
+ * 手动清理过期会话
+ */
+export const cleanupExpiredSessions = () => {
+  return request.post('/api/v1/terminal-sessions/cleanup')
+}

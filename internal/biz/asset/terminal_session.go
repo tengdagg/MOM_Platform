@@ -80,3 +80,19 @@ type TerminalSessionListResponse struct {
 	Total int64                  `json:"total"`
 	List  []*TerminalSessionInfo `json:"list"`
 }
+
+// SystemConfig 系统配置键值表
+type SystemConfig struct {
+	ID        uint           `gorm:"primarykey" json:"id"`
+	CreatedAt time.Time      `json:"createdAt"`
+	UpdatedAt time.Time      `json:"updatedAt"`
+	DeletedAt gorm.DeletedAt `gorm:"index" json:"-"`
+	ConfigKey string         `gorm:"type:varchar(100);uniqueIndex;not null;comment:配置键" json:"configKey"`
+	Value     string         `gorm:"type:varchar(500);comment:配置值" json:"value"`
+	Remark    string         `gorm:"type:varchar(200);comment:备注" json:"remark"`
+}
+
+// TableName 系统配置表名
+func (SystemConfig) TableName() string {
+	return "system_config"
+}

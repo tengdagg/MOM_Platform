@@ -52,11 +52,15 @@ func (r *assetPermissionRepo) CreateBatch(ctx context.Context, roleID, assetGrou
 	return r.db.WithContext(ctx).Create(permission).Error
 }
 
-// CreateBatchWithPermissions 批量创建资产权限（支持指定操作权限）
-func (r *assetPermissionRepo) CreateBatchWithPermissions(ctx context.Context, roleID, assetGroupID uint, hostIDs []uint, permissions uint) error {
-	// 先硬删除该角色对该资产分组的所有现有权限（包括已软删除的）
+// CreateBatchWithPermissions 批量创建资产权限（支持指定操作权限和资产类型）
+func (r *assetPermissionRepo) CreateBatchWithPermissions(ctx context.Context, roleID, assetGroupID uint, hostIDs []uint, permissions uint, assetType string) error {
+	if assetType == "" {
+		assetType = "host"
+	}
+
+	// 先硬删除该角色对该资产分组和资产类型的所有现有权限（包括已软删除的）
 	if err := r.db.WithContext(ctx).
-		Where("role_id = ? AND asset_group_id = ?", roleID, assetGroupID).
+		Where("role_id = ? AND asset_group_id = ? AND asset_type = ?", roleID, assetGroupID, assetType).
 		Unscoped().Delete(&rbac.SysRoleAssetPermission{}).Error; err != nil {
 		return err
 	}
@@ -66,12 +70,13 @@ func (r *assetPermissionRepo) CreateBatchWithPermissions(ctx context.Context, ro
 		permissions = rbac.PermissionView
 	}
 
-	// 创建单条记录，支持多个主机ID
+	// 创建单条记录，支持多个主机/设备ID
 	permission := &rbac.SysRoleAssetPermission{
 		RoleID:       roleID,
 		AssetGroupID: assetGroupID,
-		HostIDs:      hostIDs, // 直接存储主机ID数组
-		Permissions: permissions,
+		AssetType:    assetType,
+		HostIDs:      hostIDs,
+		Permissions:  permissions,
 	}
 
 	return r.db.WithContext(ctx).Create(permission).Error
@@ -137,20 +142,30 @@ func (r *assetPermissionRepo) GetDetailByID(ctx context.Context, id uint) (*rbac
 	// 直接使用 HostIDs（已通过 Scan 方法处理了 JSON 转换）
 	hostIDs := []uint(permission.HostIDs)
 
+	assetType := permission.AssetType
+	if assetType == "" {
+		assetType = "host"
+	}
+
 	return &rbac.AssetPermissionDetailVO{
-		ID:            permission.ID,
-		RoleID:        permission.RoleID,
-		RoleName:      role.Name,
-		AssetGroupID:  permission.AssetGroupID,
+		ID:             permission.ID,
+		RoleID:         permission.RoleID,
+		RoleName:       role.Name,
+		AssetGroupID:   permission.AssetGroupID,
 		AssetGroupName: group.Name,
-		HostIDs:       hostIDs,
-		Permissions:   permission.Permissions,
-		CreatedAt:     permission.CreatedAt,
+		AssetType:      assetType,
+		HostIDs:        hostIDs,
+		Permissions:    permission.Permissions,
+		CreatedAt:      permission.CreatedAt,
 	}, nil
 }
 
-// UpdateAssetPermission 更新权限配置（支持修改角色、分组、主机、权限）
-func (r *assetPermissionRepo) UpdateAssetPermission(ctx context.Context, id uint, roleID, assetGroupID uint, hostIDs []uint, permissions uint) error {
+// UpdateAssetPermission 更新权限配置（支持修改角色、分组、主机、权限、资产类型）
+func (r *assetPermissionRepo) UpdateAssetPermission(ctx context.Context, id uint, roleID, assetGroupID uint, hostIDs []uint, permissions uint, assetType string) error {
+	if assetType == "" {
+		assetType = "host"
+	}
+
 	// 首先硬删除该权限的旧记录（包括软删除的）
 	if err := r.db.WithContext(ctx).Model(&rbac.SysRoleAssetPermission{}).
 		Where("id = ?", id).
@@ -163,12 +178,13 @@ func (r *assetPermissionRepo) UpdateAssetPermission(ctx context.Context, id uint
 		permissions = rbac.PermissionView
 	}
 
-	// 创建单条新记录，支持多个主机ID
+	// 创建单条新记录
 	permission := &rbac.SysRoleAssetPermission{
 		RoleID:       roleID,
 		AssetGroupID: assetGroupID,
-		HostIDs:      hostIDs, // 直接存储主机ID数组
-		Permissions: permissions,
+		AssetType:    assetType,
+		HostIDs:      hostIDs,
+		Permissions:  permissions,
 	}
 
 	return r.db.WithContext(ctx).Create(permission).Error
@@ -187,6 +203,7 @@ func (r *assetPermissionRepo) GetByRoleID(ctx context.Context, roleID uint) ([]*
 			r.code AS role_code,
 			p.asset_group_id,
 			g.name AS asset_group_name,
+			COALESCE(p.asset_type, 'host') AS asset_type,
 			p.host_ids,
 			p.permissions,
 			p.created_at
@@ -213,6 +230,7 @@ func (r *assetPermissionRepo) GetByAssetGroupID(ctx context.Context, assetGroupI
 			r.code AS role_code,
 			p.asset_group_id,
 			g.name AS asset_group_name,
+			COALESCE(p.asset_type, 'host') AS asset_type,
 			p.host_ids,
 			p.permissions,
 			p.created_at
@@ -240,6 +258,7 @@ func (r *assetPermissionRepo) List(ctx context.Context, page, pageSize int, role
 			r.code AS role_code,
 			p.asset_group_id,
 			g.name AS asset_group_name,
+			COALESCE(p.asset_type, 'host') AS asset_type,
 			p.host_ids,
 			p.permissions,
 			p.created_at

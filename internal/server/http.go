@@ -151,14 +151,14 @@ func (s *HTTPServer) registerRoutes(router *gin.Engine, jwtSecret string) {
 	operationLogService, loginLogService, dataLogService := auditserver.NewAuditServices(s.db)
 
 	// 创建 Asset 服务
-	assetGroupService, hostService, terminalManager := assetserver.NewAssetServices(s.db)
+	assetGroupService, hostService, networkDeviceService, terminalManager, networkTerminalManager := assetserver.NewAssetServices(s.db)
 
 	// 设置authMiddleware的assetPermissionRepo
 	assetPermissionRepo := rbacdata.NewAssetPermissionRepo(s.db)
 	authMiddleware.SetAssetPermissionRepo(assetPermissionRepo)
 
 	// Asset 路由
-	assetServer := assetserver.NewHTTPServer(assetGroupService, hostService, terminalManager, s.db, authMiddleware)
+	assetServer := assetserver.NewHTTPServer(assetGroupService, hostService, networkDeviceService, terminalManager, networkTerminalManager, s.db, authMiddleware)
 
 	// API v1 - 需要认证的接口
 	v1 := router.Group("/api/v1")

@@ -1709,7 +1709,7 @@ const getStatusType = (status: number) => {
 const loadGroupTree = async () => {
   groupLoading.value = true
   try {
-    const data = await getGroupTree()
+    const data = await getGroupTree('host')
     groupTree.value = data || []
     filteredGroupTree.value = data || []
   } catch (error) {
@@ -1783,7 +1783,7 @@ const loadHostList = async () => {
 // 加载凭证列表
 const loadCredentialList = async () => {
   try {
-    const data = await getCredentials()
+    const data = await getCredentials('host')
     credentialList.value = data || []
   } catch (error) {
   }

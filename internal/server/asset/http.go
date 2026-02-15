@@ -31,26 +31,34 @@ import (
 )
 
 type HTTPServer struct {
-	assetGroupService    *assetService.AssetGroupService
-	hostService          *assetService.HostService
-	terminalManager      *TerminalManager
-	terminalAuditHandler *TerminalAuditHandler
-	authMiddleware       *rbacService.AuthMiddleware
+	assetGroupService       *assetService.AssetGroupService
+	hostService             *assetService.HostService
+	networkDeviceService    *assetService.NetworkDeviceService
+	terminalManager         *TerminalManager
+	networkTerminalManager  *NetworkTerminalManager
+	terminalAuditHandler    *TerminalAuditHandler
+	systemConfigHandler     *SystemConfigHandler
+	authMiddleware          *rbacService.AuthMiddleware
 }
 
 func NewHTTPServer(
 	assetGroupService *assetService.AssetGroupService,
 	hostService *assetService.HostService,
+	networkDeviceService *assetService.NetworkDeviceService,
 	terminalManager *TerminalManager,
+	networkTerminalManager *NetworkTerminalManager,
 	db *gorm.DB,
 	authMiddleware *rbacService.AuthMiddleware,
 ) *HTTPServer {
 	return &HTTPServer{
-		assetGroupService:    assetGroupService,
-		hostService:          hostService,
-		terminalManager:      terminalManager,
-		terminalAuditHandler: NewTerminalAuditHandler(db),
-		authMiddleware:       authMiddleware,
+		assetGroupService:      assetGroupService,
+		hostService:            hostService,
+		networkDeviceService:   networkDeviceService,
+		terminalManager:        terminalManager,
+		networkTerminalManager: networkTerminalManager,
+		terminalAuditHandler:   NewTerminalAuditHandler(db),
+		systemConfigHandler:    NewSystemConfigHandler(db),
+		authMiddleware:         authMiddleware,
 	}
 }
 
@@ -139,6 +147,18 @@ func (s *HTTPServer) RegisterRoutes(r *gin.RouterGroup) {
 		cloudAccounts.POST("/import", s.hostService.ImportFromCloud)
 	}
 
+	// 网络设备管理
+	networkDevices := r.Group("/network-devices")
+	{
+		networkDevices.GET("", s.networkDeviceService.ListNetworkDevices)
+		networkDevices.GET("/all", s.networkDeviceService.GetAllNetworkDevices)
+		networkDevices.POST("", s.networkDeviceService.CreateNetworkDevice)
+		networkDevices.GET("/:id", s.networkDeviceService.GetNetworkDevice)
+		networkDevices.PUT("/:id", s.networkDeviceService.UpdateNetworkDevice)
+		networkDevices.DELETE("/:id", s.networkDeviceService.DeleteNetworkDevice)
+		networkDevices.POST("/:id/test", s.networkDeviceService.TestNetworkDeviceConnection)
+	}
+
 	// SSH终端 - 终端权限
 	terminal := r.Group("/asset/terminal")
 	{
@@ -148,20 +168,44 @@ func (s *HTTPServer) RegisterRoutes(r *gin.RouterGroup) {
 		terminal.POST("/:id/resize", s.ResizeTerminal)
 	}
 
+	// 网络设备终端
+	networkTerminal := r.Group("/asset/network-terminal")
+	{
+		networkTerminal.GET("/:id", s.networkTerminalManager.HandleNetworkTerminalConnection)
+	}
+
 	// 终端审计
 	terminalSessions := r.Group("/terminal-sessions")
 	{
 		terminalSessions.GET("", s.terminalAuditHandler.ListTerminalSessions)
 		terminalSessions.GET("/:id/play", s.terminalAuditHandler.PlayTerminalSession)
 		terminalSessions.DELETE("/:id", s.terminalAuditHandler.DeleteTerminalSession)
+		terminalSessions.GET("/retention", s.terminalAuditHandler.GetRetentionConfig)
+		terminalSessions.PUT("/retention", s.terminalAuditHandler.UpdateRetentionConfig)
+		terminalSessions.POST("/cleanup", s.terminalAuditHandler.CleanupExpiredSessions)
 	}
+
+	// 系统配置
+	sysConfig := r.Group("/system-config")
+	{
+		sysConfig.GET("", s.systemConfigHandler.GetAllConfig)
+		sysConfig.PUT("", s.systemConfigHandler.SaveAllConfig)
+	}
+
+	// 启动终端审计定时清理任务
+	s.terminalAuditHandler.StartCleanupScheduler()
+
+	// 启动审计日志定时清理任务
+	s.systemConfigHandler.StartAuditLogCleanupScheduler()
 }
 
 // NewAssetServices 创建asset相关的服务
 func NewAssetServices(db *gorm.DB) (
 	*assetService.AssetGroupService,
 	*assetService.HostService,
+	*assetService.NetworkDeviceService,
 	*TerminalManager,
+	*NetworkTerminalManager,
 ) {
 	// 初始化Repository
 	assetGroupRepo := assetdata.NewAssetGroupRepo(db)
@@ -169,6 +213,7 @@ func NewAssetServices(db *gorm.DB) (
 	credentialRepo := assetdata.NewCredentialRepo(db)
 	cloudAccountRepo := assetdata.NewCloudAccountRepo(db)
 	assetPermissionRepo := rbacdata.NewAssetPermissionRepo(db)
+	networkDeviceRepo := assetdata.NewNetworkDeviceRepo(db)
 
 	// 初始化UseCase
 	assetGroupUseCase := assetbiz.NewAssetGroupUseCase(assetGroupRepo)
@@ -176,13 +221,16 @@ func NewAssetServices(db *gorm.DB) (
 	cloudAccountUseCase := assetbiz.NewCloudAccountUseCase(cloudAccountRepo)
 	hostUseCase := assetbiz.NewHostUseCase(hostRepo, credentialRepo, assetGroupRepo, cloudAccountRepo)
 	assetPermissionUseCase := rbacbiz.NewAssetPermissionUseCase(assetPermissionRepo)
+	networkDeviceUseCase := assetbiz.NewNetworkDeviceUseCase(networkDeviceRepo, credentialRepo, assetGroupRepo)
 
 	// 初始化Service
 	assetGroupService := assetService.NewAssetGroupService(assetGroupUseCase)
 	hostService := assetService.NewHostService(hostUseCase, credentialUseCase, cloudAccountUseCase, assetPermissionUseCase)
+	networkDeviceService := assetService.NewNetworkDeviceService(networkDeviceUseCase)
 
 	// 初始化TerminalManager
 	terminalManager := NewTerminalManager(hostUseCase, db)
+	networkTerminalManager := NewNetworkTerminalManager(networkDeviceUseCase, db)
 
-	return assetGroupService, hostService, terminalManager
+	return assetGroupService, hostService, networkDeviceService, terminalManager, networkTerminalManager
 }

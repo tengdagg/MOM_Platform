@@ -55,6 +55,16 @@ type CredentialRepo interface {
 	GetAll(ctx context.Context) ([]*Credential, error)
 }
 
+type NetworkDeviceRepo interface {
+	Create(ctx context.Context, device *NetworkDevice) error
+	Update(ctx context.Context, device *NetworkDevice) error
+	Delete(ctx context.Context, id uint) error
+	GetByID(ctx context.Context, id uint) (*NetworkDevice, error)
+	List(ctx context.Context, page, pageSize int, keyword, deviceType, protocol string, groupID uint) ([]*NetworkDevice, int64, error)
+	GetAll(ctx context.Context) ([]*NetworkDevice, error)
+	UpdateStatus(ctx context.Context, id uint, status int) error
+}
+
 type CloudAccountRepo interface {
 	Create(ctx context.Context, account *CloudAccount) error
 	Update(ctx context.Context, account *CloudAccount) error

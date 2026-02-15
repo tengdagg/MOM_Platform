@@ -88,16 +88,16 @@ type PositionRepo interface {
 type AssetPermissionRepo interface {
 	// 创建资产权限（批量）
 	CreateBatch(ctx context.Context, roleID, assetGroupID uint, hostIDs []uint) error
-	// 创建资产权限（支持操作权限）
-	CreateBatchWithPermissions(ctx context.Context, roleID, assetGroupID uint, hostIDs []uint, permissions uint) error
+	// 创建资产权限（支持操作权限和资产类型）
+	CreateBatchWithPermissions(ctx context.Context, roleID, assetGroupID uint, hostIDs []uint, permissions uint, assetType string) error
 	// 删除指定角色对指定资产分组的所有权限
 	DeleteByRoleAndGroup(ctx context.Context, roleID, assetGroupID uint) error
 	// 删除单个权限
 	Delete(ctx context.Context, id uint) error
 	// 根据ID获取权限详情（用于编辑）
 	GetDetailByID(ctx context.Context, id uint) (*AssetPermissionDetailVO, error)
-	// 更新权限配置（支持修改角色、分组、主机、权限）
-	UpdateAssetPermission(ctx context.Context, id uint, roleID, assetGroupID uint, hostIDs []uint, permissions uint) error
+	// 更新权限配置（支持修改角色、分组、主机、权限、资产类型）
+	UpdateAssetPermission(ctx context.Context, id uint, roleID, assetGroupID uint, hostIDs []uint, permissions uint, assetType string) error
 	// 获取角色的所有资产权限
 	GetByRoleID(ctx context.Context, roleID uint) ([]*AssetPermissionInfo, error)
 	// 获取资产分组的所有权限配置

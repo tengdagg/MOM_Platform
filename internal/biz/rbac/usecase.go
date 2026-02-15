@@ -372,8 +372,8 @@ func (uc *AssetPermissionUseCase) GetDetailByID(ctx context.Context, id uint) (*
 }
 
 // UpdateAssetPermission 更新权限配置（支持修改角色、分组、主机、权限）
-func (uc *AssetPermissionUseCase) UpdateAssetPermission(ctx context.Context, id uint, roleID, assetGroupID uint, hostIDs []uint, permissions uint) error {
-	return uc.assetPermissionRepo.UpdateAssetPermission(ctx, id, roleID, assetGroupID, hostIDs, permissions)
+func (uc *AssetPermissionUseCase) UpdateAssetPermission(ctx context.Context, id uint, roleID, assetGroupID uint, hostIDs []uint, permissions uint, assetType string) error {
+	return uc.assetPermissionRepo.UpdateAssetPermission(ctx, id, roleID, assetGroupID, hostIDs, permissions, assetType)
 }
 
 // GetByRoleID 获取角色的所有资产权限
@@ -402,8 +402,8 @@ func (uc *AssetPermissionUseCase) GetUserAccessibleHostIDs(ctx context.Context, 
 }
 
 // CreateBatchWithPermissions 批量创建资产权限（支持指定操作权限）
-func (uc *AssetPermissionUseCase) CreateBatchWithPermissions(ctx context.Context, roleID, assetGroupID uint, hostIDs []uint, permissions uint) error {
-	return uc.assetPermissionRepo.CreateBatchWithPermissions(ctx, roleID, assetGroupID, hostIDs, permissions)
+func (uc *AssetPermissionUseCase) CreateBatchWithPermissions(ctx context.Context, roleID, assetGroupID uint, hostIDs []uint, permissions uint, assetType string) error {
+	return uc.assetPermissionRepo.CreateBatchWithPermissions(ctx, roleID, assetGroupID, hostIDs, permissions, assetType)
 }
 
 // CheckHostOperationPermission 检查用户是否有对指定主机的特定操作权限

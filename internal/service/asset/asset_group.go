@@ -172,13 +172,48 @@ func (s *AssetGroupService) GetGroupTree(c *gin.Context) {
 		return
 	}
 
+	// 支持按类别过滤（category=host 或 category=network）
+	category := c.Query("category")
+
 	// 转换为VO格式
 	var voTree []*asset.AssetGroupInfoVO
 	for _, group := range tree {
-		voTree = append(voTree, s.groupUseCase.ToInfoVO(group))
+		vo := s.groupUseCase.ToInfoVO(group)
+		if category != "" {
+			vo = filterGroupVOByCategory(vo, category)
+		}
+		if vo != nil {
+			voTree = append(voTree, vo)
+		}
 	}
 
 	response.Success(c, voTree)
+}
+
+// filterGroupVOByCategory 递归过滤分组：只保留 category 匹配或 all 的分组
+func filterGroupVOByCategory(vo *asset.AssetGroupInfoVO, category string) *asset.AssetGroupInfoVO {
+	if vo == nil {
+		return nil
+	}
+
+	// 递归处理子分组
+	var filteredChildren []*asset.AssetGroupInfoVO
+	for _, child := range vo.Children {
+		fc := filterGroupVOByCategory(child, category)
+		if fc != nil {
+			filteredChildren = append(filteredChildren, fc)
+		}
+	}
+
+	// 如果当前分组类别匹配或为通用，或者有匹配的子分组，则保留
+	isMatch := vo.Category == "" || vo.Category == "all" || vo.Category == category
+	if isMatch || len(filteredChildren) > 0 {
+		result := *vo
+		result.Children = filteredChildren
+		return &result
+	}
+
+	return nil
 }
 
 // GetParentOptions 获取父级分组选项

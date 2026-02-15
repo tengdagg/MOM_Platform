@@ -8,7 +8,7 @@
         </div>
         <div>
           <h2 class="page-title">凭证管理</h2>
-          <p class="page-subtitle">管理认证凭证，支持密码和密钥两种认证方式</p>
+          <p class="page-subtitle">管理认证凭证，支持密码和密钥认证，可按主机/网络设备分类</p>
         </div>
       </div>
       <div class="header-actions">
@@ -44,6 +44,18 @@
         >
           <el-option label="密码认证" value="password" />
           <el-option label="密钥认证" value="key" />
+        </el-select>
+
+        <el-select
+          v-model="searchForm.category"
+          placeholder="适用类别"
+          clearable
+          class="filter-input"
+          @change="handleSearch"
+        >
+          <el-option label="通用" value="all" />
+          <el-option label="主机" value="host" />
+          <el-option label="网络设备" value="network" />
         </el-select>
       </div>
 
@@ -84,6 +96,14 @@
             <el-tag :type="row.type === 'password' ? 'warning' : 'success'" size="small">
               {{ row.typeText }}
             </el-tag>
+          </template>
+        </el-table-column>
+
+        <el-table-column label="适用类别" width="120" align="center">
+          <template #default="{ row }">
+            <el-tag v-if="row.category === 'host'" type="primary" size="small">主机</el-tag>
+            <el-tag v-else-if="row.category === 'network'" type="warning" size="small">网络设备</el-tag>
+            <el-tag v-else type="info" size="small">通用</el-tag>
           </template>
         </el-table-column>
 
@@ -167,6 +187,15 @@
             <el-radio label="password">密码认证</el-radio>
             <el-radio label="key">密钥认证</el-radio>
           </el-radio-group>
+        </el-form-item>
+
+        <el-form-item label="适用类别" prop="category">
+          <el-radio-group v-model="form.category">
+            <el-radio label="all">通用</el-radio>
+            <el-radio label="host">主机</el-radio>
+            <el-radio label="network">网络设备</el-radio>
+          </el-radio-group>
+          <div style="color: #909399; font-size: 12px; margin-top: 4px;">通用凭证在主机和网络设备中均可选择</div>
         </el-form-item>
 
         <el-form-item v-if="form.type === 'password'" label="用户名">
@@ -264,7 +293,8 @@ const formRef = ref<FormInstance>()
 // 搜索表单
 const searchForm = reactive({
   keyword: '',
-  type: undefined as string | undefined
+  type: undefined as string | undefined,
+  category: undefined as string | undefined
 })
 
 // 分页
@@ -282,6 +312,7 @@ const form = reactive({
   id: 0,
   name: '',
   type: 'password',
+  category: 'all',
   username: '',
   password: '',
   privateKey: '',
@@ -373,6 +404,7 @@ const handleSearch = () => {
 const handleReset = () => {
   searchForm.keyword = ''
   searchForm.type = undefined
+  searchForm.category = undefined
   loadCredentialList()
 }
 
@@ -382,6 +414,7 @@ const handleAdd = () => {
     id: 0,
     name: '',
     type: 'password',
+    category: 'all',
     username: '',
     password: '',
     privateKey: '',
@@ -403,6 +436,7 @@ const handleEdit = async (row: any) => {
       id: credential.id,
       name: credential.name,
       type: credential.type,
+      category: credential.category || 'all',
       username: credential.username || '',
       password: credential.password || '',
       privateKey: credential.privateKey || '',
@@ -470,6 +504,7 @@ const handleSubmit = async () => {
           id: form.id,
           name: form.name,
           type: form.type,
+          category: form.category,
           username: form.username,
           description: form.description
         }

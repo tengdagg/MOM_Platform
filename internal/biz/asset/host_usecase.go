@@ -547,6 +547,13 @@ func (uc *CredentialUseCase) Update(ctx context.Context, req *CredentialRequest)
 	credential.Username = req.Username
 	credential.Description = req.Description
 
+	// 更新类别
+	if req.Category != "" {
+		credential.Category = req.Category
+	} else {
+		credential.Category = "all"
+	}
+
 	// 如果提供了新的密码或私钥，更新它们
 	if req.Password != "" {
 		credential.Password = req.Password
@@ -593,6 +600,7 @@ func (uc *CredentialUseCase) List(ctx context.Context, page, pageSize int, keywo
 			Name:        cred.Name,
 			Type:        cred.Type,
 			TypeText:    typeText,
+			Category:    cred.Category,
 			Username:    cred.Username,
 			Description: cred.Description,
 			CreateTime:  cred.CreatedAt.Format("2006-01-02 15:04:05"),
@@ -604,15 +612,26 @@ func (uc *CredentialUseCase) List(ctx context.Context, page, pageSize int, keywo
 	return vos, total, nil
 }
 
-// GetAll 获取所有凭证（用于下拉选择）
-func (uc *CredentialUseCase) GetAll(ctx context.Context) ([]*CredentialVO, error) {
+// GetAll 获取所有凭证（用于下拉选择，支持按类别过滤）
+func (uc *CredentialUseCase) GetAll(ctx context.Context, category ...string) ([]*CredentialVO, error) {
 	credentials, err := uc.repo.GetAll(ctx)
 	if err != nil {
 		return nil, err
 	}
 
+	// 如果指定了类别，过滤凭证
+	var filterCategory string
+	if len(category) > 0 && category[0] != "" {
+		filterCategory = category[0]
+	}
+
 	var vos []*CredentialVO
 	for _, cred := range credentials {
+		// 按类别过滤：只返回匹配类别或通用类别的凭证
+		if filterCategory != "" && cred.Category != "all" && cred.Category != "" && cred.Category != filterCategory {
+			continue
+		}
+
 		typeText := "密码"
 		if cred.Type == "key" {
 			typeText = "密钥"
@@ -626,6 +645,7 @@ func (uc *CredentialUseCase) GetAll(ctx context.Context) ([]*CredentialVO, error
 			Name:        cred.Name,
 			Type:        cred.Type,
 			TypeText:    typeText,
+			Category:    cred.Category,
 			Username:    cred.Username,
 			Description: cred.Description,
 			CreateTime:  cred.CreatedAt.Format("2006-01-02 15:04:05"),

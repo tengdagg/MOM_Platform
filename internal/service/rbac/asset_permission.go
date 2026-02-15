@@ -61,8 +61,14 @@ func (s *AssetPermissionService) CreateAssetPermission(c *gin.Context) {
 		req.Permissions = rbac.PermissionView
 	}
 
-	// 批量创建权限（带操作权限）
-	if err := s.assetPermissionUseCase.CreateBatchWithPermissions(c.Request.Context(), req.RoleID, req.AssetGroupID, req.HostIDs, req.Permissions); err != nil {
+	// 默认资产类型为 host
+	assetType := req.AssetType
+	if assetType == "" {
+		assetType = "host"
+	}
+
+	// 批量创建权限（带操作权限和资产类型）
+	if err := s.assetPermissionUseCase.CreateBatchWithPermissions(c.Request.Context(), req.RoleID, req.AssetGroupID, req.HostIDs, req.Permissions, assetType); err != nil {
 		response.ErrorCode(c, http.StatusInternalServerError, "创建失败: "+err.Error())
 		return
 	}
@@ -156,6 +162,11 @@ func (s *AssetPermissionService) UpdateAssetPermission(c *gin.Context) {
 		req.Permissions = rbac.PermissionView
 	}
 
+	assetType := req.AssetType
+	if assetType == "" {
+		assetType = "host"
+	}
+
 	if err := s.assetPermissionUseCase.UpdateAssetPermission(
 		c.Request.Context(),
 		uint(id),
@@ -163,6 +174,7 @@ func (s *AssetPermissionService) UpdateAssetPermission(c *gin.Context) {
 		req.AssetGroupID,
 		req.HostIDs,
 		req.Permissions,
+		assetType,
 	); err != nil {
 		response.ErrorCode(c, http.StatusInternalServerError, "更新失败: "+err.Error())
 		return

@@ -3,15 +3,23 @@
     <!-- 左侧分组和主机列表 -->
     <div class="terminal-sidebar">
       <div class="sidebar-header">
-        <div class="sidebar-title">
-          <el-icon><Collection /></el-icon>
-          <span>资产分组</span>
-          <span class="host-count">({{ allHosts.length }})</span>
+        <!-- 主机/网络设备切换 -->
+        <div class="sidebar-segmented">
+          <div
+            class="seg-item"
+            :class="{ active: sidebarMode === 'host' }"
+            @click="switchSidebarMode('host')"
+          >主机</div>
+          <div
+            class="seg-item"
+            :class="{ active: sidebarMode === 'network-device' }"
+            @click="switchSidebarMode('network-device')"
+          >网络设备</div>
         </div>
         <div class="search-box">
           <el-input
             v-model="searchKeyword"
-            placeholder="搜索主机..."
+            :placeholder="sidebarMode === 'host' ? '搜索主机...' : '搜索网络设备...'"
             clearable
             size="small"
             class="search-input"
@@ -38,13 +46,19 @@
             <div class="tree-node" @dblclick="handleNodeDblClick(data, node, $event)">
               <span class="node-icon">
                 <el-icon v-if="data.type === 'group'"><Folder /></el-icon>
+                <svg v-else-if="data.type === 'network-device'" class="host-svg-icon" viewBox="0 0 24 24" fill="currentColor" style="color: #e6a23c;">
+                  <path d="M1 9l2 2c4.97-4.97 13.03-4.97 18 0l2-2C16.93 2.93 7.08 2.93 1 9zm8 8l3 3 3-3c-1.65-1.66-4.34-1.66-6 0zm-4-4l2 2c2.76-2.76 7.24-2.76 10 0l2-2C15.14 9.14 8.87 9.14 5 13z"/>
+                </svg>
                 <svg v-else class="host-svg-icon" viewBox="0 0 24 24" fill="currentColor">
                   <path d="M20 18c1.1 0 1.99-.9 1.99-2L22 6c0-1.11-.9-2-2-2H4c-1.11 0-2 .89-2 2v10c0 1.1.89 2 2 2H0v2h24v-2h-4zM4 6h16v10H4V6z"/>
                 </svg>
               </span>
               <span class="node-label">{{ node.label }}</span>
-              <span v-if="data.type === 'group'" class="node-count">({{ data.hostCount || 0 }})</span>
-              <span v-if="data.type === 'host'" class="node-status" :class="getStatusClass(data.status)"></span>
+              <span v-if="data.type === 'group'" class="node-count">({{ data.hostCount || data.deviceCount || 0 }})</span>
+              <span v-if="data.type === 'host' || data.type === 'network-device'" class="node-status" :class="getStatusClass(data.status)"></span>
+              <el-tag v-if="data.type === 'network-device' && data.protocol" size="small" :type="data.protocol === 'ssh' ? 'success' : 'warning'" effect="plain" class="node-protocol-tag">
+                {{ data.protocol?.toUpperCase() }}
+              </el-tag>
             </div>
           </template>
         </el-tree>
@@ -52,9 +66,12 @@
     </div>
 
     <!-- 右侧终端区域 -->
-    <!-- 右侧终端区域 -->
     <div class="terminal-main">
       <div class="header-right-absolute">
+          <el-button class="back-btn" link @click="handleGoBack" title="返回">
+            <el-icon :size="18"><ArrowLeft /></el-icon>
+            <span style="margin-left: 4px;">返回</span>
+          </el-button>
           <el-dropdown trigger="click" @command="handleUserCommand">
             <div class="terminal-user-info">
               <el-avatar :size="32" :src="avatarUrl" class="user-avatar">
@@ -251,14 +268,15 @@ import { Terminal } from 'xterm'
 import { FitAddon } from 'xterm-addon-fit'
 import 'xterm/css/xterm.css'
 import Guacamole from 'guacamole-common-js'
-import { getHostList } from '@/api/host'
+import { getHostList, getAllNetworkDevices } from '@/api/host'
 import { getGroupTree } from '@/api/assetGroup'
 import { useUserStore } from '@/stores/user'
-import { useRouter } from 'vue-router'
-import { UserFilled, ArrowDown, User, SwitchButton, UploadFilled, Document } from '@element-plus/icons-vue'
+import { useRouter, useRoute } from 'vue-router'
+import { UserFilled, ArrowDown, ArrowLeft, User, SwitchButton, UploadFilled, Document } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 
 const router = useRouter()
+const route = useRoute()
 const userStore = useUserStore()
 
 // 头像URL
@@ -290,9 +308,23 @@ const handleUserCommand = (command: string) => {
   }
 }
 
+const handleGoBack = () => {
+  // 如果是从新窗口打开的（有 history），先尝试返回
+  if (window.history.length > 1) {
+    router.back()
+  } else {
+    // 新窗口打开的情况下关闭窗口，或者跳转到默认页
+    window.close()
+    // 如果 window.close() 被阻止，回到资产首页
+    router.push('/asset/network-devices')
+  }
+}
+
 const treeRef = ref()
 const searchKeyword = ref('')
 const activeTab = ref('1')
+const sidebarMode = ref<'host' | 'network-device'>('host')
+const allNetworkDevices = ref<any[]>([])
 const terminalRefs = ref<Record<string, HTMLElement>>({})
 const terminals = ref<Record<string, Terminal>>({})
 const fitAddons = ref<Record<string, FitAddon>>({})
@@ -333,12 +365,21 @@ const treeProps = {
 
 // 加载分组树
 const groupTree = ref<any[]>([])
+const networkGroupTree = ref<any[]>([])
 const allHosts = ref<any[]>([])
 
 const loadGroupTree = async () => {
   try {
-    const data = await getGroupTree()
+    const data = await getGroupTree('host')
     groupTree.value = data || []
+  } catch (error) {
+  }
+}
+
+const loadNetworkGroupTree = async () => {
+  try {
+    const data = await getGroupTree('network')
+    networkGroupTree.value = data || []
   } catch (error) {
   }
 }
@@ -352,8 +393,33 @@ const loadAllHosts = async () => {
   }
 }
 
+const loadAllNetworkDevices = async () => {
+  try {
+    const res: any = await getAllNetworkDevices()
+    allNetworkDevices.value = Array.isArray(res) ? res : []
+  } catch (error) {
+    allNetworkDevices.value = []
+  }
+}
+
+const switchSidebarMode = (mode: 'host' | 'network-device') => {
+  sidebarMode.value = mode
+  searchKeyword.value = ''
+  if (mode === 'network-device') {
+    if (allNetworkDevices.value.length === 0) loadAllNetworkDevices()
+    if (networkGroupTree.value.length === 0) loadNetworkGroupTree()
+  }
+}
+
 // 构建带主机的树形数据
 const treeData = computed(() => {
+  if (sidebarMode.value === 'network-device') {
+    return buildNetworkDeviceTree()
+  }
+  return buildHostTree()
+})
+
+function buildHostTree() {
   if (!groupTree.value || groupTree.value.length === 0) {
     return []
   }
@@ -386,7 +452,64 @@ const treeData = computed(() => {
   }
 
   return buildTree(groupTree.value)
-})
+}
+
+function buildNetworkDeviceTree() {
+  if (!networkGroupTree.value || networkGroupTree.value.length === 0) {
+    // 没有分组时，直接列出所有设备
+    return allNetworkDevices.value.map((d: any) => ({
+      ...d,
+      type: 'network-device',
+      label: `${d.name} (${d.ip})`
+    }))
+  }
+
+  const buildTree = (groups: any[]): any[] => {
+    return groups.map((group: any) => {
+      const node: any = {
+        ...group,
+        type: 'group',
+        label: group.name,
+        children: group.children ? buildTree(group.children) : []
+      }
+
+      const groupDevices = allNetworkDevices.value.filter((d: any) => d.groupId === group.id)
+      if (groupDevices.length > 0) {
+        const deviceNodes = groupDevices.map((d: any) => ({
+          ...d,
+          type: 'network-device',
+          label: `${d.name} (${d.ip})`
+        }))
+        node.children = [...node.children, ...deviceNodes]
+        node.deviceCount = deviceNodes.length
+      } else {
+        node.deviceCount = 0
+      }
+
+      return node
+    })
+  }
+
+  const tree = buildTree(networkGroupTree.value)
+
+  // 添加未分组的设备
+  const ungroupedDevices = allNetworkDevices.value.filter((d: any) => !d.groupId || d.groupId === 0)
+  if (ungroupedDevices.length > 0) {
+    tree.push({
+      id: 'ungrouped',
+      type: 'group',
+      label: '未分组',
+      deviceCount: ungroupedDevices.length,
+      children: ungroupedDevices.map((d: any) => ({
+        ...d,
+        type: 'network-device',
+        label: `${d.name} (${d.ip})`
+      }))
+    })
+  }
+
+  return tree
+}
 
 // 过滤后的树形数据
 const filteredTreeData = computed(() => {
@@ -431,9 +554,10 @@ const handleNodeDblClick = (data: any, node: any, event: Event) => {
   event.preventDefault()
   event.stopPropagation()
 
-  if (data.type === 'host' || (data.ip && data.port)) {
+  if (data.type === 'network-device') {
+    openNetworkDeviceTerminal(data)
+  } else if (data.type === 'host' || (data.ip && data.port)) {
     openTerminal(data)
-  } else {
   }
 }
 
@@ -1040,6 +1164,200 @@ const initTerminal = async (tabId: string, host: any) => {
 
 
 
+// 打开网络设备终端
+const openNetworkDeviceTerminal = async (device: any) => {
+  const tabId = Date.now().toString()
+
+  const sameDeviceTabs = terminalTabs.value.filter(t => t.host && t.host.id === device.id && t.host._isNetworkDevice)
+  let label = device.name || device.ip
+  if (sameDeviceTabs.length > 0) {
+    label = `${label} (${sameDeviceTabs.length + 1})`
+  }
+
+  const newTab: TerminalTab = {
+    id: tabId,
+    label: `${label} [${device.protocol?.toUpperCase() || 'SSH'}]`,
+    host: { ...device, _isNetworkDevice: true },
+    connected: false,
+    connecting: true
+  }
+
+  terminalTabs.value.push(newTab)
+  activeTab.value = tabId
+
+  await nextTick()
+  initNetworkDeviceTerminal(tabId, device)
+}
+
+// 初始化网络设备终端（SSH 或 Telnet）
+const initNetworkDeviceTerminal = async (tabId: string, device: any) => {
+  await nextTick()
+
+  const el = terminalRefs.value[tabId]
+  if (!el) return
+
+  // 等待容器获得正确的尺寸
+  let attempts = 0
+  while ((el.clientWidth === 0 || el.clientHeight === 0) && attempts < 50) {
+    await new Promise(resolve => setTimeout(resolve, 50))
+    attempts++
+  }
+
+  const term = new Terminal({
+    cursorBlink: true,
+    fontSize: 16,
+    fontFamily: 'Menlo, Monaco, "Courier New", monospace',
+    theme: {
+      background: '#1e1e1e',
+      foreground: '#d4d4d4',
+      cursor: '#d4d4d4',
+      selection: '#264f78',
+      black: '#1e1e1e',
+      red: '#f14c4c',
+      green: '#23d18b',
+      yellow: '#e5e510',
+      blue: '#409eff',
+      magenta: '#d16969',
+      cyan: '#4ec9b0',
+      white: '#d4d4d4',
+      brightBlack: '#808080',
+      brightRed: '#f14c4c',
+      brightGreen: '#23d18b',
+      brightYellow: '#dcdb77',
+      brightBlue: '#409eff',
+      brightMagenta: '#d16969',
+      brightCyan: '#4ec9b0',
+      brightWhite: '#ffffff',
+    }
+  })
+
+  const fitAddon = new FitAddon()
+  term.loadAddon(fitAddon)
+  term.open(el)
+
+  terminals.value[tabId] = term
+  fitAddons.value[tabId] = fitAddon
+
+  await nextTick()
+  await new Promise(resolve => setTimeout(resolve, 300))
+  try { fitAddon.fit() } catch {}
+  await new Promise(resolve => setTimeout(resolve, 200))
+  try { fitAddon.fit() } catch {}
+
+  const dims = { cols: term.cols, rows: term.rows }
+  if (dims.cols < 80) dims.cols = 120
+  if (dims.rows < 20) dims.rows = 30
+
+  term.writeln(`\x1b[1;33m正在连接 ${device.name} (${device.ip}) [${device.protocol?.toUpperCase()}]...\x1b[0m`)
+
+  const token = localStorage.getItem('token') || ''
+  const isDev = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+  const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
+  const backendHost = window.location.hostname
+  const backendPort = isDev ? ':9876' : (window.location.port ? ':' + window.location.port : '')
+  const wsUrl = `${protocol}//${backendHost}${backendPort}/api/v1/asset/network-terminal/${device.id}?token=${token}&cols=${dims.cols}&rows=${dims.rows}`
+
+  const ws = new WebSocket(wsUrl)
+
+  term.onData(data => {
+    if (ws.readyState === WebSocket.OPEN) {
+      try { ws.send(data) } catch {}
+    }
+  })
+
+  let deviceConnected = false
+
+  ws.onopen = () => {
+    // WebSocket 已连接到后端，SSH/Telnet 连接正在建立中...
+  }
+
+  ws.onmessage = async (event) => {
+    if (event.data instanceof Blob) {
+      // 二进制数据 = 来自 SSH/Telnet 的终端输出，说明设备连接成功
+      if (!deviceConnected) {
+        deviceConnected = true
+        const tab = terminalTabs.value.find(t => t.id === tabId)
+        if (tab) {
+          tab.connecting = false
+          tab.connected = true
+        }
+        term.writeln(`\x1b[1;32m✓ 连接成功\x1b[0m`)
+        term.writeln(`\x1b[90m已连接到: ${device.name} (${device.ip}:${device.port}) [${device.protocol?.toUpperCase()}]\x1b[0m`)
+        term.writeln('')
+      }
+      const arrayBuffer = await event.data.arrayBuffer()
+      term.write(new Uint8Array(arrayBuffer))
+    } else if (event.data instanceof ArrayBuffer) {
+      if (!deviceConnected) {
+        deviceConnected = true
+        const tab = terminalTabs.value.find(t => t.id === tabId)
+        if (tab) {
+          tab.connecting = false
+          tab.connected = true
+        }
+        term.writeln(`\x1b[1;32m✓ 连接成功\x1b[0m`)
+        term.writeln(`\x1b[90m已连接到: ${device.name} (${device.ip}:${device.port}) [${device.protocol?.toUpperCase()}]\x1b[0m`)
+        term.writeln('')
+      }
+      term.write(new Uint8Array(event.data))
+    } else {
+      // 文本消息 = 后端发送的状态/错误信息（如 "SSH连接失败: ..."）
+      term.write(`\r\n\x1b[1;31m${event.data}\x1b[0m`)
+    }
+  }
+
+  ws.onerror = () => {
+    if (!deviceConnected) {
+      term.writeln('\x1b[1;31m✗ WebSocket 连接失败\x1b[0m')
+    }
+  }
+
+  ws.onclose = () => {
+    const tab = terminalTabs.value.find(t => t.id === tabId)
+    if (tab) {
+      tab.connecting = false
+      tab.connected = false
+    }
+    if (!deviceConnected) {
+      term.writeln('\x1b[1;31m✗ 连接失败，请检查设备配置或凭证\x1b[0m')
+    }
+    term.writeln('\r\n\x1b[1;33m⟳ 连接已关闭\x1b[0m')
+  }
+
+  wss.value[tabId] = ws
+
+  // resize 处理
+  const handleResize = () => {
+    if (fitAddon && term && ws.readyState === WebSocket.OPEN) {
+      try {
+        fitAddon.fit()
+        ws.send(JSON.stringify({ type: 'resize', cols: term.cols, rows: term.rows }))
+      } catch {}
+    }
+  }
+
+  let resizeTimer: ReturnType<typeof setTimeout>
+  const debouncedResize = () => {
+    clearTimeout(resizeTimer)
+    resizeTimer = setTimeout(handleResize, 100)
+  }
+
+  window.addEventListener('resize', debouncedResize)
+  resizeCleanups.value[tabId] = () => {
+    window.removeEventListener('resize', debouncedResize)
+    clearTimeout(resizeTimer)
+  }
+
+  const originalOnClose = ws.onclose
+  ws.onclose = (e) => {
+    if (resizeCleanups.value[tabId]) {
+      resizeCleanups.value[tabId]()
+      delete resizeCleanups.value[tabId]
+    }
+    if (originalOnClose) originalOnClose.call(ws, e as CloseEvent)
+  }
+}
+
 // 发送按键组合
 const sendKeyCombination = (tabId: string, keys: number[]) => {
   const client = guacamoleClients.value[tabId]
@@ -1183,6 +1501,21 @@ const handleTabRemove = (tabId: string) => {
 onMounted(async () => {
   await loadGroupTree()
   await loadAllHosts()
+  await loadAllNetworkDevices()
+  await loadNetworkGroupTree()
+
+  // 检查是否有来自 query 参数的网络设备连接请求
+  if (route.query.type === 'network-device') {
+    sidebarMode.value = 'network-device'
+    if (route.query.deviceId) {
+      const deviceId = Number(route.query.deviceId)
+      const device = allNetworkDevices.value.find((d: any) => d.id === deviceId)
+      if (device) {
+        await new Promise(resolve => setTimeout(resolve, 200))
+        openNetworkDeviceTerminal(device)
+      }
+    }
+  }
 
   // 检查是否有从 Hosts 页面双击传来的主机列表
   const dblClickHosts = sessionStorage.getItem('dblClickHosts')
@@ -1276,6 +1609,36 @@ onBeforeUnmount(() => {
   border-bottom: 1px solid #3c3c3c;
 }
 
+.sidebar-segmented {
+  display: flex;
+  background: #1e1e1e;
+  border: 1px solid #3c3c3c;
+  margin-bottom: 12px;
+  overflow: hidden;
+}
+
+.seg-item {
+  flex: 1;
+  text-align: center;
+  padding: 6px 0;
+  font-size: 12px;
+  color: #858585;
+  cursor: pointer;
+  transition: all 0.2s;
+  user-select: none;
+}
+
+.seg-item:hover {
+  color: #cccccc;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.seg-item.active {
+  background: #4ec9b0;
+  color: #1e1e1e;
+  font-weight: 600;
+}
+
 .sidebar-title {
   display: flex;
   align-items: center;
@@ -1296,6 +1659,13 @@ onBeforeUnmount(() => {
   font-size: 12px;
   color: #858585;
   font-weight: normal;
+}
+
+.node-protocol-tag {
+  margin-left: auto;
+  font-size: 10px;
+  transform: scale(0.85);
+  border-radius: 0 !important;
 }
 
 .search-box {
@@ -1577,12 +1947,21 @@ onBeforeUnmount(() => {
   top: 0;
   right: 0;
   z-index: 1000;
-  height: 40px; /* Match tab height roughly */
+  height: 40px;
   display: flex;
   align-items: center;
+  gap: 12px;
   padding-right: 16px;
-  background: #2d2d30; /* Match tab header background */
-  pointer-events: auto; /* Ensure clickable */
+  background: #2d2d30;
+  pointer-events: auto;
+}
+
+.back-btn {
+  color: #cccccc !important;
+  font-size: 13px;
+  &:hover {
+    color: #ffffff !important;
+  }
 }
 
 .terminal-tabs {

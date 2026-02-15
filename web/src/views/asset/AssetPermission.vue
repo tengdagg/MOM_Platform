@@ -8,7 +8,7 @@
         </div>
         <div>
           <h2 class="page-title">权限配置</h2>
-          <p class="page-subtitle">配置角色对资产分组和主机的访问权限</p>
+          <p class="page-subtitle">配置角色对资产分组、主机和网络设备的访问权限</p>
         </div>
       </div>
       <div class="header-actions">
@@ -71,15 +71,22 @@
           </template>
         </el-table-column>
 
-        <el-table-column label="资产分组" min-width="180">
+        <el-table-column label="资产类型" width="120" align="center">
+          <template #default="{ row }">
+            <el-tag v-if="row.assetType === 'network_device'" type="warning" size="small">网络设备</el-tag>
+            <el-tag v-else type="primary" size="small">主机</el-tag>
+          </template>
+        </el-table-column>
+
+        <el-table-column label="资产分组" min-width="160">
           <template #default="{ row }">
             <el-tag type="success">{{ row.assetGroupName }}</el-tag>
           </template>
         </el-table-column>
 
-        <el-table-column label="主机" min-width="200">
+        <el-table-column label="资产范围" min-width="180">
           <template #default="{ row }">
-            <el-tag v-if="!row.hostId" type="info">全部主机</el-tag>
+            <el-tag v-if="!row.hostId" type="info">{{ row.assetType === 'network_device' ? '全部设备' : '全部主机' }}</el-tag>
             <div v-else>
               <div>{{ row.hostName }}</div>
               <div class="host-ip">{{ row.hostIp }}</div>
@@ -93,7 +100,9 @@
               <el-tag v-if="(row.permissions & 1) > 0" size="small" type="success">查看</el-tag>
               <el-tag v-if="(row.permissions & 2) > 0" size="small" type="primary">编辑</el-tag>
               <el-tag v-if="(row.permissions & 4) > 0" size="small" type="danger">删除</el-tag>
-              <el-tag v-if="(row.permissions & 8) > 0" size="small" type="warning">终端(SSH/RDP)</el-tag>
+              <el-tag v-if="(row.permissions & 8) > 0" size="small" type="warning">
+                {{ row.assetType === 'network_device' ? '终端(SSH/Telnet)' : '终端(SSH/RDP)' }}
+              </el-tag>
               <el-tag v-if="(row.permissions & 16) > 0" size="small" type="info">文件</el-tag>
               <el-tag v-if="(row.permissions & 32) > 0" size="small">采集</el-tag>
             </div>
@@ -178,6 +187,13 @@
           </el-select>
         </el-form-item>
 
+        <el-form-item label="资产类型" prop="assetType">
+          <el-radio-group v-model="formData.assetType" @change="handleAssetTypeChange">
+            <el-radio value="host">主机</el-radio>
+            <el-radio value="network_device">网络设备</el-radio>
+          </el-radio-group>
+        </el-form-item>
+
         <el-form-item label="资产分组" prop="assetGroupId">
           <el-tree-select
             v-model="formData.assetGroupId"
@@ -190,38 +206,46 @@
           />
         </el-form-item>
 
-        <el-form-item label="主机">
+        <el-form-item :label="formData.assetType === 'network_device' ? '网络设备' : '主机'">
           <el-radio-group v-model="hostSelectionType" @change="handleHostTypeChange">
-            <el-radio value="all">全部主机</el-radio>
-            <el-radio value="specific">指定主机</el-radio>
+            <el-radio value="all">{{ formData.assetType === 'network_device' ? '全部设备' : '全部主机' }}</el-radio>
+            <el-radio value="specific">{{ formData.assetType === 'network_device' ? '指定设备' : '指定主机' }}</el-radio>
           </el-radio-group>
         </el-form-item>
 
-        <el-form-item v-if="hostSelectionType === 'specific'" label="选择主机" prop="hostIds">
+        <el-form-item v-if="hostSelectionType === 'specific'" :label="formData.assetType === 'network_device' ? '选择设备' : '选择主机'" prop="hostIds">
           <el-select
             v-model="formData.hostIds"
             multiple
-            placeholder="请选择主机"
+            :placeholder="formData.assetType === 'network_device' ? '请选择网络设备' : '请选择主机'"
             style="width: 100%"
             :loading="loadingHosts"
           >
             <el-option
-              v-for="host in hostList"
-              :key="host.id"
-              :label="`${host.name} (${host.ip})`"
-              :value="host.id"
+              v-for="item in hostList"
+              :key="item.id"
+              :label="`${item.name} (${item.ip})`"
+              :value="item.id"
             />
           </el-select>
         </el-form-item>
 
         <el-form-item label="操作权限">
           <el-checkbox-group v-model="selectedPermissions">
-            <el-checkbox :value="1">查看 - 查看主机详情</el-checkbox>
-            <el-checkbox :value="2">编辑 - 创建、修改主机配置</el-checkbox>
-            <el-checkbox :value="4">删除 - 删除主机</el-checkbox>
-            <el-checkbox :value="8">终端 - SSH/RDP远程连接</el-checkbox>
-            <el-checkbox :value="16">文件 - 文件上传、下载、删除</el-checkbox>
-            <el-checkbox :value="32">采集 - 采集主机系统信息</el-checkbox>
+            <template v-if="formData.assetType === 'network_device'">
+              <el-checkbox :value="1">查看 - 查看网络设备详情</el-checkbox>
+              <el-checkbox :value="2">编辑 - 创建、修改设备配置</el-checkbox>
+              <el-checkbox :value="4">删除 - 删除网络设备</el-checkbox>
+              <el-checkbox :value="8">终端 - SSH/Telnet远程连接</el-checkbox>
+            </template>
+            <template v-else>
+              <el-checkbox :value="1">查看 - 查看主机详情</el-checkbox>
+              <el-checkbox :value="2">编辑 - 创建、修改主机配置</el-checkbox>
+              <el-checkbox :value="4">删除 - 删除主机</el-checkbox>
+              <el-checkbox :value="8">终端 - SSH/RDP远程连接</el-checkbox>
+              <el-checkbox :value="16">文件 - 文件上传、下载、删除</el-checkbox>
+              <el-checkbox :value="32">采集 - 采集主机系统信息</el-checkbox>
+            </template>
           </el-checkbox-group>
           <div class="permission-tip">默认仅授予查看权限，请根据需要勾选其他操作权限</div>
         </el-form-item>
@@ -268,6 +292,12 @@
           </el-select>
         </el-form-item>
 
+        <el-form-item label="资产类型">
+          <el-tag :type="editFormData.assetType === 'network_device' ? 'warning' : 'primary'">
+            {{ editFormData.assetType === 'network_device' ? '网络设备' : '主机' }}
+          </el-tag>
+        </el-form-item>
+
         <el-form-item label="资产分组" prop="assetGroupId">
           <el-tree-select
             v-model="editFormData.assetGroupId"
@@ -280,38 +310,46 @@
           />
         </el-form-item>
 
-        <el-form-item label="主机">
+        <el-form-item :label="editFormData.assetType === 'network_device' ? '网络设备' : '主机'">
           <el-radio-group v-model="editHostSelectionType" @change="handleEditHostTypeChange">
-            <el-radio value="all">全部主机</el-radio>
-            <el-radio value="specific">指定主机</el-radio>
+            <el-radio value="all">{{ editFormData.assetType === 'network_device' ? '全部设备' : '全部主机' }}</el-radio>
+            <el-radio value="specific">{{ editFormData.assetType === 'network_device' ? '指定设备' : '指定主机' }}</el-radio>
           </el-radio-group>
         </el-form-item>
 
-        <el-form-item v-if="editHostSelectionType === 'specific'" label="选择主机" prop="hostIds">
+        <el-form-item v-if="editHostSelectionType === 'specific'" :label="editFormData.assetType === 'network_device' ? '选择设备' : '选择主机'" prop="hostIds">
           <el-select
             v-model="editFormData.hostIds"
             multiple
-            placeholder="请选择主机"
+            :placeholder="editFormData.assetType === 'network_device' ? '请选择网络设备' : '请选择主机'"
             style="width: 100%"
             :loading="editLoadingHosts"
           >
             <el-option
-              v-for="host in editHostList"
-              :key="host.id"
-              :label="`${host.name} (${host.ip})`"
-              :value="host.id"
+              v-for="item in editHostList"
+              :key="item.id"
+              :label="`${item.name} (${item.ip})`"
+              :value="item.id"
             />
           </el-select>
         </el-form-item>
 
         <el-form-item label="操作权限">
           <el-checkbox-group v-model="editFormData.permissions">
-            <el-checkbox :value="1">查看 - 查看主机详情</el-checkbox>
-            <el-checkbox :value="2">编辑 - 创建、修改主机配置</el-checkbox>
-            <el-checkbox :value="4">删除 - 删除主机</el-checkbox>
-            <el-checkbox :value="8">终端 - SSH/RDP远程连接</el-checkbox>
-            <el-checkbox :value="16">文件 - 文件上传、下载、删除</el-checkbox>
-            <el-checkbox :value="32">采集 - 采集主机系统信息</el-checkbox>
+            <template v-if="editFormData.assetType === 'network_device'">
+              <el-checkbox :value="1">查看 - 查看网络设备详情</el-checkbox>
+              <el-checkbox :value="2">编辑 - 创建、修改设备配置</el-checkbox>
+              <el-checkbox :value="4">删除 - 删除网络设备</el-checkbox>
+              <el-checkbox :value="8">终端 - SSH/Telnet远程连接</el-checkbox>
+            </template>
+            <template v-else>
+              <el-checkbox :value="1">查看 - 查看主机详情</el-checkbox>
+              <el-checkbox :value="2">编辑 - 创建、修改主机配置</el-checkbox>
+              <el-checkbox :value="4">删除 - 删除主机</el-checkbox>
+              <el-checkbox :value="8">终端 - SSH/RDP远程连接</el-checkbox>
+              <el-checkbox :value="16">文件 - 文件上传、下载、删除</el-checkbox>
+              <el-checkbox :value="32">采集 - 采集主机系统信息</el-checkbox>
+            </template>
           </el-checkbox-group>
         </el-form-item>
       </el-form>
@@ -340,7 +378,7 @@ import {
 } from '@/api/assetPermission'
 import { getAllRoles } from '@/api/role'
 import { getGroupTree } from '@/api/assetGroup'
-import { getHostList } from '@/api/host'
+import { getHostList, getNetworkDeviceList } from '@/api/host'
 
 const loading = ref(false)
 const permissions = ref<any[]>([])
@@ -363,6 +401,7 @@ const editFormData = reactive({
   id: null as number | null,
   roleId: null as number | null,
   assetGroupId: null as number | null,
+  assetType: 'host' as string,
   hostIds: [] as number[],
   permissions: [] as number[]
 })
@@ -387,6 +426,7 @@ const hostList = ref<any[]>([])
 const formData = reactive({
   roleId: null as number | null,
   assetGroupId: null as number | null,
+  assetType: 'host' as string,
   hostIds: [] as number[]
 })
 
@@ -466,20 +506,29 @@ const convertTreeData = (nodes: any[]): any[] => {
   }))
 }
 
-// 加载主机列表
+// 加载主机/设备列表
 const loadHosts = async (groupId?: number) => {
   if (!groupId) return
 
   loadingHosts.value = true
   try {
-    const response = await getHostList({ page: 1, pageSize: 1000, groupId })
-    hostList.value = (response.list || []).map((item: any) => ({
-      id: item.id,
-      name: item.name,
-      ip: item.ip
-    }))
+    if (formData.assetType === 'network_device') {
+      const response = await getNetworkDeviceList({ page: 1, pageSize: 1000, groupId })
+      hostList.value = (response.list || []).map((item: any) => ({
+        id: item.id,
+        name: item.name,
+        ip: item.ip
+      }))
+    } else {
+      const response = await getHostList({ page: 1, pageSize: 1000, groupId })
+      hostList.value = (response.list || []).map((item: any) => ({
+        id: item.id,
+        name: item.name,
+        ip: item.ip
+      }))
+    }
   } catch (error: any) {
-    ElMessage.error('加载主机列表失败: ' + (error.message || '未知错误'))
+    ElMessage.error('加载列表失败: ' + (error.message || '未知错误'))
   } finally {
     loadingHosts.value = false
   }
@@ -497,6 +546,17 @@ const handleReset = () => {
   searchForm.groupName = ''
   page.value = 1
   loadPermissions()
+}
+
+// 处理资产类型变化
+const handleAssetTypeChange = () => {
+  // 切换资产类型时重置相关字段
+  formData.hostIds = []
+  hostList.value = []
+  selectedPermissions.value = [1] // 重置为仅查看
+  if (formData.assetGroupId && hostSelectionType.value === 'specific') {
+    loadHosts(formData.assetGroupId)
+  }
 }
 
 // 处理资产分组变化
@@ -555,6 +615,7 @@ const handleEditClick = async (row: any) => {
     editFormData.id = detail.id
     editFormData.roleId = detail.roleId
     editFormData.assetGroupId = detail.assetGroupId
+    editFormData.assetType = detail.assetType || 'host'
     editFormData.hostIds = detail.hostIds || []
     editFormData.permissions = []
 
@@ -580,20 +641,29 @@ const handleEditClick = async (row: any) => {
   }
 }
 
-// 加载编辑时的主机列表
+// 加载编辑时的主机/设备列表
 const loadEditHosts = async (groupId?: number) => {
   if (!groupId) return
 
   editLoadingHosts.value = true
   try {
-    const response = await getHostList({ page: 1, pageSize: 1000, groupId })
-    editHostList.value = (response.list || []).map((item: any) => ({
-      id: item.id,
-      name: item.name,
-      ip: item.ip
-    }))
+    if (editFormData.assetType === 'network_device') {
+      const response = await getNetworkDeviceList({ page: 1, pageSize: 1000, groupId })
+      editHostList.value = (response.list || []).map((item: any) => ({
+        id: item.id,
+        name: item.name,
+        ip: item.ip
+      }))
+    } else {
+      const response = await getHostList({ page: 1, pageSize: 1000, groupId })
+      editHostList.value = (response.list || []).map((item: any) => ({
+        id: item.id,
+        name: item.name,
+        ip: item.ip
+      }))
+    }
   } catch (error: any) {
-    ElMessage.error('加载主机列表失败: ' + (error.message || '未知错误'))
+    ElMessage.error('加载列表失败: ' + (error.message || '未知错误'))
   } finally {
     editLoadingHosts.value = false
   }
@@ -613,6 +683,7 @@ const handleEditDialogClose = () => {
   editFormData.id = null
   editFormData.roleId = null
   editFormData.assetGroupId = null
+  editFormData.assetType = 'host'
   editFormData.hostIds = []
   editFormData.permissions = []
   editHostSelectionType.value = 'all'
@@ -632,6 +703,7 @@ const handleEditSubmit = async () => {
     await updateAssetPermission(editFormData.id, {
       roleId: editFormData.roleId!,
       assetGroupId: editFormData.assetGroupId!,
+      assetType: editFormData.assetType,
       hostIds: editHostSelectionType.value === 'all' ? [] : editFormData.hostIds,
       permissions: permissions
     })
@@ -659,6 +731,7 @@ const handlePageChange = () => {
 const resetForm = () => {
   formData.roleId = null
   formData.assetGroupId = null
+  formData.assetType = 'host'
   formData.hostIds = []
   hostSelectionType.value = 'all'
   hostList.value = []
@@ -687,6 +760,7 @@ const handleSubmit = async () => {
       await createAssetPermission({
         roleId: formData.roleId!,
         assetGroupId: formData.assetGroupId!,
+        assetType: formData.assetType,
         hostIds: hostSelectionType.value === 'all' ? [] : formData.hostIds,
         permissions: permissions
       })

@@ -91,6 +91,7 @@ func (uc *AssetGroupUseCase) ToInfoVO(group *AssetGroup) *AssetGroupInfoVO {
 		ParentID:    group.ParentID,
 		Name:        group.Name,
 		Code:        group.Code,
+		Category:    group.Category,
 		Description: group.Description,
 		Sort:        group.Sort,
 		Status:      group.Status,
