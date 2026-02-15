@@ -6,6 +6,10 @@
         <el-button type="primary" :icon="Plus" @click="createNewSession" style="width: 100%">
           新建对话
         </el-button>
+        <div class="retention-bar" @click="showRetentionDialog = true">
+          <el-icon><Timer /></el-icon>
+          <span>历史保留 {{ retentionDays }} 天</span>
+        </div>
       </div>
       <div class="session-list">
         <div
@@ -243,6 +247,40 @@
         </div>
       </div>
     </div>
+
+    <!-- 历史保留设置弹窗 -->
+    <el-dialog v-model="showRetentionDialog" title="历史会话保留设置" width="400px" destroy-on-close>
+      <div class="retention-dialog-body">
+        <p class="retention-desc">超过保留天数的历史会话将被自动清理，释放存储空间。</p>
+        <el-form label-width="100px">
+          <el-form-item label="保留天数">
+            <el-input-number
+              v-model="retentionDaysInput"
+              :min="1"
+              :max="365"
+              :step="1"
+              style="width: 180px"
+            />
+            <span style="margin-left: 8px; font-size: 12px; color: #909399;">天</span>
+          </el-form-item>
+          <el-form-item label="快捷选择">
+            <el-radio-group v-model="retentionDaysInput" size="small">
+              <el-radio-button :value="7">7 天</el-radio-button>
+              <el-radio-button :value="14">14 天</el-radio-button>
+              <el-radio-button :value="30">30 天</el-radio-button>
+              <el-radio-button :value="90">90 天</el-radio-button>
+              <el-radio-button :value="180">180 天</el-radio-button>
+              <el-radio-button :value="365">365 天</el-radio-button>
+            </el-radio-group>
+          </el-form-item>
+        </el-form>
+      </div>
+      <template #footer>
+        <el-button @click="handleCleanupNow" type="warning" plain :loading="cleaningUp">立即清理</el-button>
+        <el-button @click="showRetentionDialog = false">取消</el-button>
+        <el-button type="primary" @click="saveRetention" :loading="savingRetention">保存</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -251,11 +289,12 @@ import { ref, computed, nextTick, onMounted, onBeforeUnmount, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   Plus, Delete, User, MagicStick, ChatLineRound, ChatDotRound,
-  Promotion, Operation, ArrowDown, ArrowUp
+  Promotion, Operation, ArrowDown, ArrowUp, Timer
 } from '@element-plus/icons-vue'
 import {
   getSessions, createSession, deleteSession, getSessionMessages,
-  getModelList, sendMessage as apiSendMessage, getTemplates
+  getModelList, sendMessage as apiSendMessage, getTemplates,
+  getRetentionSettings, setRetentionSettings, cleanupSessions
 } from '@/api/ai'
 
 // 状态
@@ -270,6 +309,11 @@ const streamingContent = ref('')
 const currentToolCalls = ref<any[]>([])
 const messagesContainer = ref<HTMLElement>()
 const templates = ref<any[]>([])
+const retentionDays = ref(30)
+const retentionDaysInput = ref(30)
+const showRetentionDialog = ref(false)
+const savingRetention = ref(false)
+const cleaningUp = ref(false)
 let ws: WebSocket | null = null
 
 const currentSession = computed(() =>
@@ -310,6 +354,7 @@ onMounted(async () => {
   await loadModels()
   await loadSessions()
   await loadTemplates()
+  await loadRetention()
   connectWebSocket()
 })
 
@@ -555,6 +600,60 @@ async function loadTemplates() {
   }
 }
 
+// 历史保留设置
+async function loadRetention() {
+  try {
+    const data: any = await getRetentionSettings()
+    retentionDays.value = data?.retentionDays || 30
+    retentionDaysInput.value = retentionDays.value
+  } catch {
+    // 静默
+  }
+}
+
+async function saveRetention() {
+  savingRetention.value = true
+  try {
+    await setRetentionSettings(retentionDaysInput.value)
+    retentionDays.value = retentionDaysInput.value
+    showRetentionDialog.value = false
+    ElMessage.success(`已设置保留 ${retentionDays.value} 天`)
+  } catch {
+    ElMessage.error('保存失败')
+  }
+  savingRetention.value = false
+}
+
+async function handleCleanupNow() {
+  try {
+    await ElMessageBox.confirm(
+      `将清理 ${retentionDaysInput.value} 天前的所有历史会话，此操作不可恢复，确认？`,
+      '清理历史会话',
+      { type: 'warning' }
+    )
+  } catch { return }
+
+  cleaningUp.value = true
+  try {
+    // 先保存设置
+    await setRetentionSettings(retentionDaysInput.value)
+    retentionDays.value = retentionDaysInput.value
+
+    const data: any = await cleanupSessions()
+    const deleted = data?.deleted || 0
+    if (deleted > 0) {
+      ElMessage.success(`已清理 ${deleted} 个过期会话`)
+      await loadSessions()
+    } else {
+      ElMessage.info('没有需要清理的过期会话')
+    }
+    showRetentionDialog.value = false
+  } catch {
+    ElMessage.error('清理失败')
+  }
+  cleaningUp.value = false
+}
+
 // 使用模板
 function useTemplate(tpl: any) {
   inputMessage.value = tpl.prompt
@@ -695,6 +794,32 @@ function formatJSON(data: any): string {
 .sidebar-header {
   padding: 16px;
   border-bottom: 1px solid #f0f0f0;
+}
+
+.retention-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 10px;
+  padding: 6px 10px;
+  font-size: 12px;
+  color: #909399;
+  background: #f5f7fa;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.retention-bar:hover {
+  background: #ecf5ff;
+  color: #409eff;
+}
+
+.retention-dialog-body .retention-desc {
+  margin: 0 0 16px 0;
+  font-size: 13px;
+  color: #606266;
+  line-height: 1.5;
 }
 
 .session-list {

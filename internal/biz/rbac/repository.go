@@ -27,7 +27,7 @@ type UserRepo interface {
 	Delete(ctx context.Context, id uint) error
 	GetByID(ctx context.Context, id uint) (*SysUser, error)
 	GetByUsername(ctx context.Context, username string) (*SysUser, error)
-	List(ctx context.Context, page, pageSize int, keyword string, departmentID uint) ([]*SysUser, int64, error)
+	List(ctx context.Context, page, pageSize int, keyword string, departmentID uint, source ...string) ([]*SysUser, int64, error)
 	AssignRoles(ctx context.Context, userID uint, roleIDs []uint) error
 	AssignPositions(ctx context.Context, userID uint, positionIDs []uint) error
 	UpdateLastLogin(ctx context.Context, userID uint) error

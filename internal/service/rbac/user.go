@@ -31,6 +31,7 @@ import (
 	"github.com/ydcloud-dy/mom/pkg/response"
 	appLogger "github.com/ydcloud-dy/mom/pkg/logger"
 	"go.uber.org/zap"
+	"gorm.io/gorm"
 )
 
 type UserService struct {
@@ -38,6 +39,8 @@ type UserService struct {
 	authService     *AuthService
 	captchaService  *CaptchaService
 	loginLogUseCase *audit.LoginLogUseCase
+	ldapService     *LDAPService
+	db              *gorm.DB
 }
 
 func NewUserService(userUseCase *rbac.UserUseCase, authService *AuthService) *UserService {
@@ -45,6 +48,16 @@ func NewUserService(userUseCase *rbac.UserUseCase, authService *AuthService) *Us
 		userUseCase: userUseCase,
 		authService: authService,
 	}
+}
+
+// SetLDAPService 设置 LDAP 服务
+func (s *UserService) SetLDAPService(ldapService *LDAPService) {
+	s.ldapService = ldapService
+}
+
+// SetDB 设置数据库连接（用于 LDAP 用户自动创建）
+func (s *UserService) SetDB(db *gorm.DB) {
+	s.db = db
 }
 
 // SetCaptchaService 设置验证码服务（通过依赖注入）
@@ -133,21 +146,88 @@ func (s *UserService) Login(c *gin.Context) {
 		return
 	}
 
+	// 先尝试本地认证
+	var user *rbac.SysUser
+	loginType := "web"
+
 	user, err := s.userUseCase.ValidatePassword(c.Request.Context(), req.Username, req.Password)
 	if err != nil {
-		appLogger.Error("登录失败", zap.String("username", req.Username), zap.Error(err))
-		// 记录登录日志 - 用户名或密码错误
-		s.recordLoginLog(req.Username, "web", "failed", clientIP, userAgent, err.Error(), 0)
-		response.ErrorCode(c, http.StatusOK, err.Error())
-		return
+		// 本地认证失败，尝试 LDAP 认证
+		if s.ldapService != nil && s.ldapService.IsEnabled() {
+			ldapAttrs, ldapErr := s.ldapService.Authenticate(req.Username, req.Password)
+			if ldapErr != nil {
+				appLogger.Error("登录失败（本地+LDAP）", zap.String("username", req.Username), zap.Error(ldapErr))
+				s.recordLoginLog(req.Username, "web", "failed", clientIP, userAgent, "用户名或密码错误", 0)
+				response.ErrorCode(c, http.StatusOK, "用户名或密码错误")
+				return
+			}
+
+			// LDAP 认证成功 → 查找或自动创建本地用户
+			loginType = "ldap"
+			ldapUsername := ldapAttrs["username"]
+			user, err = s.userUseCase.GetByUsername(c.Request.Context(), ldapUsername)
+			if err != nil {
+				// 用户不存在 → 自动创建
+				newUser := &rbac.SysUser{
+					Username: ldapUsername,
+					Password: "$ldap$", // 占位符
+					RealName: ldapAttrs["realName"],
+					Email:    ldapAttrs["email"],
+					Phone:    ldapAttrs["phone"],
+					Source:   "ldap",
+					Status:   1,
+				}
+				if createErr := s.db.Create(newUser).Error; createErr != nil {
+					appLogger.Error("LDAP 用户自动创建失败", zap.Error(createErr))
+					s.recordLoginLog(ldapUsername, "ldap", "failed", clientIP, userAgent, "自动创建用户失败", 0)
+					response.ErrorCode(c, http.StatusInternalServerError, "创建用户失败")
+					return
+				}
+				// 分配默认角色
+				if roleID := s.ldapService.GetDefaultRoleID(); roleID > 0 {
+					s.db.Create(&rbac.SysUserRole{UserID: newUser.ID, RoleID: roleID})
+				}
+				// 重新查询以加载关联数据
+				user, _ = s.userUseCase.GetByID(c.Request.Context(), newUser.ID)
+				appLogger.Info("LDAP 用户自动创建成功", zap.String("username", ldapUsername))
+			} else {
+				// 已有用户 → 同步 LDAP 信息
+				updated := false
+				if rn := ldapAttrs["realName"]; rn != "" && rn != user.RealName {
+					user.RealName = rn
+					updated = true
+				}
+				if email := ldapAttrs["email"]; email != "" && email != user.Email {
+					user.Email = email
+					updated = true
+				}
+				if phone := ldapAttrs["phone"]; phone != "" && phone != user.Phone {
+					user.Phone = phone
+					updated = true
+				}
+				if user.Source != "ldap" {
+					user.Source = "ldap"
+					updated = true
+				}
+				if updated {
+					_ = s.userUseCase.Update(c.Request.Context(), user)
+				}
+			}
+		} else {
+			appLogger.Error("登录失败", zap.String("username", req.Username), zap.Error(err))
+			s.recordLoginLog(req.Username, "web", "failed", clientIP, userAgent, err.Error(), 0)
+			response.ErrorCode(c, http.StatusOK, err.Error())
+			return
+		}
 	}
 
 	if user.Status != 1 {
 		// 记录登录日志 - 用户被禁用
-		s.recordLoginLog(req.Username, "web", "failed", clientIP, userAgent, "用户已被禁用", user.ID)
+		s.recordLoginLog(req.Username, loginType, "failed", clientIP, userAgent, "用户已被禁用", user.ID)
 		response.ErrorCode(c, http.StatusOK, "用户已被禁用")
 		return
 	}
+
 
 	token, err := s.authService.GenerateToken(user.ID, user.Username)
 	if err != nil {
@@ -164,7 +244,7 @@ func (s *UserService) Login(c *gin.Context) {
 	_ = s.userUseCase.Update(c.Request.Context(), user)
 
 	// 记录登录日志 - 登录成功
-	s.recordLoginLog(req.Username, "web", "success", clientIP, userAgent, "", user.ID)
+	s.recordLoginLog(req.Username, loginType, "success", clientIP, userAgent, "", user.ID)
 
 	appLogger.Info("用户登录成功", zap.String("username", req.Username))
 
@@ -459,8 +539,9 @@ func (s *UserService) ListUsers(c *gin.Context) {
 	pageSize, _ := strconv.Atoi(c.DefaultQuery("pageSize", "10"))
 	keyword := c.Query("keyword")
 	departmentID, _ := strconv.ParseUint(c.Query("departmentId"), 10, 32)
+	source := c.Query("source")
 
-	users, total, err := s.userUseCase.List(c.Request.Context(), page, pageSize, keyword, uint(departmentID))
+	users, total, err := s.userUseCase.List(c.Request.Context(), page, pageSize, keyword, uint(departmentID), source)
 	if err != nil {
 		response.ErrorCode(c, http.StatusInternalServerError, "查询失败: "+err.Error())
 		return

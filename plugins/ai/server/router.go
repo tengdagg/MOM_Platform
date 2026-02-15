@@ -20,6 +20,7 @@ func RegisterRoutes(router *gin.RouterGroup, db *gorm.DB) {
 
 	agent := biz.NewAgent(db, registry)
 	convMgr := biz.NewConversationManager(db)
+	convMgr.EnsureSettingsTable()
 
 	handler := &Handler{
 		db:       db,
@@ -50,6 +51,9 @@ func RegisterRoutes(router *gin.RouterGroup, db *gorm.DB) {
 			chat.DELETE("/sessions/:id", handler.DeleteSession)
 			chat.GET("/sessions/:id/messages", handler.GetMessages)
 			chat.POST("/send", handler.SendMessage)
+			chat.GET("/settings/retention", handler.GetRetentionSettings)
+			chat.PUT("/settings/retention", handler.SetRetentionSettings)
+			chat.POST("/cleanup", handler.CleanupSessions)
 		}
 
 		// Skill 管理

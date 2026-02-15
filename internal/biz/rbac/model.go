@@ -35,12 +35,36 @@ type SysUser struct {
 	Phone        string         `gorm:"type:varchar(20);comment:手机号" json:"phone"`
 	Avatar       string         `gorm:"type:varchar(255);comment:头像" json:"avatar"`
 	Status       int            `gorm:"type:tinyint;default:1;comment:状态 1:启用 0:禁用" json:"status"`
+	Source       string         `gorm:"type:varchar(20);default:'local';comment:用户来源 local:本地 ldap:LDAP" json:"source"`
 	DepartmentID uint           `gorm:"default:0;comment:部门ID" json:"departmentId"`
 	Department   *SysDepartment `gorm:"foreignKey:DepartmentID;references:ID" json:"department,omitempty"`
 	Roles        []SysRole      `gorm:"many2many:sys_user_role;joinForeignKey:UserID;joinReferences:RoleID" json:"roles"`
 	Positions    []SysPosition  `gorm:"many2many:sys_user_position;joinForeignKey:UserID;joinReferences:PositionID" json:"positions,omitempty"`
 	Bio          string         `gorm:"type:text;comment:个人简介" json:"bio"`
 	LastLoginAt  *time.Time     `gorm:"comment:最后登录时间" json:"lastLoginAt,omitempty"`
+}
+
+// SysLDAPConfig LDAP 配置表
+type SysLDAPConfig struct {
+	gorm.Model
+	Enabled       bool   `gorm:"default:false;comment:是否启用LDAP认证" json:"enabled"`
+	Host          string `gorm:"type:varchar(255);comment:LDAP服务器地址" json:"host"`
+	Port          int    `gorm:"default:389;comment:LDAP端口" json:"port"`
+	UseSSL        bool   `gorm:"default:false;comment:是否使用LDAPS" json:"useSsl"`
+	BindDN        string `gorm:"type:varchar(500);comment:绑定DN" json:"bindDn"`
+	BindPassword  string `gorm:"type:varchar(500);comment:绑定密码" json:"-"`
+	PasswordSet   bool   `gorm:"-" json:"passwordSet"`
+	BaseDN        string `gorm:"type:varchar(500);comment:搜索基础DN" json:"baseDn"`
+	UserFilter    string `gorm:"type:varchar(500);default:'(&(objectClass=person)(sAMAccountName=%s))';comment:用户搜索过滤器" json:"userFilter"`
+	AttrUsername  string `gorm:"type:varchar(100);default:'sAMAccountName';comment:用户名属性" json:"attrUsername"`
+	AttrRealName  string `gorm:"type:varchar(100);default:'displayName';comment:真实姓名属性" json:"attrRealName"`
+	AttrEmail     string `gorm:"type:varchar(100);default:'mail';comment:邮箱属性" json:"attrEmail"`
+	AttrPhone     string `gorm:"type:varchar(100);default:'telephoneNumber';comment:手机号属性" json:"attrPhone"`
+	DefaultRoleID uint   `gorm:"default:0;comment:LDAP用户默认角色ID" json:"defaultRoleId"`
+}
+
+func (SysLDAPConfig) TableName() string {
+	return "sys_ldap_config"
 }
 
 // SysRole 角色表

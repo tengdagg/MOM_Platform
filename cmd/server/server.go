@@ -187,6 +187,7 @@ func autoMigrate(db *gorm.DB) error {
 		&rbacmodel.SysPosition{},
 		&rbacmodel.SysUserPosition{},
 		&rbacmodel.SysRoleAssetPermission{},
+		&rbacmodel.SysLDAPConfig{},
 		// Kubernetes 集群相关表
 		&models.Cluster{},
 		&k8smodel.UserKubeConfig{},

@@ -1030,8 +1030,14 @@ func (h *Handler) createSSHClient(host *assetbiz.Host, credential *assetbiz.Cred
 	switch credential.Type {
 	case "password":
 		authMethods = append(authMethods, ssh.Password(credential.Password))
-	case "private_key":
-		signer, err := ssh.ParsePrivateKey([]byte(credential.PrivateKey))
+	case "key", "private_key":
+		var signer ssh.Signer
+		var err error
+		if credential.Passphrase != "" {
+			signer, err = ssh.ParsePrivateKeyWithPassphrase([]byte(credential.PrivateKey), []byte(credential.Passphrase))
+		} else {
+			signer, err = ssh.ParsePrivateKey([]byte(credential.PrivateKey))
+		}
 		if err != nil {
 			return nil, fmt.Errorf("解析私钥失败: %w", err)
 		}
@@ -1076,6 +1082,15 @@ func (h *Handler) decryptCredential(credential *assetbiz.Credential) error {
 			return fmt.Errorf("解密私钥失败: %w", err)
 		}
 		credential.PrivateKey = decrypted
+	}
+
+	// 解密私钥密码
+	if credential.Passphrase != "" {
+		decrypted, err := h.decrypt(credential.Passphrase)
+		if err != nil {
+			return fmt.Errorf("解密私钥密码失败: %w", err)
+		}
+		credential.Passphrase = decrypted
 	}
 
 	return nil

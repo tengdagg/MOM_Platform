@@ -116,8 +116,8 @@ func executeCloudListInstances(ctx biz.SkillContext) (any, error) {
 	}
 
 	query := ctx.DB.Table("hosts").
-		Select("hosts.id, hosts.name, hosts.ip, hosts.public_ip, hosts.cloud_provider, hosts.cloud_instance_id, hosts.cloud_region, hosts.os, hosts.os_type, hosts.status, hosts.cpu_cores, hosts.memory_usage, COALESCE(asset_groups.name, '') as group_name").
-		Joins("LEFT JOIN asset_groups ON hosts.group_id = asset_groups.id").
+		Select("hosts.id, hosts.name, hosts.ip, hosts.public_ip, hosts.cloud_provider, hosts.cloud_instance_id, hosts.cloud_region, hosts.os, hosts.os_type, hosts.status, hosts.cpu_cores, hosts.memory_usage, COALESCE(asset_group.name, '') as group_name").
+		Joins("LEFT JOIN asset_group ON hosts.group_id = asset_group.id").
 		Where("hosts.deleted_at IS NULL AND hosts.cloud_provider IS NOT NULL AND hosts.cloud_provider != ''")
 
 	if provider != "" {
@@ -211,9 +211,9 @@ func executeCloudImportHosts(ctx biz.SkillContext) (any, error) {
 	}
 
 	// 确认后：这里实际调用会需要云 SDK，目前创建导入任务记录
-	ctx.DB.Exec(`INSERT INTO task_execution_records (name, type, status, username, created_at, updated_at) VALUES (?, 'cloud_import', 'pending', ?, NOW(), NOW())`,
+	ctx.DB.Exec(`INSERT INTO job_tasks (name, task_type, status, created_by, created_at, updated_at) VALUES (?, 'cloud_import', 'pending', ?, NOW(), NOW())`,
 		fmt.Sprintf("导入%s-%s-%s", provName, account.Name, region),
-		fmt.Sprintf("AI(%d)", ctx.UserID))
+		ctx.UserID)
 
 	return map[string]any{
 		"status":       "success",

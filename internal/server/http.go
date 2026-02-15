@@ -141,10 +141,10 @@ func (s *HTTPServer) registerRoutes(router *gin.Engine, jwtSecret string) {
 	router.Static("/uploads", "./web/public/uploads")
 
 	// 创建 RBAC 服务
-	userService, roleService, departmentService, menuService, positionService, captchaService, assetPermissionService, authMiddleware := rbac.NewRBACServices(s.db, jwtSecret)
+	userService, roleService, departmentService, menuService, positionService, captchaService, assetPermissionService, ldapService, authMiddleware := rbac.NewRBACServices(s.db, jwtSecret)
 
 	// RBAC 路由
-	rbacServer := rbac.NewHTTPServer(userService, roleService, departmentService, menuService, positionService, captchaService, assetPermissionService, authMiddleware)
+	rbacServer := rbac.NewHTTPServer(userService, roleService, departmentService, menuService, positionService, captchaService, assetPermissionService, ldapService, authMiddleware)
 	rbacServer.RegisterRoutes(router)
 
 	// 创建 Audit 服务

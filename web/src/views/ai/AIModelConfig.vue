@@ -1,8 +1,18 @@
 <template>
   <div class="model-config-page">
     <div class="page-header">
-      <h3>模型配置</h3>
-      <el-button type="primary" :icon="Plus" @click="showAddDialog">添加模型</el-button>
+      <div class="page-title-group">
+        <div class="page-title-icon">
+          <el-icon><Cpu /></el-icon>
+        </div>
+        <div>
+          <h2 class="page-title">模型配置</h2>
+          <p class="page-subtitle">管理 AI 大语言模型接入，支持多供应商多模型配置</p>
+        </div>
+      </div>
+      <div class="header-actions">
+        <el-button class="black-button" :icon="Plus" @click="showAddDialog">添加模型</el-button>
+      </div>
     </div>
 
     <div class="model-cards">
@@ -165,7 +175,7 @@
 import { ref, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
-  Plus, MoreFilled, Edit, Connection, Star, Delete, QuestionFilled
+  Plus, MoreFilled, Edit, Connection, Star, Delete, QuestionFilled, Cpu
 } from '@element-plus/icons-vue'
 import {
   getModelList, createModel, updateModel, deleteModel, testModel, setDefaultModel
@@ -400,18 +410,71 @@ function getBaseUrlPlaceholder(): string {
 
 <style scoped>
 .model-config-page {
-  padding: 20px;
+  padding: 16px;
 }
 
 .page-header {
   display: flex;
   justify-content: space-between;
-  align-items: center;
-  margin-bottom: 20px;
+  align-items: flex-start;
+  margin-bottom: 10px;
+  padding: 12px 16px;
+  background: #fff;
+  border-radius: 0;
+  box-shadow: 0 1px 8px rgba(0, 0, 0, 0.04);
+  flex-shrink: 0;
 }
 
-.page-header h3 {
+.page-title-group {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.page-title-icon {
+  width: 36px;
+  height: 36px;
+  background: #0a466a;
+  border-radius: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #ffffff;
+  font-size: 16px;
+  flex-shrink: 0;
+  border: none;
+}
+
+.page-title {
   margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: #303133;
+  line-height: 1.3;
+}
+
+.page-subtitle {
+  margin: 2px 0 0 0;
+  font-size: 12px;
+  color: #909399;
+  line-height: 1.4;
+}
+
+.header-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.black-button {
+  background: #0a466a;
+  color: #fff;
+  border: none;
+}
+.black-button:hover,
+.black-button:focus {
+  background: #0d5a8a;
+  color: #fff;
 }
 
 .model-cards {
@@ -421,12 +484,14 @@ function getBaseUrlPlaceholder(): string {
 }
 
 .model-card {
-  border-radius: 12px;
-  transition: transform 0.2s;
+  border-radius: 8px;
+  transition: transform 0.2s, box-shadow 0.2s;
+  border: 1px solid #ebeef5;
 }
 
 .model-card:hover {
   transform: translateY(-2px);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
 }
 
 .model-card.is-default {
@@ -441,9 +506,9 @@ function getBaseUrlPlaceholder(): string {
 }
 
 .provider-badge {
-  width: 48px;
-  height: 48px;
-  border-radius: 12px;
+  width: 42px;
+  height: 42px;
+  border-radius: 8px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -519,6 +584,6 @@ function getBaseUrlPlaceholder(): string {
 
 .empty-card {
   grid-column: 1 / -1;
-  border-radius: 12px;
+  border-radius: 6px;
 }
 </style>

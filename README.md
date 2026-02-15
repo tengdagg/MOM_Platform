@@ -281,7 +281,7 @@ MOM Platform 是一个功能强大的**插件化运维管理平台**，采用前
 ### 1. 克隆项目
 
 ```bash
-git clone https://github.com/ydcloud-dy/mom.git
+git clone https://gitee.com/monkey_dat/mom_platform.git
 cd mom
 ```
 
@@ -389,7 +389,7 @@ my-skill/
 
 ```bash
 # 克隆项目
-git clone https://github.com/ydcloud-dy/mom.git
+git clone https://gitee.com/monkey_dat/mom_platform.git
 cd mom
 
 # 启动服务

@@ -265,3 +265,43 @@ func (h *Handler) writeWSJSON(conn *websocket.Conn, v any) error {
 	data, _ := json.Marshal(v)
 	return conn.WriteMessage(websocket.TextMessage, data)
 }
+
+// GetRetentionSettings 获取会话保留设置
+func (h *Handler) GetRetentionSettings(c *gin.Context) {
+	userID, _ := c.Get("user_id")
+	days := h.convMgr.GetRetentionDays(userID.(uint))
+	response.Success(c, gin.H{"retentionDays": days})
+}
+
+// SetRetentionSettings 设置会话保留天数
+func (h *Handler) SetRetentionSettings(c *gin.Context) {
+	userID, _ := c.Get("user_id")
+	var req struct {
+		RetentionDays int `json:"retentionDays" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.ErrorCode(c, http.StatusBadRequest, "参数错误")
+		return
+	}
+	if err := h.convMgr.SetRetentionDays(userID.(uint), req.RetentionDays); err != nil {
+		response.ErrorCode(c, http.StatusInternalServerError, "保存失败")
+		return
+	}
+	response.Success(c, gin.H{"retentionDays": req.RetentionDays})
+}
+
+// CleanupSessions 手动清理过期会话
+func (h *Handler) CleanupSessions(c *gin.Context) {
+	userID, _ := c.Get("user_id")
+	uid := userID.(uint)
+	days := h.convMgr.GetRetentionDays(uid)
+	deleted, err := h.convMgr.CleanupOldSessions(uid, days)
+	if err != nil {
+		response.ErrorCode(c, http.StatusInternalServerError, "清理失败: "+err.Error())
+		return
+	}
+	response.Success(c, gin.H{
+		"deleted":       deleted,
+		"retentionDays": days,
+	})
+}

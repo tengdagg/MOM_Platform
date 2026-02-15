@@ -33,22 +33,21 @@ func executeTaskHistory(ctx biz.SkillContext) (any, error) {
 	type TaskRecord struct {
 		ID        uint      `json:"id"`
 		Name      string    `json:"name"`
-		Type      string    `json:"type"`
+		TaskType  string    `json:"type" gorm:"column:task_type"`
 		Status    string    `json:"status"`
-		Username  string    `json:"username"`
+		CreatedBy uint      `json:"createdBy" gorm:"column:created_by"`
 		CreatedAt time.Time `json:"createdAt"`
-		Duration  int       `json:"duration"`
-		Output    string    `json:"output,omitempty"`
 	}
 
-	query := ctx.DB.Table("task_execution_records").
-		Where("created_at >= ?", since)
+	query := ctx.DB.Table("job_tasks").
+		Where("created_at >= ?", since).
+		Where("deleted_at IS NULL")
 
 	if statusFilter != "" {
 		query = query.Where("status = ?", statusFilter)
 	}
 	if keyword != "" {
-		query = query.Where("name LIKE ? OR type LIKE ?", "%"+keyword+"%", "%"+keyword+"%")
+		query = query.Where("name LIKE ? OR task_type LIKE ?", "%"+keyword+"%", "%"+keyword+"%")
 	}
 
 	var records []TaskRecord
@@ -64,22 +63,22 @@ func executeTaskHistory(ctx biz.SkillContext) (any, error) {
 
 	// 统计
 	var totalCount int64
-	ctx.DB.Table("task_execution_records").Where("created_at >= ?", since).Count(&totalCount)
+	ctx.DB.Table("job_tasks").Where("created_at >= ? AND deleted_at IS NULL", since).Count(&totalCount)
 	var failedCount int64
-	ctx.DB.Table("task_execution_records").Where("created_at >= ? AND status = 'failed'", since).Count(&failedCount)
+	ctx.DB.Table("job_tasks").Where("created_at >= ? AND status = 'failed' AND deleted_at IS NULL", since).Count(&failedCount)
 	var successCount int64
-	ctx.DB.Table("task_execution_records").Where("created_at >= ? AND status = 'success'", since).Count(&successCount)
+	ctx.DB.Table("job_tasks").Where("created_at >= ? AND status = 'success' AND deleted_at IS NULL", since).Count(&successCount)
 
 	// 按类型统计
 	type TypeStat struct {
-		Type  string `json:"type"`
-		Count int64  `json:"count"`
+		TaskType string `json:"type" gorm:"column:task_type"`
+		Count    int64  `json:"count"`
 	}
 	var typeStats []TypeStat
-	ctx.DB.Table("task_execution_records").
-		Select("type, COUNT(*) as count").
-		Where("created_at >= ?", since).
-		Group("type").
+	ctx.DB.Table("job_tasks").
+		Select("task_type, COUNT(*) as count").
+		Where("created_at >= ? AND deleted_at IS NULL", since).
+		Group("task_type").
 		Order("count DESC").
 		Find(&typeStats)
 
@@ -125,8 +124,8 @@ func executeTaskExecute(ctx biz.SkillContext) (any, error) {
 		query = query.Where("ip = ?", hostIP)
 	}
 	if groupName != "" {
-		query = query.Joins("LEFT JOIN asset_groups ON hosts.group_id = asset_groups.id").
-			Where("asset_groups.name LIKE ?", "%"+groupName+"%")
+		query = query.Joins("LEFT JOIN asset_group ON hosts.group_id = asset_group.id").
+			Where("asset_group.name LIKE ?", "%"+groupName+"%")
 	}
 	if hostIDs, ok := ctx.Params["host_ids"].([]any); ok && len(hostIDs) > 0 {
 		ids := make([]uint, 0, len(hostIDs))
@@ -259,8 +258,8 @@ func executeTaskAnsible(ctx biz.SkillContext) (any, error) {
 	// 已确认 → 记录执行请求到任务队列（实际执行由任务中心调度）
 	if len(templates) > 0 {
 		// 创建任务执行记录
-		ctx.DB.Exec(`INSERT INTO task_execution_records (name, type, status, username, created_at, updated_at) VALUES (?, 'ansible', 'pending', ?, NOW(), NOW())`,
-			taskName, fmt.Sprintf("AI(%d)", ctx.UserID))
+		ctx.DB.Exec(`INSERT INTO job_tasks (name, task_type, status, created_by, created_at, updated_at) VALUES (?, 'ansible', 'pending', ?, NOW(), NOW())`,
+			taskName, ctx.UserID)
 
 		return map[string]any{
 			"status":       "success",

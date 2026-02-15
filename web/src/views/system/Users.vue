@@ -49,6 +49,13 @@
           <el-form-item label="关键词">
             <el-input v-model="searchForm.keyword" placeholder="用户名/邮箱" clearable />
           </el-form-item>
+          <el-form-item label="来源">
+            <el-select v-model="searchForm.source" placeholder="全部" clearable style="width: 120px">
+              <el-option label="全部" value="" />
+              <el-option label="本地用户" value="local" />
+              <el-option label="LDAP 用户" value="ldap" />
+            </el-select>
+          </el-form-item>
           <el-form-item>
             <el-button class="black-button" @click="loadUsers">查询</el-button>
             <el-button @click="resetSearch">重置</el-button>
@@ -63,7 +70,12 @@
               <el-avatar v-else :size="32">{{ row.realName?.substring(0, 1) || row.username.substring(0, 1) }}</el-avatar>
             </template>
           </el-table-column>
-          <el-table-column prop="username" label="用户名" min-width="120" />
+          <el-table-column prop="username" label="用户名" min-width="150">
+            <template #default="{ row }">
+              <span>{{ row.username }}</span>
+              <el-tag v-if="row.source === 'ldap'" size="small" type="warning" style="margin-left: 6px;">LDAP</el-tag>
+            </template>
+          </el-table-column>
           <el-table-column prop="realName" label="真实姓名" min-width="120" />
           <el-table-column prop="email" label="邮箱" min-width="180" />
           <el-table-column prop="phone" label="手机号" min-width="130" />
@@ -368,7 +380,8 @@ const resetPasswordForm = reactive({
 
 const searchForm = reactive({
   keyword: '',
-  departmentId: null as number | null
+  departmentId: null as number | null,
+  source: ''
 })
 
 const pagination = reactive({
@@ -429,7 +442,8 @@ const loadUsers = async () => {
       page: pagination.page,
       pageSize: pagination.pageSize,
       keyword: searchForm.keyword,
-      departmentId: searchForm.departmentId
+      departmentId: searchForm.departmentId,
+      source: searchForm.source || undefined
     })
     userList.value = res.list || []
     pagination.total = res.total || 0
@@ -518,6 +532,7 @@ const clearDepartmentSelection = () => {
 
 const resetSearch = () => {
   searchForm.keyword = ''
+  searchForm.source = ''
   pagination.page = 1
   loadUsers()
 }

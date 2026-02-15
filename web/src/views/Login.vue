@@ -71,6 +71,7 @@
         <div class="login-header">
           <h2>用户登录</h2>
           <div class="header-line"></div>
+          <p v-if="ldapEnabled" class="ldap-hint">支持 LDAP / AD 域账号登录</p>
         </div>
 
         <el-form :model="loginForm" :rules="rules" ref="formRef" class="login-form" size="default">
@@ -144,6 +145,8 @@ const formRef = ref<FormInstance>()
 const loading = ref(false)
 const captchaImage = ref('')
 const captchaId = ref('')
+
+const ldapEnabled = ref(false)
 
 const loginForm = reactive({
   username: '',
@@ -225,6 +228,16 @@ const handleLogin = async () => {
   })
 }
 
+// 检查 LDAP 状态
+const checkLDAPStatus = async () => {
+  try {
+    const res: any = await request.get('/api/v1/public/ldap/status')
+    ldapEnabled.value = res?.enabled || false
+  } catch {
+    ldapEnabled.value = false
+  }
+}
+
 onMounted(() => {
   // 加载记住的用户名
   const rememberedUsername = localStorage.getItem('rememberedUsername')
@@ -235,6 +248,8 @@ onMounted(() => {
 
   // 加载验证码
   refreshCaptcha()
+  // 检查 LDAP 状态
+  checkLDAPStatus()
 })
 </script>
 
@@ -414,6 +429,15 @@ onMounted(() => {
   background: linear-gradient(90deg, #0f69a6, #FFD700, #FFA500);
   border-radius: 0;
   box-shadow: 0 0 10px rgba(212, 175, 55, 0.4);
+}
+
+.ldap-hint {
+  margin-top: 10px;
+  font-size: 12px;
+  color: #0f69a6;
+  background: #f0f7ff;
+  padding: 4px 10px;
+  border-left: 2px solid #0f69a6;
 }
 
 .login-form {

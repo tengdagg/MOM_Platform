@@ -133,3 +133,74 @@ func (m *ConversationManager) AutoTitleFromFirstMessage(sessionID uint, content 
 	}
 	m.db.Model(&ChatSession{}).Where("id = ? AND title = ?", sessionID, "新对话").Update("title", title)
 }
+
+// CleanupOldSessions 清理过期会话（根据保留天数）
+func (m *ConversationManager) CleanupOldSessions(userID uint, retentionDays int) (int64, error) {
+	if retentionDays <= 0 {
+		return 0, nil
+	}
+	cutoff := fmt.Sprintf("DATE_SUB(NOW(), INTERVAL %d DAY)", retentionDays)
+
+	// 查找过期会话 ID
+	var sessionIDs []uint
+	m.db.Model(&ChatSession{}).Where("user_id = ? AND updated_at < "+cutoff, userID).Pluck("id", &sessionIDs)
+
+	if len(sessionIDs) == 0 {
+		return 0, nil
+	}
+
+	// 删除过期会话的消息
+	m.db.Where("session_id IN ?", sessionIDs).Delete(&ChatMessage{})
+
+	// 删除过期会话
+	result := m.db.Where("id IN ? AND user_id = ?", sessionIDs, userID).Delete(&ChatSession{})
+	return result.RowsAffected, result.Error
+}
+
+// GetRetentionDays 获取用户的会话保留天数设置
+func (m *ConversationManager) GetRetentionDays(userID uint) int {
+	var setting struct {
+		Value string `gorm:"column:value"`
+	}
+	err := m.db.Table("ai_user_settings").
+		Where("user_id = ? AND `key` = 'session_retention_days'", userID).
+		First(&setting).Error
+	if err != nil {
+		return 30 // 默认 30 天
+	}
+	days := 30
+	fmt.Sscanf(setting.Value, "%d", &days)
+	if days <= 0 {
+		days = 30
+	}
+	return days
+}
+
+// SetRetentionDays 设置用户的会话保留天数
+func (m *ConversationManager) SetRetentionDays(userID uint, days int) error {
+	if days < 1 {
+		days = 1
+	}
+	if days > 365 {
+		days = 365
+	}
+	// Upsert
+	sql := `INSERT INTO ai_user_settings (user_id, ` + "`key`" + `, value, created_at, updated_at)
+		VALUES (?, 'session_retention_days', ?, NOW(), NOW())
+		ON DUPLICATE KEY UPDATE value = VALUES(value), updated_at = NOW()`
+	return m.db.Exec(sql, userID, fmt.Sprintf("%d", days)).Error
+}
+
+// EnsureSettingsTable 确保 ai_user_settings 表存在
+func (m *ConversationManager) EnsureSettingsTable() {
+	m.db.Exec(`CREATE TABLE IF NOT EXISTS ai_user_settings (
+		id bigint unsigned NOT NULL AUTO_INCREMENT,
+		user_id bigint unsigned NOT NULL,
+		` + "`key`" + ` varchar(100) NOT NULL,
+		value varchar(500) NOT NULL DEFAULT '',
+		created_at datetime DEFAULT CURRENT_TIMESTAMP,
+		updated_at datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+		PRIMARY KEY (id),
+		UNIQUE KEY uk_user_key (user_id, ` + "`key`" + `)
+	) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`)
+}

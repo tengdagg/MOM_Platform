@@ -71,7 +71,7 @@ func (r *userRepo) GetByUsername(ctx context.Context, username string) (*rbac.Sy
 	return &user, nil
 }
 
-func (r *userRepo) List(ctx context.Context, page, pageSize int, keyword string, departmentID uint) ([]*rbac.SysUser, int64, error) {
+func (r *userRepo) List(ctx context.Context, page, pageSize int, keyword string, departmentID uint, source ...string) ([]*rbac.SysUser, int64, error) {
 	var users []*rbac.SysUser
 	var total int64
 
@@ -82,6 +82,9 @@ func (r *userRepo) List(ctx context.Context, page, pageSize int, keyword string,
 	}
 	if departmentID > 0 {
 		query = query.Where("department_id = ?", departmentID)
+	}
+	if len(source) > 0 && source[0] != "" {
+		query = query.Where("source = ?", source[0])
 	}
 
 	err := query.Count(&total).Error

@@ -48,8 +48,8 @@ func executeHostList(ctx biz.SkillContext) (any, error) {
 	}
 
 	query := ctx.DB.Table("hosts").
-		Select("hosts.id, hosts.name, hosts.ip, hosts.port, hosts.os, hosts.os_type, hosts.status, hosts.cpu_cores, hosts.cpu_usage, hosts.memory_usage, hosts.disk_usage, COALESCE(asset_groups.name, '') as group_name, hosts.tags, hosts.uptime").
-		Joins("LEFT JOIN asset_groups ON hosts.group_id = asset_groups.id").
+		Select("hosts.id, hosts.name, hosts.ip, hosts.port, hosts.os, hosts.os_type, hosts.status, hosts.cpu_cores, hosts.cpu_usage, hosts.memory_usage, hosts.disk_usage, COALESCE(asset_group.name, '') as group_name, hosts.tags, hosts.uptime").
+		Joins("LEFT JOIN asset_group ON hosts.group_id = asset_group.id").
 		Where("hosts.deleted_at IS NULL")
 
 	if keyword != "" {
@@ -59,7 +59,7 @@ func executeHostList(ctx biz.SkillContext) (any, error) {
 		query = query.Where("hosts.os_type = ?", osType)
 	}
 	if groupName != "" {
-		query = query.Where("asset_groups.name LIKE ?", "%"+groupName+"%")
+		query = query.Where("asset_group.name LIKE ?", "%"+groupName+"%")
 	}
 	if tags != "" {
 		query = query.Where("hosts.tags LIKE ?", "%"+tags+"%")
@@ -164,7 +164,7 @@ func executeHostDetail(ctx biz.SkillContext) (any, error) {
 	// 获取分组名称
 	var groupName string
 	if host.GroupID > 0 {
-		ctx.DB.Table("asset_groups").Select("name").Where("id = ?", host.GroupID).Scan(&groupName)
+		ctx.DB.Table("asset_group").Select("name").Where("id = ?", host.GroupID).Scan(&groupName)
 	}
 
 	// 构建状态文字
@@ -257,12 +257,12 @@ func executeHostAnalyze(ctx biz.SkillContext) (any, error) {
 			GroupName string  `json:"groupName"`
 		}
 		q := ctx.DB.Table("hosts").
-			Select("hosts.name, hosts.ip, hosts."+cond.column+" as `usage`, COALESCE(asset_groups.name, '') as group_name").
-			Joins("LEFT JOIN asset_groups ON hosts.group_id = asset_groups.id").
+			Select("hosts.name, hosts.ip, hosts."+cond.column+" as `usage`, COALESCE(asset_group.name, '') as group_name").
+			Joins("LEFT JOIN asset_group ON hosts.group_id = asset_group.id").
 			Where("hosts.deleted_at IS NULL AND hosts.status = 1 AND hosts."+cond.column+" > ?", threshold)
 
 		if groupName != "" {
-			q = q.Where("asset_groups.name LIKE ?", "%"+groupName+"%")
+			q = q.Where("asset_group.name LIKE ?", "%"+groupName+"%")
 		}
 
 		q.Order("hosts." + cond.column + " DESC").Limit(20).Find(&hosts)
@@ -303,10 +303,10 @@ func executeHostAnalyze(ctx biz.SkillContext) (any, error) {
 	}
 	var groupStats []GroupStat
 	ctx.DB.Table("hosts").
-		Select("COALESCE(asset_groups.name, '未分组') as group_name, COUNT(*) as count, AVG(hosts.cpu_usage) as avg_cpu, AVG(hosts.memory_usage) as avg_mem, AVG(hosts.disk_usage) as avg_disk").
-		Joins("LEFT JOIN asset_groups ON hosts.group_id = asset_groups.id").
+		Select("COALESCE(asset_group.name, '未分组') as group_name, COUNT(*) as count, AVG(hosts.cpu_usage) as avg_cpu, AVG(hosts.memory_usage) as avg_mem, AVG(hosts.disk_usage) as avg_disk").
+		Joins("LEFT JOIN asset_group ON hosts.group_id = asset_group.id").
 		Where("hosts.deleted_at IS NULL AND hosts.status = 1").
-		Group("asset_groups.name").
+		Group("asset_group.name").
 		Order("avg_cpu DESC").
 		Find(&groupStats)
 

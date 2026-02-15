@@ -61,8 +61,8 @@ func (uc *UserUseCase) GetByUsername(ctx context.Context, username string) (*Sys
 	return uc.userRepo.GetByUsername(ctx, username)
 }
 
-func (uc *UserUseCase) List(ctx context.Context, page, pageSize int, keyword string, departmentID uint) ([]*SysUser, int64, error) {
-	return uc.userRepo.List(ctx, page, pageSize, keyword, departmentID)
+func (uc *UserUseCase) List(ctx context.Context, page, pageSize int, keyword string, departmentID uint, source ...string) ([]*SysUser, int64, error) {
+	return uc.userRepo.List(ctx, page, pageSize, keyword, departmentID, source...)
 }
 
 func (uc *UserUseCase) AssignRoles(ctx context.Context, userID uint, roleIDs []uint) error {

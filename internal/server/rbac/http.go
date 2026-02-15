@@ -37,6 +37,7 @@ type HTTPServer struct {
 	positionService        *rbacService.PositionService
 	captchaService         *rbacService.CaptchaService
 	assetPermissionService *rbacService.AssetPermissionService
+	ldapService            *rbacService.LDAPService
 	authMiddleware         *rbacService.AuthMiddleware
 }
 
@@ -48,6 +49,7 @@ func NewHTTPServer(
 	positionService *rbacService.PositionService,
 	captchaService *rbacService.CaptchaService,
 	assetPermissionService *rbacService.AssetPermissionService,
+	ldapService *rbacService.LDAPService,
 	authMiddleware *rbacService.AuthMiddleware,
 ) *HTTPServer {
 	return &HTTPServer{
@@ -58,6 +60,7 @@ func NewHTTPServer(
 		positionService:        positionService,
 		captchaService:         captchaService,
 		assetPermissionService: assetPermissionService,
+		ldapService:            ldapService,
 		authMiddleware:         authMiddleware,
 	}
 }
@@ -67,6 +70,7 @@ func (s *HTTPServer) RegisterRoutes(r *gin.Engine) {
 	public := r.Group("/api/v1/public")
 	{
 		public.POST("/login", s.userService.Login)
+		public.GET("/ldap/status", s.ldapService.GetLDAPStatus)
 	}
 
 	// 验证码路由（无需认证）
@@ -146,6 +150,16 @@ func (s *HTTPServer) RegisterRoutes(r *gin.Engine) {
 			positions.DELETE("/:id/users/:userId", s.positionService.RemoveUserFromPosition)
 		}
 
+		// LDAP 配置管理
+		ldapGroup := auth.Group("/ldap")
+		{
+			ldapGroup.GET("/config", s.ldapService.GetLDAPConfig)
+			ldapGroup.PUT("/config", s.ldapService.SaveLDAPConfig)
+			ldapGroup.POST("/test", s.ldapService.TestLDAPConnection)
+			ldapGroup.POST("/sync", s.ldapService.SyncLDAPUsers)
+			ldapGroup.GET("/users", s.ldapService.GetLDAPUsers)
+		}
+
 		// 资产权限管理
 		assetPermissions := auth.Group("/asset-permissions")
 		{
@@ -174,6 +188,7 @@ func NewRBACServices(db *gorm.DB, jwtSecret string) (
 	*rbacService.PositionService,
 	*rbacService.CaptchaService,
 	*rbacService.AssetPermissionService,
+	*rbacService.LDAPService,
 	*rbacService.AuthMiddleware,
 ) {
 	// 初始化Repository
@@ -200,7 +215,10 @@ func NewRBACServices(db *gorm.DB, jwtSecret string) (
 
 	// 初始化Service
 	authService := rbacService.NewAuthService(jwtSecret, roleUseCase)
+	ldapService := rbacService.NewLDAPService(db)
 	userService := rbacService.NewUserService(userUseCase, authService)
+	userService.SetLDAPService(ldapService)
+	userService.SetDB(db)
 	roleService := rbacService.NewRoleService(roleUseCase)
 	departmentService := rbacService.NewDepartmentService(deptUseCase)
 	menuService := rbacService.NewMenuService(menuUseCase, roleUseCase)
@@ -215,5 +233,5 @@ func NewRBACServices(db *gorm.DB, jwtSecret string) (
 	// 设置登录日志用例到用户服务
 	userService.SetLoginLogUseCase(loginLogUseCase)
 
-	return userService, roleService, departmentService, menuService, positionService, captchaService, assetPermissionService, authMiddleware
+	return userService, roleService, departmentService, menuService, positionService, captchaService, assetPermissionService, ldapService, authMiddleware
 }

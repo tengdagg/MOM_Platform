@@ -135,8 +135,8 @@ func executeInfraReport(ctx biz.SkillContext) (any, error) {
 
 	// AI Skills 概况
 	var totalSkills, enabledSkills int64
-	ctx.DB.Table("skill_definitions").Count(&totalSkills)
-	ctx.DB.Table("skill_definitions").Where("is_enabled = 1").Count(&enabledSkills)
+	ctx.DB.Table("ai_skill_definitions").Count(&totalSkills)
+	ctx.DB.Table("ai_skill_definitions").Where("is_enabled = 1").Count(&enabledSkills)
 	result["aiSkills"] = map[string]any{
 		"total":   totalSkills,
 		"enabled": enabledSkills,
@@ -364,10 +364,10 @@ func executeCapacityPlan(ctx biz.SkillContext) (any, error) {
 	}
 	var groupStats []GroupStats
 	ctx.DB.Table("hosts").
-		Select("COALESCE(asset_groups.name, '未分组') as group_name, COUNT(*) as count, AVG(hosts.cpu_usage) as avg_cpu, AVG(hosts.memory_usage) as avg_memory, AVG(hosts.disk_usage) as avg_disk").
-		Joins("LEFT JOIN asset_groups ON hosts.group_id = asset_groups.id").
+		Select("COALESCE(asset_group.name, '未分组') as group_name, COUNT(*) as count, AVG(hosts.cpu_usage) as avg_cpu, AVG(hosts.memory_usage) as avg_memory, AVG(hosts.disk_usage) as avg_disk").
+		Joins("LEFT JOIN asset_group ON hosts.group_id = asset_group.id").
 		Where("hosts.deleted_at IS NULL AND hosts.status = 1").
-		Group("asset_groups.name").
+		Group("asset_group.name").
 		Order("avg_cpu DESC").
 		Find(&groupStats)
 

@@ -48,6 +48,20 @@ export const sendMessage = (data: { sessionId: number; content: string; modelId?
   return request.post('/api/v1/plugins/ai/chat/send', data)
 }
 
+// ==================== 会话设置 ====================
+
+export const getRetentionSettings = () => {
+  return request.get('/api/v1/plugins/ai/chat/settings/retention')
+}
+
+export const setRetentionSettings = (retentionDays: number) => {
+  return request.put('/api/v1/plugins/ai/chat/settings/retention', { retentionDays })
+}
+
+export const cleanupSessions = () => {
+  return request.post('/api/v1/plugins/ai/chat/cleanup')
+}
+
 // ==================== Skill 管理 ====================
 
 export const getSkillList = (category?: string) => {

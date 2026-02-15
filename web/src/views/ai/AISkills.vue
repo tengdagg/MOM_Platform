@@ -1,13 +1,21 @@
 <template>
   <div class="skills-page">
     <div class="page-header">
-      <h3>Skill 管理</h3>
+      <div class="page-title-group">
+        <div class="page-title-icon">
+          <el-icon><MagicStick /></el-icon>
+        </div>
+        <div>
+          <h2 class="page-title">Skill 管理</h2>
+          <p class="page-subtitle">管理 AI 助手的技能模块，支持启用/禁用和上传自定义 Skill</p>
+        </div>
+      </div>
       <div class="header-actions">
         <el-select
           v-model="selectedCategory"
           placeholder="全部分类"
           clearable
-          style="width: 150px; margin-right: 12px"
+          style="width: 140px"
           @change="loadSkills"
         >
           <el-option
@@ -23,7 +31,7 @@
           :before-upload="handleUploadBefore"
           :http-request="handleUploadRequest"
         >
-          <el-button type="primary" :icon="Upload">上传 Skill</el-button>
+          <el-button class="black-button" :icon="Upload">上传 Skill</el-button>
         </el-upload>
       </div>
     </div>
@@ -176,7 +184,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Upload, Setting, Document } from '@element-plus/icons-vue'
+import { Upload, Setting, Document, MagicStick } from '@element-plus/icons-vue'
 import { getSkillList, toggleSkill, toggleBuiltinSkill, deleteSkill, uploadSkill, getSkillStats } from '@/api/ai'
 
 const skills = ref<any[]>([])
@@ -335,87 +343,142 @@ function getScriptLabel(t: string): string {
 
 <style scoped>
 .skills-page {
-  padding: 20px;
+  padding: 16px;
 }
 
+/* ===== Page Header（与主机管理页面一致）===== */
 .page-header {
   display: flex;
   justify-content: space-between;
-  align-items: center;
-  margin-bottom: 20px;
+  align-items: flex-start;
+  margin-bottom: 10px;
+  padding: 12px 16px;
+  background: #fff;
+  border-radius: 0;
+  box-shadow: 0 1px 8px rgba(0, 0, 0, 0.04);
+  flex-shrink: 0;
 }
 
-.page-header h3 {
+.page-title-group {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.page-title-icon {
+  width: 36px;
+  height: 36px;
+  background: #0a466a;
+  border-radius: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #ffffff;
+  font-size: 16px;
+  flex-shrink: 0;
+  border: none;
+}
+
+.page-title {
   margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: #303133;
+  line-height: 1.3;
+}
+
+.page-subtitle {
+  margin: 2px 0 0 0;
+  font-size: 12px;
+  color: #909399;
+  line-height: 1.4;
 }
 
 .header-actions {
   display: flex;
+  gap: 8px;
   align-items: center;
 }
 
-/* 统计卡片 */
+.black-button {
+  background: #0a466a;
+  color: #fff;
+  border: none;
+}
+.black-button:hover,
+.black-button:focus {
+  background: #0d5a8a;
+  color: #fff;
+}
+
+/* ===== 统计卡片 ===== */
 .stats-row {
   display: flex;
-  gap: 12px;
-  margin-bottom: 16px;
-  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 12px;
+  flex-wrap: nowrap;
+  overflow-x: auto;
 }
 
 .stat-card {
-  background: #f8f9fa;
-  border-radius: 10px;
-  padding: 12px 20px;
-  min-width: 100px;
+  background: #fff;
+  border-radius: 4px;
+  padding: 10px 14px;
+  flex: 1;
+  min-width: 0;
   text-align: center;
-  border: 1px solid #e8e8e8;
-  transition: all 0.3s;
+  border: 1px solid #ebeef5;
+  transition: all 0.2s;
 }
 
 .stat-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
 }
 
 .stat-card.total {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: #0a466a;
   color: white;
   border: none;
 }
-.stat-card.total .stat-label { color: rgba(255,255,255,0.8); }
+.stat-card.total .stat-label { color: rgba(255,255,255,0.75); }
 
 .stat-card.builtin {
-  background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
-  color: #1a3a2a;
-  border: none;
+  background: #f0f9eb;
+  border-color: #c2e7b0;
 }
-.stat-card.builtin .stat-label { color: rgba(26,58,42,0.7); }
+.stat-card.builtin .stat-number { color: #67c23a; }
 
 .stat-card.custom {
-  background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
-  color: #3a1a1a;
-  border: none;
+  background: #fdf6ec;
+  border-color: #f5dab1;
 }
-.stat-card.custom .stat-label { color: rgba(58,26,26,0.7); }
+.stat-card.custom .stat-number { color: #e6a23c; }
+
+.stat-card.categories {
+  background: #f4f4f5;
+  border-color: #dedfe0;
+}
+.stat-card.categories .stat-number { color: #606266; }
 
 .stat-number {
-  font-size: 24px;
+  font-size: 20px;
   font-weight: 700;
-  line-height: 1.2;
+  line-height: 1.3;
 }
 
 .stat-sub {
-  font-size: 14px;
+  font-size: 12px;
   font-weight: 400;
-  opacity: 0.7;
+  opacity: 0.65;
 }
 
 .stat-label {
-  font-size: 12px;
+  font-size: 11px;
   color: #909399;
   margin-top: 2px;
 }
 
+/* ===== 上传提示 ===== */
 .upload-hint {
   font-size: 12px;
   line-height: 1.5;
@@ -447,35 +510,44 @@ function getScriptLabel(t: string): string {
   font-size: 12px;
 }
 
+/* ===== Skill 卡片网格 ===== */
 .skills-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
-  gap: 16px;
+  grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
+  gap: 12px;
 }
 
 .skill-card {
-  border-radius: 12px;
-  transition: opacity 0.3s;
+  border-radius: 6px;
+  border: 1px solid #ebeef5;
+  transition: all 0.2s;
+}
+
+.skill-card:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+  border-color: #d0d7de;
 }
 
 .skill-card.disabled-card {
-  opacity: 0.6;
+  opacity: 0.55;
+  background: #fafafa;
 }
 
 .skill-header {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
 }
 
 .skill-icon {
-  width: 44px;
-  height: 44px;
-  border-radius: 10px;
+  width: 38px;
+  height: 38px;
+  border-radius: 6px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 22px;
+  font-size: 18px;
+  flex-shrink: 0;
 }
 
 .skill-icon.host { background: #e8f5e9; }
@@ -488,12 +560,17 @@ function getScriptLabel(t: string): string {
 
 .skill-info {
   flex: 1;
+  min-width: 0;
 }
 
 .skill-name {
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 600;
+  color: #303133;
   margin-bottom: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .skill-meta {
@@ -503,26 +580,30 @@ function getScriptLabel(t: string): string {
 }
 
 .skill-desc {
-  margin: 12px 0;
-  font-size: 13px;
-  color: #606266;
+  margin: 10px 0;
+  font-size: 12px;
+  color: #909399;
   line-height: 1.5;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 .skill-footer {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding-top: 12px;
-  border-top: 1px solid #f0f0f0;
+  padding-top: 10px;
+  border-top: 1px solid #f2f3f5;
 }
 
 .script-type {
   display: flex;
   align-items: center;
   gap: 4px;
-  font-size: 12px;
-  color: #909399;
+  font-size: 11px;
+  color: #c0c4cc;
 }
 
 .skill-actions {
@@ -532,10 +613,10 @@ function getScriptLabel(t: string): string {
 
 .empty-card {
   grid-column: 1 / -1;
-  border-radius: 12px;
+  border-radius: 6px;
 }
 
-/* Skill 详情弹窗 */
+/* ===== Skill 详情弹窗 ===== */
 .skill-detail .detail-meta {
   margin-bottom: 16px;
 }
@@ -560,7 +641,7 @@ function getScriptLabel(t: string): string {
 
 .detail-markdown .markdown-content {
   background: #f8f9fa;
-  border-radius: 8px;
+  border-radius: 6px;
   padding: 16px;
   font-size: 13px;
   line-height: 1.7;
