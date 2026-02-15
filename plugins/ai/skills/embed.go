@@ -23,4 +23,5 @@ import "embed"
 //go:embed monitor.domain_status/SKILL.md monitor.alert_summary/SKILL.md monitor.alert_config/SKILL.md
 //go:embed cloud.list_accounts/SKILL.md cloud.list_instances/SKILL.md cloud.import_hosts/SKILL.md
 //go:embed analysis.infra_report/SKILL.md analysis.security_audit/SKILL.md analysis.capacity_plan/SKILL.md
+//go:embed device.list/SKILL.md device.detail/SKILL.md device.test_connection/SKILL.md device.exec_command/SKILL.md
 var SkillFS embed.FS

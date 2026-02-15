@@ -144,4 +144,5 @@ func RegisterAllBuiltinSkills(registry *biz.ToolRegistry) {
 	RegisterMonitorSkills(registry)
 	RegisterCloudSkills(registry)
 	RegisterAnalysisSkills(registry)
+	RegisterDeviceSkills(registry)
 }

@@ -1,0 +1,488 @@
+package skills
+
+import (
+	"fmt"
+	"net"
+	"strings"
+	"time"
+
+	"github.com/ydcloud-dy/mom/plugins/ai/biz"
+	"golang.org/x/crypto/ssh"
+)
+
+// RegisterDeviceSkills 注册网络设备管理 Skills
+func RegisterDeviceSkills(registry *biz.ToolRegistry) {
+	registry.Register(MustLoadBuiltinSkill("device.list", executeDeviceList))
+	registry.Register(MustLoadBuiltinSkill("device.detail", executeDeviceDetail))
+	registry.Register(MustLoadBuiltinSkill("device.test_connection", executeDeviceTestConnection))
+	registry.Register(MustLoadBuiltinSkill("device.exec_command", executeDeviceExecCommand))
+}
+
+// executeDeviceList 查询网络设备列表
+func executeDeviceList(ctx biz.SkillContext) (any, error) {
+	keyword, _ := ctx.Params["keyword"].(string)
+	deviceType, _ := ctx.Params["device_type"].(string)
+	protocol, _ := ctx.Params["protocol"].(string)
+	brand, _ := ctx.Params["brand"].(string)
+	groupName, _ := ctx.Params["group_name"].(string)
+	limit := 20
+	if l, ok := ctx.Params["limit"].(float64); ok && l > 0 {
+		limit = int(l)
+	}
+
+	type DeviceResult struct {
+		ID           uint   `json:"id"`
+		Name         string `json:"name"`
+		IP           string `json:"ip"`
+		Brand        string `json:"brand"`
+		BrandModel   string `json:"brandModel"`
+		SerialNumber string `json:"serialNumber"`
+		DeviceType   string `json:"deviceType"`
+		Protocol     string `json:"protocol"`
+		Port         int    `json:"port"`
+		Status       int    `json:"status"`
+		GroupName    string `json:"groupName"`
+		Tags         string `json:"tags"`
+	}
+
+	query := ctx.DB.Table("network_devices").
+		Select("network_devices.id, network_devices.name, network_devices.ip, network_devices.brand, network_devices.brand_model, network_devices.serial_number, network_devices.device_type, network_devices.protocol, network_devices.port, network_devices.status, COALESCE(asset_group.name, '') as group_name, network_devices.tags").
+		Joins("LEFT JOIN asset_group ON network_devices.group_id = asset_group.id").
+		Where("network_devices.deleted_at IS NULL")
+
+	if keyword != "" {
+		like := "%" + keyword + "%"
+		query = query.Where("(network_devices.name LIKE ? OR network_devices.ip LIKE ? OR network_devices.brand_model LIKE ? OR network_devices.serial_number LIKE ?)", like, like, like, like)
+	}
+	if deviceType != "" {
+		query = query.Where("network_devices.device_type = ?", deviceType)
+	}
+	if protocol != "" {
+		query = query.Where("network_devices.protocol = ?", protocol)
+	}
+	if brand != "" {
+		query = query.Where("network_devices.brand LIKE ?", "%"+brand+"%")
+	}
+	if groupName != "" {
+		query = query.Where("asset_group.name LIKE ?", "%"+groupName+"%")
+	}
+	if statusVal, ok := ctx.Params["status"].(float64); ok {
+		query = query.Where("network_devices.status = ?", int(statusVal))
+	}
+
+	var devices []DeviceResult
+	if err := query.Order("network_devices.id DESC").Limit(limit).Find(&devices).Error; err != nil {
+		return nil, fmt.Errorf("查询网络设备失败: %v", err)
+	}
+
+	// 统计
+	var total int64
+	ctx.DB.Table("network_devices").Where("deleted_at IS NULL").Count(&total)
+	var onlineCount int64
+	ctx.DB.Table("network_devices").Where("deleted_at IS NULL AND status = 1").Count(&onlineCount)
+	var offlineCount int64
+	ctx.DB.Table("network_devices").Where("deleted_at IS NULL AND status = 0").Count(&offlineCount)
+
+	// 按设备类型统计
+	type TypeStat struct {
+		DeviceType string `json:"deviceType"`
+		Count      int64  `json:"count"`
+	}
+	var typeStats []TypeStat
+	ctx.DB.Table("network_devices").
+		Select("device_type, COUNT(*) as count").
+		Where("deleted_at IS NULL").
+		Group("device_type").
+		Find(&typeStats)
+
+	byType := make(map[string]int64)
+	for _, ts := range typeStats {
+		byType[ts.DeviceType] = ts.Count
+	}
+
+	return map[string]any{
+		"devices":     devices,
+		"total":       total,
+		"online":      onlineCount,
+		"offline":     offlineCount,
+		"unknown":     total - onlineCount - offlineCount,
+		"byType":      byType,
+		"resultCount": len(devices),
+	}, nil
+}
+
+// executeDeviceDetail 查询网络设备详情
+func executeDeviceDetail(ctx biz.SkillContext) (any, error) {
+	ip, _ := ctx.Params["ip"].(string)
+	name, _ := ctx.Params["name"].(string)
+	deviceID, _ := ctx.Params["id"].(float64)
+
+	type DeviceDetail struct {
+		ID           uint   `json:"id"`
+		Name         string `json:"name"`
+		IP           string `json:"ip"`
+		Brand        string `json:"brand"`
+		BrandModel   string `json:"brandModel"`
+		SerialNumber string `json:"serialNumber"`
+		DeviceType   string `json:"deviceType"`
+		Protocol     string `json:"protocol"`
+		Port         int    `json:"port"`
+		CredentialID uint   `json:"credentialId"`
+		GroupID      uint   `json:"groupId"`
+		Status       int    `json:"status"`
+		Tags         string `json:"tags"`
+		Description  string `json:"description"`
+	}
+
+	query := ctx.DB.Table("network_devices").Where("deleted_at IS NULL")
+	if deviceID > 0 {
+		query = query.Where("id = ?", int(deviceID))
+	} else if ip != "" {
+		query = query.Where("ip = ?", ip)
+	} else if name != "" {
+		query = query.Where("name LIKE ?", "%"+name+"%")
+	} else {
+		return nil, fmt.Errorf("请提供设备 IP、名称或 ID")
+	}
+
+	var device DeviceDetail
+	if err := query.First(&device).Error; err != nil {
+		return nil, fmt.Errorf("网络设备不存在")
+	}
+
+	// 获取分组名称
+	var groupName string
+	if device.GroupID > 0 {
+		ctx.DB.Table("asset_group").Select("name").Where("id = ?", device.GroupID).Scan(&groupName)
+	}
+
+	// 获取凭证名称
+	var credentialName string
+	if device.CredentialID > 0 {
+		ctx.DB.Table("credentials").Select("name").Where("id = ?", device.CredentialID).Scan(&credentialName)
+	}
+
+	statusText := "未知"
+	switch device.Status {
+	case 1:
+		statusText = "在线"
+	case 0:
+		statusText = "离线"
+	}
+
+	deviceTypeText := map[string]string{
+		"switch":   "交换机",
+		"router":   "路由器",
+		"firewall": "防火墙",
+		"ac":       "AC",
+		"ap":       "AP",
+		"other":    "其他",
+	}
+
+	return map[string]any{
+		"id":             device.ID,
+		"name":           device.Name,
+		"ip":             device.IP,
+		"brand":          device.Brand,
+		"brandModel":     device.BrandModel,
+		"serialNumber":   device.SerialNumber,
+		"deviceType":     device.DeviceType,
+		"deviceTypeText": deviceTypeText[device.DeviceType],
+		"protocol":       strings.ToUpper(device.Protocol),
+		"port":           device.Port,
+		"status":         device.Status,
+		"statusText":     statusText,
+		"groupName":      groupName,
+		"credentialName": credentialName,
+		"tags":           device.Tags,
+		"description":    device.Description,
+	}, nil
+}
+
+// executeDeviceTestConnection 测试网络设备连接
+func executeDeviceTestConnection(ctx biz.SkillContext) (any, error) {
+	ip, _ := ctx.Params["ip"].(string)
+	groupName, _ := ctx.Params["group_name"].(string)
+
+	type SimpleDevice struct {
+		ID       uint   `json:"id"`
+		Name     string `json:"name"`
+		IP       string `json:"ip"`
+		Protocol string `json:"protocol"`
+		Port     int    `json:"port"`
+	}
+	var devices []SimpleDevice
+	query := ctx.DB.Table("network_devices").Select("id, name, ip, protocol, port").Where("deleted_at IS NULL")
+
+	if ip != "" {
+		query = query.Where("ip = ?", ip)
+	}
+	if groupName != "" {
+		query = query.Joins("LEFT JOIN asset_group ON network_devices.group_id = asset_group.id").
+			Where("asset_group.name LIKE ?", "%"+groupName+"%")
+	}
+	if deviceIDs, ok := ctx.Params["device_ids"].([]any); ok && len(deviceIDs) > 0 {
+		ids := make([]uint, 0, len(deviceIDs))
+		for _, id := range deviceIDs {
+			if v, ok := id.(float64); ok {
+				ids = append(ids, uint(v))
+			}
+		}
+		query = query.Where("id IN ?", ids)
+	}
+	query.Limit(50).Find(&devices)
+
+	if len(devices) == 0 {
+		return nil, fmt.Errorf("未找到匹配的网络设备")
+	}
+
+	if !isConfirmed(ctx.Params) {
+		return map[string]any{
+			"deviceCount": len(devices),
+			"devices":     devices,
+			"status":      "pending_confirmation",
+			"warning":     fmt.Sprintf("⚠️ 将对 %d 台网络设备进行连接测试，请确认执行", len(devices)),
+		}, nil
+	}
+
+	// 已确认 → 执行连接测试
+	type TestResult struct {
+		Device   string `json:"device"`
+		IP       string `json:"ip"`
+		Protocol string `json:"protocol"`
+		Status   string `json:"status"`
+		Latency  string `json:"latency,omitempty"`
+		Error    string `json:"error,omitempty"`
+	}
+	var results []TestResult
+	successCount := 0
+
+	for _, d := range devices {
+		startTime := time.Now()
+		addr := fmt.Sprintf("%s:%d", d.IP, d.Port)
+
+		if d.Protocol == "telnet" {
+			// Telnet 测试：TCP 连接
+			conn, err := net.DialTimeout("tcp", addr, 10*time.Second)
+			latency := time.Since(startTime).Round(time.Millisecond).String()
+			if err != nil {
+				results = append(results, TestResult{Device: d.Name, IP: d.IP, Protocol: "Telnet", Status: "失败", Error: err.Error()})
+				ctx.DB.Table("network_devices").Where("id = ?", d.ID).Update("status", 0)
+			} else {
+				conn.Close()
+				results = append(results, TestResult{Device: d.Name, IP: d.IP, Protocol: "Telnet", Status: "成功", Latency: latency})
+				ctx.DB.Table("network_devices").Where("id = ?", d.ID).Update("status", 1)
+				successCount++
+			}
+		} else {
+			// SSH 测试：获取凭证并尝试连接
+			var credentialID uint
+			ctx.DB.Table("network_devices").Select("credential_id").Where("id = ?", d.ID).Scan(&credentialID)
+
+			var username, password string
+			if credentialID > 0 {
+				ctx.DB.Table("credentials").Select("username").Where("id = ?", credentialID).Scan(&username)
+				ctx.DB.Table("credentials").Select("password").Where("id = ?", credentialID).Scan(&password)
+			}
+
+			if username == "" {
+				results = append(results, TestResult{Device: d.Name, IP: d.IP, Protocol: "SSH", Status: "失败", Error: "未配置凭证"})
+				continue
+			}
+
+			config := &ssh.ClientConfig{
+				User:            username,
+				Auth:            []ssh.AuthMethod{ssh.Password(password)},
+				HostKeyCallback: ssh.InsecureIgnoreHostKey(),
+				Timeout:         10 * time.Second,
+				Config: ssh.Config{
+					KeyExchanges: []string{
+						"curve25519-sha256", "curve25519-sha256@libssh.org",
+						"ecdh-sha2-nistp256", "ecdh-sha2-nistp384", "ecdh-sha2-nistp521",
+						"diffie-hellman-group14-sha256", "diffie-hellman-group14-sha1",
+						"diffie-hellman-group1-sha1",
+					},
+					Ciphers: []string{
+						"aes128-gcm@openssh.com", "aes256-gcm@openssh.com",
+						"chacha20-poly1305@openssh.com",
+						"aes128-ctr", "aes192-ctr", "aes256-ctr",
+						"aes128-cbc", "3des-cbc",
+					},
+				},
+			}
+
+			client, err := ssh.Dial("tcp", addr, config)
+			latency := time.Since(startTime).Round(time.Millisecond).String()
+			if err != nil {
+				results = append(results, TestResult{Device: d.Name, IP: d.IP, Protocol: "SSH", Status: "失败", Error: err.Error()})
+				ctx.DB.Table("network_devices").Where("id = ?", d.ID).Update("status", 0)
+			} else {
+				client.Close()
+				results = append(results, TestResult{Device: d.Name, IP: d.IP, Protocol: "SSH", Status: "成功", Latency: latency})
+				ctx.DB.Table("network_devices").Where("id = ?", d.ID).Update("status", 1)
+				successCount++
+			}
+		}
+	}
+
+	return map[string]any{
+		"status":       "success",
+		"message":      fmt.Sprintf("✅ 连接测试完成 %d/%d 台设备连接正常", successCount, len(devices)),
+		"results":      results,
+		"successCount": successCount,
+		"totalCount":   len(devices),
+	}, nil
+}
+
+// executeDeviceExecCommand 在网络设备上远程执行命令
+func executeDeviceExecCommand(ctx biz.SkillContext) (any, error) {
+	command, _ := ctx.Params["command"].(string)
+	if command == "" {
+		return nil, fmt.Errorf("请指定要执行的命令")
+	}
+	ip, _ := ctx.Params["ip"].(string)
+
+	// 安全检查：拒绝危险的网络设备配置命令
+	dangerousPatterns := []string{
+		"write erase", "erase startup", "format", "delete /force",
+		"reset saved-configuration", "restore factory",
+		"no service password", "shutdown",
+	}
+	cmdLower := strings.ToLower(command)
+	for _, pattern := range dangerousPatterns {
+		if strings.Contains(cmdLower, pattern) {
+			return nil, fmt.Errorf("安全检查未通过：命令包含危险操作 [%s]，已被拒绝", pattern)
+		}
+	}
+
+	// 查找目标设备
+	type SimpleDevice struct {
+		ID       uint   `json:"id"`
+		Name     string `json:"name"`
+		IP       string `json:"ip"`
+		Protocol string `json:"protocol"`
+		Port     int    `json:"port"`
+	}
+	var devices []SimpleDevice
+
+	if ip != "" {
+		ctx.DB.Table("network_devices").Select("id, name, ip, protocol, port").
+			Where("ip = ? AND deleted_at IS NULL", ip).Find(&devices)
+	}
+	if deviceIDs, ok := ctx.Params["device_ids"].([]any); ok && len(deviceIDs) > 0 {
+		ids := make([]uint, 0, len(deviceIDs))
+		for _, id := range deviceIDs {
+			if v, ok := id.(float64); ok {
+				ids = append(ids, uint(v))
+			}
+		}
+		ctx.DB.Table("network_devices").Select("id, name, ip, protocol, port").
+			Where("id IN ? AND deleted_at IS NULL", ids).Find(&devices)
+	}
+
+	if len(devices) == 0 {
+		return nil, fmt.Errorf("未找到目标网络设备，请指定设备 IP 或 ID 列表")
+	}
+
+	// 未确认 → 返回待确认信息
+	if !isConfirmed(ctx.Params) {
+		return map[string]any{
+			"message":     fmt.Sprintf("命令 [%s] 将在 %d 台网络设备上执行", command, len(devices)),
+			"command":     command,
+			"deviceCount": len(devices),
+			"devices":     devices,
+			"status":      "pending_confirmation",
+			"warning":     "⚠️ 网络设备远程命令执行是高风险操作，请确认命令内容无误后再执行",
+		}, nil
+	}
+
+	// 已确认 → 通过 SSH 执行命令
+	type ExecResult struct {
+		Device string `json:"device"`
+		IP     string `json:"ip"`
+		Output string `json:"output"`
+		Error  string `json:"error,omitempty"`
+	}
+	var results []ExecResult
+	successCount := 0
+
+	for _, d := range devices {
+		if d.Protocol == "telnet" {
+			results = append(results, ExecResult{
+				Device: d.Name, IP: d.IP,
+				Error: "Telnet 设备暂不支持 AI 远程命令执行，请使用终端手动操作",
+			})
+			continue
+		}
+
+		// SSH 执行
+		var credentialID uint
+		ctx.DB.Table("network_devices").Select("credential_id").Where("id = ?", d.ID).Scan(&credentialID)
+
+		var username, password string
+		if credentialID > 0 {
+			ctx.DB.Table("credentials").Select("username").Where("id = ?", credentialID).Scan(&username)
+			ctx.DB.Table("credentials").Select("password").Where("id = ?", credentialID).Scan(&password)
+		}
+
+		if username == "" {
+			results = append(results, ExecResult{Device: d.Name, IP: d.IP, Error: "未配置凭证"})
+			continue
+		}
+
+		addr := fmt.Sprintf("%s:%d", d.IP, d.Port)
+		config := &ssh.ClientConfig{
+			User:            username,
+			Auth:            []ssh.AuthMethod{ssh.Password(password)},
+			HostKeyCallback: ssh.InsecureIgnoreHostKey(),
+			Timeout:         10 * time.Second,
+			Config: ssh.Config{
+				KeyExchanges: []string{
+					"curve25519-sha256", "curve25519-sha256@libssh.org",
+					"ecdh-sha2-nistp256", "ecdh-sha2-nistp384", "ecdh-sha2-nistp521",
+					"diffie-hellman-group14-sha256", "diffie-hellman-group14-sha1",
+					"diffie-hellman-group1-sha1",
+				},
+				Ciphers: []string{
+					"aes128-gcm@openssh.com", "aes256-gcm@openssh.com",
+					"chacha20-poly1305@openssh.com",
+					"aes128-ctr", "aes192-ctr", "aes256-ctr",
+					"aes128-cbc", "3des-cbc",
+				},
+			},
+		}
+
+		client, err := ssh.Dial("tcp", addr, config)
+		if err != nil {
+			results = append(results, ExecResult{Device: d.Name, IP: d.IP, Error: fmt.Sprintf("SSH连接失败: %v", err)})
+			continue
+		}
+
+		session, err := client.NewSession()
+		if err != nil {
+			client.Close()
+			results = append(results, ExecResult{Device: d.Name, IP: d.IP, Error: fmt.Sprintf("创建会话失败: %v", err)})
+			continue
+		}
+
+		output, err := session.CombinedOutput(command)
+		session.Close()
+		client.Close()
+
+		if err != nil {
+			results = append(results, ExecResult{Device: d.Name, IP: d.IP, Output: string(output), Error: err.Error()})
+		} else {
+			results = append(results, ExecResult{Device: d.Name, IP: d.IP, Output: string(output)})
+			successCount++
+		}
+	}
+
+	return map[string]any{
+		"status":       "success",
+		"message":      fmt.Sprintf("✅ 命令已在 %d/%d 台网络设备上执行完成", successCount, len(devices)),
+		"command":      command,
+		"results":      results,
+		"successCount": successCount,
+		"totalCount":   len(devices),
+	}, nil
+}

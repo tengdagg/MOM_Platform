@@ -74,7 +74,7 @@ type SkillDefinition struct {
 	Name        string    `gorm:"size:100;uniqueIndex" json:"name"`
 	DisplayName string    `gorm:"size:200" json:"displayName"`
 	Description string    `gorm:"size:1000" json:"description"`
-	Category    string    `gorm:"size:50" json:"category"`               // host / k8s / task / monitor / cloud / audit / analysis
+	Category    string    `gorm:"size:50" json:"category"`               // host / device / k8s / task / monitor / cloud / audit / analysis
 	Parameters  string    `gorm:"type:text" json:"parameters"`           // JSON Schema
 	IsBuiltin   bool      `gorm:"default:false" json:"isBuiltin"`
 	ScriptType  string    `gorm:"size:20;default:'builtin'" json:"scriptType"` // builtin / javascript / python

@@ -39,10 +39,11 @@ func (b *ContextBuilder) BuildSystemContext(userID uint, username string) string
 	}
 
 	// 平台概况
-	var hostCount, clusterCount int64
+	var hostCount, deviceCount, clusterCount int64
 	b.db.Table("hosts").Where("deleted_at IS NULL").Count(&hostCount)
+	b.db.Table("network_devices").Where("deleted_at IS NULL").Count(&deviceCount)
 	b.db.Table("k8s_clusters").Count(&clusterCount)
-	parts = append(parts, fmt.Sprintf("平台概况: 管理 %d 台主机, %d 个 K8s 集群", hostCount, clusterCount))
+	parts = append(parts, fmt.Sprintf("平台概况: 管理 %d 台主机, %d 台网络设备, %d 个 K8s 集群", hostCount, deviceCount, clusterCount))
 
 	return strings.Join(parts, "\n")
 }
@@ -65,7 +66,7 @@ func GetDefaultTemplates() []ConversationTemplate {
 			Name:        "每日巡检",
 			Description: "全面检查基础设施运行状态",
 			Icon:        "📋",
-			Prompt:      "请对平台进行全面的每日巡检，包括：\n1. 主机在线状态和资源使用情况\n2. K8s 集群健康状态\n3. 域名监控状态\n4. 安全风险检查\n5. 今日操作日志异常\n请以报告格式输出，标注需要关注的问题。",
+			Prompt:      "请对平台进行全面的每日巡检，包括：\n1. 主机在线状态和资源使用情况\n2. 网络设备在线状态和连接情况\n3. K8s 集群健康状态\n4. 域名监控状态\n5. 安全风险检查\n6. 今日操作日志异常\n请以报告格式输出，标注需要关注的问题。",
 			Category:    "运维",
 		},
 		{
@@ -73,7 +74,7 @@ func GetDefaultTemplates() []ConversationTemplate {
 			Name:        "周报生成",
 			Description: "生成本周运维周报",
 			Icon:        "📊",
-			Prompt:      "请帮我生成本周的运维周报，包含以下内容：\n1. 基础设施概况（主机/集群/域名统计）\n2. 本周重要操作记录\n3. 告警汇总\n4. 资源使用趋势\n5. 安全态势\n6. 下周计划建议",
+			Prompt:      "请帮我生成本周的运维周报，包含以下内容：\n1. 基础设施概况（主机/网络设备/集群/域名统计）\n2. 本周重要操作记录\n3. 告警汇总\n4. 资源使用趋势\n5. 安全态势\n6. 下周计划建议",
 			Category:    "报告",
 		},
 		{
@@ -81,7 +82,7 @@ func GetDefaultTemplates() []ConversationTemplate {
 			Name:        "故障排查",
 			Description: "协助排查系统问题",
 			Icon:        "🔍",
-			Prompt:      "我遇到了一些系统问题，请帮我排查：\n1. 先检查所有主机状态，是否有离线的\n2. 检查 K8s 集群健康状态\n3. 查看最近的告警\n4. 分析最近的异常操作日志\n请根据发现的问题给出排查建议。",
+			Prompt:      "我遇到了一些系统问题，请帮我排查：\n1. 先检查所有主机状态，是否有离线的\n2. 检查网络设备连接状态\n3. 检查 K8s 集群健康状态\n4. 查看最近的告警\n5. 分析最近的异常操作日志\n请根据发现的问题给出排查建议。",
 			Category:    "运维",
 		},
 		{

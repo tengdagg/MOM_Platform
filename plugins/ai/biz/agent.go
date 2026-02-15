@@ -204,7 +204,7 @@ func NewAgent(db *gorm.DB, registry *ToolRegistry) *Agent {
 }
 
 // systemPrompt 系统提示词
-const systemPrompt = `你是 MOM 运维管理平台的 AI 助手。你可以帮助用户管理和分析平台中的各类运维资源，包括主机管理、Kubernetes 集群、任务执行、监控告警、审计日志等。
+const systemPrompt = `你是 MOM 运维管理平台的 AI 助手。你可以帮助用户管理和分析平台中的各类运维资源，包括主机管理、网络设备管理、Kubernetes 集群、任务执行、监控告警、审计日志等。
 
 你的能力：
 1. 查询和分析平台中的资源信息
@@ -642,6 +642,8 @@ func (a *Agent) writeAuditLog(userID uint, username, skillName, params, descript
 		module = "AI-Kubernetes"
 	} else if strings.HasPrefix(skillName, "host.") || strings.HasPrefix(skillName, "host-") {
 		module = "AI-主机管理"
+	} else if strings.HasPrefix(skillName, "device.") || strings.HasPrefix(skillName, "device-") {
+		module = "AI-网络设备"
 	} else if strings.HasPrefix(skillName, "task.") || strings.HasPrefix(skillName, "task-") {
 		module = "AI-任务中心"
 	} else if strings.HasPrefix(skillName, "monitor.") || strings.HasPrefix(skillName, "monitor-") {
