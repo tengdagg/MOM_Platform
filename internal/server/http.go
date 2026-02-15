@@ -153,9 +153,13 @@ func (s *HTTPServer) registerRoutes(router *gin.Engine, jwtSecret string) {
 	// 创建 Asset 服务
 	assetGroupService, hostService, networkDeviceService, terminalManager, networkTerminalManager := assetserver.NewAssetServices(s.db)
 
-	// 设置authMiddleware的assetPermissionRepo
+	// 设置authMiddleware的assetPermissionRepo和menuRepo
 	assetPermissionRepo := rbacdata.NewAssetPermissionRepo(s.db)
 	authMiddleware.SetAssetPermissionRepo(assetPermissionRepo)
+	menuRepo := rbacdata.NewMenuRepo(s.db)
+	authMiddleware.SetMenuRepo(menuRepo)
+	// 设置NetworkDeviceService的权限仓库，用于列表权限过滤
+	networkDeviceService.SetAssetPermissionRepo(assetPermissionRepo)
 
 	// Asset 路由
 	assetServer := assetserver.NewHTTPServer(assetGroupService, hostService, networkDeviceService, terminalManager, networkTerminalManager, s.db, authMiddleware)

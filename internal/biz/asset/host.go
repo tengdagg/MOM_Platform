@@ -194,7 +194,8 @@ type CredentialVO struct {
 	Username    string `json:"username"`
 	Description string `json:"description"`
 	CreateTime  string `json:"createTime"`
-	HostCount   int64  `json:"hostCount"` // 使用该凭证的主机数量
+	HostCount   int64  `json:"hostCount"`   // 使用该凭证的主机数量
+	DeviceCount int64  `json:"deviceCount"` // 使用该凭证的网络设备数量
 }
 
 // ToModel 转换为模型

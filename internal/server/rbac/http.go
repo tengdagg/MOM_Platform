@@ -129,6 +129,7 @@ func (s *HTTPServer) RegisterRoutes(r *gin.Engine) {
 		{
 			menus.GET("/tree", s.menuService.GetMenuTree)
 			menus.GET("/user", s.menuService.GetUserMenu)
+			menus.GET("/user/permissions", s.menuService.GetUserPermissions)
 			menus.PUT("/sort", s.menuService.BatchUpdateMenuSort)
 			menus.GET("/:id", s.menuService.GetMenu)
 			menus.POST("", s.menuService.CreateMenu)
@@ -164,17 +165,18 @@ func (s *HTTPServer) RegisterRoutes(r *gin.Engine) {
 		assetPermissions := auth.Group("/asset-permissions")
 		{
 			assetPermissions.GET("", s.assetPermissionService.ListAssetPermissions)
-			assetPermissions.POST("", s.assetPermissionService.CreateAssetPermission)
+			assetPermissions.POST("", s.authMiddleware.RequireAdmin(), s.assetPermissionService.CreateAssetPermission)
 			// 具体路由必须放在通用 /:id 路由之前
 			assetPermissions.GET("/role/:roleId", s.assetPermissionService.GetAssetPermissionsByRole)
 			assetPermissions.GET("/group/:assetGroupId", s.assetPermissionService.GetAssetPermissionsByGroup)
 			assetPermissions.GET("/user/host", s.assetPermissionService.GetUserHostPermissions)
+			assetPermissions.GET("/user/device", s.assetPermissionService.GetUserDevicePermissions)
 			// 通用 /:id 路由必须放在最后
 			assetPermissions.GET("/:id", s.assetPermissionService.GetAssetPermissionDetail)
-			assetPermissions.PUT("/:id", s.assetPermissionService.UpdateAssetPermission)
-			assetPermissions.DELETE("/:id", s.assetPermissionService.DeleteAssetPermission)
+			assetPermissions.PUT("/:id", s.authMiddleware.RequireAdmin(), s.assetPermissionService.UpdateAssetPermission)
+			assetPermissions.DELETE("/:id", s.authMiddleware.RequireAdmin(), s.assetPermissionService.DeleteAssetPermission)
 			// 删除分组权限用空路径（没有 :id）
-			assetPermissions.DELETE("", s.assetPermissionService.DeleteAssetPermissionByRoleAndGroup)
+			assetPermissions.DELETE("", s.authMiddleware.RequireAdmin(), s.assetPermissionService.DeleteAssetPermissionByRoleAndGroup)
 		}
 	}
 }

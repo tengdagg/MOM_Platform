@@ -65,6 +65,8 @@ type MenuRepo interface {
 	GetByUserID(ctx context.Context, userID uint) ([]*SysMenu, error)
 	GetByRoleID(ctx context.Context, roleID uint) ([]*SysMenu, error)
 	CheckCodeExists(ctx context.Context, code string, excludeID uint) (bool, error)
+	// GetButtonCodesByUserID 获取用户拥有的所有按钮权限编码（type=3），不受 visible 过滤
+	GetButtonCodesByUserID(ctx context.Context, userID uint) ([]string, error)
 }
 
 // MenuSortItem 菜单排序项
@@ -112,4 +114,10 @@ type AssetPermissionRepo interface {
 	GetUserHostPermissions(ctx context.Context, userID, hostID uint) (uint, error)
 	// 获取用户有权限访问的所有主机ID列表
 	GetUserAccessibleHostIDs(ctx context.Context, userID uint) ([]uint, error)
+	// 检查用户是否有对指定网络设备的特定操作权限
+	CheckNetworkDeviceOperationPermission(ctx context.Context, userID, deviceID uint, operation uint) (bool, error)
+	// 获取用户对指定网络设备的所有操作权限
+	GetUserNetworkDevicePermissions(ctx context.Context, userID, deviceID uint) (uint, error)
+	// 获取用户有权限访问的所有网络设备ID列表
+	GetUserAccessibleNetworkDeviceIDs(ctx context.Context, userID uint) ([]uint, error)
 }

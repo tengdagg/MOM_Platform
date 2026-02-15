@@ -56,8 +56,9 @@ func GetUsername(c *gin.Context) string {
 
 // AuthMiddleware JWT认证中间件
 type AuthMiddleware struct {
-	authService        *AuthService
+	authService         *AuthService
 	assetPermissionRepo rbac.AssetPermissionRepo
+	menuRepo            rbac.MenuRepo
 }
 
 func NewAuthMiddleware(authService *AuthService) *AuthMiddleware {
@@ -69,6 +70,11 @@ func NewAuthMiddleware(authService *AuthService) *AuthMiddleware {
 // SetAssetPermissionRepo 设置资产权限仓储
 func (m *AuthMiddleware) SetAssetPermissionRepo(repo rbac.AssetPermissionRepo) {
 	m.assetPermissionRepo = repo
+}
+
+// SetMenuRepo 设置菜单仓储
+func (m *AuthMiddleware) SetMenuRepo(repo rbac.MenuRepo) {
+	m.menuRepo = repo
 }
 
 // AuthRequired JWT认证
@@ -138,7 +144,117 @@ func (m *AuthMiddleware) RequireAdmin() gin.HandlerFunc {
 		}
 
 		if !hasAdminRole {
-			response.ErrorCode(c, http.StatusForbidden, "权限不足：此操作仅限管理员执行")
+			response.ErrorCode(c, http.StatusForbidden, "无权限，请联系管理员操作")
+			c.Abort()
+			return
+		}
+
+		c.Next()
+	}
+}
+
+func (m *AuthMiddleware) RequireMenuPermission(codes ...string) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		userID := GetUserID(c)
+		if userID == 0 {
+			response.ErrorCode(c, http.StatusUnauthorized, "未登录")
+			c.Abort()
+			return
+		}
+
+		// 获取用户的角色
+		roles, err := m.authService.roleUseCase.GetByUserID(c.Request.Context(), userID)
+		if err != nil {
+			response.ErrorCode(c, http.StatusInternalServerError, "获取用户角色失败")
+			c.Abort()
+			return
+		}
+
+		// 超级管理员放行
+		for _, role := range roles {
+			if role.Code == "admin" {
+				c.Next()
+				return
+			}
+		}
+
+		// 使用菜单仓储查询用户拥有的按钮权限
+		if m.menuRepo == nil {
+			// 如果未设置 menuRepo，暂时放行
+			c.Next()
+			return
+		}
+
+		btnCodes, err := m.menuRepo.GetButtonCodesByUserID(c.Request.Context(), userID)
+		if err != nil {
+			response.ErrorCode(c, http.StatusInternalServerError, "权限检查失败")
+			c.Abort()
+			return
+		}
+
+		// 转成 set 方便查找
+		codeSet := make(map[string]struct{}, len(btnCodes))
+		for _, code := range btnCodes {
+			codeSet[code] = struct{}{}
+		}
+
+		// 检查用户是否拥有所需权限中的任意一个
+		for _, requiredCode := range codes {
+			if _, ok := codeSet[requiredCode]; ok {
+				c.Next()
+				return
+			}
+		}
+
+		response.ErrorCode(c, http.StatusForbidden, "无权限，请联系管理员操作")
+		c.Abort()
+	}
+}
+
+// RequireNetworkDevicePermission 检查网络设备操作权限的中间件
+func (m *AuthMiddleware) RequireNetworkDevicePermission(operation uint) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		if m.assetPermissionRepo == nil {
+			response.ErrorCode(c, http.StatusInternalServerError, "权限检查未初始化")
+			c.Abort()
+			return
+		}
+
+		userID := GetUserID(c)
+		if userID == 0 {
+			response.ErrorCode(c, http.StatusUnauthorized, "未登录")
+			c.Abort()
+			return
+		}
+
+		deviceIDStr := c.Param("id")
+		if deviceIDStr == "" {
+			c.Next()
+			return
+		}
+
+		deviceID, err := strconv.ParseUint(deviceIDStr, 10, 32)
+		if err != nil {
+			response.ErrorCode(c, http.StatusBadRequest, "无效的设备ID")
+			c.Abort()
+			return
+		}
+
+		hasPermission, err := m.assetPermissionRepo.CheckNetworkDeviceOperationPermission(
+			c.Request.Context(),
+			userID,
+			uint(deviceID),
+			operation,
+		)
+
+		if err != nil {
+			response.ErrorCode(c, http.StatusInternalServerError, "权限检查失败")
+			c.Abort()
+			return
+		}
+
+		if !hasPermission {
+			response.ErrorCode(c, http.StatusForbidden, "无权限，请联系管理员操作")
 			c.Abort()
 			return
 		}
@@ -194,7 +310,7 @@ func (m *AuthMiddleware) RequireHostPermission(operation uint) gin.HandlerFunc {
 		}
 
 		if !hasPermission {
-			response.ErrorCode(c, http.StatusForbidden, "权限不足")
+			response.ErrorCode(c, http.StatusForbidden, "无权限，请联系管理员操作")
 			c.Abort()
 			return
 		}

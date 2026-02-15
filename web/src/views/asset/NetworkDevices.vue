@@ -236,7 +236,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, onMounted, computed } from 'vue'
 import { ElMessage, ElMessageBox, type FormInstance } from 'element-plus'
 import {
   Plus, Search, Monitor, SetUp, Edit, Delete, Connection,
@@ -252,8 +252,42 @@ import {
 } from '@/api/host'
 import { getGroupTree } from '@/api/assetGroup'
 import { useRouter } from 'vue-router'
+import { getUserDevicePermissions } from '@/api/assetPermission'
+import { PERMISSION, hasPermission } from '@/utils/permission'
+import { useUserStore } from '@/stores/user'
 
 const router = useRouter()
+const userStore = useUserStore()
+
+// 管理员判断
+const isAdmin = computed(() => {
+  const roles = userStore.userInfo?.roles || []
+  return roles.some((r: any) => r.code === 'admin')
+})
+
+// 设备权限映射
+const devicePermissions = ref<Map<number, number>>(new Map())
+
+const hasDevicePermission = (deviceId: number, permission: number): boolean => {
+  if (isAdmin.value) return true
+  const perms = devicePermissions.value.get(deviceId) || 0
+  return hasPermission(perms, permission)
+}
+
+// 加载所有设备的权限
+const loadDevicePermissions = async () => {
+  if (isAdmin.value) return
+  const newMap = new Map<number, number>()
+  for (const device of deviceList.value) {
+    try {
+      const res: any = await getUserDevicePermissions(device.id)
+      if (res && res.permissions !== undefined) {
+        newMap.set(device.id, res.permissions)
+      }
+    } catch {}
+  }
+  devicePermissions.value = newMap
+}
 
 // 设备类型选项
 const deviceTypes = [
@@ -375,6 +409,8 @@ async function loadDevices() {
     const res: any = await getNetworkDeviceList(params)
     deviceList.value = res?.list || []
     total.value = res?.total || 0
+    // 加载设备级权限
+    await loadDevicePermissions()
   } catch (e) {
     console.error('加载网络设备失败', e)
   } finally {
@@ -407,12 +443,20 @@ function flattenGroups(tree: any[], result: any[] = []): any[] {
 }
 
 function handleAdd() {
+  if (!isAdmin.value) {
+    ElMessage.error('无权限，请联系管理员操作')
+    return
+  }
   isEdit.value = false
   resetForm()
   dialogVisible.value = true
 }
 
 function handleEdit(row: any) {
+  if (!isAdmin.value && !hasDevicePermission(row.id, PERMISSION.EDIT)) {
+    ElMessage.error('无权限，请联系管理员操作')
+    return
+  }
   isEdit.value = true
   Object.assign(form, {
     id: row.id,
@@ -477,6 +521,10 @@ async function handleSubmit() {
 }
 
 async function handleDelete(row: any) {
+  if (!isAdmin.value && !hasDevicePermission(row.id, PERMISSION.DELETE)) {
+    ElMessage.error('无权限，请联系管理员操作')
+    return
+  }
   try {
     await ElMessageBox.confirm(`确定删除设备「${row.name}」(${row.ip})？`, '删除确认', {
       type: 'warning',
@@ -490,6 +538,10 @@ async function handleDelete(row: any) {
 }
 
 async function handleTest(row: any) {
+  if (!isAdmin.value && !hasDevicePermission(row.id, PERMISSION.VIEW)) {
+    ElMessage.error('无权限，请联系管理员操作')
+    return
+  }
   ElMessage.info('正在测试连接...')
   try {
     const res: any = await testNetworkDeviceConnection(row.id)
@@ -503,6 +555,10 @@ async function handleTest(row: any) {
 }
 
 function handleConnect(row: any) {
+  if (!isAdmin.value && !hasDevicePermission(row.id, PERMISSION.TERMINAL)) {
+    ElMessage.error('无权限，请联系管理员操作')
+    return
+  }
   // 在新窗口打开终端页面
   const url = router.resolve({
     path: '/terminal',

@@ -73,6 +73,47 @@ func (r *networkDeviceRepo) List(ctx context.Context, page, pageSize int, keywor
 	return devices, total, nil
 }
 
+// ListFiltered 带可访问ID过滤的分页查询
+func (r *networkDeviceRepo) ListFiltered(ctx context.Context, page, pageSize int, keyword, deviceType, protocol string, groupID uint, accessibleIDs []uint) ([]*asset.NetworkDevice, int64, error) {
+	var devices []*asset.NetworkDevice
+	var total int64
+
+	query := r.db.WithContext(ctx).Model(&asset.NetworkDevice{})
+
+	// 如果 accessibleIDs 不为 nil（非管理员），则只显示可访问的设备
+	if accessibleIDs != nil {
+		if len(accessibleIDs) == 0 {
+			return devices, 0, nil // 无权限，返回空
+		}
+		query = query.Where("id IN ?", accessibleIDs)
+	}
+
+	if keyword != "" {
+		like := "%" + keyword + "%"
+		query = query.Where("name LIKE ? OR ip LIKE ? OR brand_model LIKE ? OR serial_number LIKE ?", like, like, like, like)
+	}
+	if deviceType != "" {
+		query = query.Where("device_type = ?", deviceType)
+	}
+	if protocol != "" {
+		query = query.Where("protocol = ?", protocol)
+	}
+	if groupID > 0 {
+		query = query.Where("group_id = ?", groupID)
+	}
+
+	if err := query.Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+
+	offset := (page - 1) * pageSize
+	if err := query.Order("created_at DESC").Offset(offset).Limit(pageSize).Find(&devices).Error; err != nil {
+		return nil, 0, err
+	}
+
+	return devices, total, nil
+}
+
 // GetAll 获取所有网络设备
 func (r *networkDeviceRepo) GetAll(ctx context.Context) ([]*asset.NetworkDevice, error) {
 	var devices []*asset.NetworkDevice
@@ -85,4 +126,11 @@ func (r *networkDeviceRepo) GetAll(ctx context.Context) ([]*asset.NetworkDevice,
 // UpdateStatus 更新网络设备在线状态
 func (r *networkDeviceRepo) UpdateStatus(ctx context.Context, id uint, status int) error {
 	return r.db.WithContext(ctx).Model(&asset.NetworkDevice{}).Where("id = ?", id).Update("status", status).Error
+}
+
+// CountByCredentialID 统计使用指定凭证的网络设备数量
+func (r *networkDeviceRepo) CountByCredentialID(ctx context.Context, credentialID uint) (int64, error) {
+	var count int64
+	err := r.db.WithContext(ctx).Model(&asset.NetworkDevice{}).Where("credential_id = ?", credentialID).Count(&count).Error
+	return count, err
 }

@@ -83,7 +83,7 @@ type AssetPermissionInfo struct {
 	AssetGroupID   uint      `json:"assetGroupId"`
 	AssetGroupName string    `json:"assetGroupName"`
 	AssetType      string    `json:"assetType"`      // 资产类型 host/network_device
-	HostIDs        []uint    `json:"hostIds"`        // 主机/设备ID列表（为空表示整个分组）
+	HostIDs        UintArray `json:"hostIds"`         // 主机/设备ID列表（为空表示整个分组），使用 UintArray 支持 JSON 反序列化
 	HostNames      []string  `json:"hostNames,omitempty"` // 主机/设备名称列表
 	IsAllHosts     bool      `json:"isAllHosts"`    // 是否授权所有主机/设备
 	Permissions    uint      `json:"permissions"`

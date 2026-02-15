@@ -17,7 +17,6 @@
           终端
         </el-button>
         <el-dropdown
-          v-if="userHasEditPermission"
           @command="handleImportCommand"
           class="import-dropdown"
         >
@@ -2149,6 +2148,10 @@ const handleReset = () => {
 
 // 导入命令处理
 const handleImportCommand = (command: string) => {
+  if (!isAdmin.value) {
+    ElMessage.error('无权限，请联系管理员操作')
+    return
+  }
   if (command === 'direct') {
     handleDirectImport()
   } else if (command === 'excel') {

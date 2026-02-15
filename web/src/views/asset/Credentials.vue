@@ -117,7 +117,9 @@
         <el-table-column label="使用情况" min-width="150">
           <template #default="{ row }">
             <div class="usage-cell">
-              <span class="usage-count">{{ row.hostCount || 0 }} 台主机</span>
+              <span class="usage-count" v-if="row.hostCount > 0">{{ row.hostCount }} 台主机</span>
+              <span class="usage-count" v-if="row.deviceCount > 0">{{ row.deviceCount }} 台设备</span>
+              <span class="usage-count" v-if="!row.hostCount && !row.deviceCount">未使用</span>
             </div>
           </template>
         </el-table-column>
@@ -258,7 +260,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, onMounted, computed } from 'vue'
 import { ElMessage, ElMessageBox, FormInstance, FormRules } from 'element-plus'
 import {
   Plus,
@@ -278,6 +280,13 @@ import {
   updateCredential,
   deleteCredential
 } from '@/api/host'
+import { useUserStore } from '@/stores/user'
+
+const userStore = useUserStore()
+const isAdmin = computed(() => {
+  const roles = userStore.userInfo?.roles || []
+  return roles.some((r: any) => r.code === 'admin')
+})
 
 // 加载状态
 const loading = ref(false)
@@ -410,6 +419,10 @@ const handleReset = () => {
 
 // 新增凭证
 const handleAdd = () => {
+  if (!isAdmin.value) {
+    ElMessage.error('无权限，请联系管理员操作')
+    return
+  }
   Object.assign(form, {
     id: 0,
     name: '',
@@ -427,6 +440,10 @@ const handleAdd = () => {
 
 // 编辑凭证
 const handleEdit = async (row: any) => {
+  if (!isAdmin.value) {
+    ElMessage.error('无权限，请联系管理员操作')
+    return
+  }
 
   // 获取完整的凭证信息（包括解密后的私钥）
   try {
@@ -454,6 +471,10 @@ const handleEdit = async (row: any) => {
 
 // 删除凭证
 const handleDelete = (row: any) => {
+  if (!isAdmin.value) {
+    ElMessage.error('无权限，请联系管理员操作')
+    return
+  }
   if (row.hostCount > 0) {
     ElMessage.warning('该凭证正在被使用，无法删除')
     return

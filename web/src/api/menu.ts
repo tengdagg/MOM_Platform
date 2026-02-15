@@ -44,3 +44,8 @@ export const batchUpdateMenuSort = (items: Array<{ id: number; sort: number }>) 
 export const deleteMenu = (id: number) => {
   return request.delete(`/api/v1/menus/${id}`)
 }
+
+// 获取当前用户的按钮权限编码列表
+export const getUserPermissions = (): Promise<string[]> => {
+  return request.get('/api/v1/menus/user/permissions')
+}

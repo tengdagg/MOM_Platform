@@ -364,3 +364,34 @@ func (s *AssetPermissionService) GetUserHostPermissions(c *gin.Context) {
 		"permissions": permissions,
 	})
 }
+
+// GetUserDevicePermissions 获取当前用户对指定网络设备的操作权限
+func (s *AssetPermissionService) GetUserDevicePermissions(c *gin.Context) {
+	deviceIDStr := c.Query("deviceId")
+	if deviceIDStr == "" {
+		response.ErrorCode(c, http.StatusBadRequest, "设备ID不能为空")
+		return
+	}
+
+	deviceID, err := strconv.ParseUint(deviceIDStr, 10, 32)
+	if err != nil {
+		response.ErrorCode(c, http.StatusBadRequest, "无效的设备ID")
+		return
+	}
+
+	userID := c.GetUint("user_id")
+	if userID == 0 {
+		response.ErrorCode(c, http.StatusUnauthorized, "未授权")
+		return
+	}
+
+	permissions, err := s.assetPermissionUseCase.GetUserNetworkDevicePermissions(c.Request.Context(), userID, uint(deviceID))
+	if err != nil {
+		response.ErrorCode(c, http.StatusInternalServerError, "查询失败: "+err.Error())
+		return
+	}
+
+	response.Success(c, gin.H{
+		"permissions": permissions,
+	})
+}

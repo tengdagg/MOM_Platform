@@ -68,10 +68,10 @@ func (s *HTTPServer) RegisterRoutes(r *gin.RouterGroup) {
 	{
 		groups.GET("/tree", s.assetGroupService.GetGroupTree)
 		groups.GET("/parent-options", s.assetGroupService.GetParentOptions)
-		groups.POST("", s.assetGroupService.CreateGroup)
+		groups.POST("", s.authMiddleware.RequireAdmin(), s.assetGroupService.CreateGroup)
 		groups.GET("/:id", s.assetGroupService.GetGroup)
-		groups.PUT("/:id", s.assetGroupService.UpdateGroup)
-		groups.DELETE("/:id", s.assetGroupService.DeleteGroup)
+		groups.PUT("/:id", s.authMiddleware.RequireAdmin(), s.assetGroupService.UpdateGroup)
+		groups.DELETE("/:id", s.authMiddleware.RequireAdmin(), s.assetGroupService.DeleteGroup)
 	}
 
 	// 主机管理
@@ -79,19 +79,21 @@ func (s *HTTPServer) RegisterRoutes(r *gin.RouterGroup) {
 	{
 		hosts.GET("", s.hostService.ListHosts)
 		hosts.GET("/template/download", s.hostService.DownloadExcelTemplate)
-		hosts.POST("/import", s.hostService.ImportFromExcel)
-		hosts.POST("/batch-collect", s.hostService.BatchCollectHostInfo)
-		hosts.POST("/batch-delete", s.hostService.BatchDeleteHosts)
+		// 创建类操作仅管理员（无 :id，资产级权限无法校验）
+		hosts.POST("/import", s.authMiddleware.RequireAdmin(), s.hostService.ImportFromExcel)
+		hosts.POST("/batch-collect", s.authMiddleware.RequireAdmin(), s.hostService.BatchCollectHostInfo)
+		hosts.POST("/batch-delete", s.authMiddleware.RequireAdmin(), s.hostService.BatchDeleteHosts)
 
 		// 查看权限 - 查看主机详情
 		hosts.GET("/:id",
 			s.authMiddleware.RequireHostPermission(rbacbiz.PermissionView),
 			s.hostService.GetHost)
 
-		// 编辑权限 - 创建、修改主机配置
+		// 创建主机 — 仅管理员
 		hosts.POST("",
-			s.authMiddleware.RequireHostPermission(rbacbiz.PermissionEdit),
+			s.authMiddleware.RequireAdmin(),
 			s.hostService.CreateHost)
+		// 编辑主机 — 资产级权限
 		hosts.PUT("/:id",
 			s.authMiddleware.RequireHostPermission(rbacbiz.PermissionEdit),
 			s.hostService.UpdateHost)
@@ -122,18 +124,18 @@ func (s *HTTPServer) RegisterRoutes(r *gin.RouterGroup) {
 			s.hostService.DeleteHostFile)
 	}
 
-	// 凭证管理
+	// 凭证管理（仅管理员可增删改）
 	credentials := r.Group("/credentials")
 	{
 		credentials.GET("", s.hostService.ListCredentials)
 		credentials.GET("/all", s.hostService.GetAllCredentials)
 		credentials.GET("/:id", s.hostService.GetCredential)
-		credentials.POST("", s.hostService.CreateCredential)
-		credentials.PUT("/:id", s.hostService.UpdateCredential)
-		credentials.DELETE("/:id", s.hostService.DeleteCredential)
+		credentials.POST("", s.authMiddleware.RequireAdmin(), s.hostService.CreateCredential)
+		credentials.PUT("/:id", s.authMiddleware.RequireAdmin(), s.hostService.UpdateCredential)
+		credentials.DELETE("/:id", s.authMiddleware.RequireAdmin(), s.hostService.DeleteCredential)
 	}
 
-	// 云平台账号管理
+	// 云平台账号管理（仅管理员可增删改）
 	cloudAccounts := r.Group("/cloud-accounts")
 	{
 		cloudAccounts.GET("", s.hostService.ListCloudAccounts)
@@ -141,21 +143,25 @@ func (s *HTTPServer) RegisterRoutes(r *gin.RouterGroup) {
 		cloudAccounts.GET("/:id", s.hostService.GetCloudAccount)
 		cloudAccounts.GET("/:id/regions", s.hostService.GetCloudRegions)
 		cloudAccounts.GET("/:id/instances", s.hostService.GetCloudInstances)
-		cloudAccounts.POST("", s.hostService.CreateCloudAccount)
-		cloudAccounts.PUT("/:id", s.hostService.UpdateCloudAccount)
-		cloudAccounts.DELETE("/:id", s.hostService.DeleteCloudAccount)
-		cloudAccounts.POST("/import", s.hostService.ImportFromCloud)
+		cloudAccounts.POST("", s.authMiddleware.RequireAdmin(), s.hostService.CreateCloudAccount)
+		cloudAccounts.PUT("/:id", s.authMiddleware.RequireAdmin(), s.hostService.UpdateCloudAccount)
+		cloudAccounts.DELETE("/:id", s.authMiddleware.RequireAdmin(), s.hostService.DeleteCloudAccount)
+		cloudAccounts.POST("/import", s.authMiddleware.RequireAdmin(), s.hostService.ImportFromCloud)
 	}
 
-	// 网络设备管理
+	// 网络设备管理（增删改用资产级权限校验，创建仅管理员）
 	networkDevices := r.Group("/network-devices")
 	{
 		networkDevices.GET("", s.networkDeviceService.ListNetworkDevices)
 		networkDevices.GET("/all", s.networkDeviceService.GetAllNetworkDevices)
-		networkDevices.POST("", s.networkDeviceService.CreateNetworkDevice)
+		networkDevices.POST("", s.authMiddleware.RequireAdmin(), s.networkDeviceService.CreateNetworkDevice)
 		networkDevices.GET("/:id", s.networkDeviceService.GetNetworkDevice)
-		networkDevices.PUT("/:id", s.networkDeviceService.UpdateNetworkDevice)
-		networkDevices.DELETE("/:id", s.networkDeviceService.DeleteNetworkDevice)
+		networkDevices.PUT("/:id",
+			s.authMiddleware.RequireNetworkDevicePermission(rbacbiz.PermissionEdit),
+			s.networkDeviceService.UpdateNetworkDevice)
+		networkDevices.DELETE("/:id",
+			s.authMiddleware.RequireNetworkDevicePermission(rbacbiz.PermissionDelete),
+			s.networkDeviceService.DeleteNetworkDevice)
 		networkDevices.POST("/:id/test", s.networkDeviceService.TestNetworkDeviceConnection)
 	}
 
@@ -168,21 +174,23 @@ func (s *HTTPServer) RegisterRoutes(r *gin.RouterGroup) {
 		terminal.POST("/:id/resize", s.ResizeTerminal)
 	}
 
-	// 网络设备终端
+	// 网络设备终端 — 资产级终端权限
 	networkTerminal := r.Group("/asset/network-terminal")
 	{
-		networkTerminal.GET("/:id", s.networkTerminalManager.HandleNetworkTerminalConnection)
+		networkTerminal.GET("/:id",
+			s.authMiddleware.RequireNetworkDevicePermission(rbacbiz.PermissionTerminal),
+			s.networkTerminalManager.HandleNetworkTerminalConnection)
 	}
 
-	// 终端审计
+	// 终端审计（仅管理员可回放、删除、配置保留期、手动清理）
 	terminalSessions := r.Group("/terminal-sessions")
 	{
 		terminalSessions.GET("", s.terminalAuditHandler.ListTerminalSessions)
-		terminalSessions.GET("/:id/play", s.terminalAuditHandler.PlayTerminalSession)
-		terminalSessions.DELETE("/:id", s.terminalAuditHandler.DeleteTerminalSession)
-		terminalSessions.GET("/retention", s.terminalAuditHandler.GetRetentionConfig)
-		terminalSessions.PUT("/retention", s.terminalAuditHandler.UpdateRetentionConfig)
-		terminalSessions.POST("/cleanup", s.terminalAuditHandler.CleanupExpiredSessions)
+		terminalSessions.GET("/:id/play", s.authMiddleware.RequireAdmin(), s.terminalAuditHandler.PlayTerminalSession)
+		terminalSessions.DELETE("/:id", s.authMiddleware.RequireAdmin(), s.terminalAuditHandler.DeleteTerminalSession)
+		terminalSessions.GET("/retention", s.authMiddleware.RequireAdmin(), s.terminalAuditHandler.GetRetentionConfig)
+		terminalSessions.PUT("/retention", s.authMiddleware.RequireAdmin(), s.terminalAuditHandler.UpdateRetentionConfig)
+		terminalSessions.POST("/cleanup", s.authMiddleware.RequireAdmin(), s.terminalAuditHandler.CleanupExpiredSessions)
 	}
 
 	// 系统配置
@@ -217,7 +225,7 @@ func NewAssetServices(db *gorm.DB) (
 
 	// 初始化UseCase
 	assetGroupUseCase := assetbiz.NewAssetGroupUseCase(assetGroupRepo)
-	credentialUseCase := assetbiz.NewCredentialUseCase(credentialRepo, hostRepo)
+	credentialUseCase := assetbiz.NewCredentialUseCase(credentialRepo, hostRepo, networkDeviceRepo)
 	cloudAccountUseCase := assetbiz.NewCloudAccountUseCase(cloudAccountRepo)
 	hostUseCase := assetbiz.NewHostUseCase(hostRepo, credentialRepo, assetGroupRepo, cloudAccountRepo)
 	assetPermissionUseCase := rbacbiz.NewAssetPermissionUseCase(assetPermissionRepo)

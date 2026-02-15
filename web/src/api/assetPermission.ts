@@ -56,3 +56,10 @@ export const getUserHostPermissions = (hostId: number) => {
     params: { hostId }
   })
 }
+
+// 获取当前用户对指定网络设备的操作权限
+export const getUserDevicePermissions = (deviceId: number) => {
+  return request.get('/api/v1/asset-permissions/user/device', {
+    params: { deviceId }
+  })
+}

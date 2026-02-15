@@ -9,13 +9,15 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/ydcloud-dy/mom/internal/biz/asset"
+	rbac "github.com/ydcloud-dy/mom/internal/biz/rbac"
 	"github.com/ydcloud-dy/mom/pkg/response"
 	"golang.org/x/crypto/ssh"
 )
 
 // NetworkDeviceService 网络设备服务
 type NetworkDeviceService struct {
-	deviceUseCase *asset.NetworkDeviceUseCase
+	deviceUseCase       *asset.NetworkDeviceUseCase
+	assetPermissionRepo rbac.AssetPermissionRepo
 }
 
 // NewNetworkDeviceService 创建网络设备服务
@@ -25,7 +27,12 @@ func NewNetworkDeviceService(deviceUseCase *asset.NetworkDeviceUseCase) *Network
 	}
 }
 
-// ListNetworkDevices 网络设备列表
+// SetAssetPermissionRepo 设置资产权限仓库
+func (s *NetworkDeviceService) SetAssetPermissionRepo(repo rbac.AssetPermissionRepo) {
+	s.assetPermissionRepo = repo
+}
+
+// ListNetworkDevices 网络设备列表（根据用户权限过滤）
 func (s *NetworkDeviceService) ListNetworkDevices(c *gin.Context) {
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	pageSize, _ := strconv.Atoi(c.DefaultQuery("pageSize", "10"))
@@ -41,7 +48,17 @@ func (s *NetworkDeviceService) ListNetworkDevices(c *gin.Context) {
 		}
 	}
 
-	devices, total, err := s.deviceUseCase.List(c.Request.Context(), page, pageSize, keyword, deviceType, protocol, groupID)
+	// 获取用户可访问的设备ID列表（非管理员权限过滤）
+	var accessibleIDs []uint
+	userID := c.GetUint("user_id")
+	if s.assetPermissionRepo != nil && userID > 0 {
+		ids, err := s.assetPermissionRepo.GetUserAccessibleNetworkDeviceIDs(c.Request.Context(), userID)
+		if err == nil {
+			accessibleIDs = ids
+		}
+	}
+
+	devices, total, err := s.deviceUseCase.ListFiltered(c.Request.Context(), page, pageSize, keyword, deviceType, protocol, groupID, accessibleIDs)
 	if err != nil {
 		response.ErrorCode(c, http.StatusInternalServerError, "查询失败: "+err.Error())
 		return
@@ -131,12 +148,38 @@ func (s *NetworkDeviceService) GetNetworkDevice(c *gin.Context) {
 	response.Success(c, device)
 }
 
-// GetAllNetworkDevices 获取所有网络设备（不分页）
+// GetAllNetworkDevices 获取所有网络设备（不分页，根据用户权限过滤）
 func (s *NetworkDeviceService) GetAllNetworkDevices(c *gin.Context) {
+	userID := c.GetUint("user_id")
+
+	// 获取用户可访问的设备ID列表
+	var accessibleIDs []uint
+	if s.assetPermissionRepo != nil && userID > 0 {
+		ids, err := s.assetPermissionRepo.GetUserAccessibleNetworkDeviceIDs(c.Request.Context(), userID)
+		if err == nil {
+			accessibleIDs = ids
+		}
+	}
+
 	devices, err := s.deviceUseCase.GetAll(c.Request.Context())
 	if err != nil {
 		response.ErrorCode(c, http.StatusInternalServerError, "查询失败: "+err.Error())
 		return
+	}
+
+	// 如果 accessibleIDs 不为 nil（非管理员），过滤设备
+	if accessibleIDs != nil {
+		idSet := make(map[uint]bool, len(accessibleIDs))
+		for _, id := range accessibleIDs {
+			idSet[id] = true
+		}
+		var filtered []*asset.NetworkDevice
+		for _, d := range devices {
+			if idSet[d.ID] {
+				filtered = append(filtered, d)
+			}
+		}
+		devices = filtered
 	}
 
 	response.Success(c, devices)

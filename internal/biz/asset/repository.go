@@ -61,8 +61,11 @@ type NetworkDeviceRepo interface {
 	Delete(ctx context.Context, id uint) error
 	GetByID(ctx context.Context, id uint) (*NetworkDevice, error)
 	List(ctx context.Context, page, pageSize int, keyword, deviceType, protocol string, groupID uint) ([]*NetworkDevice, int64, error)
+	// ListFiltered 带可访问ID过滤的分页查询
+	ListFiltered(ctx context.Context, page, pageSize int, keyword, deviceType, protocol string, groupID uint, accessibleIDs []uint) ([]*NetworkDevice, int64, error)
 	GetAll(ctx context.Context) ([]*NetworkDevice, error)
 	UpdateStatus(ctx context.Context, id uint, status int) error
+	CountByCredentialID(ctx context.Context, credentialID uint) (int64, error)
 }
 
 type CloudAccountRepo interface {

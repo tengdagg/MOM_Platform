@@ -260,7 +260,19 @@ func autoMigrate(db *gorm.DB) error {
 		}
 	}
 
+	// 清理已废弃的按钮级菜单（type=3），权限已改为资产级权限 + isAdmin 判断
+	cleanupButtonMenus(db)
+
 	return nil
+}
+
+// cleanupButtonMenus 清理废弃的按钮级菜单节点（type=3）
+// 权限系统改为：资产级权限规则 + RequireAdmin 中间件，不再需要按钮级菜单
+func cleanupButtonMenus(db *gorm.DB) {
+	// 先删除 sys_role_menu 中关联的记录
+	db.Exec(`DELETE FROM sys_role_menu WHERE menu_id IN (SELECT id FROM sys_menu WHERE type = 3 AND deleted_at IS NULL)`)
+	// 再硬删除所有 type=3 的菜单记录
+	db.Exec(`DELETE FROM sys_menu WHERE type = 3`)
 }
 
 // columnExists 检查表中是否存在指定列

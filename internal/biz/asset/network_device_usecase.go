@@ -127,6 +127,36 @@ func (uc *NetworkDeviceUseCase) List(ctx context.Context, page, pageSize int, ke
 	return devices, total, nil
 }
 
+// ListFiltered 分页查询网络设备列表（支持按可访问ID过滤）
+func (uc *NetworkDeviceUseCase) ListFiltered(ctx context.Context, page, pageSize int, keyword, deviceType, protocol string, groupID uint, accessibleIDs []uint) ([]*NetworkDevice, int64, error) {
+	devices, total, err := uc.deviceRepo.ListFiltered(ctx, page, pageSize, keyword, deviceType, protocol, groupID, accessibleIDs)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	// 批量加载凭证和分组
+	for _, device := range devices {
+		if device.CredentialID > 0 {
+			cred, err := uc.credentialRepo.GetByID(ctx, device.CredentialID)
+			if err == nil && cred != nil {
+				device.Credential = &Credential{
+					ID:   cred.ID,
+					Name: cred.Name,
+					Type: cred.Type,
+				}
+			}
+		}
+		if device.GroupID > 0 {
+			group, err := uc.groupRepo.GetByID(ctx, device.GroupID)
+			if err == nil && group != nil {
+				device.Group = group
+			}
+		}
+	}
+
+	return devices, total, nil
+}
+
 // GetAll 获取所有网络设备
 func (uc *NetworkDeviceUseCase) GetAll(ctx context.Context) ([]*NetworkDevice, error) {
 	return uc.deviceRepo.GetAll(ctx)

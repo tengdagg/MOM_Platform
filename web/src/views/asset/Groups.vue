@@ -231,6 +231,7 @@ import {
   updateGroup,
   deleteGroup
 } from '@/api/assetGroup'
+import { useUserStore } from '@/stores/user'
 
 // 加载状态
 const loading = ref(false)
@@ -245,6 +246,13 @@ const isRootGroup = ref(false)
 // 表单引用
 const formRef = ref<FormInstance>()
 const tableRef = ref<InstanceType<typeof ElTable>>()
+
+// 用户权限
+const userStore = useUserStore()
+const isAdmin = computed(() => {
+  const roles = userStore.userInfo?.roles || []
+  return roles.some((r: any) => r.code === 'admin')
+})
 
 // 分组树数据
 const groupTree = ref<any[]>([])
@@ -423,6 +431,10 @@ const resetForm = () => {
 
 // 新增顶级分组
 const handleAdd = () => {
+  if (!isAdmin.value) {
+    ElMessage.error('无权限，请联系管理员操作')
+    return
+  }
   resetForm()
   loadParentOptions()
   dialogTitle.value = '新增分组'
@@ -433,6 +445,10 @@ const handleAdd = () => {
 
 // 编辑分组
 const handleEdit = (row: any) => {
+  if (!isAdmin.value) {
+    ElMessage.error('无权限，请联系管理员操作')
+    return
+  }
   Object.assign(groupForm, {
     id: row.id,
     parentId: row.parentId || 0,
@@ -457,6 +473,10 @@ const handleEdit = (row: any) => {
 
 // 删除分组
 const handleDelete = (row: any) => {
+  if (!isAdmin.value) {
+    ElMessage.error('无权限，请联系管理员操作')
+    return
+  }
   const hasChildren = row.children && row.children.length > 0
   const confirmMsg = hasChildren
     ? `该分组下有 ${row.children.length} 个子分组，确定要删除分组"${row.name}"及其所有子分组吗？`

@@ -340,6 +340,7 @@ import {
 } from '@/api/host'
 import { getGroupTree } from '@/api/assetGroup'
 import CustomIcons from '@/components/icons/CustomIcons.vue'
+import { useUserStore } from '@/stores/user'
 
 // 云厂商 → CustomIcons name 映射
 const providerIconMap: Record<string, string> = {
@@ -350,6 +351,12 @@ const providerIconMap: Record<string, string> = {
   baidu: 'Baidu',
   ksyun: 'KSYun',
 }
+
+const userStore = useUserStore()
+const isAdmin = computed(() => {
+  const roles = userStore.userInfo?.roles || []
+  return roles.some((r: any) => r.code === 'admin')
+})
 
 const loading = ref(false)
 const accountList = ref<any[]>([])
@@ -491,6 +498,10 @@ const loadGroupTree = async () => {
 
 // 新增
 const handleAdd = () => {
+  if (!isAdmin.value) {
+    ElMessage.error('无权限，请联系管理员操作')
+    return
+  }
   Object.assign(form, {
     id: 0,
     name: '',
@@ -513,6 +524,10 @@ const handleAdd = () => {
 
 // 编辑
 const handleEdit = async (row: any) => {
+  if (!isAdmin.value) {
+    ElMessage.error('无权限，请联系管理员操作')
+    return
+  }
   isEdit.value = true // 先设置编辑状态
 
   Object.assign(form, {
@@ -543,6 +558,10 @@ const handleEdit = async (row: any) => {
 
 // 删除
 const handleDelete = (row: any) => {
+  if (!isAdmin.value) {
+    ElMessage.error('无权限，请联系管理员操作')
+    return
+  }
   ElMessageBox.confirm(`确定要删除云账号"${row.name}"吗？`, '提示', {
     type: 'warning'
   }).then(async () => {
@@ -605,6 +624,10 @@ const handleDialogClose = () => {
 
 // 导入主机
 const handleImportHost = (row: any) => {
+  if (!isAdmin.value) {
+    ElMessage.error('无权限，请联系管理员操作')
+    return
+  }
   if (row.status === 0) {
     ElMessage.warning('该账号已禁用，无法导入主机')
     return

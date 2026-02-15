@@ -295,6 +295,10 @@ func (uc *MenuUseCase) GetByRoleID(ctx context.Context, roleID uint) ([]*SysMenu
 	return uc.menuRepo.GetByRoleID(ctx, roleID)
 }
 
+func (uc *MenuUseCase) GetButtonCodesByUserID(ctx context.Context, userID uint) ([]string, error) {
+	return uc.menuRepo.GetButtonCodesByUserID(ctx, userID)
+}
+
 type PositionUseCase struct {
 	positionRepo PositionRepo
 }
@@ -414,4 +418,8 @@ func (uc *AssetPermissionUseCase) CheckHostOperationPermission(ctx context.Conte
 // GetUserHostPermissions 获取用户对指定主机的所有操作权限
 func (uc *AssetPermissionUseCase) GetUserHostPermissions(ctx context.Context, userID, hostID uint) (uint, error) {
 	return uc.assetPermissionRepo.GetUserHostPermissions(ctx, userID, hostID)
+}
+
+func (uc *AssetPermissionUseCase) GetUserNetworkDevicePermissions(ctx context.Context, userID, deviceID uint) (uint, error) {
+	return uc.assetPermissionRepo.GetUserNetworkDevicePermissions(ctx, userID, deviceID)
 }

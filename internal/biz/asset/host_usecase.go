@@ -513,15 +513,20 @@ func (uc *CredentialUseCase) GetByIDDecrypted(ctx context.Context, id uint) (*Cr
 
 // CredentialUseCase 凭证用例
 type CredentialUseCase struct {
-	repo     CredentialRepo
-	hostRepo HostRepo
+	repo       CredentialRepo
+	hostRepo   HostRepo
+	deviceRepo NetworkDeviceRepo
 }
 
-func NewCredentialUseCase(repo CredentialRepo, hostRepo HostRepo) *CredentialUseCase {
-	return &CredentialUseCase{
+func NewCredentialUseCase(repo CredentialRepo, hostRepo HostRepo, deviceRepo ...NetworkDeviceRepo) *CredentialUseCase {
+	uc := &CredentialUseCase{
 		repo:     repo,
 		hostRepo: hostRepo,
 	}
+	if len(deviceRepo) > 0 {
+		uc.deviceRepo = deviceRepo[0]
+	}
+	return uc
 }
 
 // Create 创建凭证
@@ -593,7 +598,12 @@ func (uc *CredentialUseCase) List(ctx context.Context, page, pageSize int, keywo
 		}
 
 		// 统计使用该凭证的主机数量
-		usedCount, _ := uc.hostRepo.CountByCredentialID(ctx, cred.ID)
+		hostCount, _ := uc.hostRepo.CountByCredentialID(ctx, cred.ID)
+		// 统计使用该凭证的网络设备数量
+		var deviceCount int64
+		if uc.deviceRepo != nil {
+			deviceCount, _ = uc.deviceRepo.CountByCredentialID(ctx, cred.ID)
+		}
 
 		vo := &CredentialVO{
 			ID:          cred.ID,
@@ -604,7 +614,8 @@ func (uc *CredentialUseCase) List(ctx context.Context, page, pageSize int, keywo
 			Username:    cred.Username,
 			Description: cred.Description,
 			CreateTime:  cred.CreatedAt.Format("2006-01-02 15:04:05"),
-			HostCount:   usedCount,
+			HostCount:   hostCount,
+			DeviceCount: deviceCount,
 		}
 		vos = append(vos, vo)
 	}
@@ -637,8 +648,12 @@ func (uc *CredentialUseCase) GetAll(ctx context.Context, category ...string) ([]
 			typeText = "密钥"
 		}
 
-		// 统计使用该凭证的主机数量
-		usedCount, _ := uc.hostRepo.CountByCredentialID(ctx, cred.ID)
+		// 统计使用该凭证的主机和网络设备数量
+		hostCount, _ := uc.hostRepo.CountByCredentialID(ctx, cred.ID)
+		var deviceCount int64
+		if uc.deviceRepo != nil {
+			deviceCount, _ = uc.deviceRepo.CountByCredentialID(ctx, cred.ID)
+		}
 
 		vo := &CredentialVO{
 			ID:          cred.ID,
@@ -649,7 +664,8 @@ func (uc *CredentialUseCase) GetAll(ctx context.Context, category ...string) ([]
 			Username:    cred.Username,
 			Description: cred.Description,
 			CreateTime:  cred.CreatedAt.Format("2006-01-02 15:04:05"),
-			HostCount:   usedCount,
+			HostCount:   hostCount,
+			DeviceCount: deviceCount,
 		}
 		vos = append(vos, vo)
 	}

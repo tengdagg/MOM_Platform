@@ -177,3 +177,19 @@ func (r *menuRepo) GetByRoleID(ctx context.Context, roleID uint) ([]*rbac.SysMen
 		Find(&menus).Error
 	return menus, err
 }
+
+func (r *menuRepo) GetButtonCodesByUserID(ctx context.Context, userID uint) ([]string, error) {
+	var codes []string
+	err := r.db.WithContext(ctx).Raw(`
+		SELECT DISTINCT m.code
+		FROM sys_menu m
+		JOIN sys_role_menu rm ON rm.menu_id = m.id
+		JOIN sys_user_role ur ON ur.role_id = rm.role_id
+		WHERE ur.user_id = ?
+		  AND m.status = 1
+		  AND m.type = 3
+		  AND m.code != ''
+		  AND m.deleted_at IS NULL
+	`, userID).Scan(&codes).Error
+	return codes, err
+}

@@ -106,8 +106,13 @@ func (h *TerminalAuditHandler) ListTerminalSessions(c *gin.Context) {
 			sessionType = "ssh" // 兼容旧数据
 		}
 		sessionTypeText := "SSH"
-		if sessionType == "rdp" {
+		switch sessionType {
+		case "rdp":
 			sessionTypeText = "RDP"
+		case "telnet":
+			sessionTypeText = "Telnet"
+		case "ssh":
+			sessionTypeText = "SSH"
 		}
 
 		info := &assetbiz.TerminalSessionInfo{

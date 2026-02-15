@@ -145,7 +145,7 @@ Agent 是整个 AI 助手的核心引擎，负责：
            content: "有哪些主机CPU使用率超过80%？",
            modelId: 1
          }
-         如果 WebSocket 不可用，回退到 HTTP POST /api/v1/plugins/ai/chat/send
+如果 WebSocket 不可用，回退到 HTTP POST /api/v1/plugins/ai/chat/send
 ```
 
 ### 阶段二：后端接收并初始化

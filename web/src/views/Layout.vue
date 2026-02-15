@@ -135,6 +135,7 @@
 import { computed, ref, onMounted, onUnmounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useUserStore } from '@/stores/user'
+// import { usePermissionStore } from '@/stores/permission' // 不再加载按钮权限码，减少DB查询
 import { ElMessage } from 'element-plus'
 import NoPermission from '@/views/NoPermission.vue'
 import {
@@ -501,6 +502,9 @@ const loadMenu = async () => {
   }
 }
 
+// 加载按钮级权限
+// 按钮权限已移除，资产管理模块改用资产级权限 + isAdmin 直接判断
+
 const handleUserCommand = (command: string) => {
   if (command === 'logout') {
     userStore.logout()
@@ -519,6 +523,7 @@ onMounted(async () => {
   await new Promise(resolve => setTimeout(resolve, 100))
   loadMenu()
 
+  // 加载按钮级权限
   const handlePluginChange = () => loadMenu()
   const handleMenuChange = () => loadMenu()
   window.removeEventListener('plugins-changed', handlePluginChange)

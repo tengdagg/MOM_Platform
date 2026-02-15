@@ -60,7 +60,10 @@
 
         <el-table-column label="类型" width="90" align="center">
           <template #default="{ row }">
-            <el-tag :type="row.sessionType === 'rdp' ? 'warning' : 'primary'" size="small">
+            <el-tag
+              :type="row.sessionType === 'rdp' ? 'warning' : row.sessionType === 'telnet' ? 'success' : 'primary'"
+              size="small"
+            >
               {{ row.sessionTypeText || 'SSH' }}
             </el-tag>
           </template>
@@ -215,6 +218,13 @@ import {
 } from '@element-plus/icons-vue'
 import { getTerminalSessions, playTerminalSession, deleteTerminalSession, getRetentionConfig, updateRetentionConfig, cleanupExpiredSessions } from '@/api/terminal'
 import AsciinemaPlayer from '@/components/AsciinemaPlayer.vue'
+import { useUserStore } from '@/stores/user'
+
+const userStore = useUserStore()
+const isAdmin = computed(() => {
+  const roles = userStore.userInfo?.roles || []
+  return roles.some((r: any) => r.code === 'admin')
+})
 
 interface TerminalSession {
   id: number
@@ -285,6 +295,10 @@ const loadSessions = async () => {
 
 // 播放会话
 const handlePlay = async (session: TerminalSession) => {
+  if (!isAdmin.value) {
+    ElMessage.error('无权限，请联系管理员操作')
+    return
+  }
   playingSession.value = session.id
   try {
     const response = await playTerminalSession(session.id)
@@ -313,6 +327,10 @@ const handleDeleteClick = (row: TerminalSession) => {
 }
 
 const handleDelete = async (id: number) => {
+  if (!isAdmin.value) {
+    ElMessage.error('无权限，请联系管理员操作')
+    return
+  }
   deletingSession.value = id
   try {
     await deleteTerminalSession(id)
@@ -383,6 +401,10 @@ const loadRetentionConfig = async () => {
 
 // 保存保留配置
 const handleSaveRetention = async () => {
+  if (!isAdmin.value) {
+    ElMessage.error('无权限，请联系管理员操作')
+    return
+  }
   savingRetention.value = true
   try {
     await updateRetentionConfig({
@@ -400,6 +422,10 @@ const handleSaveRetention = async () => {
 
 // 手动清理
 const handleManualCleanup = async () => {
+  if (!isAdmin.value) {
+    ElMessage.error('无权限，请联系管理员操作')
+    return
+  }
   try {
     await ElMessageBox.confirm(
       `确定清理超过 ${retentionForm.retentionDays} 天的审计记录吗？此操作不可恢复。`,

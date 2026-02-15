@@ -52,17 +52,11 @@ func (r *assetPermissionRepo) CreateBatch(ctx context.Context, roleID, assetGrou
 	return r.db.WithContext(ctx).Create(permission).Error
 }
 
-// CreateBatchWithPermissions 批量创建资产权限（支持指定操作权限和资产类型）
+// CreateBatchWithPermissions 创建资产权限（支持指定操作权限和资产类型）
+// 不再自动删除同分组的旧记录，允许同分组存在多条规则（如 "全部主机查看" + "指定主机终端"）
 func (r *assetPermissionRepo) CreateBatchWithPermissions(ctx context.Context, roleID, assetGroupID uint, hostIDs []uint, permissions uint, assetType string) error {
 	if assetType == "" {
 		assetType = "host"
-	}
-
-	// 先硬删除该角色对该资产分组和资产类型的所有现有权限（包括已软删除的）
-	if err := r.db.WithContext(ctx).
-		Where("role_id = ? AND asset_group_id = ? AND asset_type = ?", roleID, assetGroupID, assetType).
-		Unscoped().Delete(&rbac.SysRoleAssetPermission{}).Error; err != nil {
-		return err
 	}
 
 	// 如果权限为0，默认为查看权限
@@ -70,7 +64,7 @@ func (r *assetPermissionRepo) CreateBatchWithPermissions(ctx context.Context, ro
 		permissions = rbac.PermissionView
 	}
 
-	// 创建单条记录，支持多个主机/设备ID
+	// 直接创建新记录
 	permission := &rbac.SysRoleAssetPermission{
 		RoleID:       roleID,
 		AssetGroupID: assetGroupID,
@@ -324,12 +318,13 @@ func (r *assetPermissionRepo) CheckHostPermission(ctx context.Context, userID, h
 	// 1. 检查是否有整个分组的权限（host_ids 为空或 NULL）
 	// 2. 检查是否有特定主机的权限（host_ids 包含该主机ID）
 	var permCount int64
-	err = r.db.WithContext(ctx).
-		Table("sys_role_asset_permission AS p").
-		Joins("JOIN sys_user_role AS ur ON p.role_id = ur.role_id").
-		Where("ur.user_id = ? AND p.asset_group_id = ? AND p.deleted_at IS NULL", userID, groupID).
-		Where("JSON_LENGTH(COALESCE(p.host_ids, JSON_ARRAY())) = 0 OR JSON_CONTAINS(p.host_ids, CAST(? AS JSON))", hostID).
-		Count(&permCount).Error
+	err = r.db.WithContext(ctx).Raw(`
+		SELECT COUNT(*) FROM sys_role_asset_permission p
+		JOIN sys_user_role ur ON p.role_id = ur.role_id
+		WHERE ur.user_id = ? AND p.asset_group_id = ? AND p.deleted_at IS NULL
+		AND COALESCE(p.asset_type, 'host') = 'host'
+		AND (JSON_LENGTH(COALESCE(p.host_ids, JSON_ARRAY())) = 0 OR JSON_CONTAINS(p.host_ids, CAST(? AS JSON)))
+	`, userID, groupID, hostID).Scan(&permCount).Error
 
 	if err != nil {
 		return false, err
@@ -367,7 +362,7 @@ func (r *assetPermissionRepo) GetUserAccessibleHostIDs(ctx context.Context, user
 	// 2. 如果 host_ids 包含主机ID，表示有特定主机的权限
 	var hostIDs []uint
 
-	// 通过原生SQL查询，处理 JSON 字段
+	// 通过原生SQL查询，处理 JSON 字段；只查 asset_type='host' 的记录
 	err = r.db.WithContext(ctx).Raw(`
 		SELECT DISTINCT h.id
 		FROM hosts AS h
@@ -376,6 +371,7 @@ func (r *assetPermissionRepo) GetUserAccessibleHostIDs(ctx context.Context, user
 		WHERE ur.user_id = ?
 		AND h.deleted_at IS NULL
 		AND p.deleted_at IS NULL
+		AND COALESCE(p.asset_type, 'host') = 'host'
 		AND (
 			JSON_LENGTH(COALESCE(p.host_ids, JSON_ARRAY())) = 0
 			OR JSON_CONTAINS(p.host_ids, CAST(h.id AS JSON))
@@ -419,18 +415,129 @@ func (r *assetPermissionRepo) CheckHostOperationPermission(ctx context.Context, 
 	// 检查用户的角色是否有该操作权限
 	// host_ids 为空表示有整个分组的权限，host_ids 包含该主机表示有特定主机的权限
 	var permCount int64
-	err = r.db.WithContext(ctx).
-		Table("sys_role_asset_permission AS p").
-		Joins("JOIN sys_user_role AS ur ON p.role_id = ur.role_id").
-		Where("ur.user_id = ? AND p.asset_group_id = ? AND p.deleted_at IS NULL", userID, groupID).
-		Where("(JSON_LENGTH(COALESCE(p.host_ids, JSON_ARRAY())) = 0 OR JSON_CONTAINS(p.host_ids, CAST(? AS JSON))) AND (p.permissions & ?) > 0", hostID, operation).
-		Count(&permCount).Error
+	err = r.db.WithContext(ctx).Raw(`
+		SELECT COUNT(*) FROM sys_role_asset_permission p
+		JOIN sys_user_role ur ON p.role_id = ur.role_id
+		WHERE ur.user_id = ? AND p.asset_group_id = ? AND p.deleted_at IS NULL
+		AND COALESCE(p.asset_type, 'host') = 'host'
+		AND (JSON_LENGTH(COALESCE(p.host_ids, JSON_ARRAY())) = 0 OR JSON_CONTAINS(p.host_ids, CAST(? AS JSON)))
+		AND (p.permissions & ?) > 0
+	`, userID, groupID, hostID, operation).Scan(&permCount).Error
 
 	if err != nil {
 		return false, err
 	}
 
 	return permCount > 0, nil
+}
+
+// CheckNetworkDeviceOperationPermission 检查用户是否有对指定网络设备的特定操作权限
+func (r *assetPermissionRepo) CheckNetworkDeviceOperationPermission(ctx context.Context, userID, deviceID uint, operation uint) (bool, error) {
+	// 管理员检查
+	var adminCount int64
+	if err := r.db.WithContext(ctx).
+		Table("sys_user_role AS ur").
+		Joins("JOIN sys_role AS r ON ur.role_id = r.id").
+		Where("ur.user_id = ? AND r.code = ?", userID, "admin").
+		Count(&adminCount).Error; err != nil {
+		return false, err
+	}
+	if adminCount > 0 {
+		return true, nil
+	}
+
+	var groupID uint
+	if err := r.db.WithContext(ctx).
+		Table("network_devices").
+		Select("group_id").
+		Where("id = ? AND deleted_at IS NULL", deviceID).
+		Scan(&groupID).Error; err != nil {
+		return false, err
+	}
+
+	var permCount int64
+	err := r.db.WithContext(ctx).Raw(`
+		SELECT COUNT(*) FROM sys_role_asset_permission p
+		JOIN sys_user_role ur ON p.role_id = ur.role_id
+		WHERE ur.user_id = ? AND p.asset_group_id = ? AND p.deleted_at IS NULL
+		AND COALESCE(p.asset_type, 'host') = 'network_device'
+		AND (JSON_LENGTH(COALESCE(p.host_ids, JSON_ARRAY())) = 0 OR JSON_CONTAINS(p.host_ids, CAST(? AS JSON)))
+		AND (p.permissions & ?) > 0
+	`, userID, groupID, deviceID, operation).Scan(&permCount).Error
+	if err != nil {
+		return false, err
+	}
+	return permCount > 0, nil
+}
+
+// GetUserNetworkDevicePermissions 获取用户对指定网络设备的所有操作权限
+func (r *assetPermissionRepo) GetUserNetworkDevicePermissions(ctx context.Context, userID, deviceID uint) (uint, error) {
+	// 管理员检查
+	var adminCount int64
+	if err := r.db.WithContext(ctx).
+		Table("sys_user_role AS ur").
+		Joins("JOIN sys_role AS r ON ur.role_id = r.id").
+		Where("ur.user_id = ? AND r.code = ?", userID, "admin").
+		Count(&adminCount).Error; err != nil {
+		return 0, err
+	}
+	if adminCount > 0 {
+		return rbac.PermissionAll, nil
+	}
+
+	var groupID uint
+	if err := r.db.WithContext(ctx).
+		Table("network_devices").
+		Select("group_id").
+		Where("id = ? AND deleted_at IS NULL", deviceID).
+		Scan(&groupID).Error; err != nil {
+		return 0, err
+	}
+
+	var permissions uint
+	err := r.db.WithContext(ctx).Raw(`
+		SELECT COALESCE(BIT_OR(p.permissions), 0) as permissions
+		FROM sys_role_asset_permission p
+		JOIN sys_user_role ur ON p.role_id = ur.role_id
+		WHERE ur.user_id = ? AND p.asset_group_id = ? AND p.deleted_at IS NULL
+		AND COALESCE(p.asset_type, 'host') = 'network_device'
+		AND (JSON_LENGTH(COALESCE(p.host_ids, JSON_ARRAY())) = 0 OR JSON_CONTAINS(p.host_ids, CAST(? AS JSON)))
+	`, userID, groupID, deviceID).Scan(&permissions).Error
+	return permissions, err
+}
+
+// GetUserAccessibleNetworkDeviceIDs 获取用户有权限访问的所有网络设备ID列表
+// 管理员返回 nil 表示不做过滤
+func (r *assetPermissionRepo) GetUserAccessibleNetworkDeviceIDs(ctx context.Context, userID uint) ([]uint, error) {
+	// 管理员检查 — 返回 nil 表示不需要过滤
+	var adminCount int64
+	if err := r.db.WithContext(ctx).
+		Table("sys_user_role AS ur").
+		Joins("JOIN sys_role AS r ON ur.role_id = r.id").
+		Where("ur.user_id = ? AND r.code = ?", userID, "admin").
+		Count(&adminCount).Error; err != nil {
+		return nil, err
+	}
+	if adminCount > 0 {
+		return nil, nil
+	}
+
+	var deviceIDs []uint
+	err := r.db.WithContext(ctx).Raw(`
+		SELECT DISTINCT d.id
+		FROM network_devices d
+		JOIN sys_role_asset_permission p ON p.asset_group_id = d.group_id
+		JOIN sys_user_role ur ON p.role_id = ur.role_id
+		WHERE ur.user_id = ?
+		AND d.deleted_at IS NULL
+		AND p.deleted_at IS NULL
+		AND COALESCE(p.asset_type, 'host') = 'network_device'
+		AND (
+			JSON_LENGTH(COALESCE(p.host_ids, JSON_ARRAY())) = 0
+			OR JSON_CONTAINS(p.host_ids, CAST(d.id AS JSON))
+		)
+	`, userID).Scan(&deviceIDs).Error
+	return deviceIDs, err
 }
 
 // GetUserHostPermissions 获取用户对指定主机的所有操作权限
@@ -464,13 +571,14 @@ func (r *assetPermissionRepo) GetUserHostPermissions(ctx context.Context, userID
 		return 0, err
 	}
 
-	// 查询用户对该主机的所有权限（通过OR操作组合权限）
+	// 查询用户对该主机的所有权限（通过BIT_OR组合多条规则的权限）
 	var permissions uint
 	err = r.db.WithContext(ctx).Raw(`
 		SELECT COALESCE(BIT_OR(p.permissions), 0) as permissions
 		FROM sys_role_asset_permission AS p
 		JOIN sys_user_role AS ur ON p.role_id = ur.role_id
 		WHERE ur.user_id = ? AND p.asset_group_id = ? AND p.deleted_at IS NULL
+		AND COALESCE(p.asset_type, 'host') = 'host'
 		AND (JSON_LENGTH(COALESCE(p.host_ids, JSON_ARRAY())) = 0 OR JSON_CONTAINS(p.host_ids, CAST(? AS JSON)))
 	`, userID, groupID, hostID).Scan(&permissions).Error
 

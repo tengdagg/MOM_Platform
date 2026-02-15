@@ -332,5 +332,83 @@ func (s *MenuService) GetUserMenu(c *gin.Context) {
 		return
 	}
 
+	// 过滤掉 type=3 的按钮节点，按钮不应出现在导航菜单中
+	tree = filterOutButtons(tree)
+
 	response.Success(c, tree)
+}
+
+// filterOutButtons 递归移除 type=3 的按钮节点，只保留目录和菜单
+func filterOutButtons(menus []*rbac.SysMenu) []*rbac.SysMenu {
+	var result []*rbac.SysMenu
+	for _, m := range menus {
+		if m.Type == 3 {
+			continue
+		}
+		if len(m.Children) > 0 {
+			m.Children = filterOutButtons(m.Children)
+		}
+		result = append(result, m)
+	}
+	return result
+}
+
+// GetUserPermissions 获取当前用户的按钮权限编码列表
+func (s *MenuService) GetUserPermissions(c *gin.Context) {
+	userID := GetUserID(c)
+	if userID == 0 {
+		response.ErrorCode(c, http.StatusUnauthorized, "未登录")
+		return
+	}
+
+	// 获取用户的角色
+	roles, err := s.roleUseCase.GetByUserID(c.Request.Context(), userID)
+	if err != nil {
+		response.ErrorCode(c, http.StatusInternalServerError, "查询角色失败: "+err.Error())
+		return
+	}
+
+	// 超级管理员返回所有按钮编码
+	isSuperAdmin := false
+	for _, role := range roles {
+		if role.Code == "admin" {
+			isSuperAdmin = true
+			break
+		}
+	}
+
+	if isSuperAdmin {
+		// 管理员：取所有 type=3 的按钮编码
+		tree, err := s.menuUseCase.GetTree(c.Request.Context())
+		if err != nil {
+			response.ErrorCode(c, http.StatusInternalServerError, "查询失败: "+err.Error())
+			return
+		}
+		codes := extractButtonCodes(tree)
+		response.Success(c, codes)
+		return
+	}
+
+	// 普通用户：直接查按钮权限
+	codes, err := s.menuUseCase.GetButtonCodesByUserID(c.Request.Context(), userID)
+	if err != nil {
+		response.ErrorCode(c, http.StatusInternalServerError, "查询失败: "+err.Error())
+		return
+	}
+
+	response.Success(c, codes)
+}
+
+// extractButtonCodes 递归提取按钮权限编码
+func extractButtonCodes(menus []*rbac.SysMenu) []string {
+	var codes []string
+	for _, m := range menus {
+		if m.Type == 3 && m.Code != "" {
+			codes = append(codes, m.Code)
+		}
+		if len(m.Children) > 0 {
+			codes = append(codes, extractButtonCodes(m.Children)...)
+		}
+	}
+	return codes
 }
