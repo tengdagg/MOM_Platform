@@ -21,6 +21,7 @@ package rbac
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"strconv"
 	"time"
@@ -28,8 +29,9 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/ydcloud-dy/mom/internal/biz/audit"
 	"github.com/ydcloud-dy/mom/internal/biz/rbac"
-	"github.com/ydcloud-dy/mom/pkg/response"
+	"github.com/ydcloud-dy/mom/internal/data"
 	appLogger "github.com/ydcloud-dy/mom/pkg/logger"
+	"github.com/ydcloud-dy/mom/pkg/response"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
 )
@@ -41,6 +43,21 @@ type UserService struct {
 	loginLogUseCase *audit.LoginLogUseCase
 	ldapService     *LDAPService
 	db              *gorm.DB
+	cache           *data.Cache
+}
+
+// SetCache 注入缓存
+func (s *UserService) SetCache(cache *data.Cache) {
+	s.cache = cache
+}
+
+// invalidateUserCache 失效指定用户的所有缓存
+func (s *UserService) invalidateUserCache(ctx context.Context, userID uint) {
+	if s.cache == nil {
+		return
+	}
+	prefix := fmt.Sprintf("user:%d:", userID)
+	s.cache.DelByPrefix(ctx, prefix)
 }
 
 func NewUserService(userUseCase *rbac.UserUseCase, authService *AuthService) *UserService {
@@ -452,6 +469,9 @@ func (s *UserService) UpdateUser(c *gin.Context) {
 		return
 	}
 
+	// 用户信息变更，失效缓存
+	s.invalidateUserCache(c.Request.Context(), uint(id))
+
 	// 重新获取完整的用户数据，包含Roles和Positions
 	user, err := s.userUseCase.GetByID(c.Request.Context(), uint(id))
 	if err != nil {
@@ -595,6 +615,7 @@ func (s *UserService) AssignUserRoles(c *gin.Context) {
 		return
 	}
 
+	s.invalidateUserCache(c.Request.Context(), uint(id))
 	response.Success(c, nil)
 }
 

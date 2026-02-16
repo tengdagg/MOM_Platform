@@ -158,8 +158,11 @@ func runServer() (*conf.Config, error) {
 	// 修复：确保个人信息菜单始终隐藏（解决历史数据问题）
 	data.DB().Exec("UPDATE sys_menu SET visible = 0 WHERE code = 'profile'")
 
+	// 创建缓存工具
+	cache := dataPkg.NewCache(redis.Get())
+
 	// 初始化HTTP服务器
-	httpServer := server.NewHTTPServer(cfg, svc, data.DB())
+	httpServer := server.NewHTTPServer(cfg, svc, data.DB(), cache)
 	globalHTTPServer = httpServer // 保存到全局变量
 
 	// 启动服务器

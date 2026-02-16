@@ -22,10 +22,11 @@ package rbac
 import (
 	"github.com/gin-gonic/gin"
 	auditbiz "github.com/ydcloud-dy/mom/internal/biz/audit"
-	auditdata "github.com/ydcloud-dy/mom/internal/data/audit"
-	rbacService "github.com/ydcloud-dy/mom/internal/service/rbac"
-	rbacdata "github.com/ydcloud-dy/mom/internal/data/rbac"
 	rbacbiz "github.com/ydcloud-dy/mom/internal/biz/rbac"
+	"github.com/ydcloud-dy/mom/internal/data"
+	auditdata "github.com/ydcloud-dy/mom/internal/data/audit"
+	rbacdata "github.com/ydcloud-dy/mom/internal/data/rbac"
+	rbacService "github.com/ydcloud-dy/mom/internal/service/rbac"
 	"gorm.io/gorm"
 )
 
@@ -195,7 +196,7 @@ func (s *HTTPServer) RegisterRoutes(r *gin.Engine) {
 }
 
 // 依赖注入函数
-func NewRBACServices(db *gorm.DB, jwtSecret string) (
+func NewRBACServices(db *gorm.DB, jwtSecret string, cache *data.Cache) (
 	*rbacService.UserService,
 	*rbacService.RoleService,
 	*rbacService.DepartmentService,
@@ -207,14 +208,14 @@ func NewRBACServices(db *gorm.DB, jwtSecret string) (
 	*rbacService.LDAPService,
 	*rbacService.AuthMiddleware,
 ) {
-	// 初始化Repository
+	// 初始化Repository（带缓存）
 	userRepo := rbacdata.NewUserRepo(db)
-	roleRepo := rbacdata.NewRoleRepo(db)
+	roleRepo := rbacdata.NewRoleRepoWithCache(db, cache)
 	deptRepo := rbacdata.NewDepartmentRepo(db)
-	menuRepo := rbacdata.NewMenuRepo(db)
+	menuRepo := rbacdata.NewMenuRepoWithCache(db, cache)
 	positionRepo := rbacdata.NewPositionRepo(db)
 	assetPermissionRepo := rbacdata.NewAssetPermissionRepo(db)
-	assetAuthorizationRepo := rbacdata.NewAssetAuthorizationRepo(db)
+	assetAuthorizationRepo := rbacdata.NewAssetAuthorizationRepoWithCache(db, cache)
 
 	// 初始化Audit Repository
 	loginLogRepo := auditdata.NewLoginLogRepo(db)
@@ -245,7 +246,12 @@ func NewRBACServices(db *gorm.DB, jwtSecret string) (
 	assetPermissionService := rbacService.NewAssetPermissionService(assetPermissionUseCase)
 	assetAuthorizationService := rbacService.NewAssetAuthorizationService(assetAuthorizationUseCase)
 	assetAuthorizationService.SetDB(db)
+	assetAuthorizationService.SetCache(cache)
 	authMiddleware := rbacService.NewAuthMiddleware(authService)
+
+	// 注入缓存
+	userService.SetCache(cache)
+	roleService.SetCache(cache)
 
 	// 设置验证码服务到用户服务
 	userService.SetCaptchaService(captchaService)

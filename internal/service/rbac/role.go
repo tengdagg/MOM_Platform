@@ -20,22 +20,38 @@
 package rbac
 
 import (
+	"context"
 	"net/http"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
 	"github.com/ydcloud-dy/mom/internal/biz/rbac"
+	"github.com/ydcloud-dy/mom/internal/data"
 	"github.com/ydcloud-dy/mom/pkg/response"
 )
 
 type RoleService struct {
 	roleUseCase *rbac.RoleUseCase
+	cache       *data.Cache
 }
 
 func NewRoleService(roleUseCase *rbac.RoleUseCase) *RoleService {
 	return &RoleService{
 		roleUseCase: roleUseCase,
 	}
+}
+
+// SetCache 注入缓存
+func (s *RoleService) SetCache(cache *data.Cache) {
+	s.cache = cache
+}
+
+// invalidateAllUserMenuCache 菜单权限变更时，失效所有用户的菜单缓存
+func (s *RoleService) invalidateAllUserMenuCache(ctx context.Context) {
+	if s.cache == nil {
+		return
+	}
+	s.cache.DelByPrefix(ctx, "user:")
 }
 
 // CreateRole 创建角色
@@ -240,5 +256,7 @@ func (s *RoleService) AssignRoleMenus(c *gin.Context) {
 		return
 	}
 
+	// 角色菜单变更，失效所有用户的菜单和角色缓存
+	s.invalidateAllUserMenuCache(c.Request.Context())
 	response.Success(c, nil)
 }

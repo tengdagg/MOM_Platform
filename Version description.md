@@ -222,3 +222,17 @@ PUT /api/v1/system-config — 批量保存配置，自动处理新增/更新
 loadConfig 改为调用 GET /api/v1/system-config，从后端数据库加载配置（不再使用 localStorage）
 handleSave 改为调用 PUT /api/v1/system-config，将配置持久化到数据库
 "日志保留天数" 输入框旁增加了提示文字："适用于操作日志、登录日志、数据变更日志，超过天数自动清理"
+
+
+### 20260216
+问题1：AI 助手 SSH 认证失败
+根因：凭证密码在数据库中是 AES-GCM 加密存储 的（base64 编码）。终端连接通过 GetByIDDecrypted 方法自动解密后使用，但 AI Skill 的 device.exec_command 和 device.test_connection 直接用 SELECT password FROM credentials 读取的是 加密后的密文，拿密文当密码去认证自然失败。
+另外，Cisco 等设备通常使用 keyboard-interactive 认证方式而非标准 password，原来的代码只配置了 ssh.Password()。
+修复 (plugins/ai/skills/device_skills.go)：
+新增 decryptCredentialPassword 函数 — 复用与 credentialRepo 相同的 AES-GCM 解密逻辑和密钥
+新增 getDeviceCredential 函数 — 统一查询设备凭证并自动解密密码
+新增 buildDeviceSSHConfig 函数 — 统一构建 SSH 配置，同时支持 ssh.Password() 和 ssh.KeyboardInteractive() 双认证方式
+executeDeviceTestConnection 和 executeDeviceExecCommand 都改用这三个新函数
+问题2：选中资产提示栏图标错位
+根因：el-tag 默认的 slot 内容是 inline 布局，直接放 el-icon 组件 + 文本时，el-icon 是一个 block-level SVG 容器，会导致图标和文本不在同一行。之前用 :deep() 的 CSS 可能因为选择器优先级不够而没生效。
+修复：在 el-tag 内部用 <span class="hint-tag-content"> 包裹 el-icon 和文本 span，给 .hint-tag-content 直接设置 display: inline-flex; align-items: center; gap: 4px，确保图标和文字水平居中对齐。这样不依赖 :deep() 穿透，直接在 scoped 作用域内生效。

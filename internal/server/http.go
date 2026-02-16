@@ -29,6 +29,7 @@ import (
 	swaggerFiles "github.com/swaggo/files"
 	ginSwagger "github.com/swaggo/gin-swagger"
 	"github.com/ydcloud-dy/mom/internal/conf"
+	"github.com/ydcloud-dy/mom/internal/data"
 	rbacdata "github.com/ydcloud-dy/mom/internal/data/rbac"
 	"github.com/ydcloud-dy/mom/internal/plugin"
 	assetserver "github.com/ydcloud-dy/mom/internal/server/asset"
@@ -52,12 +53,13 @@ type HTTPServer struct {
 	conf      *conf.Config
 	svc       *service.Service
 	db        *gorm.DB
+	cache     *data.Cache
 	pluginMgr *plugin.Manager
 	uploadSrv *UploadServer
 }
 
 // NewHTTPServer 创建HTTP服务器
-func NewHTTPServer(conf *conf.Config, svc *service.Service, db *gorm.DB) *HTTPServer {
+func NewHTTPServer(conf *conf.Config, svc *service.Service, db *gorm.DB, cache *data.Cache) *HTTPServer {
 	// 设置Gin模式
 	gin.SetMode(conf.Server.Mode)
 
@@ -108,6 +110,7 @@ func NewHTTPServer(conf *conf.Config, svc *service.Service, db *gorm.DB) *HTTPSe
 		conf:      conf,
 		svc:       svc,
 		db:        db,
+		cache:     cache,
 		pluginMgr: pluginMgr,
 		uploadSrv: uploadSrv,
 	}
@@ -141,7 +144,7 @@ func (s *HTTPServer) registerRoutes(router *gin.Engine, jwtSecret string) {
 	router.Static("/uploads", "./web/public/uploads")
 
 	// 创建 RBAC 服务
-	userService, roleService, departmentService, menuService, positionService, captchaService, assetPermissionService, assetAuthorizationService, ldapService, authMiddleware := rbac.NewRBACServices(s.db, jwtSecret)
+	userService, roleService, departmentService, menuService, positionService, captchaService, assetPermissionService, assetAuthorizationService, ldapService, authMiddleware := rbac.NewRBACServices(s.db, jwtSecret, s.cache)
 
 	// RBAC 路由
 	rbacServer := rbac.NewHTTPServer(userService, roleService, departmentService, menuService, positionService, captchaService, assetPermissionService, assetAuthorizationService, ldapService, authMiddleware)
@@ -151,14 +154,14 @@ func (s *HTTPServer) registerRoutes(router *gin.Engine, jwtSecret string) {
 	operationLogService, loginLogService, dataLogService := auditserver.NewAuditServices(s.db)
 
 	// 创建 Asset 服务
-	assetGroupService, hostService, networkDeviceService, terminalManager, networkTerminalManager := assetserver.NewAssetServices(s.db)
+	assetGroupService, hostService, networkDeviceService, terminalManager, networkTerminalManager := assetserver.NewAssetServices(s.db, s.cache)
 
-	// 设置authMiddleware的权限仓储
+	// 设置authMiddleware的权限仓储（带缓存）
 	assetPermissionRepo := rbacdata.NewAssetPermissionRepo(s.db)
 	authMiddleware.SetAssetPermissionRepo(assetPermissionRepo)
-	assetAuthorizationRepo := rbacdata.NewAssetAuthorizationRepo(s.db)
+	assetAuthorizationRepo := rbacdata.NewAssetAuthorizationRepoWithCache(s.db, s.cache)
 	authMiddleware.SetAssetAuthorizationRepo(assetAuthorizationRepo)
-	menuRepo := rbacdata.NewMenuRepo(s.db)
+	menuRepo := rbacdata.NewMenuRepoWithCache(s.db, s.cache)
 	authMiddleware.SetMenuRepo(menuRepo)
 	// 设置NetworkDeviceService的权限仓库，用于列表权限过滤
 	networkDeviceService.SetAssetPermissionRepo(assetPermissionRepo)

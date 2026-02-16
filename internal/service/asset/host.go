@@ -21,6 +21,7 @@ package asset
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -30,6 +31,7 @@ import (
 	"github.com/xuri/excelize/v2"
 	"github.com/ydcloud-dy/mom/internal/biz/asset"
 	"github.com/ydcloud-dy/mom/internal/biz/rbac"
+	"github.com/ydcloud-dy/mom/internal/data"
 	rbacService "github.com/ydcloud-dy/mom/internal/service/rbac"
 	"github.com/ydcloud-dy/mom/pkg/response"
 )
@@ -40,6 +42,19 @@ type HostService struct {
 	cloudUseCase               *asset.CloudAccountUseCase
 	assetPermissionUseCase     *rbac.AssetPermissionUseCase
 	assetAuthorizationUseCase  *rbac.AssetAuthorizationUseCase
+	cache                      *data.Cache
+}
+
+// SetCache 注入缓存
+func (s *HostService) SetCache(cache *data.Cache) {
+	s.cache = cache
+}
+
+// invalidateGroupTreeCache 主机增删时失效分组树缓存
+func (s *HostService) invalidateGroupTreeCache(ctx context.Context) {
+	if s.cache != nil {
+		s.cache.DelByPrefix(ctx, "asset:group_tree")
+	}
 }
 
 func NewHostService(hostUseCase *asset.HostUseCase, credentialUseCase *asset.CredentialUseCase, cloudUseCase *asset.CloudAccountUseCase, assetPermissionUseCase *rbac.AssetPermissionUseCase) *HostService {
@@ -79,6 +94,7 @@ func (s *HostService) CreateHost(c *gin.Context) {
 		return
 	}
 
+	s.invalidateGroupTreeCache(c.Request.Context())
 	response.Success(c, host)
 }
 
@@ -139,6 +155,7 @@ func (s *HostService) DeleteHost(c *gin.Context) {
 		return
 	}
 
+	s.invalidateGroupTreeCache(c.Request.Context())
 	response.SuccessWithMessage(c, "删除成功", nil)
 }
 

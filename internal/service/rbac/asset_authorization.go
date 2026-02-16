@@ -1,11 +1,13 @@
 package rbac
 
 import (
+	"context"
 	"net/http"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
 	"github.com/ydcloud-dy/mom/internal/biz/rbac"
+	"github.com/ydcloud-dy/mom/internal/data"
 	"github.com/ydcloud-dy/mom/pkg/response"
 	"gorm.io/gorm"
 )
@@ -14,6 +16,7 @@ import (
 type AssetAuthorizationService struct {
 	useCase *rbac.AssetAuthorizationUseCase
 	db      *gorm.DB
+	cache   *data.Cache
 }
 
 func NewAssetAuthorizationService(useCase *rbac.AssetAuthorizationUseCase) *AssetAuthorizationService {
@@ -23,6 +26,19 @@ func NewAssetAuthorizationService(useCase *rbac.AssetAuthorizationUseCase) *Asse
 // SetDB 设置数据库连接（用于资产树查询）
 func (s *AssetAuthorizationService) SetDB(db *gorm.DB) {
 	s.db = db
+}
+
+// SetCache 注入缓存
+func (s *AssetAuthorizationService) SetCache(cache *data.Cache) {
+	s.cache = cache
+}
+
+// invalidateAuthorizationCache 授权规则变更时，失效所有用户的权限缓存
+func (s *AssetAuthorizationService) invalidateAuthorizationCache(ctx context.Context) {
+	if s.cache == nil {
+		return
+	}
+	s.cache.DelByPrefix(ctx, "user:")
 }
 
 // AssetTreeNode 资产树节点
@@ -191,6 +207,7 @@ func (s *AssetAuthorizationService) CreateAssetAuthorization(c *gin.Context) {
 		return
 	}
 
+	s.invalidateAuthorizationCache(c.Request.Context())
 	response.SuccessWithMessage(c, "创建成功", auth)
 }
 
@@ -256,6 +273,7 @@ func (s *AssetAuthorizationService) UpdateAssetAuthorization(c *gin.Context) {
 		return
 	}
 
+	s.invalidateAuthorizationCache(c.Request.Context())
 	response.SuccessWithMessage(c, "更新成功", nil)
 }
 
@@ -273,6 +291,7 @@ func (s *AssetAuthorizationService) DeleteAssetAuthorization(c *gin.Context) {
 		return
 	}
 
+	s.invalidateAuthorizationCache(c.Request.Context())
 	response.SuccessWithMessage(c, "删除成功", nil)
 }
 

@@ -21,16 +21,25 @@ package rbac
 
 import (
 	"context"
+	"fmt"
+	"time"
+
 	"github.com/ydcloud-dy/mom/internal/biz/rbac"
+	"github.com/ydcloud-dy/mom/internal/data"
 	"gorm.io/gorm"
 )
 
 type roleRepo struct {
-	db *gorm.DB
+	db    *gorm.DB
+	cache *data.Cache
 }
 
 func NewRoleRepo(db *gorm.DB) rbac.RoleRepo {
 	return &roleRepo{db: db}
+}
+
+func NewRoleRepoWithCache(db *gorm.DB, cache *data.Cache) rbac.RoleRepo {
+	return &roleRepo{db: db, cache: cache}
 }
 
 func (r *roleRepo) Create(ctx context.Context, role *rbac.SysRole) error {
@@ -120,10 +129,20 @@ func (r *roleRepo) AssignMenus(ctx context.Context, roleID uint, menuIDs []uint)
 }
 
 func (r *roleRepo) GetByUserID(ctx context.Context, userID uint) ([]*rbac.SysRole, error) {
+	cacheKey := fmt.Sprintf("user:%d:roles", userID)
+	var cached []*rbac.SysRole
+	if r.cache != nil && r.cache.Get(ctx, cacheKey, &cached) {
+		return cached, nil
+	}
+
 	var roles []*rbac.SysRole
 	err := r.db.WithContext(ctx).
 		Joins("JOIN sys_user_role ON sys_user_role.role_id = sys_role.id").
 		Where("sys_user_role.user_id = ?", userID).
 		Find(&roles).Error
+
+	if err == nil && r.cache != nil {
+		r.cache.Set(ctx, cacheKey, roles, 10*time.Minute)
+	}
 	return roles, err
 }

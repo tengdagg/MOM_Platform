@@ -23,6 +23,7 @@ import (
 	"github.com/gin-gonic/gin"
 	assetbiz "github.com/ydcloud-dy/mom/internal/biz/asset"
 	rbacbiz "github.com/ydcloud-dy/mom/internal/biz/rbac"
+	"github.com/ydcloud-dy/mom/internal/data"
 	assetdata "github.com/ydcloud-dy/mom/internal/data/asset"
 	rbacdata "github.com/ydcloud-dy/mom/internal/data/rbac"
 	assetService "github.com/ydcloud-dy/mom/internal/service/asset"
@@ -208,20 +209,20 @@ func (s *HTTPServer) RegisterRoutes(r *gin.RouterGroup) {
 }
 
 // NewAssetServices 创建asset相关的服务
-func NewAssetServices(db *gorm.DB) (
+func NewAssetServices(db *gorm.DB, cache *data.Cache) (
 	*assetService.AssetGroupService,
 	*assetService.HostService,
 	*assetService.NetworkDeviceService,
 	*TerminalManager,
 	*NetworkTerminalManager,
 ) {
-	// 初始化Repository
-	assetGroupRepo := assetdata.NewAssetGroupRepo(db)
+	// 初始化Repository（带缓存）
+	assetGroupRepo := assetdata.NewAssetGroupRepoWithCache(db, cache)
 	hostRepo := assetdata.NewHostRepo(db)
 	credentialRepo := assetdata.NewCredentialRepo(db)
 	cloudAccountRepo := assetdata.NewCloudAccountRepo(db)
 	assetPermissionRepo := rbacdata.NewAssetPermissionRepo(db)
-	assetAuthorizationRepo := rbacdata.NewAssetAuthorizationRepo(db)
+	assetAuthorizationRepo := rbacdata.NewAssetAuthorizationRepoWithCache(db, cache)
 	networkDeviceRepo := assetdata.NewNetworkDeviceRepo(db)
 
 	// 初始化UseCase
@@ -239,6 +240,7 @@ func NewAssetServices(db *gorm.DB) (
 	assetGroupService.SetDB(db)
 	hostService := assetService.NewHostService(hostUseCase, credentialUseCase, cloudAccountUseCase, assetPermissionUseCase)
 	hostService.SetAssetAuthorizationUseCase(assetAuthorizationUseCase)
+	hostService.SetCache(cache)
 	networkDeviceService := assetService.NewNetworkDeviceService(networkDeviceUseCase)
 
 	// 初始化TerminalManager

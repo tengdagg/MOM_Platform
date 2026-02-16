@@ -5,18 +5,26 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/ydcloud-dy/mom/internal/biz/rbac"
+	"github.com/ydcloud-dy/mom/internal/data"
 	"gorm.io/gorm"
 )
 
 type assetAuthorizationRepo struct {
-	db *gorm.DB
+	db    *gorm.DB
+	cache *data.Cache
 }
 
 // NewAssetAuthorizationRepo 创建资产授权仓储
 func NewAssetAuthorizationRepo(db *gorm.DB) rbac.AssetAuthorizationRepo {
 	return &assetAuthorizationRepo{db: db}
+}
+
+// NewAssetAuthorizationRepoWithCache 创建带缓存的资产授权仓储
+func NewAssetAuthorizationRepoWithCache(db *gorm.DB, cache *data.Cache) rbac.AssetAuthorizationRepo {
+	return &assetAuthorizationRepo{db: db, cache: cache}
 }
 
 // Create 创建授权规则
@@ -160,25 +168,46 @@ func (r *assetAuthorizationRepo) List(ctx context.Context, page, pageSize int, a
 
 // ---- 权限检查：通用辅助方法 ----
 
-// isAdmin 检查用户是否为管理员
+// isAdmin 检查用户是否为管理员（优先从缓存读取）
 func (r *assetAuthorizationRepo) isAdmin(ctx context.Context, userID uint) (bool, error) {
+	cacheKey := fmt.Sprintf("user:%d:is_admin", userID)
+	var cached bool
+	if r.cache != nil && r.cache.Get(ctx, cacheKey, &cached) {
+		return cached, nil
+	}
+
 	var count int64
 	err := r.db.WithContext(ctx).
 		Table("sys_user_role AS ur").
 		Joins("JOIN sys_role AS r ON ur.role_id = r.id").
 		Where("ur.user_id = ? AND r.code = ?", userID, "admin").
 		Count(&count).Error
-	return count > 0, err
+	result := count > 0
+
+	if err == nil && r.cache != nil {
+		r.cache.Set(ctx, cacheKey, result, 10*time.Minute)
+	}
+	return result, err
 }
 
-// getUserDepartmentID 获取用户的部门ID
+// getUserDepartmentID 获取用户的部门ID（优先从缓存读取）
 func (r *assetAuthorizationRepo) getUserDepartmentID(ctx context.Context, userID uint) (uint, error) {
+	cacheKey := fmt.Sprintf("user:%d:dept_id", userID)
+	var cached uint
+	if r.cache != nil && r.cache.Get(ctx, cacheKey, &cached) {
+		return cached, nil
+	}
+
 	var deptID uint
 	err := r.db.WithContext(ctx).
 		Table("sys_user").
 		Select("department_id").
 		Where("id = ?", userID).
 		Scan(&deptID).Error
+
+	if err == nil && r.cache != nil {
+		r.cache.Set(ctx, cacheKey, deptID, 10*time.Minute)
+	}
 	return deptID, err
 }
 
@@ -207,6 +236,12 @@ func (r *assetAuthorizationRepo) CheckHostPermission(ctx context.Context, userID
 		return true, nil
 	}
 
+	cacheKey := fmt.Sprintf("user:%d:host_access:%d", userID, hostID)
+	var cached bool
+	if r.cache != nil && r.cache.Get(ctx, cacheKey, &cached) {
+		return cached, nil
+	}
+
 	deptID, _ := r.getUserDepartmentID(ctx, userID)
 
 	var groupID uint
@@ -223,7 +258,11 @@ func (r *assetAuthorizationRepo) CheckHostPermission(ctx context.Context, userID
 	`, r.activeCondition(), r.userMatchCondition())
 
 	err = r.db.WithContext(ctx).Raw(sql, userID, deptID, groupID, hostID).Scan(&count).Error
-	return count > 0, err
+	result := count > 0
+	if err == nil && r.cache != nil {
+		r.cache.Set(ctx, cacheKey, result, 5*time.Minute)
+	}
+	return result, err
 }
 
 // CheckHostOperationPermission 检查用户是否有对指定主机的特定操作权限
@@ -234,6 +273,12 @@ func (r *assetAuthorizationRepo) CheckHostOperationPermission(ctx context.Contex
 	}
 	if admin {
 		return true, nil
+	}
+
+	cacheKey := fmt.Sprintf("user:%d:host_perm:%d:%d", userID, hostID, operation)
+	var cached bool
+	if r.cache != nil && r.cache.Get(ctx, cacheKey, &cached) {
+		return cached, nil
 	}
 
 	deptID, _ := r.getUserDepartmentID(ctx, userID)
@@ -253,7 +298,11 @@ func (r *assetAuthorizationRepo) CheckHostOperationPermission(ctx context.Contex
 	`, r.activeCondition(), r.userMatchCondition())
 
 	err = r.db.WithContext(ctx).Raw(sql, userID, deptID, groupID, hostID, operation).Scan(&count).Error
-	return count > 0, err
+	result := count > 0
+	if err == nil && r.cache != nil {
+		r.cache.Set(ctx, cacheKey, result, 5*time.Minute)
+	}
+	return result, err
 }
 
 // GetUserHostPermissions 获取用户对指定主机的所有操作权限（bitmask OR 合并）
@@ -297,6 +346,12 @@ func (r *assetAuthorizationRepo) GetUserAccessibleHostIDs(ctx context.Context, u
 		return allHostIDs, err
 	}
 
+	cacheKey := fmt.Sprintf("user:%d:accessible_hosts", userID)
+	var cached []uint
+	if r.cache != nil && r.cache.Get(ctx, cacheKey, &cached) {
+		return cached, nil
+	}
+
 	deptID, _ := r.getUserDepartmentID(ctx, userID)
 
 	var hostIDs []uint
@@ -315,6 +370,9 @@ func (r *assetAuthorizationRepo) GetUserAccessibleHostIDs(ctx context.Context, u
 	`, r.activeCondition(), r.userMatchCondition())
 
 	err = r.db.WithContext(ctx).Raw(sql, userID, deptID).Scan(&hostIDs).Error
+	if err == nil && r.cache != nil {
+		r.cache.Set(ctx, cacheKey, hostIDs, 5*time.Minute)
+	}
 	return hostIDs, err
 }
 
@@ -328,6 +386,12 @@ func (r *assetAuthorizationRepo) CheckNetworkDeviceOperationPermission(ctx conte
 	}
 	if admin {
 		return true, nil
+	}
+
+	cacheKey := fmt.Sprintf("user:%d:dev_perm:%d:%d", userID, deviceID, operation)
+	var cached bool
+	if r.cache != nil && r.cache.Get(ctx, cacheKey, &cached) {
+		return cached, nil
 	}
 
 	deptID, _ := r.getUserDepartmentID(ctx, userID)
@@ -347,7 +411,11 @@ func (r *assetAuthorizationRepo) CheckNetworkDeviceOperationPermission(ctx conte
 	`, r.activeCondition(), r.userMatchCondition())
 
 	err = r.db.WithContext(ctx).Raw(sql, userID, deptID, groupID, deviceID, operation).Scan(&count).Error
-	return count > 0, err
+	result := count > 0
+	if err == nil && r.cache != nil {
+		r.cache.Set(ctx, cacheKey, result, 5*time.Minute)
+	}
+	return result, err
 }
 
 // GetUserNetworkDevicePermissions 获取用户对指定网络设备的所有操作权限
@@ -389,6 +457,12 @@ func (r *assetAuthorizationRepo) GetUserAccessibleNetworkDeviceIDs(ctx context.C
 		return nil, nil // nil 表示不需要过滤（管理员可访问所有）
 	}
 
+	cacheKey := fmt.Sprintf("user:%d:accessible_devices", userID)
+	var cached []uint
+	if r.cache != nil && r.cache.Get(ctx, cacheKey, &cached) {
+		return cached, nil
+	}
+
 	deptID, _ := r.getUserDepartmentID(ctx, userID)
 
 	var deviceIDs []uint
@@ -407,6 +481,9 @@ func (r *assetAuthorizationRepo) GetUserAccessibleNetworkDeviceIDs(ctx context.C
 	`, r.activeCondition(), r.userMatchCondition())
 
 	err = r.db.WithContext(ctx).Raw(sql, userID, deptID).Scan(&deviceIDs).Error
+	if err == nil && r.cache != nil {
+		r.cache.Set(ctx, cacheKey, deviceIDs, 5*time.Minute)
+	}
 	return deviceIDs, err
 }
 

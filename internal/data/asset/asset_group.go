@@ -21,40 +21,64 @@ package asset
 
 import (
 	"context"
+	"time"
+
 	"github.com/ydcloud-dy/mom/internal/biz/asset"
+	"github.com/ydcloud-dy/mom/internal/data"
 	"gorm.io/gorm"
 )
 
 type assetGroupRepo struct {
-	db *gorm.DB
+	db    *gorm.DB
+	cache *data.Cache
 }
 
 func NewAssetGroupRepo(db *gorm.DB) asset.AssetGroupRepo {
 	return &assetGroupRepo{db: db}
 }
 
+func NewAssetGroupRepoWithCache(db *gorm.DB, cache *data.Cache) asset.AssetGroupRepo {
+	return &assetGroupRepo{db: db, cache: cache}
+}
+
 func (r *assetGroupRepo) Create(ctx context.Context, group *asset.AssetGroup) error {
-	return r.db.WithContext(ctx).Create(group).Error
+	err := r.db.WithContext(ctx).Create(group).Error
+	if err == nil {
+		r.invalidateGroupTreeCache(ctx)
+	}
+	return err
 }
 
 func (r *assetGroupRepo) Update(ctx context.Context, group *asset.AssetGroup) error {
-	return r.db.WithContext(ctx).Model(group).Omit("created_at").Updates(group).Error
+	err := r.db.WithContext(ctx).Model(group).Omit("created_at").Updates(group).Error
+	if err == nil {
+		r.invalidateGroupTreeCache(ctx)
+	}
+	return err
 }
 
 func (r *assetGroupRepo) Delete(ctx context.Context, id uint) error {
-	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		// 检查是否有子分组
+	err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		var count int64
 		if err := tx.Model(&asset.AssetGroup{}).Unscoped().Where("parent_id = ?", id).Count(&count).Error; err != nil {
 			return err
 		}
 		if count > 0 {
-			return gorm.ErrRegistered // 存在子分组，不能删除
+			return gorm.ErrRegistered
 		}
-
-		// 硬删除分组
 		return tx.Unscoped().Delete(&asset.AssetGroup{}, id).Error
 	})
+	if err == nil {
+		r.invalidateGroupTreeCache(ctx)
+	}
+	return err
+}
+
+// invalidateGroupTreeCache 失效分组树缓存
+func (r *assetGroupRepo) invalidateGroupTreeCache(ctx context.Context) {
+	if r.cache != nil {
+		r.cache.DelByPrefix(ctx, "asset:group_tree")
+	}
 }
 
 func (r *assetGroupRepo) GetByID(ctx context.Context, id uint) (*asset.AssetGroup, error) {
@@ -64,6 +88,12 @@ func (r *assetGroupRepo) GetByID(ctx context.Context, id uint) (*asset.AssetGrou
 }
 
 func (r *assetGroupRepo) GetTree(ctx context.Context) ([]*asset.AssetGroup, error) {
+	cacheKey := "asset:group_tree"
+	var cached []*asset.AssetGroup
+	if r.cache != nil && r.cache.Get(ctx, cacheKey, &cached) {
+		return cached, nil
+	}
+
 	var groups []*asset.AssetGroup
 	err := r.db.WithContext(ctx).Order("sort ASC").Find(&groups).Error
 	if err != nil {
@@ -88,7 +118,11 @@ func (r *assetGroupRepo) GetTree(ctx context.Context) ([]*asset.AssetGroup, erro
 		group.HostCount = hostCounts[group.ID]
 	}
 
-	return r.buildTree(groups, 0), nil
+	tree := r.buildTree(groups, 0)
+	if r.cache != nil {
+		r.cache.Set(ctx, cacheKey, tree, 5*time.Minute)
+	}
+	return tree, nil
 }
 
 func (r *assetGroupRepo) buildTree(groups []*asset.AssetGroup, parentID uint) []*asset.AssetGroup {

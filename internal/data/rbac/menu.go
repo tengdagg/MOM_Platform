@@ -22,17 +22,24 @@ package rbac
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/ydcloud-dy/mom/internal/biz/rbac"
+	"github.com/ydcloud-dy/mom/internal/data"
 	"gorm.io/gorm"
 )
 
 type menuRepo struct {
-	db *gorm.DB
+	db    *gorm.DB
+	cache *data.Cache
 }
 
 func NewMenuRepo(db *gorm.DB) rbac.MenuRepo {
 	return &menuRepo{db: db}
+}
+
+func NewMenuRepoWithCache(db *gorm.DB, cache *data.Cache) rbac.MenuRepo {
+	return &menuRepo{db: db, cache: cache}
 }
 
 func (r *menuRepo) Create(ctx context.Context, menu *rbac.SysMenu) error {
@@ -153,6 +160,12 @@ func (r *menuRepo) buildTree(menus []*rbac.SysMenu, parentID uint) []*rbac.SysMe
 }
 
 func (r *menuRepo) GetByUserID(ctx context.Context, userID uint) ([]*rbac.SysMenu, error) {
+	cacheKey := fmt.Sprintf("user:%d:menu_tree", userID)
+	var cached []*rbac.SysMenu
+	if r.cache != nil && r.cache.Get(ctx, cacheKey, &cached) {
+		return cached, nil
+	}
+
 	var menus []*rbac.SysMenu
 	err := r.db.WithContext(ctx).
 		Joins("JOIN sys_role_menu ON sys_role_menu.menu_id = sys_menu.id").
@@ -166,7 +179,11 @@ func (r *menuRepo) GetByUserID(ctx context.Context, userID uint) ([]*rbac.SysMen
 		return nil, err
 	}
 
-	return r.buildTree(menus, 0), nil
+	tree := r.buildTree(menus, 0)
+	if r.cache != nil {
+		r.cache.Set(ctx, cacheKey, tree, 30*time.Minute)
+	}
+	return tree, nil
 }
 
 func (r *menuRepo) GetByRoleID(ctx context.Context, roleID uint) ([]*rbac.SysMenu, error) {
@@ -179,6 +196,12 @@ func (r *menuRepo) GetByRoleID(ctx context.Context, roleID uint) ([]*rbac.SysMen
 }
 
 func (r *menuRepo) GetButtonCodesByUserID(ctx context.Context, userID uint) ([]string, error) {
+	cacheKey := fmt.Sprintf("user:%d:button_codes", userID)
+	var cached []string
+	if r.cache != nil && r.cache.Get(ctx, cacheKey, &cached) {
+		return cached, nil
+	}
+
 	var codes []string
 	err := r.db.WithContext(ctx).Raw(`
 		SELECT DISTINCT m.code
@@ -191,5 +214,9 @@ func (r *menuRepo) GetButtonCodesByUserID(ctx context.Context, userID uint) ([]s
 		  AND m.code != ''
 		  AND m.deleted_at IS NULL
 	`, userID).Scan(&codes).Error
+
+	if err == nil && r.cache != nil {
+		r.cache.Set(ctx, cacheKey, codes, 30*time.Minute)
+	}
 	return codes, err
 }
