@@ -56,9 +56,10 @@ func GetUsername(c *gin.Context) string {
 
 // AuthMiddleware JWT认证中间件
 type AuthMiddleware struct {
-	authService         *AuthService
-	assetPermissionRepo rbac.AssetPermissionRepo
-	menuRepo            rbac.MenuRepo
+	authService            *AuthService
+	assetPermissionRepo    rbac.AssetPermissionRepo
+	assetAuthorizationRepo rbac.AssetAuthorizationRepo
+	menuRepo               rbac.MenuRepo
 }
 
 func NewAuthMiddleware(authService *AuthService) *AuthMiddleware {
@@ -67,9 +68,14 @@ func NewAuthMiddleware(authService *AuthService) *AuthMiddleware {
 	}
 }
 
-// SetAssetPermissionRepo 设置资产权限仓储
+// SetAssetPermissionRepo 设置资产权限仓储（旧版，兼容）
 func (m *AuthMiddleware) SetAssetPermissionRepo(repo rbac.AssetPermissionRepo) {
 	m.assetPermissionRepo = repo
+}
+
+// SetAssetAuthorizationRepo 设置资产授权仓储（新版）
+func (m *AuthMiddleware) SetAssetAuthorizationRepo(repo rbac.AssetAuthorizationRepo) {
+	m.assetAuthorizationRepo = repo
 }
 
 // SetMenuRepo 设置菜单仓储
@@ -214,12 +220,6 @@ func (m *AuthMiddleware) RequireMenuPermission(codes ...string) gin.HandlerFunc 
 // RequireNetworkDevicePermission 检查网络设备操作权限的中间件
 func (m *AuthMiddleware) RequireNetworkDevicePermission(operation uint) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		if m.assetPermissionRepo == nil {
-			response.ErrorCode(c, http.StatusInternalServerError, "权限检查未初始化")
-			c.Abort()
-			return
-		}
-
 		userID := GetUserID(c)
 		if userID == 0 {
 			response.ErrorCode(c, http.StatusUnauthorized, "未登录")
@@ -240,23 +240,40 @@ func (m *AuthMiddleware) RequireNetworkDevicePermission(operation uint) gin.Hand
 			return
 		}
 
-		hasPermission, err := m.assetPermissionRepo.CheckNetworkDeviceOperationPermission(
-			c.Request.Context(),
-			userID,
-			uint(deviceID),
-			operation,
-		)
-
-		if err != nil {
-			response.ErrorCode(c, http.StatusInternalServerError, "权限检查失败")
-			c.Abort()
+		// 优先使用新的授权仓储
+		if m.assetAuthorizationRepo != nil {
+			hasPermission, err := m.assetAuthorizationRepo.CheckNetworkDeviceOperationPermission(
+				c.Request.Context(), userID, uint(deviceID), operation,
+			)
+			if err != nil {
+				response.ErrorCode(c, http.StatusInternalServerError, "权限检查失败")
+				c.Abort()
+				return
+			}
+			if !hasPermission {
+				response.ErrorCode(c, http.StatusForbidden, "无权限，请联系管理员操作")
+				c.Abort()
+				return
+			}
+			c.Next()
 			return
 		}
 
-		if !hasPermission {
-			response.ErrorCode(c, http.StatusForbidden, "无权限，请联系管理员操作")
-			c.Abort()
-			return
+		// 兼容旧版
+		if m.assetPermissionRepo != nil {
+			hasPermission, err := m.assetPermissionRepo.CheckNetworkDeviceOperationPermission(
+				c.Request.Context(), userID, uint(deviceID), operation,
+			)
+			if err != nil {
+				response.ErrorCode(c, http.StatusInternalServerError, "权限检查失败")
+				c.Abort()
+				return
+			}
+			if !hasPermission {
+				response.ErrorCode(c, http.StatusForbidden, "无权限，请联系管理员操作")
+				c.Abort()
+				return
+			}
 		}
 
 		c.Next()
@@ -266,13 +283,6 @@ func (m *AuthMiddleware) RequireNetworkDevicePermission(operation uint) gin.Hand
 // RequireHostPermission 检查主机操作权限的中间件
 func (m *AuthMiddleware) RequireHostPermission(operation uint) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		if m.assetPermissionRepo == nil {
-			response.ErrorCode(c, http.StatusInternalServerError, "权限检查未初始化")
-			c.Abort()
-			return
-		}
-
-		// 获取用户ID
 		userID := GetUserID(c)
 		if userID == 0 {
 			response.ErrorCode(c, http.StatusUnauthorized, "未登录")
@@ -280,10 +290,8 @@ func (m *AuthMiddleware) RequireHostPermission(operation uint) gin.HandlerFunc {
 			return
 		}
 
-		// 获取主机ID
 		hostIDStr := c.Param("id")
 		if hostIDStr == "" {
-			// 对于创建操作，暂不检查具体权限（创建权限通过分组权限检查）
 			c.Next()
 			return
 		}
@@ -295,24 +303,40 @@ func (m *AuthMiddleware) RequireHostPermission(operation uint) gin.HandlerFunc {
 			return
 		}
 
-		// 检查权限
-		hasPermission, err := m.assetPermissionRepo.CheckHostOperationPermission(
-			c.Request.Context(),
-			userID,
-			uint(hostID),
-			operation,
-		)
-
-		if err != nil {
-			response.ErrorCode(c, http.StatusInternalServerError, "权限检查失败")
-			c.Abort()
+		// 优先使用新的授权仓储
+		if m.assetAuthorizationRepo != nil {
+			hasPermission, err := m.assetAuthorizationRepo.CheckHostOperationPermission(
+				c.Request.Context(), userID, uint(hostID), operation,
+			)
+			if err != nil {
+				response.ErrorCode(c, http.StatusInternalServerError, "权限检查失败")
+				c.Abort()
+				return
+			}
+			if !hasPermission {
+				response.ErrorCode(c, http.StatusForbidden, "无权限，请联系管理员操作")
+				c.Abort()
+				return
+			}
+			c.Next()
 			return
 		}
 
-		if !hasPermission {
-			response.ErrorCode(c, http.StatusForbidden, "无权限，请联系管理员操作")
-			c.Abort()
-			return
+		// 兼容旧版
+		if m.assetPermissionRepo != nil {
+			hasPermission, err := m.assetPermissionRepo.CheckHostOperationPermission(
+				c.Request.Context(), userID, uint(hostID), operation,
+			)
+			if err != nil {
+				response.ErrorCode(c, http.StatusInternalServerError, "权限检查失败")
+				c.Abort()
+				return
+			}
+			if !hasPermission {
+				response.ErrorCode(c, http.StatusForbidden, "无权限，请联系管理员操作")
+				c.Abort()
+				return
+			}
 		}
 
 		c.Next()

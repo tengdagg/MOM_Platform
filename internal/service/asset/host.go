@@ -35,10 +35,11 @@ import (
 )
 
 type HostService struct {
-	hostUseCase              *asset.HostUseCase
-	credentialUseCase        *asset.CredentialUseCase
-	cloudUseCase             *asset.CloudAccountUseCase
-	assetPermissionUseCase   *rbac.AssetPermissionUseCase
+	hostUseCase                *asset.HostUseCase
+	credentialUseCase          *asset.CredentialUseCase
+	cloudUseCase               *asset.CloudAccountUseCase
+	assetPermissionUseCase     *rbac.AssetPermissionUseCase
+	assetAuthorizationUseCase  *rbac.AssetAuthorizationUseCase
 }
 
 func NewHostService(hostUseCase *asset.HostUseCase, credentialUseCase *asset.CredentialUseCase, cloudUseCase *asset.CloudAccountUseCase, assetPermissionUseCase *rbac.AssetPermissionUseCase) *HostService {
@@ -48,6 +49,11 @@ func NewHostService(hostUseCase *asset.HostUseCase, credentialUseCase *asset.Cre
 		cloudUseCase:           cloudUseCase,
 		assetPermissionUseCase: assetPermissionUseCase,
 	}
+}
+
+// SetAssetAuthorizationUseCase 设置新版资产授权用例
+func (s *HostService) SetAssetAuthorizationUseCase(uc *rbac.AssetAuthorizationUseCase) {
+	s.assetAuthorizationUseCase = uc
 }
 
 // CreateHost 创建主机
@@ -195,13 +201,21 @@ func (s *HostService) ListHosts(c *gin.Context) {
 	var accessibleHostIDs []uint
 	userID := rbacService.GetUserID(c)
 	if userID > 0 {
-		// 获取用户可访问的主机ID列表
-		hostIDs, err := s.assetPermissionUseCase.GetUserAccessibleHostIDs(c.Request.Context(), userID)
-		if err == nil {
-			accessibleHostIDs = hostIDs
+		// 优先使用新版授权系统
+		if s.assetAuthorizationUseCase != nil {
+			hostIDs, err := s.assetAuthorizationUseCase.GetUserAccessibleHostIDs(c.Request.Context(), userID)
+			if err == nil {
+				accessibleHostIDs = hostIDs
+			} else {
+				accessibleHostIDs = []uint{}
+			}
 		} else {
-			// 如果获取权限出错，返回空列表以保证安全
-			accessibleHostIDs = []uint{}
+			hostIDs, err := s.assetPermissionUseCase.GetUserAccessibleHostIDs(c.Request.Context(), userID)
+			if err == nil {
+				accessibleHostIDs = hostIDs
+			} else {
+				accessibleHostIDs = []uint{}
+			}
 		}
 	}
 

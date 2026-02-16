@@ -117,7 +117,7 @@ const router = createRouter({
           path: 'asset/permissions',
           name: 'AssetPermissions',
           component: () => import('@/views/asset/AssetPermission.vue'),
-          meta: { title: '权限配置' }
+          meta: { title: '资产授权' }
         },
         {
           path: 'profile',

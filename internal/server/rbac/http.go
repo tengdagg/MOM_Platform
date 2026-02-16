@@ -30,15 +30,16 @@ import (
 )
 
 type HTTPServer struct {
-	userService            *rbacService.UserService
-	roleService            *rbacService.RoleService
-	departmentService      *rbacService.DepartmentService
-	menuService            *rbacService.MenuService
-	positionService        *rbacService.PositionService
-	captchaService         *rbacService.CaptchaService
-	assetPermissionService *rbacService.AssetPermissionService
-	ldapService            *rbacService.LDAPService
-	authMiddleware         *rbacService.AuthMiddleware
+	userService               *rbacService.UserService
+	roleService               *rbacService.RoleService
+	departmentService         *rbacService.DepartmentService
+	menuService               *rbacService.MenuService
+	positionService           *rbacService.PositionService
+	captchaService            *rbacService.CaptchaService
+	assetPermissionService    *rbacService.AssetPermissionService
+	assetAuthorizationService *rbacService.AssetAuthorizationService
+	ldapService               *rbacService.LDAPService
+	authMiddleware            *rbacService.AuthMiddleware
 }
 
 func NewHTTPServer(
@@ -49,19 +50,21 @@ func NewHTTPServer(
 	positionService *rbacService.PositionService,
 	captchaService *rbacService.CaptchaService,
 	assetPermissionService *rbacService.AssetPermissionService,
+	assetAuthorizationService *rbacService.AssetAuthorizationService,
 	ldapService *rbacService.LDAPService,
 	authMiddleware *rbacService.AuthMiddleware,
 ) *HTTPServer {
 	return &HTTPServer{
-		userService:            userService,
-		roleService:            roleService,
-		departmentService:      departmentService,
-		menuService:            menuService,
-		positionService:        positionService,
-		captchaService:         captchaService,
-		assetPermissionService: assetPermissionService,
-		ldapService:            ldapService,
-		authMiddleware:         authMiddleware,
+		userService:               userService,
+		roleService:               roleService,
+		departmentService:         departmentService,
+		menuService:               menuService,
+		positionService:           positionService,
+		captchaService:            captchaService,
+		assetPermissionService:    assetPermissionService,
+		assetAuthorizationService: assetAuthorizationService,
+		ldapService:               ldapService,
+		authMiddleware:            authMiddleware,
 	}
 }
 
@@ -161,22 +164,32 @@ func (s *HTTPServer) RegisterRoutes(r *gin.Engine) {
 			ldapGroup.GET("/users", s.ldapService.GetLDAPUsers)
 		}
 
-		// 资产权限管理
+		// 资产权限管理（旧版，保留兼容）
 		assetPermissions := auth.Group("/asset-permissions")
 		{
 			assetPermissions.GET("", s.assetPermissionService.ListAssetPermissions)
 			assetPermissions.POST("", s.authMiddleware.RequireAdmin(), s.assetPermissionService.CreateAssetPermission)
-			// 具体路由必须放在通用 /:id 路由之前
 			assetPermissions.GET("/role/:roleId", s.assetPermissionService.GetAssetPermissionsByRole)
 			assetPermissions.GET("/group/:assetGroupId", s.assetPermissionService.GetAssetPermissionsByGroup)
-			assetPermissions.GET("/user/host", s.assetPermissionService.GetUserHostPermissions)
-			assetPermissions.GET("/user/device", s.assetPermissionService.GetUserDevicePermissions)
-			// 通用 /:id 路由必须放在最后
+			assetPermissions.GET("/user/host", s.assetAuthorizationService.GetUserHostPermissions)
+			assetPermissions.GET("/user/device", s.assetAuthorizationService.GetUserDevicePermissions)
 			assetPermissions.GET("/:id", s.assetPermissionService.GetAssetPermissionDetail)
 			assetPermissions.PUT("/:id", s.authMiddleware.RequireAdmin(), s.assetPermissionService.UpdateAssetPermission)
 			assetPermissions.DELETE("/:id", s.authMiddleware.RequireAdmin(), s.assetPermissionService.DeleteAssetPermission)
-			// 删除分组权限用空路径（没有 :id）
 			assetPermissions.DELETE("", s.authMiddleware.RequireAdmin(), s.assetPermissionService.DeleteAssetPermissionByRoleAndGroup)
+		}
+
+		// 资产授权管理（新版：用户/部门 -> 资产 三维度授权）
+		assetAuthorizations := auth.Group("/asset-authorizations")
+		{
+			assetAuthorizations.GET("", s.assetAuthorizationService.ListAssetAuthorizations)
+			assetAuthorizations.GET("/asset-tree", s.assetAuthorizationService.GetAssetTree)
+			assetAuthorizations.POST("", s.authMiddleware.RequireAdmin(), s.assetAuthorizationService.CreateAssetAuthorization)
+			assetAuthorizations.GET("/user/host", s.assetAuthorizationService.GetUserHostPermissions)
+			assetAuthorizations.GET("/user/device", s.assetAuthorizationService.GetUserDevicePermissions)
+			assetAuthorizations.GET("/:id", s.assetAuthorizationService.GetAssetAuthorizationDetail)
+			assetAuthorizations.PUT("/:id", s.authMiddleware.RequireAdmin(), s.assetAuthorizationService.UpdateAssetAuthorization)
+			assetAuthorizations.DELETE("/:id", s.authMiddleware.RequireAdmin(), s.assetAuthorizationService.DeleteAssetAuthorization)
 		}
 	}
 }
@@ -190,6 +203,7 @@ func NewRBACServices(db *gorm.DB, jwtSecret string) (
 	*rbacService.PositionService,
 	*rbacService.CaptchaService,
 	*rbacService.AssetPermissionService,
+	*rbacService.AssetAuthorizationService,
 	*rbacService.LDAPService,
 	*rbacService.AuthMiddleware,
 ) {
@@ -200,6 +214,7 @@ func NewRBACServices(db *gorm.DB, jwtSecret string) (
 	menuRepo := rbacdata.NewMenuRepo(db)
 	positionRepo := rbacdata.NewPositionRepo(db)
 	assetPermissionRepo := rbacdata.NewAssetPermissionRepo(db)
+	assetAuthorizationRepo := rbacdata.NewAssetAuthorizationRepo(db)
 
 	// 初始化Audit Repository
 	loginLogRepo := auditdata.NewLoginLogRepo(db)
@@ -211,6 +226,7 @@ func NewRBACServices(db *gorm.DB, jwtSecret string) (
 	menuUseCase := rbacbiz.NewMenuUseCase(menuRepo)
 	positionUseCase := rbacbiz.NewPositionUseCase(positionRepo)
 	assetPermissionUseCase := rbacbiz.NewAssetPermissionUseCase(assetPermissionRepo)
+	assetAuthorizationUseCase := rbacbiz.NewAssetAuthorizationUseCase(assetAuthorizationRepo)
 
 	// 初始化Audit UseCase
 	loginLogUseCase := auditbiz.NewLoginLogUseCase(loginLogRepo)
@@ -227,6 +243,8 @@ func NewRBACServices(db *gorm.DB, jwtSecret string) (
 	positionService := rbacService.NewPositionService(positionUseCase)
 	captchaService := rbacService.NewCaptchaService()
 	assetPermissionService := rbacService.NewAssetPermissionService(assetPermissionUseCase)
+	assetAuthorizationService := rbacService.NewAssetAuthorizationService(assetAuthorizationUseCase)
+	assetAuthorizationService.SetDB(db)
 	authMiddleware := rbacService.NewAuthMiddleware(authService)
 
 	// 设置验证码服务到用户服务
@@ -235,5 +253,5 @@ func NewRBACServices(db *gorm.DB, jwtSecret string) (
 	// 设置登录日志用例到用户服务
 	userService.SetLoginLogUseCase(loginLogUseCase)
 
-	return userService, roleService, departmentService, menuService, positionService, captchaService, assetPermissionService, ldapService, authMiddleware
+	return userService, roleService, departmentService, menuService, positionService, captchaService, assetPermissionService, assetAuthorizationService, ldapService, authMiddleware
 }

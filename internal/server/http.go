@@ -141,10 +141,10 @@ func (s *HTTPServer) registerRoutes(router *gin.Engine, jwtSecret string) {
 	router.Static("/uploads", "./web/public/uploads")
 
 	// 创建 RBAC 服务
-	userService, roleService, departmentService, menuService, positionService, captchaService, assetPermissionService, ldapService, authMiddleware := rbac.NewRBACServices(s.db, jwtSecret)
+	userService, roleService, departmentService, menuService, positionService, captchaService, assetPermissionService, assetAuthorizationService, ldapService, authMiddleware := rbac.NewRBACServices(s.db, jwtSecret)
 
 	// RBAC 路由
-	rbacServer := rbac.NewHTTPServer(userService, roleService, departmentService, menuService, positionService, captchaService, assetPermissionService, ldapService, authMiddleware)
+	rbacServer := rbac.NewHTTPServer(userService, roleService, departmentService, menuService, positionService, captchaService, assetPermissionService, assetAuthorizationService, ldapService, authMiddleware)
 	rbacServer.RegisterRoutes(router)
 
 	// 创建 Audit 服务
@@ -153,13 +153,16 @@ func (s *HTTPServer) registerRoutes(router *gin.Engine, jwtSecret string) {
 	// 创建 Asset 服务
 	assetGroupService, hostService, networkDeviceService, terminalManager, networkTerminalManager := assetserver.NewAssetServices(s.db)
 
-	// 设置authMiddleware的assetPermissionRepo和menuRepo
+	// 设置authMiddleware的权限仓储
 	assetPermissionRepo := rbacdata.NewAssetPermissionRepo(s.db)
 	authMiddleware.SetAssetPermissionRepo(assetPermissionRepo)
+	assetAuthorizationRepo := rbacdata.NewAssetAuthorizationRepo(s.db)
+	authMiddleware.SetAssetAuthorizationRepo(assetAuthorizationRepo)
 	menuRepo := rbacdata.NewMenuRepo(s.db)
 	authMiddleware.SetMenuRepo(menuRepo)
 	// 设置NetworkDeviceService的权限仓库，用于列表权限过滤
 	networkDeviceService.SetAssetPermissionRepo(assetPermissionRepo)
+	networkDeviceService.SetAssetAuthorizationRepo(assetAuthorizationRepo)
 
 	// Asset 路由
 	assetServer := assetserver.NewHTTPServer(assetGroupService, hostService, networkDeviceService, terminalManager, networkTerminalManager, s.db, authMiddleware)

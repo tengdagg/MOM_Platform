@@ -16,8 +16,9 @@ import (
 
 // NetworkDeviceService 网络设备服务
 type NetworkDeviceService struct {
-	deviceUseCase       *asset.NetworkDeviceUseCase
-	assetPermissionRepo rbac.AssetPermissionRepo
+	deviceUseCase          *asset.NetworkDeviceUseCase
+	assetPermissionRepo    rbac.AssetPermissionRepo
+	assetAuthorizationRepo rbac.AssetAuthorizationRepo
 }
 
 // NewNetworkDeviceService 创建网络设备服务
@@ -27,9 +28,14 @@ func NewNetworkDeviceService(deviceUseCase *asset.NetworkDeviceUseCase) *Network
 	}
 }
 
-// SetAssetPermissionRepo 设置资产权限仓库
+// SetAssetPermissionRepo 设置资产权限仓库（旧版）
 func (s *NetworkDeviceService) SetAssetPermissionRepo(repo rbac.AssetPermissionRepo) {
 	s.assetPermissionRepo = repo
+}
+
+// SetAssetAuthorizationRepo 设置资产授权仓库（新版）
+func (s *NetworkDeviceService) SetAssetAuthorizationRepo(repo rbac.AssetAuthorizationRepo) {
+	s.assetAuthorizationRepo = repo
 }
 
 // ListNetworkDevices 网络设备列表（根据用户权限过滤）
@@ -51,10 +57,17 @@ func (s *NetworkDeviceService) ListNetworkDevices(c *gin.Context) {
 	// 获取用户可访问的设备ID列表（非管理员权限过滤）
 	var accessibleIDs []uint
 	userID := c.GetUint("user_id")
-	if s.assetPermissionRepo != nil && userID > 0 {
-		ids, err := s.assetPermissionRepo.GetUserAccessibleNetworkDeviceIDs(c.Request.Context(), userID)
-		if err == nil {
-			accessibleIDs = ids
+	if userID > 0 {
+		if s.assetAuthorizationRepo != nil {
+			ids, err := s.assetAuthorizationRepo.GetUserAccessibleNetworkDeviceIDs(c.Request.Context(), userID)
+			if err == nil {
+				accessibleIDs = ids
+			}
+		} else if s.assetPermissionRepo != nil {
+			ids, err := s.assetPermissionRepo.GetUserAccessibleNetworkDeviceIDs(c.Request.Context(), userID)
+			if err == nil {
+				accessibleIDs = ids
+			}
 		}
 	}
 
@@ -154,10 +167,17 @@ func (s *NetworkDeviceService) GetAllNetworkDevices(c *gin.Context) {
 
 	// 获取用户可访问的设备ID列表
 	var accessibleIDs []uint
-	if s.assetPermissionRepo != nil && userID > 0 {
-		ids, err := s.assetPermissionRepo.GetUserAccessibleNetworkDeviceIDs(c.Request.Context(), userID)
-		if err == nil {
-			accessibleIDs = ids
+	if userID > 0 {
+		if s.assetAuthorizationRepo != nil {
+			ids, err := s.assetAuthorizationRepo.GetUserAccessibleNetworkDeviceIDs(c.Request.Context(), userID)
+			if err == nil {
+				accessibleIDs = ids
+			}
+		} else if s.assetPermissionRepo != nil {
+			ids, err := s.assetPermissionRepo.GetUserAccessibleNetworkDeviceIDs(c.Request.Context(), userID)
+			if err == nil {
+				accessibleIDs = ids
+			}
 		}
 	}
 

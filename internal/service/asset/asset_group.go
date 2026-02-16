@@ -25,17 +25,31 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/ydcloud-dy/mom/internal/biz/asset"
+	"github.com/ydcloud-dy/mom/internal/biz/rbac"
 	"github.com/ydcloud-dy/mom/pkg/response"
+	"gorm.io/gorm"
 )
 
 type AssetGroupService struct {
-	groupUseCase *asset.AssetGroupUseCase
+	groupUseCase           *asset.AssetGroupUseCase
+	assetAuthorizationRepo rbac.AssetAuthorizationRepo
+	db                     *gorm.DB
 }
 
 func NewAssetGroupService(groupUseCase *asset.AssetGroupUseCase) *AssetGroupService {
 	return &AssetGroupService{
 		groupUseCase: groupUseCase,
 	}
+}
+
+// SetAssetAuthorizationRepo 注入授权仓储
+func (s *AssetGroupService) SetAssetAuthorizationRepo(repo rbac.AssetAuthorizationRepo) {
+	s.assetAuthorizationRepo = repo
+}
+
+// SetDB 注入数据库连接
+func (s *AssetGroupService) SetDB(db *gorm.DB) {
+	s.db = db
 }
 
 // CreateGroup 创建分组
@@ -187,7 +201,63 @@ func (s *AssetGroupService) GetGroupTree(c *gin.Context) {
 		}
 	}
 
+	// 非管理员：根据用户权限过滤主机数量
+	userID := c.GetUint("user_id")
+	if userID > 0 && s.assetAuthorizationRepo != nil && s.db != nil {
+		isAdmin := s.checkIsAdmin(c, userID)
+		if !isAdmin {
+			accessibleIDs, _ := s.assetAuthorizationRepo.GetUserAccessibleHostIDs(c.Request.Context(), userID)
+			if accessibleIDs != nil {
+				// 查询每台可访问主机的 group_id
+				type HostGroupRow struct {
+					GroupID uint
+				}
+				var hostGroups []HostGroupRow
+				if len(accessibleIDs) > 0 {
+					s.db.Table("hosts").Select("group_id").
+						Where("id IN ? AND deleted_at IS NULL", accessibleIDs).
+						Find(&hostGroups)
+				}
+				// 统计每个分组中可访问的主机数
+				accessibleCounts := make(map[uint]int)
+				for _, hg := range hostGroups {
+					accessibleCounts[hg.GroupID]++
+				}
+				// 递归更新分组 hostCount
+				recalcGroupCounts(voTree, accessibleCounts)
+			}
+		}
+	}
+
 	response.Success(c, voTree)
+}
+
+// checkIsAdmin 检查用户是否为管理员
+func (s *AssetGroupService) checkIsAdmin(c *gin.Context, userID uint) bool {
+	if s.db == nil {
+		return false
+	}
+	var count int64
+	s.db.Table("sys_user_role").
+		Joins("JOIN sys_role ON sys_role.id = sys_user_role.role_id").
+		Where("sys_user_role.user_id = ? AND sys_role.code = 'admin'", userID).
+		Count(&count)
+	return count > 0
+}
+
+// recalcGroupCounts 递归更新分组中可访问的主机数
+func recalcGroupCounts(groups []*asset.AssetGroupInfoVO, counts map[uint]int) int {
+	total := 0
+	for _, g := range groups {
+		childCount := 0
+		if len(g.Children) > 0 {
+			childCount = recalcGroupCounts(g.Children, counts)
+		}
+		own := counts[g.ID]
+		g.HostCount = own + childCount
+		total += g.HostCount
+	}
+	return total
 }
 
 // filterGroupVOByCategory 递归过滤分组：只保留 category 匹配或 all 的分组

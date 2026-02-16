@@ -36,6 +36,7 @@ import (
 	rbacmodel "github.com/ydcloud-dy/mom/internal/biz/rbac"
 	"github.com/ydcloud-dy/mom/internal/conf"
 	dataPkg "github.com/ydcloud-dy/mom/internal/data"
+	rbacdata "github.com/ydcloud-dy/mom/internal/data/rbac"
 	"github.com/ydcloud-dy/mom/internal/server"
 	"github.com/ydcloud-dy/mom/internal/service"
 	rbacservice "github.com/ydcloud-dy/mom/internal/service/rbac"
@@ -187,6 +188,7 @@ func autoMigrate(db *gorm.DB) error {
 		&rbacmodel.SysPosition{},
 		&rbacmodel.SysUserPosition{},
 		&rbacmodel.SysRoleAssetPermission{},
+		&rbacmodel.SysAssetAuthorization{},
 		&rbacmodel.SysLDAPConfig{},
 		// Kubernetes 集群相关表
 		&models.Cluster{},
@@ -263,6 +265,12 @@ func autoMigrate(db *gorm.DB) error {
 	// 清理已废弃的按钮级菜单（type=3），权限已改为资产级权限 + isAdmin 判断
 	cleanupButtonMenus(db)
 
+	// 更新菜单名称：权限配置 -> 资产授权
+	db.Exec(`UPDATE sys_menu SET name = '资产授权' WHERE code = 'asset_permission' AND name = '权限配置' AND deleted_at IS NULL`)
+
+	// 迁移旧版角色资产权限到新版用户/部门授权模型
+	migrateAssetAuthorizations(db)
+
 	return nil
 }
 
@@ -273,6 +281,23 @@ func cleanupButtonMenus(db *gorm.DB) {
 	db.Exec(`DELETE FROM sys_role_menu WHERE menu_id IN (SELECT id FROM sys_menu WHERE type = 3 AND deleted_at IS NULL)`)
 	// 再硬删除所有 type=3 的菜单记录
 	db.Exec(`DELETE FROM sys_menu WHERE type = 3`)
+}
+
+// migrateAssetAuthorizations 将旧版角色资产权限迁移到新版用户/部门授权模型
+func migrateAssetAuthorizations(db *gorm.DB) {
+	// 检查新表是否已有数据，如果有则跳过迁移
+	var count int64
+	db.Table("sys_asset_authorization").Where("deleted_at IS NULL").Count(&count)
+	if count > 0 {
+		return
+	}
+	// 检查旧表是否有数据
+	var oldCount int64
+	db.Table("sys_role_asset_permission").Where("deleted_at IS NULL").Count(&oldCount)
+	if oldCount == 0 {
+		return
+	}
+	rbacdata.MigrateFromOldPermissions(db)
 }
 
 // columnExists 检查表中是否存在指定列
@@ -453,7 +478,7 @@ func initDefaultData(db *gorm.DB) error {
 		{Name: "云账号管理", Code: "cloud-accounts", Type: 2, ParentID: assetMenu.ID, Path: "/asset/cloud-accounts", Component: "asset/CloudAccounts", Icon: "Cloudy", Sort: 4, Visible: 1, Status: 1},
 		{Name: "网络设备", Code: "network-devices", Type: 2, ParentID: assetMenu.ID, Path: "/asset/network-devices", Component: "asset/NetworkDevices", Icon: "SetUp", Sort: 5, Visible: 1, Status: 1},
 		{Name: "终端审计", Code: "asset_terminal_audit", Type: 2, ParentID: assetMenu.ID, Path: "/asset/terminal-audit", Component: "asset/TerminalAudit", Icon: "View", Sort: 6, Visible: 1, Status: 1},
-		{Name: "权限配置", Code: "asset_permission", Type: 2, ParentID: assetMenu.ID, Path: "/asset/permissions", Component: "asset/AssetPermission", Icon: "Lock", Sort: 6, Visible: 1, Status: 1},
+		{Name: "资产授权", Code: "asset_permission", Type: 2, ParentID: assetMenu.ID, Path: "/asset/permissions", Component: "asset/AssetPermission", Icon: "Lock", Sort: 6, Visible: 1, Status: 1},
 	}
 
 	for _, menu := range assetSubMenus {

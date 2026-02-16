@@ -83,3 +83,142 @@ AI 模块标签以 warning（橙色）区分，便于一眼辨识
 现在 AI 操作审计日志的效果是：
 操作用户	模块	操作	操作描述	请求方法	路径
 AI 助手	AI-Kubernetes	k8s.kubectl [critical]	查询到 3 个节点...	SKILL
+
+### 20260215
+1. Skills 卡片宽度对齐 page header
+统计卡片（stats-row）改为 flex-wrap: nowrap，每个 stat-card 使用 flex: 1 均匀铺满整行，与 page header 完全对齐
+Skill 卡片网格的最小列宽从 320px 调整到 380px，更好利用页面宽度
+2. AI 对话页面 - 历史会话保留时长设置
+前端：
+在左侧"新建对话"按钮下方新增一个 历史保留 XX 天 的点击条
+点击弹出设置对话框，支持：
+输入框直接设定天数（1-365）
+快捷按钮选择 7/14/30/90/180/365 天
+保存：保存设置
+立即清理：按设定天数清理过期会话（二次确认后执行）
+后端：
+新增 ai_user_settings 表，自动建表
+新增 3 个 API：
+GET /chat/settings/retention — 获取保留天数（默认 30 天）
+PUT /chat/settings/retention — 设置保留天数
+POST /chat/cleanup — 手动清理过期会话
+CleanupOldSessions 方法根据 updated_at 判断过期会话，同时删除关联消息
+3. 云厂商 SVG 图标迁移至 CustomIcons
+将阿里云、腾讯云、AWS、京东云、百度云、金山云 6 个 SVG 图标全部迁移到 web/src/components/icons/CustomIcons.vue
+CloudAccounts.vue 中改为使用 <CustomIcons :name="..." /> 组件引用
+云厂商选择按钮的 border-radius 已从 4px 改为 0（移除圆角）
+以后替换图标只需修改 CustomIcons.vue 一个文件即可
+
+### 20260215
+LDAP 认证功能已完整实现，以下是完整总结：
+整体架构
+登录流程:用户输入账号密码 → 先验证本地密码 → 失败 → 检查 LDAP 是否启用 → 是 → LDAP 认证                                       ↓                                      ↓                                    成功则通过                        成功 → 自动创建/更新本地用户 → 颁发 JWT
+1. 数据库改动
+sys_user 表 新增 source 字段（varchar(20)，默认值 local），区分 local 本地用户和 ldap LDAP 用户
+新增 sys_ldap_config 表：存储 LDAP 配置（服务器、端口、SSL、绑定 DN/密码、搜索 Base DN、用户过滤器、属性映射、默认角色等）
+通过 GORM AutoMigrate 自动创建/迁移
+2. 后端 - LDAP 认证服务 (internal/service/rbac/ldap.go)
+功能	说明
+Authenticate()	连接 LDAP → 管理员绑定 → 搜索用户 → 用户绑定验证密码 → 返回用户属性
+TestConnection()	测试 LDAP 连接和绑定
+SyncLDAPUsers()	手动批量同步 LDAP 用户到本地
+支持 SSL/LDAPS	UseSSL 开关
+3. 后端 - 登录流程改造 (internal/service/rbac/user.go)
+登录时先尝试本地密码验证
+本地验证失败且 LDAP 启用时，自动 fallback 到 LDAP 认证
+LDAP 认证成功后：
+用户不存在 → 自动创建本地用户（标记 source=ldap），自动分配默认角色
+用户已存在 → 同步 LDAP 属性（姓名、邮箱、手机号）
+登录日志 loginType 区分 web 和 ldap
+4. 后端 API 路由
+接口	方法	说明	认证
+/api/v1/public/ldap/status	GET	获取 LDAP 启用状态	公开
+/api/v1/ldap/config	GET	获取 LDAP 配置	需登录
+/api/v1/ldap/config	PUT	保存 LDAP 配置	需登录
+/api/v1/ldap/test	POST	测试 LDAP 连接	需登录
+/api/v1/ldap/sync	POST	同步 LDAP 用户	需登录
+/api/v1/ldap/users	GET	查询 LDAP 用户列表	需登录
+5. 前端 - 系统配置页面 (SystemConfig.vue)
+新增 LDAP 认证 Tab 页，包含：
+基本设置：启用开关、服务器地址、端口、SSL
+绑定设置：Bind DN、密码、Base DN
+搜索过滤器：自定义用户搜索 filter（支持 AD 和 OpenLDAP）
+属性映射：用户名、姓名、邮箱、手机号属性
+权限设置：LDAP 用户默认角色
+操作按钮：测试连接、保存配置、同步用户
+LDAP 用户统计卡片
+6. 前端 - 登录页面 (Login.vue)
+LDAP 启用时显示提示信息"支持 LDAP / AD 域账号登录"
+无需额外操作，用户直接用 LDAP 账号密码登录即可
+7. 前端 - 用户管理页面 (Users.vue)
+用户名旁显示 LDAP 标签（橙色 el-tag）
+新增 来源筛选下拉框：全部 / 本地用户 / LDAP 用户
+LDAP 用户和本地用户可以正常进行角色分配、权限管理，互不影响
+
+### 20260215
+
+All 9 tasks from the plan have been implemented. Here's a summary of all changes:
+Backend (Go)
+1. Model & Migration
+internal/biz/asset/host.go — Added NetworkDevice struct with all fields (name, IP, brandModel, serialNumber, deviceType, protocol, port, credentialId, groupId, etc.), NetworkDeviceRequest, and ToModel() method
+internal/biz/asset/repository.go — Added NetworkDeviceRepo interface with CRUD + List + GetAll methods
+cmd/server/server.go — Added &assetmodel.NetworkDevice{} to AutoMigrate; added migration logic to auto-insert "网络设备" menu for existing databases
+2. Data Layer
+internal/data/asset/network_device.go (new) — Repository implementation with Create, Update, Delete, GetByID, List (with keyword/deviceType/protocol/groupID filtering), GetAll
+3. UseCase Layer
+internal/biz/asset/network_device_usecase.go (new) — Business logic including CRUD, list with credential/group enrichment, GetByIDForConnection for terminal connections
+4. Service Layer (HTTP Handlers)
+internal/service/asset/network_device.go (new) — REST handlers: ListNetworkDevices, CreateNetworkDevice, UpdateNetworkDevice, DeleteNetworkDevice, GetNetworkDevice, GetAllNetworkDevices, TestNetworkDeviceConnection (SSH and Telnet testing)
+5. Telnet WebSocket Handler
+internal/server/asset/telnet.go (new) — Full Telnet IAC protocol implementation:
+NetworkTerminalManager for managing network device terminal sessions
+handleTelnetSession — Raw TCP connection with IAC negotiation (NAWS, TTYP, ECHO, SGA)
+handleSSHSession — SSH connection for network devices via SSH protocol
+processTelnetData — Parses IAC commands, responds to negotiations, returns cleaned data
+Session recording using existing AsciinemaRecorder
+Window resize support via NAWS sub-negotiation
+6. Routes & Wiring
+internal/server/asset/http.go — Added NetworkDeviceService and NetworkTerminalManager to HTTPServer; registered routes:
+GET/POST /network-devices + GET/PUT/DELETE /network-devices/:id + POST /network-devices/:id/test
+GET /asset/network-terminal/:id (WebSocket for terminal)
+internal/server/http.go — Updated NewAssetServices call to receive and pass network device services
+Frontend (Vue.js)
+7. API Layer
+web/src/api/host.ts — Added: getNetworkDeviceList, getAllNetworkDevices, getNetworkDevice, createNetworkDevice, updateNetworkDevice, deleteNetworkDevice, testNetworkDeviceConnection
+8. Management Page
+web/src/views/asset/NetworkDevices.vue (new) — Full CRUD page:
+Page header matching Hosts.vue style
+Filter bar (keyword, device type, protocol, group)
+Table with device type icons/colors, protocol tags, status badges, credential/group display
+Create/Edit dialog with all fields, protocol-based auto-port switching
+Connection test, connect-to-terminal, and delete actions
+Double-click row to open terminal
+9. Router & Menu
+web/src/router/index.ts — Added route /asset/network-devices → NetworkDevices.vue
+cmd/server/server.go — Menu seed data includes "网络设备" under "资产管理"; auto-migration inserts menu for existing databases
+10. Terminal Integration
+web/src/views/asset/Terminal.vue — Enhanced sidebar:
+Added segmented control ("主机" / "网络设备") at top of sidebar
+Network device tree with distinct icon (WiFi-style) and protocol tag (SSH/Telnet)
+openNetworkDeviceTerminal + initNetworkDeviceTerminal functions connecting to /api/v1/asset/network-terminal/:id
+Query parameter support (?type=network-device&deviceId=X) for direct device connection from NetworkDevices.vue
+
+
+
+### 20260215 
+后端 (新增 internal/server/asset/system_config.go)
+系统配置 API：
+GET /api/v1/system-config — 从 system_config 表读取所有配置项，返回 key-value 格式
+PUT /api/v1/system-config — 批量保存配置，自动处理新增/更新
+审计日志定时清理调度器 (StartAuditLogCleanupScheduler)：
+服务启动 60 秒后执行一次，之后每 24 小时自动执行
+从 system_config 表读取 logRetentionDays 配置（默认 30 天）
+自动清理超过保留期的三类日志：
+操作日志 (sys_operation_log)
+登录日志 (sys_login_log)
+数据变更日志 (sys_data_log)
+同时清理超过 7 天的孤立终端录制文件
+前端 (SystemConfig.vue)
+loadConfig 改为调用 GET /api/v1/system-config，从后端数据库加载配置（不再使用 localStorage）
+handleSave 改为调用 PUT /api/v1/system-config，将配置持久化到数据库
+"日志保留天数" 输入框旁增加了提示文字："适用于操作日志、登录日志、数据变更日志，超过天数自动清理"

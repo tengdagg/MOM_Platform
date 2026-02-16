@@ -1,6 +1,9 @@
 package skills
 
 import (
+	"crypto/aes"
+	"crypto/cipher"
+	"encoding/base64"
 	"fmt"
 	"net"
 	"strings"
@@ -8,7 +11,94 @@ import (
 
 	"github.com/ydcloud-dy/mom/plugins/ai/biz"
 	"golang.org/x/crypto/ssh"
+	"gorm.io/gorm"
 )
+
+// 凭证加密密钥（与 internal/data/asset/host.go 保持一致）
+var credEncryptionKey = []byte("mom-encrypt-key-32bytes-long!!@@")
+
+// decryptCredentialPassword AES-GCM 解密凭证密码
+func decryptCredentialPassword(ciphertext string) (string, error) {
+	if ciphertext == "" {
+		return "", nil
+	}
+	data, err := base64.StdEncoding.DecodeString(ciphertext)
+	if err != nil {
+		return "", err
+	}
+	block, err := aes.NewCipher(credEncryptionKey)
+	if err != nil {
+		return "", err
+	}
+	gcm, err := cipher.NewGCM(block)
+	if err != nil {
+		return "", err
+	}
+	nonceSize := gcm.NonceSize()
+	if len(data) < nonceSize {
+		return "", fmt.Errorf("ciphertext too short")
+	}
+	nonce, cipherData := data[:nonceSize], data[nonceSize:]
+	plaintext, err := gcm.Open(nil, nonce, cipherData, nil)
+	if err != nil {
+		return "", err
+	}
+	return string(plaintext), nil
+}
+
+// getDeviceCredential 从数据库获取设备凭证（自动解密）
+func getDeviceCredential(db *gorm.DB, deviceID uint) (username, password string, err error) {
+	var credentialID uint
+	db.Table("network_devices").Select("credential_id").Where("id = ?", deviceID).Scan(&credentialID)
+	if credentialID == 0 {
+		return "", "", fmt.Errorf("未配置凭证")
+	}
+
+	var encUsername, encPassword string
+	db.Table("credentials").Select("username").Where("id = ?", credentialID).Scan(&encUsername)
+	db.Table("credentials").Select("password").Where("id = ?", credentialID).Scan(&encPassword)
+
+	// 用户名不加密，密码需要解密
+	username = encUsername
+	password, err = decryptCredentialPassword(encPassword)
+	if err != nil {
+		return "", "", fmt.Errorf("解密密码失败: %v", err)
+	}
+	return username, password, nil
+}
+
+// buildDeviceSSHConfig 构建网络设备 SSH 配置（兼容老设备 + keyboard-interactive）
+func buildDeviceSSHConfig(username, password string) *ssh.ClientConfig {
+	return &ssh.ClientConfig{
+		User: username,
+		Auth: []ssh.AuthMethod{
+			ssh.Password(password),
+			ssh.KeyboardInteractive(func(user, instruction string, questions []string, echos []bool) ([]string, error) {
+				answers := make([]string, len(questions))
+				for i := range questions {
+					answers[i] = password
+				}
+				return answers, nil
+			}),
+		},
+		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
+		Timeout:         10 * time.Second,
+		Config: ssh.Config{
+			KeyExchanges: []string{
+				"curve25519-sha256", "curve25519-sha256@libssh.org",
+				"ecdh-sha2-nistp256", "ecdh-sha2-nistp384", "ecdh-sha2-nistp521",
+				"diffie-hellman-group14-sha256", "diffie-hellman-group14-sha1",
+				"diffie-hellman-group1-sha1",
+			},
+			Ciphers: []string{
+				"aes128-gcm@openssh.com", "aes256-gcm@openssh.com",
+				"chacha20-poly1305@openssh.com",
+				"aes128-ctr", "aes192-ctr", "aes256-ctr",
+				"aes128-cbc", "aes192-cbc", "aes256-cbc", "3des-cbc",
+			},
+		},
+	}
+}
 
 // RegisterDeviceSkills 注册网络设备管理 Skills
 func RegisterDeviceSkills(registry *biz.ToolRegistry) {
@@ -275,42 +365,14 @@ func executeDeviceTestConnection(ctx biz.SkillContext) (any, error) {
 				successCount++
 			}
 		} else {
-			// SSH 测试：获取凭证并尝试连接
-			var credentialID uint
-			ctx.DB.Table("network_devices").Select("credential_id").Where("id = ?", d.ID).Scan(&credentialID)
-
-			var username, password string
-			if credentialID > 0 {
-				ctx.DB.Table("credentials").Select("username").Where("id = ?", credentialID).Scan(&username)
-				ctx.DB.Table("credentials").Select("password").Where("id = ?", credentialID).Scan(&password)
-			}
-
-			if username == "" {
-				results = append(results, TestResult{Device: d.Name, IP: d.IP, Protocol: "SSH", Status: "失败", Error: "未配置凭证"})
+			// SSH 测试：获取凭证（解密）并尝试连接
+			username, password, credErr := getDeviceCredential(ctx.DB, d.ID)
+			if credErr != nil {
+				results = append(results, TestResult{Device: d.Name, IP: d.IP, Protocol: "SSH", Status: "失败", Error: credErr.Error()})
 				continue
 			}
 
-			config := &ssh.ClientConfig{
-				User:            username,
-				Auth:            []ssh.AuthMethod{ssh.Password(password)},
-				HostKeyCallback: ssh.InsecureIgnoreHostKey(),
-				Timeout:         10 * time.Second,
-				Config: ssh.Config{
-					KeyExchanges: []string{
-						"curve25519-sha256", "curve25519-sha256@libssh.org",
-						"ecdh-sha2-nistp256", "ecdh-sha2-nistp384", "ecdh-sha2-nistp521",
-						"diffie-hellman-group14-sha256", "diffie-hellman-group14-sha1",
-						"diffie-hellman-group1-sha1",
-					},
-					Ciphers: []string{
-						"aes128-gcm@openssh.com", "aes256-gcm@openssh.com",
-						"chacha20-poly1305@openssh.com",
-						"aes128-ctr", "aes192-ctr", "aes256-ctr",
-						"aes128-cbc", "3des-cbc",
-					},
-				},
-			}
-
+			config := buildDeviceSSHConfig(username, password)
 			client, err := ssh.Dial("tcp", addr, config)
 			latency := time.Since(startTime).Round(time.Millisecond).String()
 			if err != nil {
@@ -415,42 +477,15 @@ func executeDeviceExecCommand(ctx biz.SkillContext) (any, error) {
 			continue
 		}
 
-		// SSH 执行
-		var credentialID uint
-		ctx.DB.Table("network_devices").Select("credential_id").Where("id = ?", d.ID).Scan(&credentialID)
-
-		var username, password string
-		if credentialID > 0 {
-			ctx.DB.Table("credentials").Select("username").Where("id = ?", credentialID).Scan(&username)
-			ctx.DB.Table("credentials").Select("password").Where("id = ?", credentialID).Scan(&password)
-		}
-
-		if username == "" {
-			results = append(results, ExecResult{Device: d.Name, IP: d.IP, Error: "未配置凭证"})
+		// SSH 执行：获取凭证（解密）
+		username, password, credErr := getDeviceCredential(ctx.DB, d.ID)
+		if credErr != nil {
+			results = append(results, ExecResult{Device: d.Name, IP: d.IP, Error: credErr.Error()})
 			continue
 		}
 
 		addr := fmt.Sprintf("%s:%d", d.IP, d.Port)
-		config := &ssh.ClientConfig{
-			User:            username,
-			Auth:            []ssh.AuthMethod{ssh.Password(password)},
-			HostKeyCallback: ssh.InsecureIgnoreHostKey(),
-			Timeout:         10 * time.Second,
-			Config: ssh.Config{
-				KeyExchanges: []string{
-					"curve25519-sha256", "curve25519-sha256@libssh.org",
-					"ecdh-sha2-nistp256", "ecdh-sha2-nistp384", "ecdh-sha2-nistp521",
-					"diffie-hellman-group14-sha256", "diffie-hellman-group14-sha1",
-					"diffie-hellman-group1-sha1",
-				},
-				Ciphers: []string{
-					"aes128-gcm@openssh.com", "aes256-gcm@openssh.com",
-					"chacha20-poly1305@openssh.com",
-					"aes128-ctr", "aes192-ctr", "aes256-ctr",
-					"aes128-cbc", "3des-cbc",
-				},
-			},
-		}
+		config := buildDeviceSSHConfig(username, password)
 
 		client, err := ssh.Dial("tcp", addr, config)
 		if err != nil {

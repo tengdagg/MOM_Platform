@@ -221,6 +221,7 @@ func NewAssetServices(db *gorm.DB) (
 	credentialRepo := assetdata.NewCredentialRepo(db)
 	cloudAccountRepo := assetdata.NewCloudAccountRepo(db)
 	assetPermissionRepo := rbacdata.NewAssetPermissionRepo(db)
+	assetAuthorizationRepo := rbacdata.NewAssetAuthorizationRepo(db)
 	networkDeviceRepo := assetdata.NewNetworkDeviceRepo(db)
 
 	// 初始化UseCase
@@ -229,11 +230,15 @@ func NewAssetServices(db *gorm.DB) (
 	cloudAccountUseCase := assetbiz.NewCloudAccountUseCase(cloudAccountRepo)
 	hostUseCase := assetbiz.NewHostUseCase(hostRepo, credentialRepo, assetGroupRepo, cloudAccountRepo)
 	assetPermissionUseCase := rbacbiz.NewAssetPermissionUseCase(assetPermissionRepo)
+	assetAuthorizationUseCase := rbacbiz.NewAssetAuthorizationUseCase(assetAuthorizationRepo)
 	networkDeviceUseCase := assetbiz.NewNetworkDeviceUseCase(networkDeviceRepo, credentialRepo, assetGroupRepo)
 
 	// 初始化Service
 	assetGroupService := assetService.NewAssetGroupService(assetGroupUseCase)
+	assetGroupService.SetAssetAuthorizationRepo(assetAuthorizationRepo)
+	assetGroupService.SetDB(db)
 	hostService := assetService.NewHostService(hostUseCase, credentialUseCase, cloudAccountUseCase, assetPermissionUseCase)
+	hostService.SetAssetAuthorizationUseCase(assetAuthorizationUseCase)
 	networkDeviceService := assetService.NewNetworkDeviceService(networkDeviceUseCase)
 
 	// 初始化TerminalManager
