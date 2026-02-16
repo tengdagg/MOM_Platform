@@ -38,14 +38,14 @@ func executeInfraReport(ctx biz.SkillContext) (any, error) {
 		Scan(&resAvg)
 
 	result["hosts"] = map[string]any{
-		"total":         totalHosts,
-		"online":        onlineHosts,
-		"offline":       totalHosts - onlineHosts,
-		"linux":         linuxHosts,
-		"windows":       windowsHosts,
-		"avgCpuUsage":   fmt.Sprintf("%.1f%%", resAvg.AvgCPU),
-		"avgMemUsage":   fmt.Sprintf("%.1f%%", resAvg.AvgMemory),
-		"avgDiskUsage":  fmt.Sprintf("%.1f%%", resAvg.AvgDisk),
+		"total":        totalHosts,
+		"online":       onlineHosts,
+		"offline":      totalHosts - onlineHosts,
+		"linux":        linuxHosts,
+		"windows":      windowsHosts,
+		"avgCpuUsage":  fmt.Sprintf("%.1f%%", resAvg.AvgCPU),
+		"avgMemUsage":  fmt.Sprintf("%.1f%%", resAvg.AvgMemory),
+		"avgDiskUsage": fmt.Sprintf("%.1f%%", resAvg.AvgDisk),
 	}
 
 	// K8s 集群概况
@@ -53,8 +53,8 @@ func executeInfraReport(ctx biz.SkillContext) (any, error) {
 	ctx.DB.Table("k8s_clusters").Count(&totalClusters)
 	ctx.DB.Table("k8s_clusters").Where("status = 1").Count(&normalClusters)
 	result["kubernetes"] = map[string]any{
-		"totalClusters":   totalClusters,
-		"normalClusters":  normalClusters,
+		"totalClusters":    totalClusters,
+		"normalClusters":   normalClusters,
 		"abnormalClusters": totalClusters - normalClusters,
 	}
 
@@ -120,7 +120,7 @@ func executeInfraReport(ctx biz.SkillContext) (any, error) {
 	var todayLogins int64
 	ctx.DB.Table("sys_login_log").Where("created_at >= ? AND deleted_at IS NULL", today).Count(&todayLogins)
 	var todayFailedLogins int64
-	ctx.DB.Table("sys_login_log").Where("created_at >= ? AND deleted_at IS NULL AND status = 0", today).Count(&todayFailedLogins)
+	ctx.DB.Table("sys_login_log").Where("created_at >= ? AND deleted_at IS NULL AND login_status = 'failed'", today).Count(&todayFailedLogins)
 	result["todayLogins"] = todayLogins
 	result["todayFailedLogins"] = todayFailedLogins
 
@@ -178,7 +178,7 @@ func executeSecurityAudit(ctx biz.SkillContext) (any, error) {
 
 	// 2. 检查登录失败（使用正确的表名）
 	var failedLogins int64
-	ctx.DB.Table("sys_login_log").Where("created_at >= ? AND deleted_at IS NULL AND status = 0", since).Count(&failedLogins)
+	ctx.DB.Table("sys_login_log").Where("created_at >= ? AND deleted_at IS NULL AND login_status = 'failed'", since).Count(&failedLogins)
 	if failedLogins > 10 {
 		// 获取失败最多的用户
 		type FailUser struct {
@@ -188,7 +188,7 @@ func executeSecurityAudit(ctx biz.SkillContext) (any, error) {
 		var failUsers []FailUser
 		ctx.DB.Table("sys_login_log").
 			Select("username, COUNT(*) as count").
-			Where("created_at >= ? AND deleted_at IS NULL AND status = 0", since).
+			Where("created_at >= ? AND deleted_at IS NULL AND login_status = 'failed'", since).
 			Group("username").Having("count > 3").Order("count DESC").Limit(5).Find(&failUsers)
 
 		risks = append(risks, map[string]any{
@@ -374,16 +374,16 @@ func executeCapacityPlan(ctx biz.SkillContext) (any, error) {
 	recs := generateCapacityRecommendations(stats, len(highCPU)+len(highMemory)+len(highDisk))
 
 	return map[string]any{
-		"overallStats":     stats,
-		"highCPUHosts":     highCPU,
-		"highMemoryHosts":  highMemory,
-		"highDiskHosts":    highDisk,
-		"highCPUCount":     len(highCPU),
-		"highMemoryCount":  len(highMemory),
-		"highDiskCount":    len(highDisk),
-		"groupStats":       groupStats,
-		"recommendations":  recs,
-		"analyzedAt":       time.Now().Format("2006-01-02 15:04:05"),
+		"overallStats":    stats,
+		"highCPUHosts":    highCPU,
+		"highMemoryHosts": highMemory,
+		"highDiskHosts":   highDisk,
+		"highCPUCount":    len(highCPU),
+		"highMemoryCount": len(highMemory),
+		"highDiskCount":   len(highDisk),
+		"groupStats":      groupStats,
+		"recommendations": recs,
+		"analyzedAt":      time.Now().Format("2006-01-02 15:04:05"),
 	}, nil
 }
 

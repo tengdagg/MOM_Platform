@@ -139,34 +139,17 @@ import { useUserStore } from '@/stores/user'
 import { ElMessage } from 'element-plus'
 import NoPermission from '@/views/NoPermission.vue'
 import {
-  HomeFilled,
   User,
   UserFilled,
-  OfficeBuilding,
   Menu,
   SwitchButton,
   ArrowDown,
-  Platform,
-  Setting,
-  Document,
-  Tools,
-  Monitor,
-  FolderOpened,
-  Connection,
-  Files,
-  Lock,
-  View,
-  Odometer,
-  Tickets,
-  List,
-  Grid,
-  Cloudy,
-  Grape,
-  House,
   Fold,
   Expand
 } from '@element-plus/icons-vue'
+import * as ElIcons from '@element-plus/icons-vue'
 import CustomIcons from '@/components/icons/CustomIcons.vue'
+import { customIconNames } from '@/components/icons/customIconList'
 import { getUserMenu, getAllMenuTree } from '@/api/menu'
 import { pluginManager } from '@/plugins/manager'
 
@@ -229,32 +212,12 @@ const userRoleDisplay = computed(() => {
 const menuList = ref<any[]>([])
 const hasNoPermission = ref(false)
 
-// 图标映射
+// 图标映射：自动包含所有 Element Plus 图标 + 自定义图标
 const iconMap: Record<string, any> = {
-  'HomeFilled': HomeFilled,
-  'User': User,
-  'UserFilled': UserFilled,
-  'OfficeBuilding': OfficeBuilding,
-  'Menu': Menu,
-  'Platform': Platform,
-  'Setting': Setting,
-  'Document': Document,
-  'Tools': Tools,
-  'Monitor': Monitor,
-  'FolderOpened': FolderOpened,
-  'Connection': Connection,
-  'Files': Files,
-  'Lock': Lock,
-  'View': View,
-  'Odometer': Odometer,
-  'Tickets': Tickets,
-  'List': List,
-  'Grid': Grid,
-  'Cloudy': Cloudy,
-  'Grape': Grape,
-  'House': House,
-  'Helm': CustomIcons,
-  'Kubernetes': CustomIcons
+  // 所有 Element Plus 图标（动态导入，无需手动维护）
+  ...(ElIcons as Record<string, any>),
+  // 自定义图标从共享列表动态生成
+  ...Object.fromEntries(customIconNames.map(name => [name, CustomIcons]))
 }
 
 const getIcon = (iconName: string) => {

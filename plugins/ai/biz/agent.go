@@ -273,8 +273,8 @@ func (a *Agent) Run(ctx context.Context, adapter *ModelAdapter, sessionID uint, 
 	// 收集所有工具调用记录（用于持久化）
 	var allToolCallRecords []map[string]any
 
-	// ReAct 循环（最多 10 轮工具调用）
-	maxIterations := 10
+	// ReAct 循环（最多 15 轮工具调用）
+	maxIterations := 15
 	for i := 0; i < maxIterations; i++ {
 		// 调用 LLM
 		resp, err := adapter.ChatCompletion(ctx, messages, tools)
@@ -412,7 +412,7 @@ func (a *Agent) RunStream(ctx context.Context, adapter *ModelAdapter, sessionID 
 	var allToolCallRecords []map[string]any
 
 	// ReAct 循环
-	maxIterations := 10
+	maxIterations := 15
 	for i := 0; i < maxIterations; i++ {
 		// 流式调用 LLM
 		streamCh, err := adapter.ChatCompletionStream(ctx, messages, tools)

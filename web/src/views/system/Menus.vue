@@ -74,7 +74,7 @@
           <template #default="{ row }">
             <span style="display: inline-flex; align-items: center;">
               <el-icon v-if="row.icon" :size="16" style="margin-right: 8px;">
-                <component :is="getIconComponent(row.icon)" />
+                <component :is="getIconComponent(row.icon)" :name="row.icon" />
               </el-icon>
               {{ row.name }}
             </span>
@@ -104,7 +104,7 @@
         <el-table-column label="图标" width="80" align="center">
           <template #default="{ row }">
             <el-icon v-if="row.icon" :size="18">
-              <component :is="getIconComponent(row.icon)" />
+              <component :is="getIconComponent(row.icon)" :name="row.icon" />
             </el-icon>
             <span v-else style="color: #909399;">-</span>
           </template>
@@ -132,7 +132,7 @@
                   <el-icon><Sort /></el-icon>
                 </el-button>
               </el-tooltip>
-              <el-tooltip v-if="!row.isPlugin || isAIPluginMenu(row)" content="编辑" placement="top">
+              <el-tooltip content="编辑" placement="top">
                 <el-button link class="action-btn action-edit" @click="row.isPlugin ? handleEditPluginMenu(row) : handleEdit(row)">
                   <el-icon><Edit /></el-icon>
                 </el-button>
@@ -172,15 +172,15 @@
         </template>
       </el-alert>
       <el-alert
-        v-if="editingAIPlugin && !editingSortOnly"
-        title="编辑 AI 助手菜单"
+        v-if="editingPluginMenu && !editingSortOnly"
+        title="编辑插件菜单"
         type="warning"
         :closable="false"
         style="margin-bottom: 15px;"
       >
         <template #default>
-          <div>AI 助手菜单的名称、编码、路由由插件定义，不可修改</div>
-          <div style="font-size: 12px; color: #666; margin-top: 5px;">可修改：排序、显示状态（显示/隐藏）、启用状态（启用/禁用）</div>
+          <div>插件菜单的名称、编码、路由由插件定义，不可修改</div>
+          <div style="font-size: 12px; color: #666; margin-top: 5px;">可修改：图标、排序、显示状态（显示/隐藏）、启用状态（启用/禁用）</div>
         </template>
       </el-alert>
 
@@ -220,20 +220,20 @@
           <el-input v-model="menuForm.component" placeholder="请输入组件路径" />
         </el-form-item>
         <el-form-item label="图标" prop="icon" v-if="!editingSortOnly">
-          <el-input v-model="menuForm.icon" :disabled="editingPluginMenu && !editingAIPlugin" placeholder="请输入图标名称" />
+          <el-input v-model="menuForm.icon" :disabled="false" placeholder="请输入图标名称" />
         </el-form-item>
         <el-form-item label="排序" prop="sort">
           <el-input-number v-model="menuForm.sort" :min="0" style="width: 100%;" />
           <div class="form-tip">数值越小越靠前</div>
         </el-form-item>
         <el-form-item label="显示状态" prop="visible" v-if="!editingSortOnly">
-          <el-radio-group v-model="menuForm.visible" :disabled="editingPluginMenu && !editingAIPlugin">
+          <el-radio-group v-model="menuForm.visible">
             <el-radio :label="1">显示</el-radio>
             <el-radio :label="0">隐藏</el-radio>
           </el-radio-group>
         </el-form-item>
         <el-form-item label="状态" prop="status" v-if="!editingSortOnly">
-          <el-radio-group v-model="menuForm.status" :disabled="editingPluginMenu && !editingAIPlugin">
+          <el-radio-group v-model="menuForm.status">
             <el-radio :label="1">启用</el-radio>
             <el-radio :label="0">禁用</el-radio>
           </el-radio-group>
@@ -252,7 +252,8 @@
 
 <script setup lang="ts">
 import { ref, reactive, onMounted, computed, nextTick, watch } from 'vue'
-import { ElMessage, ElMessageBox, FormInstance, FormRules, ElTable } from 'element-plus'
+import { ElMessage, ElMessageBox, ElTable } from 'element-plus'
+import type { FormInstance, FormRules } from 'element-plus'
 import {
   Plus,
   Search,
@@ -260,31 +261,20 @@ import {
   Edit,
   Delete,
   Sort,
-  Fold,
-  Expand,
   Key,
-  Menu as MenuIcon
 } from '@element-plus/icons-vue'
-import {
-  HomeFilled,
-  User,
-  UserFilled,
-  OfficeBuilding,
-  Menu,
-  Platform,
-  Setting,
-  Document,
-  Tools,
-  Monitor,
-  FolderOpened,
-  Connection,
-  Files,
-  Lock,
-  View,
-  Odometer
-} from '@element-plus/icons-vue'
-import { getAllMenuTree, getMenuTree, createMenu, updateMenu, updateMenuSort, batchUpdateMenuSort, deleteMenu } from '@/api/menu'
+import { getAllMenuTree, createMenu, updateMenu, updateMenuSort, deleteMenu } from '@/api/menu'
 import { pluginManager } from '@/plugins/manager'
+import CustomIcons from '@/components/icons/CustomIcons.vue'
+import { isCustomIcon } from '@/components/icons/customIconList'
+
+// 获取图标组件：如果是自定义图标，返回 CustomIcons 组件；否则返回图标名称（Element Plus 动态组件支持字符串名称）
+const getIconComponent = (iconName: string) => {
+  if (isCustomIcon(iconName)) {
+    return CustomIcons
+  }
+  return iconName
+}
 
 const loading = ref(false)
 const submitting = ref(false)
@@ -310,31 +300,6 @@ const searchForm = reactive({
   name: '',
   status: undefined as number | undefined
 })
-
-// 图标映射
-const iconMap: Record<string, any> = {
-  'HomeFilled': HomeFilled,
-  'User': User,
-  'UserFilled': UserFilled,
-  'OfficeBuilding': OfficeBuilding,
-  'Menu': Menu,
-  'Platform': Platform,
-  'Setting': Setting,
-  'Document': Document,
-  'Tools': Tools,
-  'Monitor': Monitor,
-  'FolderOpened': FolderOpened,
-  'Connection': Connection,
-  'Files': Files,
-  'Lock': Lock,
-  'View': View,
-  'Odometer': Odometer
-}
-
-// 获取图标组件
-const getIconComponent = (iconName: string) => {
-  return iconMap[iconName] || Menu
-}
 
 // 插件菜单排序存储 key
 const PLUGIN_MENU_SORT_KEY = 'mom_plugin_menu_sort'
@@ -442,7 +407,7 @@ const toggleExpandAllRows = (expand: boolean) => {
 }
 
 const menuForm = reactive({
-  id: 0,
+  id: 0 as any,
   name: '',
   code: '',
   type: 2,
@@ -452,7 +417,8 @@ const menuForm = reactive({
   icon: '',
   sort: 0,
   visible: 1,
-  status: 1
+  status: 1,
+  pluginName: ''
 })
 
 const rules: FormRules = {
@@ -474,16 +440,7 @@ const loadPluginMenuSort = (): Map<string, number> => {
   return new Map()
 }
 
-// 保存插件菜单的自定义排序
-const savePluginMenuSort = (menuPath: string, sort: number) => {
-  try {
-    const sortMap = loadPluginMenuSort()
-    sortMap.set(menuPath, sort)
-    const sortObj = Object.fromEntries(sortMap)
-    localStorage.setItem(PLUGIN_MENU_SORT_KEY, JSON.stringify(sortObj))
-  } catch (error) {
-  }
-}
+
 
 // 构建插件菜单列表
 const buildPluginMenuList = () => {
@@ -534,57 +491,7 @@ const sortMenus = (menus: any[]) => {
   })
 }
 
-// 构建菜单树 - 关键：从一开始就正确处理children
-const buildMenuTree = (menus: any[]) => {
-  const menuMap = new Map()
 
-
-  // 第一遍循环: 创建所有菜单的副本并放入 Map
-  menus.forEach(menu => {
-    const id = menu.ID || menu.id
-    if (!id) {
-      return
-    }
-
-    // 检查原始数据是否有children
-    const hasOriginalChildren = menu.children && menu.children.length > 0
-
-    // 创建菜单副本，保留原始children状态
-    const menuCopy = {
-      ...menu,
-      children: hasOriginalChildren ? [...menu.children] : undefined,
-      hasChildren: hasOriginalChildren
-    }
-
-    menuMap.set(id, menuCopy)
-  })
-
-  const tree: any[] = []
-
-  // 第二遍循环: 只处理顶级菜单
-  menus.forEach(menu => {
-    const id = menu.ID || menu.id
-
-    // 统一处理 parentId
-    let parentId = menu.parentId
-
-    // 对于系统菜单，如果 parentId 是 0，视为顶级菜单
-    if (!menu.isPlugin && (!parentId || parentId === 0)) {
-      parentId = null
-    }
-
-    // 只有顶级菜单才添加到tree
-    if (!parentId) {
-      const menuItem = menuMap.get(id)
-      if (menuItem && !tree.includes(menuItem)) {
-        tree.push(menuItem)
-      }
-    }
-  })
-
-
-  return tree
-}
 
 const loadMenus = async () => {
   loading.value = true
@@ -592,7 +499,7 @@ const loadMenus = async () => {
     // 1. 获取系统菜单（包括隐藏的，用于管理页面）
     let systemMenus: any[] = []
     try {
-      systemMenus = await getAllMenuTree() || []
+      systemMenus = (await getAllMenuTree() as any) || []
     } catch (error) {
     }
 
@@ -773,13 +680,13 @@ const isAIPluginMenu = (row: any): boolean => {
     || (row.pluginName || '').toLowerCase() === 'ai'
 }
 
-// 编辑 AI 插件菜单（可修改显示状态、启用/禁用、排序）
+// 编辑插件菜单（可修改显示状态、启用/禁用、排序、图标）
 const handleEditPluginMenu = (row: any) => {
   isEdit.value = true
   editingPluginMenu.value = true
-  editingAIPlugin.value = true
+  editingAIPlugin.value = isAIPluginMenu(row)
   editingSortOnly.value = false
-  dialogTitle.value = '编辑 AI 助手菜单'
+  dialogTitle.value = '编辑插件菜单'
 
   menuForm.id = row.ID || row.id
   menuForm.name = row.name
@@ -792,6 +699,7 @@ const handleEditPluginMenu = (row: any) => {
   menuForm.sort = row.sort
   menuForm.visible = row.visible ?? 1
   menuForm.status = row.status ?? 1
+  menuForm.pluginName = row.pluginName || ''
   dialogVisible.value = true
 }
 
@@ -842,18 +750,23 @@ const handleSubmit = async () => {
             // 仅更新排序
             await updateMenuSort(menuForm.id, menuForm.sort)
             ElMessage.success('排序更新成功')
-          } else if (editingAIPlugin.value) {
-            // AI 插件菜单编辑：更新显示状态、启用状态、排序
+          } else if (editingPluginMenu.value) {
+            // 插件菜单编辑：更新图标、显示状态、启用状态、排序等
             const data = {
               ...menuForm,
               parentId: Number(menuForm.parentId) || 0,
             }
-            await updateMenu(menuForm.id, data)
-            ElMessage.success('更新成功')
-          } else if (editingPluginMenu.value) {
-            // 其他插件菜单：仅排序
-            await updateMenuSort(menuForm.id, menuForm.sort)
-            ElMessage.success('排序更新成功')
+            // 判断是否为尚未入库的插件菜单（ID 为路径字符串而非数字）
+            const isNewPluginMenu = typeof menuForm.id === 'string' || (typeof menuForm.id === 'number' && isNaN(menuForm.id))
+            if (isNewPluginMenu) {
+              // 首次编辑未入库的插件菜单，先创建数据库记录
+              delete (data as any).id
+              await createMenu(data)
+              ElMessage.success('插件菜单已保存到数据库')
+            } else {
+              await updateMenu(menuForm.id, data)
+              ElMessage.success('更新成功')
+            }
           } else {
             // 完整更新：处理所有字段
             const data = { ...menuForm }
@@ -908,7 +821,8 @@ const resetForm = () => {
     icon: '',
     sort: 0,
     visible: 1,
-    status: 1
+    status: 1,
+    pluginName: ''
   })
   formRef.value?.clearValidate()
 }

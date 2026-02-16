@@ -58,18 +58,26 @@ func (r *menuRepo) Update(ctx context.Context, menu *rbac.SysMenu) error {
 		}
 	}
 
-	return r.db.WithContext(ctx).Model(&rbac.SysMenu{}).Where("id = ?", menu.ID).Updates(map[string]interface{}{
-		"name":       menu.Name,
-		"code":       menu.Code,
-		"type":       menu.Type,
-		"parent_id":  menu.ParentID,
-		"path":       menu.Path,
-		"component":  menu.Component,
-		"icon":       menu.Icon,
-		"sort":       menu.Sort,
-		"visible":    menu.Visible,
-		"status":     menu.Status,
+	err := r.db.WithContext(ctx).Model(&rbac.SysMenu{}).Where("id = ?", menu.ID).Updates(map[string]interface{}{
+		"name":      menu.Name,
+		"code":      menu.Code,
+		"type":      menu.Type,
+		"parent_id": menu.ParentID,
+		"path":      menu.Path,
+		"component": menu.Component,
+		"icon":      menu.Icon,
+		"sort":      menu.Sort,
+		"visible":   menu.Visible,
+		"status":    menu.Status,
 	}).Error
+
+	if err == nil && r.cache != nil {
+		// 清除所有用户的菜单树缓存，因为菜单结构或属性变更会影响所有有权限的用户
+		// 使用 scan 模式匹配所有相关key
+		r.cache.DelByPrefix(ctx, "user:*:menu_tree")
+	}
+
+	return err
 }
 
 func (r *menuRepo) UpdateSort(ctx context.Context, id uint, sort int) error {
@@ -96,7 +104,8 @@ func (r *menuRepo) CheckCodeExists(ctx context.Context, code string, excludeID u
 }
 
 func (r *menuRepo) Delete(ctx context.Context, id uint) error {
-	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+	// new code:
+	err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		// 删除角色菜单关联
 		if err := tx.Where("menu_id = ?", id).Delete(&rbac.SysRoleMenu{}).Error; err != nil {
 			return err
@@ -114,6 +123,12 @@ func (r *menuRepo) Delete(ctx context.Context, id uint) error {
 		// 删除菜单
 		return tx.Delete(&rbac.SysMenu{}, id).Error
 	})
+
+	if err == nil && r.cache != nil {
+		r.cache.DelByPrefix(ctx, "user:*:menu_tree")
+	}
+
+	return err
 }
 
 func (r *menuRepo) GetByID(ctx context.Context, id uint) (*rbac.SysMenu, error) {

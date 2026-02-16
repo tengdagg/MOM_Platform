@@ -29,9 +29,9 @@ func (b *ContextBuilder) BuildSystemContext(userID uint, username string) string
 
 	// 用户角色
 	var roles []string
-	b.db.Table("sys_roles").
-		Select("sys_roles.name").
-		Joins("JOIN sys_user_role ON sys_roles.id = sys_user_role.role_id").
+	b.db.Table("sys_role").
+		Select("sys_role.name").
+		Joins("JOIN sys_user_role ON sys_role.id = sys_user_role.role_id").
 		Where("sys_user_role.user_id = ?", userID).
 		Pluck("name", &roles)
 	if len(roles) > 0 {
