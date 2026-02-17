@@ -7,7 +7,7 @@
 ```go
 type Agent struct {
     db             *gorm.DB           // 数据库连接
-    registry       *ToolRegistry      // 工具注册中心（28 个内置 + N 个自定义 Skills）
+    registry       *ToolRegistry      // 工具注册中心（36 个内置 + N 个自定义 Skills）
     conversation   *ConversationManager // 对话管理（历史消息、会话持久化）
     contextBuilder *ContextBuilder    // 上下文构建（注入用户/角色/平台信息到 SystemPrompt）
 }
@@ -43,7 +43,7 @@ Agent 是整个 AI 助手的核心引擎，负责：
 │  └─────────────────┘    │                                              │  │
 │                          │  ┌────────────┐  ┌──────────────────────┐   │  │
 │                          │  │ Context    │  │    ToolRegistry      │   │  │
-│                          │  │ Builder    │  │  28 内置 + N 自定义   │   │  │
+│                          │  │ Builder    │  │  36 内置 + N 自定义   │   │  │
 │                          │  └────────────┘  └──────────┬───────────┘   │  │
 │                          │                             │               │  │
 │                          │  ┌───────────────┐  ┌───────▼───────────┐   │  │
@@ -214,7 +214,7 @@ Agent 发起 LLM 调用
     │   {
     │     model: "qwen-plus",
     │     messages: [...],    ← 系统提示 + 历史 + 用户消息
-    │     tools: [            ← 28 个内置 Skill 定义
+    │     tools: [            ← 36 个内置 Skill 定义
     │       {
     │         type: "function",
     │         function: {
@@ -223,7 +223,7 @@ Agent 发起 LLM 调用
     │           parameters: { type: "object", properties: { metric: {...}, threshold: {...} } }
     │         }
     │       },
-    │       ... (共 28 个)
+    │       ... (共 36 个)
     │     ],
     │     stream: true
     │   }
@@ -414,9 +414,9 @@ AI: "✅ 已成功将 order-service 的副本数调整为 5"
 
 ---
 
-## 内置 Skills 清单（28 个）
+## 内置 Skills 清单（36 个）
 
-### 主机管理 (6)
+### 主机管理 (7)
 
 | Skill | 风险 | 说明 |
 |-------|------|------|
@@ -426,6 +426,17 @@ AI: "✅ 已成功将 order-service 的副本数调整为 5"
 | `host.collect` | medium | SSH 采集主机系统信息 |
 | `host.exec_command` | critical | SSH 远程执行命令（安全黑名单 + 两步确认） |
 | `host.file_manage` | high | 远程文件列表/读取/管理 |
+| `host.manage` | high | 主机 CRUD 管理（创建/修改/删除 + 查凭证/分组） |
+
+### 网络设备管理 (5)
+
+| Skill | 风险 | 说明 |
+|-------|------|------|
+| `device.list` | low | 查询网络设备列表，支持按类型/品牌/协议/分组/状态筛选 |
+| `device.detail` | low | 查询单台网络设备详情（品牌型号/连接协议/凭证等） |
+| `device.manage` | high | 网络设备 CRUD 管理（创建/修改/删除 + 查凭证/分组） |
+| `device.test_connection` | high | 测试网络设备 SSH/Telnet 连接（单台或批量） |
+| `device.exec_command` | critical | 在网络设备上远程执行命令（show/display 等，安全黑名单 + 两步确认） |
 
 ### Kubernetes (7)
 
@@ -447,11 +458,12 @@ AI: "✅ 已成功将 order-service 的副本数调整为 5"
 | `task.execute` | critical | 在指定主机/分组上执行 Ad-hoc 命令 |
 | `task.ansible` | high | 执行 Ansible Playbook |
 
-### 监控告警 (3)
+### 监控告警 (4)
 
 | Skill | 风险 | 说明 |
 |-------|------|------|
 | `monitor.domain_status` | low | 域名监控状态查询 |
+| `monitor.domain_manage` | medium | 域名监控 CRUD（创建/修改/删除，配置检查间隔/SSL/告警阈值） |
 | `monitor.alert_summary` | low | 告警汇总分析 |
 | `monitor.alert_config` | medium | 告警规则 CRUD |
 

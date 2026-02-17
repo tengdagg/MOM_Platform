@@ -39,7 +39,7 @@ MOM Platform 是一个功能强大的**插件化运维管理平台**，采用前
 
 - 内置 **Agent + Skills** 架构，通过自然语言对话管理运维资源
 - 支持多模型接入：OpenAI、DeepSeek、通义千问、豆包、Google Gemini
-- **28 个内置 Skills**，覆盖主机、K8s、任务、监控、审计、云账号、综合分析 7 大类
+- **36 个内置 Skills**，覆盖主机、网络设备、K8s、任务、监控、审计、云账号、综合分析 8 大类
 - 支持自定义 Skill 上传扩展，可替代或增强内置 Skill
 - 高风险操作两步确认机制，安全可控
 - AI 操作全程审计，可按模块筛选查看
@@ -170,7 +170,7 @@ MOM Platform 是一个功能强大的**插件化运维管理平台**，采用前
 | 多模型支持 | OpenAI、DeepSeek、通义千问、豆包、Google Gemini，支持自定义 API 端点 |
 | 对话管理 | 多会话管理、历史记录、流式输出 |
 | Agent + Skills | ReAct 循环架构，AI 自主决策调用合适的 Skill 完成任务 |
-| 28 个内置 Skill | 覆盖主机、K8s、任务、监控、审计、云账号、综合分析 7 大领域 |
+| 36 个内置 Skill | 覆盖主机、网络设备、K8s、任务、监控、审计、云账号、综合分析 8 大领域 |
 | 自定义 Skill | 支持上传 SKILL.md 包扩展能力，可覆盖内置 Skill |
 | Skills 管理 | 启用/禁用/统计、按分类筛选、实时数量统计 |
 | 工具调用可视化 | 对话中实时展示 Skill 调用状态与结果 |
@@ -181,10 +181,11 @@ MOM Platform 是一个功能强大的**插件化运维管理平台**，采用前
 
 | 分类 | Skills | 描述 |
 |:-----|:-------|:-----|
-| 主机管理 | `host.list` `host.detail` `host.analyze` `host.collect` `host.exec_command` `host.file_manage` | 查询/分析主机、远程执行命令、文件管理 |
+| 主机管理 | `host.list` `host.detail` `host.analyze` `host.collect` `host.exec_command` `host.file_manage` `host.manage` | 查询/分析主机、远程执行命令、文件管理、主机 CRUD |
+| 网络设备 | `device.list` `device.detail` `device.manage` `device.test_connection` `device.exec_command` | 设备查询/详情、CRUD 管理、连接测试、远程命令执行 |
 | Kubernetes | `k8s.kubectl` `k8s.scale` `k8s.restart` `k8s.diagnose` `k8s.node_manage` `k8s.log_query` `k8s.helm_manage` | 全资源操作、扩缩容、重启、诊断、节点管理 |
 | 任务中心 | `task.execute` `task.ansible` `task.history` | Ad-hoc 任务执行、Ansible Playbook、历史查询 |
-| 监控告警 | `monitor.domain_status` `monitor.alert_summary` `monitor.alert_config` | 域名监控、告警分析、告警规则配置 |
+| 监控告警 | `monitor.domain_status` `monitor.domain_manage` `monitor.alert_summary` `monitor.alert_config` | 域名监控/管理、告警分析、告警规则配置 |
 | 审计分析 | `audit.operation_summary` `audit.login_analysis` `audit.data_changes` `audit.session_summary` | 操作统计、登录行为分析、数据变更追踪 |
 | 云账号 | `cloud.list_accounts` `cloud.list_instances` `cloud.import_hosts` | 云账号查询、实例查询、主机导入 |
 | 综合分析 | `analysis.infra_report` `analysis.security_audit` `analysis.capacity_plan` | 基础设施周报、安全态势分析、容量规划 |
@@ -198,6 +199,13 @@ MOM Platform 是一个功能强大的**插件化运维管理平台**，采用前
 | 虚拟键盘 | 美式键盘布局，解决特殊字符输入问题 |
 | 会话录制 | RDP 操作全程录制，支持审计回放 |
 | RBAC 权限 | 与 SSH 终端一致的权限控制 |
+
+#### 待开发功能
+
+| 功能           | 描述                           |
+|:-------------|:-----------------------------|
+| 数据库远程终端访问    | MySQL Oracle Pgsql  AI助手支持   |
+| AI OPS/CI CD | 对接 gitlab Jekins CI ，Argo-cd |
 
 ---
 
@@ -437,7 +445,7 @@ mom/
 │   └── ai/                # AI 智能助手插件
 │       ├── biz/           #   Agent 核心（ReAct 循环、对话管理）
 │       ├── server/        #   API Handler（聊天、模型、Skill 管理）
-│       └── skills/        #   28 个内置 Skill 实现 + SKILL.md 定义
+│       └── skills/        #   36 个内置 Skill 实现 + SKILL.md 定义
 ├── pkg/                    # 公共包
 │   ├── ssh/               # SSH 客户端
 │   └── util/              # 工具函数

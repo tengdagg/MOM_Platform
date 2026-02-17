@@ -204,3 +204,60 @@ func (m *ConversationManager) EnsureSettingsTable() {
 		UNIQUE KEY uk_user_key (user_id, ` + "`key`" + `)
 	) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`)
 }
+
+// --- 摘要相关方法 ---
+
+// GetSessionByID 通过 ID 获取会话（内部使用，不校验 userID）
+func (m *ConversationManager) GetSessionByID(sessionID uint) (*ChatSession, error) {
+	var session ChatSession
+	if err := m.db.Where("id = ?", sessionID).First(&session).Error; err != nil {
+		return nil, fmt.Errorf("会话不存在")
+	}
+	return &session, nil
+}
+
+// CountMessages 统计会话消息数量
+func (m *ConversationManager) CountMessages(sessionID uint) int64 {
+	var count int64
+	m.db.Model(&ChatMessage{}).Where("session_id = ?", sessionID).Count(&count)
+	return count
+}
+
+// GetOldMessages 获取指定 ID 之后、最近 N 条之前的旧消息（用于生成摘要）
+// 返回的是需要被摘要压缩的消息
+func (m *ConversationManager) GetOldMessages(sessionID uint, afterID uint, recentLimit int) ([]ChatMessage, error) {
+	// 先获取最近 N 条消息的最小 ID
+	var recentMsgs []ChatMessage
+	m.db.Where("session_id = ?", sessionID).
+		Order("created_at DESC").
+		Limit(recentLimit).
+		Find(&recentMsgs)
+
+	if len(recentMsgs) == 0 {
+		return nil, nil
+	}
+
+	// 最近消息中的最小 ID
+	minRecentID := recentMsgs[len(recentMsgs)-1].ID
+
+	// 获取在 afterID 之后、minRecentID 之前的消息
+	var oldMsgs []ChatMessage
+	query := m.db.Where("session_id = ? AND id < ?", sessionID, minRecentID)
+	if afterID > 0 {
+		query = query.Where("id > ?", afterID)
+	}
+	if err := query.Order("created_at ASC").Find(&oldMsgs).Error; err != nil {
+		return nil, err
+	}
+
+	return oldMsgs, nil
+}
+
+// UpdateSummary 更新会话摘要
+func (m *ConversationManager) UpdateSummary(sessionID uint, summary string, upToID uint) error {
+	return m.db.Model(&ChatSession{}).Where("id = ?", sessionID).
+		Updates(map[string]any{
+			"summary":          summary,
+			"summary_up_to_id": upToID,
+		}).Error
+}

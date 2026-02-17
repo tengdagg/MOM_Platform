@@ -232,15 +232,12 @@ const systemPrompt = `你是 MOM 运维管理平台的 AI 助手。你可以帮�
 - 你: 调用 k8s-scale(resource_name="order-service", replicas=5, namespace="default", confirmed=true) → 返回 success
 - 你: "✅ 已成功将 order-service 的副本数调整为 5"`
 
-// Run 执行 Agent（非流式，简单的 ReAct 循环）
-func (a *Agent) Run(ctx context.Context, adapter *ModelAdapter, sessionID uint, userMessage string, userID uint, username string, eventCh chan<- AgentEvent) {
-	defer func() {
-		if r := recover(); r != nil {
-			eventCh <- AgentEvent{Type: "error", Error: fmt.Sprintf("Agent 异常: %v", r)}
-		}
-		eventCh <- AgentEvent{Type: "message_end"}
-	}()
-
+// buildMessages 构建发送给 LLM 的消息列表（公共逻辑）
+// 1. 系统提示词 + 动态上下文
+// 2. 如果有摘要，注入为 system 消息
+// 3. 最近 20 条历史消息
+// 4. 当前用户消息
+func (a *Agent) buildMessages(sessionID uint, userID uint, username string, userMessage string) []ChatCompletionMessage {
 	// 获取历史消息
 	historyMsgs, _ := a.conversation.GetRecentMessages(sessionID, 20)
 
@@ -252,6 +249,17 @@ func (a *Agent) Run(ctx context.Context, adapter *ModelAdapter, sessionID uint, 
 	messages := []ChatCompletionMessage{
 		{Role: "system", Content: fullSystemPrompt},
 	}
+
+	// 注入历史摘要（如果有）
+	session, err := a.conversation.GetSessionByID(sessionID)
+	if err == nil && session.Summary != "" {
+		messages = append(messages, ChatCompletionMessage{
+			Role:    "system",
+			Content: "以下是之前对话的摘要，帮助你了解对话的完整背景：\n" + session.Summary,
+		})
+	}
+
+	// 加载最近的历史消息
 	for _, msg := range historyMsgs {
 		messages = append(messages, ChatCompletionMessage{
 			Role:    msg.Role,
@@ -262,6 +270,114 @@ func (a *Agent) Run(ctx context.Context, adapter *ModelAdapter, sessionID uint, 
 		Role:    "user",
 		Content: userMessage,
 	})
+
+	return messages
+}
+
+// summaryPrompt 摘要生成提示词
+const summaryPrompt = `请将以下对话内容压缩为一段简洁的摘要。要求：
+1. 保留关键信息：用户的核心需求、重要操作结果、关键结论
+2. 保留具体数据：IP地址、主机名、集群名、操作名等关键标识
+3. 用第三人称描述，例如"用户查询了..."、"系统执行了..."
+4. 摘要长度控制在 300-500 字以内
+5. 如果已有之前的摘要，请合并新旧内容，去除重复
+
+直接输出摘要内容，不要加任何前缀或解释。`
+
+// triggerSummaryIfNeeded 异步检查并生成摘要
+func (a *Agent) triggerSummaryIfNeeded(sessionID uint) {
+	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				log.Printf("[agent] 摘要生成异常: %v", r)
+			}
+		}()
+
+		// 消息总数 < 30 不触发
+		totalMsgs := a.conversation.CountMessages(sessionID)
+		if totalMsgs < 30 {
+			return
+		}
+
+		// 获取当前 session 的摘要状态
+		session, err := a.conversation.GetSessionByID(sessionID)
+		if err != nil {
+			return
+		}
+
+		// 获取需要被摘要的旧消息（排除最近 20 条，排除已摘要过的）
+		oldMsgs, err := a.conversation.GetOldMessages(sessionID, session.SummaryUpToID, 20)
+		if err != nil || len(oldMsgs) < 10 {
+			// 新消息不足 10 条，不值得重新摘要
+			return
+		}
+
+		// 构建待摘要的文本
+		var textBuilder strings.Builder
+		if session.Summary != "" {
+			textBuilder.WriteString("【已有摘要】\n")
+			textBuilder.WriteString(session.Summary)
+			textBuilder.WriteString("\n\n【新增对话】\n")
+		}
+		for _, msg := range oldMsgs {
+			if msg.Role == "user" || msg.Role == "assistant" {
+				roleLabel := "用户"
+				if msg.Role == "assistant" {
+					roleLabel = "助手"
+				}
+				content := msg.Content
+				// 截断过长的单条消息
+				if len([]rune(content)) > 500 {
+					content = string([]rune(content)[:500]) + "..."
+				}
+				textBuilder.WriteString(fmt.Sprintf("%s: %s\n", roleLabel, content))
+			}
+		}
+
+		// 用默认模型调用 LLM 生成摘要
+		var model AIModelConfig
+		if err := a.db.Where("is_default = ? AND status = 1", true).First(&model).Error; err != nil {
+			if err := a.db.Where("status = 1").First(&model).Error; err != nil {
+				log.Printf("[agent] 摘要生成失败: 无可用模型")
+				return
+			}
+		}
+
+		adapter := NewModelAdapter(&model)
+		summaryMessages := []ChatCompletionMessage{
+			{Role: "system", Content: summaryPrompt},
+			{Role: "user", Content: textBuilder.String()},
+		}
+
+		resp, err := adapter.ChatCompletion(context.Background(), summaryMessages, nil)
+		if err != nil {
+			log.Printf("[agent] 摘要生成失败: %v", err)
+			return
+		}
+
+		if len(resp.Choices) > 0 && resp.Choices[0].Message.Content != "" {
+			newSummary := resp.Choices[0].Message.Content
+			lastMsgID := oldMsgs[len(oldMsgs)-1].ID
+			if err := a.conversation.UpdateSummary(sessionID, newSummary, lastMsgID); err != nil {
+				log.Printf("[agent] 保存摘要失败: %v", err)
+			} else {
+				log.Printf("[agent] 会话 %d 摘要已更新（覆盖到消息 #%d，总消息 %d 条）", sessionID, lastMsgID, totalMsgs)
+			}
+		}
+	}()
+}
+
+// Run 执行 Agent（非流式，简单的 ReAct 循环）
+func (a *Agent) Run(ctx context.Context, adapter *ModelAdapter, sessionID uint, userMessage string, userID uint, username string, eventCh chan<- AgentEvent) {
+	defer func() {
+		if r := recover(); r != nil {
+			eventCh <- AgentEvent{Type: "error", Error: fmt.Sprintf("Agent 异常: %v", r)}
+		}
+		eventCh <- AgentEvent{Type: "message_end"}
+	}()
+
+	// 构建消息列表（含摘要注入）
+	messages := a.buildMessages(sessionID, userID, username, userMessage)
 
 	// 保存用户消息
 	a.conversation.AddMessage(sessionID, "user", userMessage)
@@ -379,27 +495,8 @@ func (a *Agent) RunStream(ctx context.Context, adapter *ModelAdapter, sessionID 
 		close(eventCh)
 	}()
 
-	// 获取历史消息
-	historyMsgs, _ := a.conversation.GetRecentMessages(sessionID, 20)
-
-	// 构建系统上下文
-	userCtx := a.contextBuilder.BuildSystemContext(userID, username)
-	fullSysPrompt := systemPrompt + "\n\n--- 当前上下文 ---\n" + userCtx
-
-	// 构建消息列表
-	messages := []ChatCompletionMessage{
-		{Role: "system", Content: fullSysPrompt},
-	}
-	for _, msg := range historyMsgs {
-		messages = append(messages, ChatCompletionMessage{
-			Role:    msg.Role,
-			Content: msg.Content,
-		})
-	}
-	messages = append(messages, ChatCompletionMessage{
-		Role:    "user",
-		Content: userMessage,
-	})
+	// 构建消息列表（含摘要注入）
+	messages := a.buildMessages(sessionID, userID, username, userMessage)
 
 	// 保存用户消息
 	a.conversation.AddMessage(sessionID, "user", userMessage)
@@ -540,7 +637,7 @@ func (a *Agent) RunStream(ctx context.Context, adapter *ModelAdapter, sessionID 
 	eventCh <- AgentEvent{Type: "message_end"}
 }
 
-// saveAssistantMessage 保存助手消息（附带工具调用记录）
+// saveAssistantMessage 保存助手消息（附带工具调用记录）并异步触发摘要
 func (a *Agent) saveAssistantMessage(sessionID uint, content string, toolCallRecords []map[string]any) {
 	if len(toolCallRecords) > 0 {
 		toolCallsJSON, _ := json.Marshal(toolCallRecords)
@@ -548,6 +645,8 @@ func (a *Agent) saveAssistantMessage(sessionID uint, content string, toolCallRec
 	} else {
 		a.conversation.AddMessage(sessionID, "assistant", content)
 	}
+	// 异步检查是否需要生成摘要
+	a.triggerSummaryIfNeeded(sessionID)
 }
 
 // executeTool 执行工具
