@@ -584,8 +584,8 @@ func (uc *CredentialUseCase) GetByID(ctx context.Context, id uint) (*Credential,
 }
 
 // List 分页查询凭证列表
-func (uc *CredentialUseCase) List(ctx context.Context, page, pageSize int, keyword string) ([]*CredentialVO, int64, error) {
-	credentials, total, err := uc.repo.List(ctx, page, pageSize, keyword)
+func (uc *CredentialUseCase) List(ctx context.Context, page, pageSize int, keyword, credType, category string) ([]*CredentialVO, int64, error) {
+	credentials, total, err := uc.repo.List(ctx, page, pageSize, keyword, credType, category)
 	if err != nil {
 		return nil, 0, err
 	}

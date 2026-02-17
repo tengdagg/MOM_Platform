@@ -51,7 +51,7 @@ type CredentialRepo interface {
 	Delete(ctx context.Context, id uint) error
 	GetByID(ctx context.Context, id uint) (*Credential, error)
 	GetByIDDecrypted(ctx context.Context, id uint) (*Credential, error)
-	List(ctx context.Context, page, pageSize int, keyword string) ([]*Credential, int64, error)
+	List(ctx context.Context, page, pageSize int, keyword, credType, category string) ([]*Credential, int64, error)
 	GetAll(ctx context.Context) ([]*Credential, error)
 }
 

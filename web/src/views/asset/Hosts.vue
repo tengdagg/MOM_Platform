@@ -443,7 +443,7 @@
                 </el-input>
                 <div class="tree-container" v-loading="groupLoading">
                   <el-tree
-                    ref="groupTreeRef"
+                    ref="terminalTreeRef"
                     :data="terminalGroupTree"
                     :props="treeProps"
                     :default-expand-all="false"
@@ -1438,6 +1438,7 @@ const credentialFormRef = ref<FormInstance>()
 const cloudAccountFormRef = ref<FormInstance>()
 const groupFormRef = ref<FormInstance>()
 const groupTreeRef = ref()
+const terminalTreeRef = ref()
 const uploadRef = ref()
 
 // 分组树数据
@@ -1627,11 +1628,15 @@ const searchTreeNodes = (nodes: any[], keyword: string): any[] => {
 // 展开/折叠全部
 const toggleExpandAll = () => {
   isExpandAll.value = !isExpandAll.value
-  const allNodeKeys = getAllNodeKeys(filteredGroupTree.value)
-  if (isExpandAll.value) {
-    allNodeKeys.forEach(key => groupTreeRef.value?.store.nodesMap[key]?.expand())
-  } else {
-    allNodeKeys.forEach(key => groupTreeRef.value?.store.nodesMap[key]?.collapse())
+  // 根据当前视图选择正确的树引用
+  const treeRef = activeView.value === 'terminal' ? terminalTreeRef.value : groupTreeRef.value
+  const treeStore = treeRef?.store
+  if (!treeStore) return
+  for (const key in treeStore.nodesMap) {
+    const node = treeStore.nodesMap[key]
+    if (node) {
+      node.expanded = isExpandAll.value
+    }
   }
 }
 
@@ -2653,7 +2658,7 @@ const handleGroupSubmit = async () => {
     if (!valid) return
     groupSubmitting.value = true
     try {
-      const data = { ...groupForm }
+      const data = { ...groupForm, category: 'host' }
       if (isGroupEdit.value) {
         await updateGroup(data.id, data)
       } else {

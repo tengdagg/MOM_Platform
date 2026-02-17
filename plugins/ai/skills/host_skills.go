@@ -16,6 +16,7 @@ func RegisterHostSkills(registry *biz.ToolRegistry) {
 	registry.Register(MustLoadBuiltinSkill("host.collect", executeHostCollect))
 	registry.Register(MustLoadBuiltinSkill("host.exec_command", executeHostExecCommand))
 	registry.Register(MustLoadBuiltinSkill("host.file_manage", executeHostFileManage))
+	registry.Register(MustLoadBuiltinSkill("host.manage", executeHostManage))
 }
 
 // executeHostList 查询主机列表
@@ -175,20 +176,20 @@ func executeHostDetail(ctx biz.SkillContext) (any, error) {
 
 	// 构建更丰富的详情
 	result := map[string]any{
-		"id":         host.ID,
-		"name":       host.Name,
-		"ip":         host.IP,
-		"publicIp":   host.PublicIP,
-		"port":       host.Port,
-		"os":         host.OS,
-		"osType":     host.OSType,
-		"kernel":     host.Kernel,
-		"arch":       host.Arch,
-		"hostname":   host.Hostname,
-		"status":     host.Status,
-		"statusText": statusText,
-		"groupName":  groupName,
-		"tags":       host.Tags,
+		"id":          host.ID,
+		"name":        host.Name,
+		"ip":          host.IP,
+		"publicIp":    host.PublicIP,
+		"port":        host.Port,
+		"os":          host.OS,
+		"osType":      host.OSType,
+		"kernel":      host.Kernel,
+		"arch":        host.Arch,
+		"hostname":    host.Hostname,
+		"status":      host.Status,
+		"statusText":  statusText,
+		"groupName":   groupName,
+		"tags":        host.Tags,
 		"description": host.Description,
 		"resources": map[string]any{
 			"cpuCores":    host.CPUCores,
@@ -365,10 +366,10 @@ func executeHostCollect(ctx biz.SkillContext) (any, error) {
 
 	// 已确认 → 通过 SSH 采集基本信息
 	type CollectResult struct {
-		Host   string `json:"host"`
-		IP     string `json:"ip"`
-		Info   string `json:"info,omitempty"`
-		Error  string `json:"error,omitempty"`
+		Host  string `json:"host"`
+		IP    string `json:"ip"`
+		Info  string `json:"info,omitempty"`
+		Error string `json:"error,omitempty"`
 	}
 	var results []CollectResult
 	successCount := 0
@@ -443,12 +444,12 @@ func executeHostExecCommand(ctx biz.SkillContext) (any, error) {
 	// 未确认 → 返回待确认信息
 	if !isConfirmed(ctx.Params) {
 		return map[string]any{
-			"message":    fmt.Sprintf("命令 [%s] 将在 %d 台主机上执行", command, len(hosts)),
-			"command":    command,
-			"hostCount":  len(hosts),
-			"hosts":      hosts,
-			"status":     "pending_confirmation",
-			"warning":    "⚠️ 远程命令执行是高风险操作，请确认命令内容无误后再执行",
+			"message":   fmt.Sprintf("命令 [%s] 将在 %d 台主机上执行", command, len(hosts)),
+			"command":   command,
+			"hostCount": len(hosts),
+			"hosts":     hosts,
+			"status":    "pending_confirmation",
+			"warning":   "⚠️ 远程命令执行是高风险操作，请确认命令内容无误后再执行",
 		}, nil
 	}
 
@@ -569,4 +570,239 @@ func executeHostFileManage(ctx biz.SkillContext) (any, error) {
 		"status":  "pending",
 		"message": fmt.Sprintf("文件 %s 操作需要通过文件管理界面完成", action),
 	}, nil
+}
+
+// executeHostManage 主机管理（创建/修改/删除/查凭证/查分组）
+func executeHostManage(ctx biz.SkillContext) (any, error) {
+	action, _ := ctx.Params["action"].(string)
+	if action == "" {
+		return nil, fmt.Errorf("请指定操作: create/update/delete/list_credentials/list_groups")
+	}
+
+	switch action {
+	case "list_credentials":
+		type CredInfo struct {
+			ID       uint   `json:"id"`
+			Name     string `json:"name"`
+			Type     string `json:"type"`
+			Category string `json:"category"`
+			Username string `json:"username"`
+		}
+		var creds []CredInfo
+		ctx.DB.Table("credentials").Select("id, name, type, category, username").Where("deleted_at IS NULL AND (category = 'all' OR category = 'host')").Find(&creds)
+		return map[string]any{
+			"credentials": creds,
+			"total":       len(creds),
+			"hint":        "创建主机时可以使用以上凭证的 ID",
+		}, nil
+
+	case "list_groups":
+		type GroupInfo struct {
+			ID   uint   `json:"id"`
+			Name string `json:"name"`
+		}
+		var groups []GroupInfo
+		ctx.DB.Table("asset_group").Select("id, name").Where("deleted_at IS NULL").Order("name").Find(&groups)
+		return map[string]any{
+			"groups": groups,
+			"total":  len(groups),
+			"hint":   "创建主机时可以使用以上分组的 ID",
+		}, nil
+
+	case "create":
+		name, _ := ctx.Params["name"].(string)
+		ip, _ := ctx.Params["ip"].(string)
+		sshUser, _ := ctx.Params["ssh_user"].(string)
+		if name == "" || ip == "" || sshUser == "" {
+			return nil, fmt.Errorf("创建主机需要指定 name, ip, ssh_user 参数")
+		}
+
+		// 检查 IP 是否已存在
+		var existCount int64
+		ctx.DB.Table("hosts").Where("ip = ? AND deleted_at IS NULL", ip).Count(&existCount)
+		if existCount > 0 {
+			return nil, fmt.Errorf("主机 IP %s 已存在，无需重复添加", ip)
+		}
+
+		port := 22
+		if v, ok := ctx.Params["port"].(float64); ok && v > 0 {
+			port = int(v)
+		}
+		osType := "linux"
+		if v, _ := ctx.Params["os_type"].(string); v != "" {
+			osType = v
+		}
+		tags, _ := ctx.Params["tags"].(string)
+		description, _ := ctx.Params["description"].(string)
+		var credentialID uint
+		if v, ok := ctx.Params["credential_id"].(float64); ok && v > 0 {
+			credentialID = uint(v)
+		}
+		var groupID uint
+		if v, ok := ctx.Params["group_id"].(float64); ok && v > 0 {
+			groupID = uint(v)
+		}
+		rdpPort := 3389
+		if v, ok := ctx.Params["rdp_port"].(float64); ok && v > 0 {
+			rdpPort = int(v)
+		}
+
+		if !isConfirmed(ctx.Params) {
+			// 查凭证名称
+			credName := ""
+			if credentialID > 0 {
+				ctx.DB.Table("credentials").Select("name").Where("id = ?", credentialID).Scan(&credName)
+			}
+			groupName := ""
+			if groupID > 0 {
+				ctx.DB.Table("asset_group").Select("name").Where("id = ?", groupID).Scan(&groupName)
+			}
+			return map[string]any{
+				"action":      "create",
+				"name":        name,
+				"ip":          ip,
+				"port":        port,
+				"sshUser":     sshUser,
+				"osType":      osType,
+				"credential":  credName,
+				"group":       groupName,
+				"tags":        tags,
+				"description": description,
+				"status":      "pending_confirmation",
+				"warning":     fmt.Sprintf("即将创建主机 [%s](%s:%d)，SSH用户: %s，系统: %s，请确认", name, ip, port, sshUser, osType),
+			}, nil
+		}
+
+		// 确认后创建
+		now := time.Now()
+		if err := ctx.DB.Exec(
+			`INSERT INTO hosts (name, ip, port, ssh_user, credential_id, group_id, os_type, type, tags, description, status, rdp_port, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, 'self', ?, ?, -1, ?, ?, ?)`,
+			name, ip, port, sshUser, credentialID, groupID, osType, tags, description, rdpPort, now, now,
+		).Error; err != nil {
+			return nil, fmt.Errorf("创建主机失败: %v", err)
+		}
+
+		return map[string]any{
+			"status":  "success",
+			"message": fmt.Sprintf("✅ 已成功创建主机 [%s](%s:%d)", name, ip, port),
+		}, nil
+
+	case "update":
+		hostID, _ := ctx.Params["id"].(float64)
+		hostIP, _ := ctx.Params["host_ip"].(string)
+
+		var targetID uint
+		var targetName, targetIP string
+		if hostID > 0 {
+			ctx.DB.Table("hosts").Select("id, name, ip").Where("id = ? AND deleted_at IS NULL", uint(hostID)).Row().Scan(&targetID, &targetName, &targetIP)
+		} else if hostIP != "" {
+			ctx.DB.Table("hosts").Select("id, name, ip").Where("ip = ? AND deleted_at IS NULL", hostIP).Row().Scan(&targetID, &targetName, &targetIP)
+		} else {
+			return nil, fmt.Errorf("请提供主机 ID 或 IP")
+		}
+		if targetID == 0 {
+			return nil, fmt.Errorf("未找到主机")
+		}
+
+		updates := map[string]any{"updated_at": time.Now()}
+		changeDesc := []string{}
+		if v, _ := ctx.Params["name"].(string); v != "" {
+			updates["name"] = v
+			changeDesc = append(changeDesc, fmt.Sprintf("名称→%s", v))
+		}
+		if v, _ := ctx.Params["ip"].(string); v != "" {
+			updates["ip"] = v
+			changeDesc = append(changeDesc, fmt.Sprintf("IP→%s", v))
+		}
+		if v, ok := ctx.Params["port"].(float64); ok && v > 0 {
+			updates["port"] = int(v)
+			changeDesc = append(changeDesc, fmt.Sprintf("端口→%d", int(v)))
+		}
+		if v, _ := ctx.Params["ssh_user"].(string); v != "" {
+			updates["ssh_user"] = v
+			changeDesc = append(changeDesc, fmt.Sprintf("SSH用户→%s", v))
+		}
+		if v, ok := ctx.Params["credential_id"].(float64); ok && v > 0 {
+			updates["credential_id"] = uint(v)
+			changeDesc = append(changeDesc, fmt.Sprintf("凭证ID→%d", int(v)))
+		}
+		if v, ok := ctx.Params["group_id"].(float64); ok && v > 0 {
+			updates["group_id"] = uint(v)
+			changeDesc = append(changeDesc, fmt.Sprintf("分组ID→%d", int(v)))
+		}
+		if v, _ := ctx.Params["tags"].(string); v != "" {
+			updates["tags"] = v
+			changeDesc = append(changeDesc, fmt.Sprintf("标签→%s", v))
+		}
+		if v, _ := ctx.Params["description"].(string); v != "" {
+			updates["description"] = v
+			changeDesc = append(changeDesc, "备注已更新")
+		}
+
+		if len(changeDesc) == 0 {
+			return nil, fmt.Errorf("请指定要修改的参数")
+		}
+
+		if !isConfirmed(ctx.Params) {
+			return map[string]any{
+				"action":  "update",
+				"id":      targetID,
+				"name":    targetName,
+				"ip":      targetIP,
+				"changes": changeDesc,
+				"status":  "pending_confirmation",
+				"warning": fmt.Sprintf("即将修改主机 [%s](%s): %v，请确认", targetName, targetIP, changeDesc),
+			}, nil
+		}
+
+		if err := ctx.DB.Table("hosts").Where("id = ?", targetID).Updates(updates).Error; err != nil {
+			return nil, fmt.Errorf("更新失败: %v", err)
+		}
+
+		return map[string]any{
+			"status":  "success",
+			"message": fmt.Sprintf("✅ 已更新主机 [%s](%s)", targetName, targetIP),
+		}, nil
+
+	case "delete":
+		hostID, _ := ctx.Params["id"].(float64)
+		hostIP, _ := ctx.Params["host_ip"].(string)
+
+		var targetID uint
+		var targetName, targetIP string
+		if hostID > 0 {
+			ctx.DB.Table("hosts").Select("id, name, ip").Where("id = ? AND deleted_at IS NULL", uint(hostID)).Row().Scan(&targetID, &targetName, &targetIP)
+		} else if hostIP != "" {
+			ctx.DB.Table("hosts").Select("id, name, ip").Where("ip = ? AND deleted_at IS NULL", hostIP).Row().Scan(&targetID, &targetName, &targetIP)
+		} else {
+			return nil, fmt.Errorf("请提供主机 ID 或 IP")
+		}
+		if targetID == 0 {
+			return nil, fmt.Errorf("未找到主机")
+		}
+
+		if !isConfirmed(ctx.Params) {
+			return map[string]any{
+				"action":  "delete",
+				"id":      targetID,
+				"name":    targetName,
+				"ip":      targetIP,
+				"status":  "pending_confirmation",
+				"warning": fmt.Sprintf("⚠️ 即将删除主机 [%s](%s)，此操作不可恢复，请确认", targetName, targetIP),
+			}, nil
+		}
+
+		now := time.Now()
+		if err := ctx.DB.Table("hosts").Where("id = ?", targetID).Update("deleted_at", now).Error; err != nil {
+			return nil, fmt.Errorf("删除失败: %v", err)
+		}
+
+		return map[string]any{
+			"status":  "success",
+			"message": fmt.Sprintf("✅ 已删除主机 [%s](%s)", targetName, targetIP),
+		}, nil
+
+	default:
+		return nil, fmt.Errorf("不支持的操作: %s，支持: create/update/delete/list_credentials/list_groups", action)
+	}
 }

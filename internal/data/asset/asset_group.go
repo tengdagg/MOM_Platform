@@ -102,20 +102,34 @@ func (r *assetGroupRepo) GetTree(ctx context.Context) ([]*asset.AssetGroup, erro
 
 	// 统计每个分组的主机数量（排除软删除的记录）
 	hostCounts := make(map[uint]int)
-	var results []struct {
+	var hostResults []struct {
 		GroupID uint
 		Count   int64
 	}
-	err = r.db.WithContext(ctx).Model(&asset.Host{}).Select("group_id, COUNT(*) as count").Where("group_id > 0").Group("group_id").Scan(&results).Error
+	err = r.db.WithContext(ctx).Model(&asset.Host{}).Select("group_id, COUNT(*) as count").Where("group_id > 0").Group("group_id").Scan(&hostResults).Error
 	if err == nil {
-		for _, result := range results {
+		for _, result := range hostResults {
 			hostCounts[result.GroupID] = int(result.Count)
 		}
 	}
 
-	// 为每个分组设置主机数量
+	// 统计每个分组的网络设备数量
+	deviceCounts := make(map[uint]int)
+	var deviceResults []struct {
+		GroupID uint
+		Count   int64
+	}
+	err = r.db.WithContext(ctx).Model(&asset.NetworkDevice{}).Select("group_id, COUNT(*) as count").Where("group_id > 0").Group("group_id").Scan(&deviceResults).Error
+	if err == nil {
+		for _, result := range deviceResults {
+			deviceCounts[result.GroupID] = int(result.Count)
+		}
+	}
+
+	// 为每个分组设置数量
 	for _, group := range groups {
 		group.HostCount = hostCounts[group.ID]
+		group.DeviceCount = deviceCounts[group.ID]
 	}
 
 	tree := r.buildTree(groups, 0)
@@ -132,9 +146,10 @@ func (r *assetGroupRepo) buildTree(groups []*asset.AssetGroup, parentID uint) []
 			children := r.buildTree(groups, group.ID)
 			if len(children) > 0 {
 				group.Children = children
-				// 累加子分组的主机数量
+				// 累加子分组的数量
 				for _, child := range children {
 					group.HostCount += child.HostCount
+					group.DeviceCount += child.DeviceCount
 				}
 			}
 			tree = append(tree, group)

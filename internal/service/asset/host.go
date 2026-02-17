@@ -37,12 +37,12 @@ import (
 )
 
 type HostService struct {
-	hostUseCase                *asset.HostUseCase
-	credentialUseCase          *asset.CredentialUseCase
-	cloudUseCase               *asset.CloudAccountUseCase
-	assetPermissionUseCase     *rbac.AssetPermissionUseCase
-	assetAuthorizationUseCase  *rbac.AssetAuthorizationUseCase
-	cache                      *data.Cache
+	hostUseCase               *asset.HostUseCase
+	credentialUseCase         *asset.CredentialUseCase
+	cloudUseCase              *asset.CloudAccountUseCase
+	assetPermissionUseCase    *rbac.AssetPermissionUseCase
+	assetAuthorizationUseCase *rbac.AssetAuthorizationUseCase
+	cache                     *data.Cache
 }
 
 // SetCache 注入缓存
@@ -129,6 +129,7 @@ func (s *HostService) UpdateHost(c *gin.Context) {
 		return
 	}
 
+	s.invalidateGroupTreeCache(c.Request.Context())
 	response.SuccessWithMessage(c, "更新成功", nil)
 }
 
@@ -243,9 +244,9 @@ func (s *HostService) ListHosts(c *gin.Context) {
 	}
 
 	response.Success(c, gin.H{
-		"list":  hosts,
-		"total": total,
-		"page":  page,
+		"list":     hosts,
+		"total":    total,
+		"page":     page,
 		"pageSize": pageSize,
 	})
 }
@@ -380,8 +381,10 @@ func (s *HostService) ListCredentials(c *gin.Context) {
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	pageSize, _ := strconv.Atoi(c.DefaultQuery("pageSize", "10"))
 	keyword := c.Query("keyword")
+	credType := c.Query("type")
+	category := c.Query("category")
 
-	credentials, total, err := s.credentialUseCase.List(c.Request.Context(), page, pageSize, keyword)
+	credentials, total, err := s.credentialUseCase.List(c.Request.Context(), page, pageSize, keyword, credType, category)
 	if err != nil {
 		response.ErrorCode(c, http.StatusInternalServerError, "查询失败: "+err.Error())
 		return

@@ -106,6 +106,7 @@ func RegisterDeviceSkills(registry *biz.ToolRegistry) {
 	registry.Register(MustLoadBuiltinSkill("device.detail", executeDeviceDetail))
 	registry.Register(MustLoadBuiltinSkill("device.test_connection", executeDeviceTestConnection))
 	registry.Register(MustLoadBuiltinSkill("device.exec_command", executeDeviceExecCommand))
+	registry.Register(MustLoadBuiltinSkill("device.manage", executeDeviceManage))
 }
 
 // executeDeviceList 查询网络设备列表
@@ -520,4 +521,260 @@ func executeDeviceExecCommand(ctx biz.SkillContext) (any, error) {
 		"successCount": successCount,
 		"totalCount":   len(devices),
 	}, nil
+}
+
+// executeDeviceManage 网络设备管理（创建/修改/删除/查凭证/查分组）
+func executeDeviceManage(ctx biz.SkillContext) (any, error) {
+	action, _ := ctx.Params["action"].(string)
+	if action == "" {
+		return nil, fmt.Errorf("请指定操作: create/update/delete/list_credentials/list_groups")
+	}
+
+	switch action {
+	case "list_credentials":
+		type CredInfo struct {
+			ID       uint   `json:"id"`
+			Name     string `json:"name"`
+			Type     string `json:"type"`
+			Category string `json:"category"`
+			Username string `json:"username"`
+		}
+		var creds []CredInfo
+		ctx.DB.Table("credentials").Select("id, name, type, category, username").Where("deleted_at IS NULL AND (category = 'all' OR category = 'network')").Find(&creds)
+		return map[string]any{
+			"credentials": creds,
+			"total":       len(creds),
+			"hint":        "创建设备时可以使用以上凭证的 ID",
+		}, nil
+
+	case "list_groups":
+		type GroupInfo struct {
+			ID   uint   `json:"id"`
+			Name string `json:"name"`
+		}
+		var groups []GroupInfo
+		ctx.DB.Table("asset_group").Select("id, name").Where("deleted_at IS NULL").Order("name").Find(&groups)
+		return map[string]any{
+			"groups": groups,
+			"total":  len(groups),
+			"hint":   "创建设备时可以使用以上分组的 ID",
+		}, nil
+
+	case "create":
+		name, _ := ctx.Params["name"].(string)
+		ip, _ := ctx.Params["ip"].(string)
+		deviceType, _ := ctx.Params["device_type"].(string)
+		if name == "" || ip == "" || deviceType == "" {
+			return nil, fmt.Errorf("创建网络设备需要指定 name, ip, device_type 参数")
+		}
+
+		// 校验设备类型
+		validTypes := map[string]string{"switch": "交换机", "router": "路由器", "firewall": "防火墙", "ac": "AC", "ap": "AP", "other": "其他"}
+		typeText, validType := validTypes[deviceType]
+		if !validType {
+			return nil, fmt.Errorf("不支持的设备类型: %s，支持: switch/router/firewall/ac/ap/other", deviceType)
+		}
+
+		// 检查 IP 是否已存在
+		var existCount int64
+		ctx.DB.Table("network_devices").Where("ip = ? AND deleted_at IS NULL", ip).Count(&existCount)
+		if existCount > 0 {
+			return nil, fmt.Errorf("网络设备 IP %s 已存在，无需重复添加", ip)
+		}
+
+		protocol := "ssh"
+		if v, _ := ctx.Params["protocol"].(string); v != "" {
+			protocol = v
+		}
+		port := 22
+		if protocol == "telnet" {
+			port = 23
+		}
+		if v, ok := ctx.Params["port"].(float64); ok && v > 0 {
+			port = int(v)
+		}
+		brand, _ := ctx.Params["brand"].(string)
+		brandModel, _ := ctx.Params["brand_model"].(string)
+		serialNumber, _ := ctx.Params["serial_number"].(string)
+		tags, _ := ctx.Params["tags"].(string)
+		description, _ := ctx.Params["description"].(string)
+		var credentialID uint
+		if v, ok := ctx.Params["credential_id"].(float64); ok && v > 0 {
+			credentialID = uint(v)
+		}
+		var groupID uint
+		if v, ok := ctx.Params["group_id"].(float64); ok && v > 0 {
+			groupID = uint(v)
+		}
+
+		if !isConfirmed(ctx.Params) {
+			credName := ""
+			if credentialID > 0 {
+				ctx.DB.Table("credentials").Select("name").Where("id = ?", credentialID).Scan(&credName)
+			}
+			groupName := ""
+			if groupID > 0 {
+				ctx.DB.Table("asset_group").Select("name").Where("id = ?", groupID).Scan(&groupName)
+			}
+			return map[string]any{
+				"action":       "create",
+				"name":         name,
+				"ip":           ip,
+				"deviceType":   typeText,
+				"protocol":     strings.ToUpper(protocol),
+				"port":         port,
+				"brand":        brand,
+				"brandModel":   brandModel,
+				"serialNumber": serialNumber,
+				"credential":   credName,
+				"group":        groupName,
+				"status":       "pending_confirmation",
+				"warning":      fmt.Sprintf("即将创建%s [%s](%s:%d)，协议: %s，请确认", typeText, name, ip, port, strings.ToUpper(protocol)),
+			}, nil
+		}
+
+		// 确认后创建
+		now := time.Now()
+		if err := ctx.DB.Exec(
+			`INSERT INTO network_devices (name, ip, device_type, protocol, port, brand, brand_model, serial_number, credential_id, group_id, tags, description, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, -1, ?, ?)`,
+			name, ip, deviceType, protocol, port, brand, brandModel, serialNumber, credentialID, groupID, tags, description, now, now,
+		).Error; err != nil {
+			return nil, fmt.Errorf("创建网络设备失败: %v", err)
+		}
+
+		return map[string]any{
+			"status":  "success",
+			"message": fmt.Sprintf("✅ 已成功创建%s [%s](%s:%d)", typeText, name, ip, port),
+		}, nil
+
+	case "update":
+		deviceID, _ := ctx.Params["id"].(float64)
+		deviceIP, _ := ctx.Params["device_ip"].(string)
+
+		var targetID uint
+		var targetName, targetIP string
+		if deviceID > 0 {
+			ctx.DB.Table("network_devices").Select("id, name, ip").Where("id = ? AND deleted_at IS NULL", uint(deviceID)).Row().Scan(&targetID, &targetName, &targetIP)
+		} else if deviceIP != "" {
+			ctx.DB.Table("network_devices").Select("id, name, ip").Where("ip = ? AND deleted_at IS NULL", deviceIP).Row().Scan(&targetID, &targetName, &targetIP)
+		} else {
+			return nil, fmt.Errorf("请提供设备 ID 或 IP")
+		}
+		if targetID == 0 {
+			return nil, fmt.Errorf("未找到网络设备")
+		}
+
+		updates := map[string]any{"updated_at": time.Now()}
+		changeDesc := []string{}
+		if v, _ := ctx.Params["name"].(string); v != "" {
+			updates["name"] = v
+			changeDesc = append(changeDesc, fmt.Sprintf("名称→%s", v))
+		}
+		if v, _ := ctx.Params["ip"].(string); v != "" {
+			updates["ip"] = v
+			changeDesc = append(changeDesc, fmt.Sprintf("IP→%s", v))
+		}
+		if v, ok := ctx.Params["port"].(float64); ok && v > 0 {
+			updates["port"] = int(v)
+			changeDesc = append(changeDesc, fmt.Sprintf("端口→%d", int(v)))
+		}
+		if v, _ := ctx.Params["protocol"].(string); v != "" {
+			updates["protocol"] = v
+			changeDesc = append(changeDesc, fmt.Sprintf("协议→%s", strings.ToUpper(v)))
+		}
+		if v, _ := ctx.Params["device_type"].(string); v != "" {
+			updates["device_type"] = v
+			changeDesc = append(changeDesc, fmt.Sprintf("类型→%s", v))
+		}
+		if v, _ := ctx.Params["brand"].(string); v != "" {
+			updates["brand"] = v
+			changeDesc = append(changeDesc, fmt.Sprintf("品牌→%s", v))
+		}
+		if v, _ := ctx.Params["brand_model"].(string); v != "" {
+			updates["brand_model"] = v
+			changeDesc = append(changeDesc, fmt.Sprintf("型号→%s", v))
+		}
+		if v, ok := ctx.Params["credential_id"].(float64); ok && v > 0 {
+			updates["credential_id"] = uint(v)
+			changeDesc = append(changeDesc, fmt.Sprintf("凭证ID→%d", int(v)))
+		}
+		if v, ok := ctx.Params["group_id"].(float64); ok && v > 0 {
+			updates["group_id"] = uint(v)
+			changeDesc = append(changeDesc, fmt.Sprintf("分组ID→%d", int(v)))
+		}
+		if v, _ := ctx.Params["tags"].(string); v != "" {
+			updates["tags"] = v
+			changeDesc = append(changeDesc, fmt.Sprintf("标签→%s", v))
+		}
+		if v, _ := ctx.Params["description"].(string); v != "" {
+			updates["description"] = v
+			changeDesc = append(changeDesc, "备注已更新")
+		}
+
+		if len(changeDesc) == 0 {
+			return nil, fmt.Errorf("请指定要修改的参数")
+		}
+
+		if !isConfirmed(ctx.Params) {
+			return map[string]any{
+				"action":  "update",
+				"id":      targetID,
+				"name":    targetName,
+				"ip":      targetIP,
+				"changes": changeDesc,
+				"status":  "pending_confirmation",
+				"warning": fmt.Sprintf("即将修改设备 [%s](%s): %v，请确认", targetName, targetIP, changeDesc),
+			}, nil
+		}
+
+		if err := ctx.DB.Table("network_devices").Where("id = ?", targetID).Updates(updates).Error; err != nil {
+			return nil, fmt.Errorf("更新失败: %v", err)
+		}
+
+		return map[string]any{
+			"status":  "success",
+			"message": fmt.Sprintf("✅ 已更新设备 [%s](%s)", targetName, targetIP),
+		}, nil
+
+	case "delete":
+		deviceID, _ := ctx.Params["id"].(float64)
+		deviceIP, _ := ctx.Params["device_ip"].(string)
+
+		var targetID uint
+		var targetName, targetIP string
+		if deviceID > 0 {
+			ctx.DB.Table("network_devices").Select("id, name, ip").Where("id = ? AND deleted_at IS NULL", uint(deviceID)).Row().Scan(&targetID, &targetName, &targetIP)
+		} else if deviceIP != "" {
+			ctx.DB.Table("network_devices").Select("id, name, ip").Where("ip = ? AND deleted_at IS NULL", deviceIP).Row().Scan(&targetID, &targetName, &targetIP)
+		} else {
+			return nil, fmt.Errorf("请提供设备 ID 或 IP")
+		}
+		if targetID == 0 {
+			return nil, fmt.Errorf("未找到网络设备")
+		}
+
+		if !isConfirmed(ctx.Params) {
+			return map[string]any{
+				"action":  "delete",
+				"id":      targetID,
+				"name":    targetName,
+				"ip":      targetIP,
+				"status":  "pending_confirmation",
+				"warning": fmt.Sprintf("⚠️ 即将删除网络设备 [%s](%s)，此操作不可恢复，请确认", targetName, targetIP),
+			}, nil
+		}
+
+		now := time.Now()
+		if err := ctx.DB.Table("network_devices").Where("id = ?", targetID).Update("deleted_at", now).Error; err != nil {
+			return nil, fmt.Errorf("删除失败: %v", err)
+		}
+
+		return map[string]any{
+			"status":  "success",
+			"message": fmt.Sprintf("✅ 已删除网络设备 [%s](%s)", targetName, targetIP),
+		}, nil
+
+	default:
+		return nil, fmt.Errorf("不支持的操作: %s，支持: create/update/delete/list_credentials/list_groups", action)
+	}
 }

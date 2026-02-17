@@ -1,6 +1,7 @@
 package asset
 
 import (
+	"context"
 	"fmt"
 	"net"
 	"net/http"
@@ -10,6 +11,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/ydcloud-dy/mom/internal/biz/asset"
 	rbac "github.com/ydcloud-dy/mom/internal/biz/rbac"
+	"github.com/ydcloud-dy/mom/internal/data"
 	"github.com/ydcloud-dy/mom/pkg/response"
 	"golang.org/x/crypto/ssh"
 )
@@ -19,6 +21,7 @@ type NetworkDeviceService struct {
 	deviceUseCase          *asset.NetworkDeviceUseCase
 	assetPermissionRepo    rbac.AssetPermissionRepo
 	assetAuthorizationRepo rbac.AssetAuthorizationRepo
+	cache                  *data.Cache
 }
 
 // NewNetworkDeviceService 创建网络设备服务
@@ -36,6 +39,18 @@ func (s *NetworkDeviceService) SetAssetPermissionRepo(repo rbac.AssetPermissionR
 // SetAssetAuthorizationRepo 设置资产授权仓库（新版）
 func (s *NetworkDeviceService) SetAssetAuthorizationRepo(repo rbac.AssetAuthorizationRepo) {
 	s.assetAuthorizationRepo = repo
+}
+
+// SetCache 注入缓存
+func (s *NetworkDeviceService) SetCache(cache *data.Cache) {
+	s.cache = cache
+}
+
+// invalidateGroupTreeCache 网络设备增删改时失效分组树缓存
+func (s *NetworkDeviceService) invalidateGroupTreeCache(ctx context.Context) {
+	if s.cache != nil {
+		s.cache.DelByPrefix(ctx, "asset:group_tree")
+	}
 }
 
 // ListNetworkDevices 网络设备列表（根据用户权限过滤）
@@ -99,6 +114,7 @@ func (s *NetworkDeviceService) CreateNetworkDevice(c *gin.Context) {
 		return
 	}
 
+	s.invalidateGroupTreeCache(c.Request.Context())
 	response.Success(c, device)
 }
 
@@ -123,6 +139,7 @@ func (s *NetworkDeviceService) UpdateNetworkDevice(c *gin.Context) {
 		return
 	}
 
+	s.invalidateGroupTreeCache(c.Request.Context())
 	response.SuccessWithMessage(c, "更新成功", nil)
 }
 
@@ -140,6 +157,7 @@ func (s *NetworkDeviceService) DeleteNetworkDevice(c *gin.Context) {
 		return
 	}
 
+	s.invalidateGroupTreeCache(c.Request.Context())
 	response.SuccessWithMessage(c, "删除成功", nil)
 }
 

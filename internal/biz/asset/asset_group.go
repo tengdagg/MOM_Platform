@@ -33,7 +33,8 @@ type AssetGroup struct {
 	Description string        `gorm:"type:varchar(500);comment:分组描述" json:"description"`
 	Sort        int           `gorm:"type:int;default:0;comment:排序" json:"sort"`
 	Status      int           `gorm:"type:tinyint;default:1;comment:状态 1:启用 0:禁用" json:"status"`
-	HostCount   int           `gorm:"-" json:"hostCount"` // 主机数量（不存储在数据库）
+	HostCount   int           `gorm:"-" json:"hostCount"`   // 主机数量（不存储在数据库）
+	DeviceCount int           `gorm:"-" json:"deviceCount"` // 网络设备数量（不存储在数据库）
 }
 
 // AssetGroupRequest 资产分组请求
@@ -68,17 +69,18 @@ func (r *AssetGroupRequest) ToModel() *AssetGroup {
 
 // AssetGroupInfoVO 资产分组信息VO
 type AssetGroupInfoVO struct {
-	ID          uint                 `json:"id"`
-	ParentID    uint                 `json:"parentId"`
-	Name        string               `json:"name"`
-	Code        string               `json:"code"`
-	Category    string               `json:"category"`
-	Description string               `json:"description"`
-	Sort        int                  `json:"sort"`
-	Status      int                  `json:"status"`
-	HostCount   int                  `json:"hostCount"`
-	CreateTime  string               `json:"createTime"`
-	Children    []*AssetGroupInfoVO  `json:"children,omitempty"`
+	ID          uint                `json:"id"`
+	ParentID    uint                `json:"parentId"`
+	Name        string              `json:"name"`
+	Code        string              `json:"code"`
+	Category    string              `json:"category"`
+	Description string              `json:"description"`
+	Sort        int                 `json:"sort"`
+	Status      int                 `json:"status"`
+	HostCount   int                 `json:"hostCount"`
+	DeviceCount int                 `json:"deviceCount"`
+	CreateTime  string              `json:"createTime"`
+	Children    []*AssetGroupInfoVO `json:"children,omitempty"`
 }
 
 // AssetGroupParentOptionVO 资产分组父级选项VO（用于级联选择器）

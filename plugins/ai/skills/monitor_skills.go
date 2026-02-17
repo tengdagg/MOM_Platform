@@ -12,6 +12,7 @@ func RegisterMonitorSkills(registry *biz.ToolRegistry) {
 	registry.Register(MustLoadBuiltinSkill("monitor.domain_status", executeMonitorDomainStatus))
 	registry.Register(MustLoadBuiltinSkill("monitor.alert_summary", executeMonitorAlertSummary))
 	registry.Register(MustLoadBuiltinSkill("monitor.alert_config", executeMonitorAlertConfig))
+	registry.Register(MustLoadBuiltinSkill("monitor.domain_manage", executeMonitorDomainManage))
 }
 
 // executeMonitorDomainStatus 域名监控状态
@@ -79,14 +80,14 @@ func executeMonitorDomainStatus(ctx biz.SkillContext) (any, error) {
 	}
 
 	return map[string]any{
-		"domains":            domains,
-		"total":              len(domains),
-		"normal":             normalCount,
-		"abnormal":           abnormalCount,
-		"sslExpiringSoon":    sslExpiringSoon,
-		"slowDomains":        slowDomains,
-		"avgResponseTime":    avgRT,
-		"avgResponseTimeMs":  fmt.Sprintf("%dms", avgRT),
+		"domains":           domains,
+		"total":             len(domains),
+		"normal":            normalCount,
+		"abnormal":          abnormalCount,
+		"sslExpiringSoon":   sslExpiringSoon,
+		"slowDomains":       slowDomains,
+		"avgResponseTime":   avgRT,
+		"avgResponseTimeMs": fmt.Sprintf("%dms", avgRT),
 	}, nil
 }
 
@@ -297,5 +298,187 @@ func executeMonitorAlertConfig(ctx biz.SkillContext) (any, error) {
 
 	default:
 		return nil, fmt.Errorf("不支持的操作: %s，支持: list/create/enable/disable/delete", action)
+	}
+}
+
+// executeMonitorDomainManage 域名监控管理（创建/修改/删除）
+func executeMonitorDomainManage(ctx biz.SkillContext) (any, error) {
+	action, _ := ctx.Params["action"].(string)
+	if action == "" {
+		return nil, fmt.Errorf("请指定操作: create/update/delete")
+	}
+
+	switch action {
+	case "create":
+		domain, _ := ctx.Params["domain"].(string)
+		if domain == "" {
+			return nil, fmt.Errorf("创建域名监控需要指定 domain 参数")
+		}
+
+		// 检查是否已存在
+		var existCount int64
+		ctx.DB.Table("domain_monitors").Where("domain = ?", domain).Count(&existCount)
+		if existCount > 0 {
+			return nil, fmt.Errorf("域名 %s 已在监控中，无需重复添加", domain)
+		}
+
+		// 默认参数
+		checkInterval := 300
+		if v, ok := ctx.Params["check_interval"].(float64); ok && v > 0 {
+			checkInterval = int(v)
+		}
+		enableSSL := true
+		if v, ok := ctx.Params["enable_ssl"].(bool); ok {
+			enableSSL = v
+		}
+		enableAlert := false
+		if v, ok := ctx.Params["enable_alert"].(bool); ok {
+			enableAlert = v
+		}
+		responseThreshold := 1000
+		if v, ok := ctx.Params["response_threshold"].(float64); ok && v > 0 {
+			responseThreshold = int(v)
+		}
+		sslExpiryDays := 30
+		if v, ok := ctx.Params["ssl_expiry_days"].(float64); ok && v > 0 {
+			sslExpiryDays = int(v)
+		}
+
+		if !isConfirmed(ctx.Params) {
+			return map[string]any{
+				"action":            "create",
+				"domain":            domain,
+				"checkInterval":     checkInterval,
+				"enableSSL":         enableSSL,
+				"enableAlert":       enableAlert,
+				"responseThreshold": responseThreshold,
+				"sslExpiryDays":     sslExpiryDays,
+				"status":            "pending_confirmation",
+				"warning":           fmt.Sprintf("即将创建域名监控 [%s]，检查间隔 %d 秒，SSL检查: %v，告警: %v，请确认", domain, checkInterval, enableSSL, enableAlert),
+			}, nil
+		}
+
+		// 确认后创建
+		now := time.Now()
+		nextCheck := now.Add(time.Duration(checkInterval) * time.Second)
+		if err := ctx.DB.Exec(
+			`INSERT INTO domain_monitors (domain, status, check_interval, enable_ssl, enable_alert, response_threshold, ssl_expiry_days, next_check, created_at, updated_at) VALUES (?, 'unknown', ?, ?, ?, ?, ?, ?, ?, ?)`,
+			domain, checkInterval, enableSSL, enableAlert, responseThreshold, sslExpiryDays, nextCheck, now, now,
+		).Error; err != nil {
+			return nil, fmt.Errorf("创建域名监控失败: %v", err)
+		}
+
+		return map[string]any{
+			"status":  "success",
+			"message": fmt.Sprintf("✅ 已成功创建域名监控 [%s]，系统将在 %d 秒后开始首次检查", domain, checkInterval),
+		}, nil
+
+	case "update":
+		monitorID, _ := ctx.Params["id"].(float64)
+		domain, _ := ctx.Params["domain"].(string)
+
+		// 查找目标
+		var targetID uint
+		var targetDomain string
+		if monitorID > 0 {
+			ctx.DB.Table("domain_monitors").Select("id, domain").Where("id = ?", uint(monitorID)).Row().Scan(&targetID, &targetDomain)
+		} else if domain != "" {
+			ctx.DB.Table("domain_monitors").Select("id, domain").Where("domain = ?", domain).Row().Scan(&targetID, &targetDomain)
+		} else {
+			return nil, fmt.Errorf("请提供域名监控 ID 或域名")
+		}
+		if targetID == 0 {
+			return nil, fmt.Errorf("未找到域名监控记录")
+		}
+
+		// 构建更新字段
+		updates := map[string]any{"updated_at": time.Now()}
+		changeDesc := []string{}
+		if v, ok := ctx.Params["check_interval"].(float64); ok && v > 0 {
+			updates["check_interval"] = int(v)
+			changeDesc = append(changeDesc, fmt.Sprintf("检查间隔→%d秒", int(v)))
+		}
+		if v, ok := ctx.Params["enable_ssl"].(bool); ok {
+			updates["enable_ssl"] = v
+			changeDesc = append(changeDesc, fmt.Sprintf("SSL检查→%v", v))
+		}
+		if v, ok := ctx.Params["enable_alert"].(bool); ok {
+			updates["enable_alert"] = v
+			changeDesc = append(changeDesc, fmt.Sprintf("告警→%v", v))
+		}
+		if v, ok := ctx.Params["response_threshold"].(float64); ok && v > 0 {
+			updates["response_threshold"] = int(v)
+			changeDesc = append(changeDesc, fmt.Sprintf("响应阈值→%dms", int(v)))
+		}
+		if v, ok := ctx.Params["ssl_expiry_days"].(float64); ok && v > 0 {
+			updates["ssl_expiry_days"] = int(v)
+			changeDesc = append(changeDesc, fmt.Sprintf("SSL过期提醒→%d天", int(v)))
+		}
+
+		if len(changeDesc) == 0 {
+			return nil, fmt.Errorf("请指定要修改的参数")
+		}
+
+		if !isConfirmed(ctx.Params) {
+			return map[string]any{
+				"action":  "update",
+				"id":      targetID,
+				"domain":  targetDomain,
+				"changes": changeDesc,
+				"status":  "pending_confirmation",
+				"warning": fmt.Sprintf("即将修改域名 [%s] 的监控配置: %v，请确认", targetDomain, changeDesc),
+			}, nil
+		}
+
+		if err := ctx.DB.Table("domain_monitors").Where("id = ?", targetID).Updates(updates).Error; err != nil {
+			return nil, fmt.Errorf("更新失败: %v", err)
+		}
+
+		return map[string]any{
+			"status":  "success",
+			"message": fmt.Sprintf("✅ 已更新域名 [%s] 的监控配置", targetDomain),
+		}, nil
+
+	case "delete":
+		monitorID, _ := ctx.Params["id"].(float64)
+		domain, _ := ctx.Params["domain"].(string)
+
+		var targetID uint
+		var targetDomain string
+		if monitorID > 0 {
+			ctx.DB.Table("domain_monitors").Select("id, domain").Where("id = ?", uint(monitorID)).Row().Scan(&targetID, &targetDomain)
+		} else if domain != "" {
+			ctx.DB.Table("domain_monitors").Select("id, domain").Where("domain = ?", domain).Row().Scan(&targetID, &targetDomain)
+		} else {
+			return nil, fmt.Errorf("请提供域名监控 ID 或域名")
+		}
+		if targetID == 0 {
+			return nil, fmt.Errorf("未找到域名监控记录")
+		}
+
+		if !isConfirmed(ctx.Params) {
+			return map[string]any{
+				"action":  "delete",
+				"id":      targetID,
+				"domain":  targetDomain,
+				"status":  "pending_confirmation",
+				"warning": fmt.Sprintf("⚠️ 即将删除域名 [%s] 的监控，关联的告警配置也将失效，此操作不可恢复，请确认", targetDomain),
+			}, nil
+		}
+
+		// 删除关联的告警配置
+		ctx.DB.Exec("DELETE FROM alert_configs WHERE domain_monitor_id = ?", targetID)
+		// 删除域名监控
+		if err := ctx.DB.Exec("DELETE FROM domain_monitors WHERE id = ?", targetID).Error; err != nil {
+			return nil, fmt.Errorf("删除失败: %v", err)
+		}
+
+		return map[string]any{
+			"status":  "success",
+			"message": fmt.Sprintf("✅ 已删除域名 [%s] 的监控及关联告警配置", targetDomain),
+		}, nil
+
+	default:
+		return nil, fmt.Errorf("不支持的操作: %s，支持: create/update/delete", action)
 	}
 }

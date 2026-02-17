@@ -12,19 +12,22 @@
         </div>
       </div>
       <div class="session-list">
-        <div
-          v-for="session in sessions"
-          :key="session.id"
-          class="session-item"
-          :class="{ active: currentSessionId === session.id }"
-          @click="switchSession(session.id)"
-        >
-          <el-icon><ChatLineRound /></el-icon>
-          <span class="session-title">{{ session.title }}</span>
-          <el-icon class="session-delete" @click.stop="handleDeleteSession(session.id)">
-            <Delete />
-          </el-icon>
-        </div>
+        <template v-for="group in groupedSessions" :key="group.label">
+          <div class="session-date-label">{{ group.label }}</div>
+          <div
+            v-for="session in group.sessions"
+            :key="session.id"
+            class="session-item"
+            :class="{ active: currentSessionId === session.id }"
+            @click="switchSession(session.id)"
+          >
+            <el-icon><ChatLineRound /></el-icon>
+            <span class="session-title">{{ session.title }}</span>
+            <el-icon class="session-delete" @click.stop="handleDeleteSession(session.id)">
+              <Delete />
+            </el-icon>
+          </div>
+        </template>
         <div v-if="sessions.length === 0" class="no-sessions">
           <el-empty description="暂无对话" :image-size="60" />
         </div>
@@ -320,24 +323,70 @@ const currentSession = computed(() =>
   sessions.value.find(s => s.id === currentSessionId.value)
 )
 
+// 按日期分组的会话列表
+const groupedSessions = computed(() => {
+  if (sessions.value.length === 0) return []
+
+  const now = new Date()
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+  const yesterday = new Date(today)
+  yesterday.setDate(yesterday.getDate() - 1)
+
+  const groups: Map<string, { label: string; date: Date; sessions: any[] }> = new Map()
+
+  for (const session of sessions.value) {
+    const createdAt = new Date(session.createdAt || session.created_at || Date.now())
+    const sessionDate = new Date(createdAt.getFullYear(), createdAt.getMonth(), createdAt.getDate())
+
+    let label: string
+    if (sessionDate.getTime() === today.getTime()) {
+      label = '今天'
+    } else if (sessionDate.getTime() === yesterday.getTime()) {
+      label = '昨天'
+    } else {
+      const y = sessionDate.getFullYear()
+      const m = String(sessionDate.getMonth() + 1).padStart(2, '0')
+      const d = String(sessionDate.getDate()).padStart(2, '0')
+      label = `${y}/${m}/${d}`
+    }
+
+    if (!groups.has(label)) {
+      groups.set(label, { label, date: sessionDate, sessions: [] })
+    }
+    groups.get(label)!.sessions.push(session)
+  }
+
+  // 按日期降序排列
+  return Array.from(groups.values()).sort((a, b) => b.date.getTime() - a.date.getTime())
+})
+
 const quickActions = [
   '列出所有主机状态',
+  '查看域名监控状态',
   '查看 K8s 集群健康状态',
   '最近有哪些告警？',
+  '列出所有网络设备',
   '生成基础设施运营报告',
   '查看今天的操作日志统计',
+  '有哪些可用的凭证？',
 ]
 
 // 快捷指令
 const quickCommands = [
-  { command: '/巡检', description: '生成基础设施综合巡检报告', icon: '📋', prompt: '帮我做一次完整的基础设施巡检，包括主机状态、K8s 集群、域名监控、安全风险分析' },
+  { command: '/巡检', description: '生成基础设施综合巡检报告', icon: '📋', prompt: '帮我做一次完整的基础设施巡检，包括主机状态、K8s 集群、域名监控、网络设备、安全风险分析' },
   { command: '/主机状态', description: '查看所有主机的运行状态', icon: '🖥', prompt: '列出所有主机的状态，包括在线/离线数量和资源使用情况' },
+  { command: '/添加主机', description: '通过对话添加新主机', icon: '➕', prompt: '我想添加一台新主机，请先帮我查看有哪些可用的凭证和分组' },
+  { command: '/网络设备', description: '查看所有网络设备状态', icon: '🌐', prompt: '列出所有网络设备的状态，包括交换机、路由器、防火墙等' },
+  { command: '/添加设备', description: '通过对话添加网络设备', icon: '🔌', prompt: '我想添加一台新网络设备，请先帮我查看有哪些可用的凭证和分组' },
+  { command: '/域名监控', description: '查看域名监控和SSL证书', icon: '🌍', prompt: '查看所有域名的监控状态，有没有异常或者 SSL 即将过期的？' },
+  { command: '/添加域名', description: '添加新的域名监控', icon: '📡', prompt: '我想添加一个新的域名监控' },
   { command: '/K8s诊断', description: '检查 Kubernetes 集群健康状态', icon: '☸', prompt: '检查所有 K8s 集群的健康状态，有没有异常的集群？' },
   { command: '/安全检查', description: '分析系统安全态势和风险', icon: '🔒', prompt: '帮我做一次安全态势检查，包括登录失败记录、离线主机、SSL 证书到期等' },
   { command: '/容量分析', description: '资源使用率分析和扩容建议', icon: '📊', prompt: '分析当前资源使用情况，哪些主机需要扩容？给出容量规划建议' },
   { command: '/操作日志', description: '今日操作日志统计分析', icon: '📝', prompt: '统计分析今天的操作日志，按模块和用户分类' },
   { command: '/告警汇总', description: '查看告警和监控状况', icon: '🔔', prompt: '汇总今天的告警情况和域名监控状态' },
   { command: '/云账号', description: '查看云平台账号和实例', icon: '☁', prompt: '列出所有云平台账号和已导入的云主机实例' },
+  { command: '/任务历史', description: '查看最近的任务执行记录', icon: '📜', prompt: '查看最近执行过的任务和命令历史' },
 ]
 
 const showQuickCommands = ref(false)
@@ -826,6 +875,18 @@ function formatJSON(data: any): string {
   flex: 1;
   overflow-y: auto;
   padding: 8px;
+}
+
+.session-date-label {
+  font-size: 12px;
+  color: #909399;
+  padding: 10px 12px 4px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  position: sticky;
+  top: 0;
+  background: #fff;
+  z-index: 1;
 }
 
 .session-item {

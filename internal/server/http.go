@@ -38,13 +38,13 @@ import (
 	"github.com/ydcloud-dy/mom/internal/service"
 	appLogger "github.com/ydcloud-dy/mom/pkg/logger"
 	"github.com/ydcloud-dy/mom/pkg/middleware"
+	aiplugin "github.com/ydcloud-dy/mom/plugins/ai"
 	k8splugin "github.com/ydcloud-dy/mom/plugins/kubernetes"
 	monitorplugin "github.com/ydcloud-dy/mom/plugins/monitor"
 	taskplugin "github.com/ydcloud-dy/mom/plugins/task"
-	aiplugin "github.com/ydcloud-dy/mom/plugins/ai"
+	testplugin "github.com/ydcloud-dy/mom/plugins/test"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
-	testplugin "github.com/ydcloud-dy/mom/plugins/test"
 )
 
 // HTTPServer HTTP服务器
@@ -166,6 +166,7 @@ func (s *HTTPServer) registerRoutes(router *gin.Engine, jwtSecret string) {
 	// 设置NetworkDeviceService的权限仓库，用于列表权限过滤
 	networkDeviceService.SetAssetPermissionRepo(assetPermissionRepo)
 	networkDeviceService.SetAssetAuthorizationRepo(assetAuthorizationRepo)
+	networkDeviceService.SetCache(s.cache)
 
 	// Asset 路由
 	assetServer := assetserver.NewHTTPServer(assetGroupService, hostService, networkDeviceService, terminalManager, networkTerminalManager, s.db, authMiddleware)

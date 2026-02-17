@@ -236,3 +236,52 @@ executeDeviceTestConnection 和 executeDeviceExecCommand 都改用这三个新�
 问题2：选中资产提示栏图标错位
 根因：el-tag 默认的 slot 内容是 inline 布局，直接放 el-icon 组件 + 文本时，el-icon 是一个 block-level SVG 容器，会导致图标和文本不在同一行。之前用 :deep() 的 CSS 可能因为选择器优先级不够而没生效。
 修复：在 el-tag 内部用 <span class="hint-tag-content"> 包裹 el-icon 和文本 span，给 .hint-tag-content 直接设置 display: inline-flex; align-items: center; gap: 4px，确保图标和文字水平居中对齐。这样不依赖 :deep() 穿透，直接在 scoped 作用域内生效。
+
+
+### 20260217
+问题1 — 移动主机后分组数量没有更新
+
+根本原因：后端 UpdateHost 没有清除分组树缓存（缓存有效期5分钟），只有 Create 和 Delete 才清缓存。所以移动主机（本质是 Update）后，前端重新请求分组树拿到的还是旧的缓存数据。
+
+修复：在 UpdateHost 成功后也调用 invalidateGroupTreeCache() 清缓存。
+
+问题2 — 网络设备分组树没有数量显示
+
+根本原因：后端 GetTree 只统计了 hosts 表的数量（HostCount），没有统计 network_devices 表。而前端虽然有 data.deviceCount 字段但加了 v-if 条件导致为0时不显示。
+
+修复（4个文件）：
+
+问题1 — 折叠/展开不生效
+
+根本原因：Hosts.vue 里有两棵 el-tree（主机列表视图的分组树 + 终端视图的分组树），它们共用了同一个 ref="groupTreeRef"。因为 v-show 不会卸载组件，两棵树同时存在于 DOM 中，Vue 的 ref 最终指向的是终端视图那棵树，而不是你在主机列表视图看到的那棵。所以点击按钮操作的是"错误的树"。
+
+修复：
+
+终端视图的树改为 ref="terminalTreeRef"（独立 ref）
+toggleExpandAll 根据 activeView 选择正确的树引用
+问题2 — 分组类型混淆
+
+根本原因：从主机管理分组树创建分组时，payload 里没有传 category 字段，后端默认设为 "all"（通用类型），所以主机和网络设备的分组树都能看到。
+
+修复：
+
+Hosts.vue 的 handleGroupSubmit 添加 category: 'host'
+NetworkDevices.vue 的 handleGroupSubmit 改为 category: 'network'（之前误写成了 type）
+注意：后端设计中 category: 'all' 的分组（通用分组）会同时出现在主机和网络设备的树中，这是正常行为。在业务分组子菜单中创建的通用分组仍会在两边显示。
+quickActions 新增了 3 个：
+
+查看域名监控状态 — 对应新的域名监控能力
+列出所有网络设备 — 对应网络设备查询
+有哪些可用的凭证？ — 利用新的辅助查询功能
+quickCommands 新增了 7 个：
+
+指令	说明	对应 Skill
+/添加主机	引导式添加新主机	host.manage
+/网络设备	查看网络设备状态	device.list
+/添加设备	引导式添加网络设备	device.manage
+/域名监控	查看域名和SSL状态	monitor.domain_status
+/添加域名	添加新域名监控	monitor.domain_manage
+/任务历史	查看任务执行记录	task.history
+同时 /巡检 的 prompt 也更新为包含网络设备的巡检。
+
+凭证管理的「认证方式」和「适用类别」下拉筛选已修复

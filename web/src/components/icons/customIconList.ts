@@ -13,7 +13,12 @@ export const customIconNames = [
     'Aibot',
     'NetworkDevice',
     'Audit',
-    'Diagnosis'
+    'Diagnosis',
+    'Modle',
+    'Workload',
+    'Service',
+    'Storage',
+    'Inspection'
 ]
 
 // 判断是否为自定义图标

@@ -371,7 +371,7 @@ func (r *credentialRepo) GetByIDDecrypted(ctx context.Context, id uint) (*asset.
 }
 
 // List 列表查询
-func (r *credentialRepo) List(ctx context.Context, page, pageSize int, keyword string) ([]*asset.Credential, int64, error) {
+func (r *credentialRepo) List(ctx context.Context, page, pageSize int, keyword, credType, category string) ([]*asset.Credential, int64, error) {
 	var credentials []*asset.Credential
 	var total int64
 
@@ -379,6 +379,12 @@ func (r *credentialRepo) List(ctx context.Context, page, pageSize int, keyword s
 
 	if keyword != "" {
 		query = query.Where("name LIKE ?", "%"+keyword+"%")
+	}
+	if credType != "" {
+		query = query.Where("type = ?", credType)
+	}
+	if category != "" {
+		query = query.Where("category = ?", category)
 	}
 
 	err := query.Order("id DESC").Count(&total).Error

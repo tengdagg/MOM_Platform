@@ -392,6 +392,9 @@ const loadCredentialList = async () => {
     if (searchForm.type !== undefined) {
       params.type = searchForm.type
     }
+    if (searchForm.category !== undefined) {
+      params.category = searchForm.category
+    }
 
     const res = await getCredentialList(params)
     credentialList.value = res.list || []
