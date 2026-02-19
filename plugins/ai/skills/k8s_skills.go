@@ -6,6 +6,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/ydcloud-dy/mom/plugins/ai/biz"
+	"github.com/ydcloud-dy/mom/plugins/kubernetes/service"
 )
 
 // RegisterK8sSkills 注册 Kubernetes Skills
@@ -299,7 +300,7 @@ func executeK8sLogQuery(ctx biz.SkillContext) (any, error) {
 
 // executeK8sHelmManage Helm Release 管理
 func executeK8sHelmManage(ctx biz.SkillContext) (any, error) {
-	_, clusterName, err := FindClusterID(ctx.DB, ctx.Params)
+	clusterID, clusterName, err := FindClusterID(ctx.DB, ctx.Params)
 	if err != nil {
 		return nil, err
 	}
@@ -314,6 +315,12 @@ func executeK8sHelmManage(ctx biz.SkillContext) (any, error) {
 	releaseName, _ := ctx.Params["release_name"].(string)
 	chartName, _ := ctx.Params["chart_name"].(string)
 	chartVersion, _ := ctx.Params["chart_version"].(string)
+	values, _ := ctx.Params["values"].(string)
+
+	// 初始化 Helm Service
+	// 注意：这里需要引入 plugins/kubernetes/service 包，请确保已导入
+	clusterService := service.NewClusterService(ctx.DB)
+	helmService := service.NewHelmService(ctx.DB, clusterService)
 
 	result := map[string]any{
 		"action":    action,
@@ -323,21 +330,63 @@ func executeK8sHelmManage(ctx biz.SkillContext) (any, error) {
 
 	switch action {
 	case "list":
-		result["message"] = fmt.Sprintf("查询集群 %s 命名空间 %s 的 Helm Release 列表", clusterName, namespace)
+		releases, err := helmService.ListReleases(ctx.Context(), uint(clusterID))
+		if err != nil {
+			return nil, fmt.Errorf("查询 Helm Release 列表失败: %v", err)
+		}
+		// 过滤 namespace
+		var filteredReleases []service.ReleaseInfo
+		for _, r := range releases {
+			if namespace == "" || r.Namespace == namespace {
+				filteredReleases = append(filteredReleases, r)
+			}
+		}
+		result["releases"] = filteredReleases
+		result["total"] = len(filteredReleases)
+		result["message"] = fmt.Sprintf("查询到 %d 个 Helm Release", len(filteredReleases))
+
 	case "install":
 		if chartName == "" || releaseName == "" {
 			return nil, fmt.Errorf("安装 Release 需要指定 chart_name 和 release_name")
 		}
+		// 获取 repoId - AI 可能不知道 RepoID，这里简化处理：
+		// 1. 如果有 repo_id 参数直接使用
+		// 2. 如果没有，尝试从所有 Repo 中查找 chart (暂不支持，需要更复杂的逻辑)
+		// 目前暂不支持 AI 直接安装，除非它知道 repoId。
+		// 让 AI 返回提示信息，建议用户通过 UI 操作，或者我们后续增强支持通过 Chart 名称自动查找 Repo
+		repoIDFloat, ok := ctx.Params["repo_id"].(float64)
+		if !ok {
+			return nil, fmt.Errorf("安装操作需要指定 repo_id (Helm 仓库 ID)")
+		}
+		repoID := uint(repoIDFloat)
+
 		if !isConfirmed(ctx.Params) {
 			result["releaseName"] = releaseName
 			result["chartName"] = chartName
 			result["chartVersion"] = chartVersion
+			result["repoId"] = repoID
 			result["status"] = "pending_confirmation"
 			result["warning"] = fmt.Sprintf("⚠️ 将在集群 %s 安装 Helm Release: %s (Chart: %s)，请确认执行", clusterName, releaseName, chartName)
 			return result, nil
 		}
+
+		req := &service.InstallReleaseRequest{
+			ClusterID:   uint(clusterID),
+			RepoID:      repoID,
+			ChartName:   chartName,
+			Version:     chartVersion,
+			ReleaseName: releaseName,
+			Namespace:   namespace,
+			Values:      values,
+		}
+		release, err := helmService.InstallRelease(ctx.Context(), req)
+		if err != nil {
+			return nil, fmt.Errorf("安装 Helm Release 失败: %v", err)
+		}
 		result["status"] = "success"
-		result["message"] = fmt.Sprintf("✅ Helm Release %s 安装请求已提交", releaseName)
+		result["message"] = fmt.Sprintf("✅ Helm Release %s 安装成功", releaseName)
+		result["data"] = release
+
 	case "upgrade":
 		if releaseName == "" {
 			return nil, fmt.Errorf("升级 Release 需要指定 release_name")
@@ -350,8 +399,16 @@ func executeK8sHelmManage(ctx biz.SkillContext) (any, error) {
 			result["warning"] = fmt.Sprintf("⚠️ 将升级集群 %s 的 Helm Release: %s，请确认执行", clusterName, releaseName)
 			return result, nil
 		}
+
+		release, err := helmService.UpgradeRelease(ctx.Context(), uint(clusterID), namespace, releaseName, values)
+		if err != nil {
+			return nil, fmt.Errorf("升级 Helm Release 失败: %v", err)
+		}
+
 		result["status"] = "success"
-		result["message"] = fmt.Sprintf("✅ Helm Release %s 升级请求已提交", releaseName)
+		result["message"] = fmt.Sprintf("✅ Helm Release %s 升级成功", releaseName)
+		result["data"] = release
+
 	case "uninstall":
 		if releaseName == "" {
 			return nil, fmt.Errorf("卸载 Release 需要指定 release_name")
@@ -362,14 +419,34 @@ func executeK8sHelmManage(ctx biz.SkillContext) (any, error) {
 			result["warning"] = fmt.Sprintf("⚠️ 将卸载集群 %s 的 Helm Release: %s，请确认执行", clusterName, releaseName)
 			return result, nil
 		}
+
+		if err := helmService.UninstallRelease(ctx.Context(), uint(clusterID), namespace, releaseName); err != nil {
+			return nil, fmt.Errorf("卸载 Helm Release 失败: %v", err)
+		}
 		result["status"] = "success"
-		result["message"] = fmt.Sprintf("✅ Helm Release %s 卸载请求已提交", releaseName)
+		result["message"] = fmt.Sprintf("✅ Helm Release %s 已成功卸载", releaseName)
+
 	case "status":
 		if releaseName == "" {
 			return nil, fmt.Errorf("查看状态需要指定 release_name")
 		}
+		release, err := helmService.GetRelease(ctx.Context(), uint(clusterID), namespace, releaseName)
+		if err != nil {
+			return nil, fmt.Errorf("获取 Helm Release 状态失败: %v", err)
+		}
 		result["releaseName"] = releaseName
-		result["message"] = fmt.Sprintf("查询 Helm Release %s 的状态", releaseName)
+		result["status"] = release.Status
+		result["revision"] = release.Revision
+		result["updated"] = release.Updated
+		result["chart"] = release.Chart
+		result["appVersion"] = release.AppVersion
+		// 避免返回过多内容，截断 manifest
+		if len(release.Manifest) > 1000 {
+			release.Manifest = release.Manifest[:1000] + "...(truncated)"
+		}
+		result["data"] = release
+		result["message"] = fmt.Sprintf("Helm Release %s 状态: %s", releaseName, release.Status)
+
 	default:
 		return nil, fmt.Errorf("不支持的操作: %s", action)
 	}

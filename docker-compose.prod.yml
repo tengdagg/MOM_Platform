@@ -83,6 +83,8 @@ services:
     image: guacamole/guacd:latest
     container_name: mom-guacd
     restart: unless-stopped
+    tmpfs:
+      - /tmp/guacd-drive:size=512M
     networks:
       - mom-network
 

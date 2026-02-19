@@ -49,6 +49,9 @@ func executeK8sKubectl(ctx biz.SkillContext) (any, error) {
 
 	switch action {
 	case "get":
+		if rt == "all" {
+			return k8sGetAll(clientset, clusterName, namespace, labels, fieldSelector)
+		}
 		return k8sGet(clientset, clusterName, rt, namespace, resourceName, labels, fieldSelector)
 	case "describe":
 		if resourceName == "" {
@@ -86,7 +89,7 @@ func normalizeResourceType(rt string) string {
 		"deployment": "deployments", "deploy": "deployments",
 		"service": "services", "svc": "services",
 		"configmap": "configmaps", "cm": "configmaps",
-		"secret": "secrets",
+		"secret":  "secrets",
 		"ingress": "ingresses", "ing": "ingresses",
 		"node": "nodes", "no": "nodes",
 		"namespace": "namespaces", "ns": "namespaces",
@@ -94,17 +97,17 @@ func normalizeResourceType(rt string) string {
 		"statefulset": "statefulsets", "sts": "statefulsets",
 		"daemonset": "daemonsets", "ds": "daemonsets",
 		"replicaset": "replicasets", "rs": "replicasets",
-		"job": "jobs",
+		"job":     "jobs",
 		"cronjob": "cronjobs", "cj": "cronjobs",
 		"endpoint": "endpoints", "ep": "endpoints",
 		"serviceaccount": "serviceaccounts", "sa": "serviceaccounts",
 		"horizontalpodautoscaler": "hpa",
-		"networkpolicy": "networkpolicies", "netpol": "networkpolicies",
+		"networkpolicy":           "networkpolicies", "netpol": "networkpolicies",
 		"storageclass": "storageclasses", "sc": "storageclasses",
 		"event": "events", "ev": "events",
-		"role": "roles",
-		"rolebinding": "rolebindings",
-		"clusterrole": "clusterroles",
+		"role":               "roles",
+		"rolebinding":        "rolebindings",
+		"clusterrole":        "clusterroles",
 		"clusterrolebinding": "clusterrolebindings",
 	}
 	if normalized, ok := aliases[rt]; ok {
@@ -167,6 +170,39 @@ func k8sGet(clientset *kubernetes.Clientset, cluster, rt, ns, name, labels, fiel
 	default:
 		return nil, fmt.Errorf("暂不支持查询资源类型: %s，支持: pods/deployments/services/configmaps/secrets/ingresses/nodes/namespaces/pv/pvc/statefulsets/daemonsets/replicasets/jobs/cronjobs/endpoints/serviceaccounts/hpa/events", rt)
 	}
+}
+
+// k8sGetAll 获取常用资源列表
+func k8sGetAll(c *kubernetes.Clientset, cluster, ns, labels, fieldSelector string) (any, error) {
+	// 包含 kubectl get all 默认显示的资源类型
+	types := []string{"pods", "services", "deployments", "replicasets", "statefulsets", "daemonsets", "jobs", "cronjobs"}
+
+	result := map[string]any{
+		"cluster":      cluster,
+		"namespace":    ns,
+		"resourceType": "all",
+	}
+
+	// 并发查询太复杂，这里顺序查询即可
+	for _, rt := range types {
+		res, err := k8sGet(c, cluster, rt, ns, "", labels, fieldSelector)
+		if err == nil {
+			if m, ok := res.(map[string]any); ok {
+				if items, ok := m["items"]; ok {
+					result[rt] = items
+				}
+			}
+		}
+	}
+
+	// 补充 Ingress 方便查看
+	if res, err := k8sGet(c, cluster, "ingresses", ns, "", labels, fieldSelector); err == nil {
+		if m, ok := res.(map[string]any); ok {
+			result["ingresses"] = m["items"]
+		}
+	}
+
+	return result, nil
 }
 
 func getPods(ctx context.Context, c *kubernetes.Clientset, cluster, ns string, opts metav1.ListOptions) (any, error) {
@@ -710,10 +746,10 @@ func k8sDescribe(clientset *kubernetes.Clientset, cluster, rt, ns, name string) 
 			"replicas": d.Status.Replicas, "ready": d.Status.ReadyReplicas,
 			"available": d.Status.AvailableReplicas, "updated": d.Status.UpdatedReplicas,
 			"strategy": string(d.Spec.Strategy.Type), "labels": d.Labels,
-			"selector": d.Spec.Selector.MatchLabels,
-			"images": getContainerImages(d.Spec.Template.Spec.Containers),
+			"selector":   d.Spec.Selector.MatchLabels,
+			"images":     getContainerImages(d.Spec.Template.Spec.Containers),
 			"conditions": d.Status.Conditions,
-			"age": formatAge(d.CreationTimestamp.Time),
+			"age":        formatAge(d.CreationTimestamp.Time),
 		}, nil
 
 	case "services":
@@ -775,7 +811,7 @@ func k8sEvents(clientset *kubernetes.Clientset, cluster, ns, name string) (any, 
 		e := list.Items[i]
 		events = append(events, map[string]any{
 			"type": e.Type, "reason": e.Reason, "message": e.Message,
-			"object": e.InvolvedObject.Kind + "/" + e.InvolvedObject.Name,
+			"object":    e.InvolvedObject.Kind + "/" + e.InvolvedObject.Name,
 			"namespace": e.Namespace, "count": e.Count,
 			"time": e.LastTimestamp.Format("2006-01-02 15:04:05"),
 		})
@@ -830,7 +866,7 @@ func k8sScaleGeneric(ctx biz.SkillContext, clientset *kubernetes.Clientset, clus
 		return map[string]any{
 			"cluster": cluster, "namespace": ns, "resourceType": resType,
 			"resourceName": name, "replicas": int(replicas),
-			"status": "pending_confirmation",
+			"status":  "pending_confirmation",
 			"warning": fmt.Sprintf("⚠️ 将把 %s/%s 在集群 %s(%s) 中的副本数调整为 %d，请确认执行", resType, name, cluster, ns, int(replicas)),
 		}, nil
 	}
@@ -937,7 +973,7 @@ func k8sCordonGeneric(ctx biz.SkillContext, clientset *kubernetes.Clientset, clu
 	if !isConfirmed(ctx.Params) {
 		return map[string]any{
 			"cluster": cluster, "nodeName": name, "action": action,
-			"status": "pending_confirmation",
+			"status":  "pending_confirmation",
 			"warning": fmt.Sprintf("⚠️ 将对节点 %s 执行 %s（%s），请确认执行", name, action, desc),
 		}, nil
 	}
@@ -956,7 +992,7 @@ func k8sDrainGeneric(ctx biz.SkillContext, clientset *kubernetes.Clientset, clus
 	if !isConfirmed(ctx.Params) {
 		return map[string]any{
 			"cluster": cluster, "nodeName": name, "action": "drain",
-			"status": "pending_confirmation",
+			"status":  "pending_confirmation",
 			"warning": fmt.Sprintf("⚠️ 危险操作！将排空节点 %s（驱逐所有 Pod 并设为不可调度），请确认执行", name),
 		}, nil
 	}

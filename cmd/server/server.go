@@ -522,6 +522,21 @@ func initDefaultData(db *gorm.DB) error {
 	appLogger.Info("默认管理员账号: admin")
 	appLogger.Info("默认管理员密码: 123456")
 
+	// 初始化系统配置
+	var logConfigCount int64
+	db.Model(&assetmodel.SystemConfig{}).Where("config_key = ?", "logRetentionDays").Count(&logConfigCount)
+	if logConfigCount == 0 {
+		if err := db.Create(&assetmodel.SystemConfig{
+			ConfigKey: "logRetentionDays",
+			Value:     "30",
+			Remark:    "日志保留天数",
+		}).Error; err != nil {
+			appLogger.Warn("初始化日志保留天数配置失败", zap.Error(err))
+		} else {
+			appLogger.Info("初始化日志保留天数配置成功")
+		}
+	}
+
 	return nil
 }
 

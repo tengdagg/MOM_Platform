@@ -104,7 +104,7 @@ func (h *SystemConfigHandler) doAuditLogCleanup() {
 	// 读取保留天数
 	retentionDays := 30
 	var cfg assetbiz.SystemConfig
-	if err := h.db.Where("config_key = ?", "logRetentionDays").First(&cfg).Error; err == nil {
+	if h.db.Where("config_key = ?", "logRetentionDays").Limit(1).Find(&cfg).RowsAffected > 0 {
 		if d, err := strconv.Atoi(cfg.Value); err == nil && d > 0 {
 			retentionDays = d
 		}

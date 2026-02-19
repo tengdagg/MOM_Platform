@@ -285,3 +285,25 @@ quickCommands 新增了 7 个：
 同时 /巡检 的 prompt 也更新为包含网络设备的巡检。
 
 凭证管理的「认证方式」和「适用类别」下拉筛选已修复
+
+
+
+### 20260219
+自定义 Skill 热加载修复完成，编译通过 ✅
+
+改了 3 个文件：
+
+文件	改动
+agent.go	新增 ToolRegistry.Unregister() 方法
+skill_engine.go	新增 CustomScriptSkill.SetDefinition() 方法
+skill_handler.go	上传/更新后立即 Register，删除时立即 Unregister
+修复后的行为：
+
+操作	修复前	修复后
+上传新 Skill	❌ 需重启	✅ 立即可用
+更新已有 Skill	❌ 需重启	✅ 立即生效
+删除 Skill	⚠️ Registry 残留	✅ 立即移除
+
+### 20260219
+k8s_helm_mamage 原来直接返回 "模拟成功消息" 的逻辑解决，
+再检查其他 Skill 有哪些是模拟不是真正的操作处理掉

@@ -30,6 +30,7 @@ logs/
 Dockerfile
 .dockerignore
 docker-compose.yml
+docker-compose.prod.yml
 
 # Config (will use config.yaml.example)
 config/config.yaml

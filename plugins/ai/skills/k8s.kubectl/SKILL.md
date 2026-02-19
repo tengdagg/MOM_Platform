@@ -63,6 +63,9 @@ parameters:
 - "查看 CronJob 列表"
 - "查看 Ingress 配置"
 - "查看 PVC 使用情况"
+- "查看某个 Namespace 下的常见资源（最常用）": `kubectl get all -n <namespace>`
+  > ⚠️ 注意：`get all` 只包含 Pod, Service, Deployment, ReplicaSet, StatefulSet, DaemonSet, Job, CronJob。
+  > ❗ 不会包含：ConfigMap, Secret, PVC, Ingress, ServiceAccount, CRD 资源。
 
 ## 支持的操作
 

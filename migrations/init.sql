@@ -38,6 +38,7 @@ CREATE TABLE IF NOT EXISTS `sys_user` (
   `phone` varchar(20) COMMENT '手机号',
   `avatar` varchar(255) COMMENT '头像',
   `status` tinyint DEFAULT 1 COMMENT '状态 1:启用 0:禁用',
+  `source` varchar(20) DEFAULT 'local' COMMENT '用户来源 local:本地 ldap:LDAP',
   `department_id` bigint unsigned DEFAULT 0 COMMENT '部门ID',
   `bio` text COMMENT '个人简介',
   `last_login_at` datetime COMMENT '最后登录时间',
@@ -103,6 +104,7 @@ CREATE TABLE IF NOT EXISTS `sys_menu` (
   `sort` int DEFAULT 0 COMMENT '排序',
   `visible` tinyint DEFAULT 1 COMMENT '是否显示 1:显示 0:隐藏',
   `status` tinyint DEFAULT 1 COMMENT '状态 1:启用 0:禁用',
+  `plugin_name` varchar(100) DEFAULT '' COMMENT '插件名称,空表示系统菜单',
   `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
   `updated_at` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   `deleted_at` datetime COMMENT '删除时间',
@@ -251,6 +253,7 @@ CREATE TABLE IF NOT EXISTS `asset_group` (
   `name` varchar(100) NOT NULL COMMENT '组名称',
   `code` varchar(50) COMMENT '组编码',
   `parent_id` bigint unsigned DEFAULT 0 COMMENT '父组ID',
+  `category` varchar(20) DEFAULT 'all' COMMENT '分组类别 all:通用 host:主机 network:网络设备',
   `description` varchar(500) COMMENT '描述',
   `sort` int DEFAULT 0 COMMENT '排序',
   `status` tinyint DEFAULT 1 COMMENT '状态 1:启用 0:禁用',
@@ -269,6 +272,7 @@ CREATE TABLE IF NOT EXISTS `credentials` (
   `id` bigint unsigned NOT NULL AUTO_INCREMENT,
   `name` varchar(100) NOT NULL COMMENT '凭证名称',
   `type` varchar(20) NOT NULL COMMENT '凭证类型 password/key',
+  `category` varchar(20) DEFAULT 'all' COMMENT '凭证类别 all:通用 host:主机 network:网络设备',
   `username` varchar(100) COMMENT '用户名',
   `password` varchar(500) COMMENT '密码(加密)',
   `private_key` text COMMENT '私钥(加密)',
@@ -313,6 +317,8 @@ CREATE TABLE IF NOT EXISTS `hosts` (
   `disk_usage` float COMMENT '磁盘使用率',
   `uptime` varchar(100) COMMENT '运行时间',
   `hostname` varchar(100) COMMENT '主机名',
+  `os_type` varchar(20) DEFAULT 'linux' COMMENT '操作系统类型 linux/windows',
+  `rdp_port` int DEFAULT 3389 COMMENT 'RDP端口',
   `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
   `updated_at` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   `deleted_at` datetime COMMENT '删除时间',
@@ -347,6 +353,7 @@ CREATE TABLE IF NOT EXISTS `sys_role_asset_permission` (
   `id` bigint unsigned NOT NULL AUTO_INCREMENT,
   `role_id` bigint unsigned NOT NULL COMMENT '角色ID',
   `asset_group_id` bigint unsigned NOT NULL COMMENT '资产组ID',
+  `asset_type` varchar(20) DEFAULT 'host' COMMENT '资产类型 host:主机 network_device:网络设备',
   `host_ids` json COMMENT '主机ID列表',
   `permissions` int unsigned DEFAULT 63 COMMENT '权限位',
   `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
@@ -363,6 +370,7 @@ CREATE TABLE IF NOT EXISTS `sys_role_asset_permission` (
 -- SSH终端会话记录表（资产管理-终端审计）
 CREATE TABLE IF NOT EXISTS `ssh_terminal_sessions` (
   `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `session_type` varchar(10) DEFAULT 'ssh' COMMENT '会话类型 ssh/rdp',
   `host_id` bigint unsigned NOT NULL COMMENT '主机ID',
   `host_name` varchar(100) COMMENT '主机名称',
   `host_ip` varchar(50) COMMENT '主机IP',
@@ -465,6 +473,26 @@ CREATE TABLE IF NOT EXISTS `ansible_tasks` (
 -- ============================================================
 -- 5. Kubernetes 插件表
 -- ============================================================
+
+-- Helm 仓库表
+CREATE TABLE IF NOT EXISTS `k8s_helm_repos` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `name` varchar(100) NOT NULL COMMENT '仓库名称',
+  `type` varchar(20) DEFAULT 'helm' COMMENT '仓库类型(helm/oci)',
+  `url` varchar(255) NOT NULL COMMENT '仓库地址',
+  `username` varchar(100) COMMENT '用户名',
+  `password` varchar(255) COMMENT '密码',
+  `cert_file` text COMMENT '客户端证书内容',
+  `key_file` text COMMENT '客户端密钥内容',
+  `ca_file` text COMMENT 'CA证书内容',
+  `insecure_skip_tls_verify` tinyint(1) DEFAULT 0 COMMENT '跳过TLS验证',
+  `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `deleted_at` datetime COMMENT '删除时间',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_name` (`name`),
+  KEY `idx_deleted_at` (`deleted_at`)
+) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Kubernetes集群表
 CREATE TABLE IF NOT EXISTS `k8s_clusters` (
@@ -688,6 +716,194 @@ CREATE TABLE IF NOT EXISTS `alert_logs` (
   KEY `idx_sent_at` (`sent_at`)
 ) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- 域名检查历史记录表
+CREATE TABLE IF NOT EXISTS `domain_check_histories` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `domain_id` bigint unsigned NOT NULL COMMENT '域名监控ID',
+  `domain` varchar(255) NOT NULL COMMENT '域名',
+  `status` varchar(20) NOT NULL COMMENT '检查状态 normal/abnormal',
+  `response_time` int DEFAULT 0 COMMENT '响应时间(ms)',
+  `ssl_valid` tinyint(1) DEFAULT 0 COMMENT 'SSL是否有效',
+  `ssl_expiry` datetime COMMENT 'SSL过期时间',
+  `status_code` int DEFAULT 0 COMMENT 'HTTP状态码',
+  `error_message` text COMMENT '错误信息',
+  `checked_at` datetime NOT NULL COMMENT '检查时间',
+  `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_domain_id` (`domain_id`),
+  KEY `idx_checked_at` (`checked_at`)
+) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ============================================================
+-- 7. LDAP 配置表
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS `sys_ldap_config` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `enabled` tinyint(1) DEFAULT 0 COMMENT '是否启用LDAP认证',
+  `host` varchar(255) COMMENT 'LDAP服务器地址',
+  `port` int DEFAULT 389 COMMENT 'LDAP端口',
+  `use_ssl` tinyint(1) DEFAULT 0 COMMENT '是否使用LDAPS',
+  `bind_dn` varchar(500) COMMENT '绑定DN',
+  `bind_password` varchar(500) COMMENT '绑定密码',
+  `base_dn` varchar(500) COMMENT '搜索基础DN',
+  `user_filter` varchar(500) DEFAULT '(&(objectClass=person)(sAMAccountName=%s))' COMMENT '用户搜索过滤器',
+  `attr_username` varchar(100) DEFAULT 'sAMAccountName' COMMENT '用户名属性',
+  `attr_real_name` varchar(100) DEFAULT 'displayName' COMMENT '真实姓名属性',
+  `attr_email` varchar(100) DEFAULT 'mail' COMMENT '邮箱属性',
+  `attr_phone` varchar(100) DEFAULT 'telephoneNumber' COMMENT '手机号属性',
+  `default_role_id` bigint unsigned DEFAULT 0 COMMENT 'LDAP用户默认角色ID',
+  `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `deleted_at` datetime COMMENT '删除时间',
+  PRIMARY KEY (`id`),
+  KEY `idx_deleted_at` (`deleted_at`)
+) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ============================================================
+-- 8. 资产授权表
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS `sys_asset_authorization` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `name` varchar(100) NOT NULL COMMENT '授权名称',
+  `user_ids` json COMMENT '授权用户ID列表',
+  `department_ids` json COMMENT '授权部门ID列表',
+  `asset_group_id` bigint unsigned NOT NULL COMMENT '资产分组/节点ID',
+  `asset_type` varchar(20) DEFAULT 'host' COMMENT '资产类型 host/network_device',
+  `asset_ids` json COMMENT '具体资产ID列表(空=整个分组)',
+  `permissions` int unsigned DEFAULT 1 COMMENT '权限bitmask',
+  `start_date` datetime COMMENT '生效时间',
+  `expire_date` datetime COMMENT '失效时间',
+  `is_active` tinyint(1) DEFAULT 1 COMMENT '是否启用',
+  `description` varchar(500) COMMENT '备注',
+  `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `deleted_at` datetime COMMENT '删除时间',
+  PRIMARY KEY (`id`),
+  KEY `idx_asset_group_id` (`asset_group_id`),
+  KEY `idx_deleted_at` (`deleted_at`)
+) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ============================================================
+-- 9. 网络设备表
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS `network_devices` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `name` varchar(100) NOT NULL COMMENT '设备名称',
+  `ip` varchar(50) NOT NULL COMMENT '设备IP地址',
+  `brand` varchar(50) DEFAULT '' COMMENT '品牌',
+  `brand_model` varchar(200) COMMENT '设备型号',
+  `serial_number` varchar(100) COMMENT 'SN序列号',
+  `device_type` varchar(20) NOT NULL DEFAULT 'switch' COMMENT '设备类型 switch/router/firewall/ac/ap/other',
+  `protocol` varchar(10) NOT NULL DEFAULT 'ssh' COMMENT '连接协议 ssh/telnet',
+  `port` int DEFAULT 22 COMMENT '连接端口',
+  `credential_id` bigint unsigned COMMENT '凭证ID',
+  `group_id` bigint unsigned COMMENT '分组ID',
+  `description` varchar(500) COMMENT '备注',
+  `status` tinyint DEFAULT -1 COMMENT '状态 1:在线 0:离线 -1:未知',
+  `tags` varchar(500) COMMENT '标签',
+  `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `deleted_at` datetime COMMENT '删除时间',
+  PRIMARY KEY (`id`),
+  KEY `idx_group_id` (`group_id`),
+  KEY `idx_device_type` (`device_type`),
+  KEY `idx_deleted_at` (`deleted_at`)
+) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ============================================================
+-- 10. 系统配置表
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS `system_config` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `config_key` varchar(100) NOT NULL COMMENT '配置键',
+  `value` varchar(500) COMMENT '配置值',
+  `remark` varchar(200) COMMENT '备注',
+  `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `deleted_at` datetime COMMENT '删除时间',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_config_key` (`config_key`),
+  KEY `idx_deleted_at` (`deleted_at`)
+) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ============================================================
+-- 11. AI 插件表
+-- ============================================================
+
+-- AI 模型配置表
+CREATE TABLE IF NOT EXISTS `ai_model_configs` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `name` varchar(100) NOT NULL COMMENT '模型名称',
+  `provider` varchar(50) NOT NULL COMMENT '模型提供商 openai/ollama/custom',
+  `base_url` varchar(500) COMMENT 'API基础URL',
+  `api_key` varchar(500) COMMENT 'API密钥(加密)',
+  `model_name` varchar(100) COMMENT '模型标识 gpt-4o/qwen-plus/llama3',
+  `max_tokens` int DEFAULT 4096 COMMENT '最大token数',
+  `temperature` decimal(3,2) DEFAULT 0.70 COMMENT '温度参数',
+  `is_default` tinyint(1) DEFAULT 0 COMMENT '是否默认模型',
+  `status` int DEFAULT 1 COMMENT '状态 1=启用 0=禁用',
+  `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `deleted_at` datetime COMMENT '删除时间',
+  PRIMARY KEY (`id`),
+  KEY `idx_deleted_at` (`deleted_at`)
+) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- AI 对话会话表
+CREATE TABLE IF NOT EXISTS `ai_chat_sessions` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `user_id` bigint unsigned NOT NULL COMMENT '用户ID',
+  `username` varchar(100) COMMENT '用户名',
+  `title` varchar(500) DEFAULT '新对话' COMMENT '会话标题',
+  `model_id` bigint unsigned DEFAULT 0 COMMENT '使用的模型ID',
+  `summary` text COMMENT '历史消息摘要',
+  `summary_up_to_id` bigint unsigned DEFAULT 0 COMMENT '摘要覆盖到的最后一条消息ID',
+  `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `deleted_at` datetime COMMENT '删除时间',
+  PRIMARY KEY (`id`),
+  KEY `idx_user_id` (`user_id`),
+  KEY `idx_deleted_at` (`deleted_at`)
+) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- AI 对话消息表
+CREATE TABLE IF NOT EXISTS `ai_chat_messages` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `session_id` bigint unsigned NOT NULL COMMENT '会话ID',
+  `role` varchar(20) NOT NULL COMMENT '消息角色 user/assistant/system/tool',
+  `content` longtext COMMENT '消息内容',
+  `tool_calls` text COMMENT '工具调用请求(JSON)',
+  `tool_result` text COMMENT '工具调用结果(JSON)',
+  `tokens_used` int DEFAULT 0 COMMENT '消耗的token数',
+  `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_session_id` (`session_id`)
+) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- AI 技能定义表
+CREATE TABLE IF NOT EXISTS `ai_skill_definitions` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `name` varchar(100) NOT NULL COMMENT '技能名称',
+  `display_name` varchar(200) COMMENT '显示名称',
+  `description` varchar(1000) COMMENT '技能描述',
+  `category` varchar(50) COMMENT '分类 host/device/k8s/task/monitor/cloud/audit/analysis',
+  `parameters` text COMMENT '参数定义(JSON Schema)',
+  `is_builtin` tinyint(1) DEFAULT 0 COMMENT '是否内置',
+  `script_type` varchar(20) DEFAULT 'builtin' COMMENT '脚本类型 builtin/javascript/python',
+  `script_body` longtext COMMENT '脚本内容',
+  `markdown` longtext COMMENT 'SKILL.md中的Markdown指令部分',
+  `is_enabled` tinyint(1) DEFAULT 1 COMMENT '是否启用',
+  `risk_level` varchar(20) DEFAULT 'low' COMMENT '风险等级 low/medium/high/critical',
+  `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_name` (`name`)
+) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 -- ============================================================
 -- 初始化数据
 -- ============================================================
@@ -752,6 +968,8 @@ VALUES
   (77, '终端审计', 'kubernetes_audit', 2, 36, '/kubernetes/audit', '', 'Monitor', 9, 1, 1, NOW(), NOW()),
   (85, '应用诊断', 'kubernetes_application_diagnosis', 2, 36, '/kubernetes/application-diagnosis', '', 'Grid', 10, 1, 1, NOW(), NOW()),
   (86, '集群巡检', 'kubernetes_cluster_inspection', 2, 36, '/kubernetes/cluster-inspection', '', 'Grid', 11, 1, 1, NOW(), NOW()),
+  (87, '自定义资源', 'kubernetes_custom_resources', 2, 36, '/kubernetes/custom-resources', '', 'Document', 12, 1, 1, NOW(), NOW()),
+  (88, 'Helm', 'kubernetes_helm', 2, 36, '/kubernetes/helm', '', 'Helm', 13, 1, 1, NOW(), NOW()),
 
   -- ========== 监控中心子菜单 (parent_id=42) ==========
   (78, '域名监控', 'monitor_domain', 2, 42, '/monitor/domain', '', 'Monitor', 1, 1, 1, NOW(), NOW()),
@@ -762,7 +980,13 @@ VALUES
   -- ========== 任务中心子菜单 (parent_id=61) ==========
   (82, '任务模板', 'task_templates', 2, 61, '/task/templates', '', 'Document', 1, 1, 1, NOW(), NOW()),
   (83, '执行任务', 'task_execute', 2, 61, '/task/execute', '', 'Tools', 2, 1, 1, NOW(), NOW()),
-  (84, '文件分发', 'task_file_distribution', 2, 61, '/task/file-distribution', '', 'Files', 3, 1, 1, NOW(), NOW());
+  (84, '文件分发', 'task_file_distribution', 2, 61, '/task/file-distribution', '', 'Files', 3, 1, 1, NOW(), NOW()),
+
+  -- ========== AI 助手子菜单 (parent_id=89) ==========
+  (89, 'AI 助手', '_ai', 1, 0, '/ai', '', 'ChatDotRound', 5, 1, 1, NOW(), NOW()),
+  (90, 'AI 对话', 'ai_chat', 2, 89, '/ai/chat', '', 'ChatLineRound', 1, 1, 1, NOW(), NOW()),
+  (91, 'Skill 管理', 'ai_skills', 2, 89, '/ai/skills', '', 'MagicStick', 2, 1, 1, NOW(), NOW()),
+  (92, '模型配置', 'ai_models', 2, 89, '/ai/models', '', 'Setting', 3, 1, 1, NOW(), NOW());
 
 -- 为管理员角色分配所有菜单权限
 INSERT INTO `sys_role_menu` (`role_id`, `menu_id`)
@@ -770,7 +994,8 @@ VALUES
   (1, 1), (1, 2), (1, 3), (1, 5), (1, 10), (1, 11), (1, 12), (1, 13), (1, 15), (1, 16), (1, 17), (1, 19),
   (1, 23), (1, 24), (1, 25), (1, 27), (1, 29), (1, 30), (1, 32), (1, 33), (1, 34), (1, 36),
   (1, 42), (1, 61), (1, 65), (1, 69), (1, 70), (1, 71), (1, 72), (1, 73), (1, 74), (1, 75), (1, 76), (1, 77),
-  (1, 78), (1, 79), (1, 80), (1, 81), (1, 82), (1, 83), (1, 84), (1, 85), (1, 86);
+  (1, 78), (1, 79), (1, 80), (1, 81), (1, 82), (1, 83), (1, 84), (1, 85), (1, 86), (1, 87), (1, 88),
+  (1, 89), (1, 90), (1, 91), (1, 92);
 
 -- 为普通用户角色分配基础菜单权限
 INSERT INTO `sys_role_menu` (`role_id`, `menu_id`)
@@ -798,7 +1023,8 @@ INSERT INTO `plugin_states` (`name`, `enabled`, `created_at`, `updated_at`)
 VALUES
   ('kubernetes', 1, NOW(), NOW()),
   ('monitor', 1, NOW(), NOW()),
-  ('task', 1, NOW(), NOW());
+  ('task', 1, NOW(), NOW()),
+  ('ai', 1, NOW(), NOW());
 
 SET FOREIGN_KEY_CHECKS = 1;
 
@@ -810,3 +1036,8 @@ VALUES (1, 'admin', '$2a$10$RLkgoedTSa0dYj3ujbXMcunSED3c6GLvfdKYsmpz0l0YFZbVrSBq
 
 -- 关联admin用户到admin角色
 INSERT INTO `sys_user_role` (`user_id`, `role_id`) VALUES (1, 1);
+
+-- 系统配置默认数据
+INSERT INTO `system_config` (`config_key`, `value`, `remark`, `created_at`, `updated_at`) 
+SELECT 'logRetentionDays', '30', '日志保留天数', NOW(), NOW() 
+WHERE NOT EXISTS (SELECT 1 FROM `system_config` WHERE `config_key` = 'logRetentionDays');
