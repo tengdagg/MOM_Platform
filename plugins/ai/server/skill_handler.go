@@ -375,6 +375,13 @@ func (h *Handler) uploadFromSKILLMD(c *gin.Context, content []byte, scriptBody s
 			"risk_level":   meta.RiskLevel,
 			"markdown":     markdown,
 		})
+		// 热更新：重新注册到 ToolRegistry
+		existing.ScriptType = scriptType
+		existing.ScriptBody = scriptBody
+		existing.Description = meta.Description
+		existing.RiskLevel = meta.RiskLevel
+		existing.Parameters = paramsJSON
+		h.registerCustomSkillToRegistry(existing)
 		response.SuccessWithMessage(c, fmt.Sprintf("Skill %s 已更新", meta.Name), existing)
 		return
 	}
@@ -398,6 +405,9 @@ func (h *Handler) uploadFromSKILLMD(c *gin.Context, content []byte, scriptBody s
 		response.ErrorCode(c, http.StatusInternalServerError, "保存 Skill 失败: "+err.Error())
 		return
 	}
+
+	// 热加载：立即注册到 ToolRegistry，无需重启
+	h.registerCustomSkillToRegistry(skill)
 
 	response.SuccessWithMessage(c, fmt.Sprintf("Skill %s 上传成功", meta.Name), skill)
 }
@@ -463,6 +473,13 @@ func (h *Handler) uploadFromManifest(c *gin.Context, manifestContent []byte, scr
 			"script_body":  scriptBody,
 			"risk_level":   manifest.RiskLevel,
 		})
+		// 热更新：重新注册到 ToolRegistry
+		existing.ScriptType = scriptType
+		existing.ScriptBody = scriptBody
+		existing.Description = manifest.Description
+		existing.RiskLevel = manifest.RiskLevel
+		existing.Parameters = paramsJSON
+		h.registerCustomSkillToRegistry(existing)
 		response.SuccessWithMessage(c, fmt.Sprintf("Skill %s 已更新", manifest.Name), existing)
 		return
 	}
@@ -486,6 +503,9 @@ func (h *Handler) uploadFromManifest(c *gin.Context, manifestContent []byte, scr
 		return
 	}
 
+	// 热加载：立即注册到 ToolRegistry
+	h.registerCustomSkillToRegistry(skill)
+
 	response.SuccessWithMessage(c, fmt.Sprintf("Skill %s 上传成功", manifest.Name), skill)
 }
 
@@ -508,6 +528,16 @@ func (h *Handler) DeleteSkill(c *gin.Context) {
 		return
 	}
 
+	// 热卸载：从 ToolRegistry 移除
+	h.registry.Unregister(skill.Name)
+
 	h.db.Delete(&skill)
 	response.Success(c, nil)
+}
+
+// registerCustomSkillToRegistry 将自定义 Skill 立即注册到 ToolRegistry)
+func (h *Handler) registerCustomSkillToRegistry(skill biz.SkillDefinition) {
+	customSkill := &biz.CustomScriptSkill{}
+	customSkill.SetDefinition(skill, biz.NewScriptSandbox(h.db))
+	h.registry.Register(customSkill)
 }

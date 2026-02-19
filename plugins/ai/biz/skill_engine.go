@@ -53,6 +53,12 @@ func (s *CustomScriptSkill) Name() string        { return s.definition.Name }
 func (s *CustomScriptSkill) Description() string { return s.definition.Description }
 func (s *CustomScriptSkill) RiskLevel() string   { return s.definition.RiskLevel }
 
+// SetDefinition 设置 Skill 定义和沙箱（用于热加载注册）
+func (s *CustomScriptSkill) SetDefinition(def SkillDefinition, sandbox *ScriptSandbox) {
+	s.definition = def
+	s.sandbox = sandbox
+}
+
 func (s *CustomScriptSkill) Parameters() json.RawMessage {
 	if s.definition.Parameters != "" {
 		return json.RawMessage(s.definition.Parameters)

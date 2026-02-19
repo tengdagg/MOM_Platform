@@ -73,6 +73,15 @@ func (r *ToolRegistry) Register(skill Skill) {
 	}
 }
 
+// Unregister 移除 Skill（用于删除自定义 Skill 时热卸载）
+func (r *ToolRegistry) Unregister(name string) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	delete(r.skills, name)
+	sanitized := SanitizeToolName(name)
+	delete(r.aliasMap, sanitized)
+}
+
 // Get 获取 Skill（支持原始名称和 LLM 清洗后的名称）
 func (r *ToolRegistry) Get(name string) (Skill, bool) {
 	r.mu.RLock()
