@@ -170,16 +170,24 @@ func (s *LDAPService) TestConnection(config *rbac.SysLDAPConfig) error {
 		}
 	}
 
-	// 尝试搜索
+	// 使用实际的用户过滤器进行搜索测试（用 * 替代用户名）
+	filter := strings.Replace(config.UserFilter, "%s", "*", 1)
+	if filter == "" {
+		filter = "(objectClass=person)"
+	}
 	searchReq := ldap.NewSearchRequest(
 		config.BaseDN,
 		ldap.ScopeWholeSubtree, ldap.NeverDerefAliases, 1, 10, false,
-		"(objectClass=*)",
+		filter,
 		[]string{"dn"},
 		nil,
 	)
 	_, err = conn.Search(searchReq)
 	if err != nil {
+		// SizeLimitExceeded (code 4) 表示搜索有结果但超出限制，连接本身正常
+		if ldapErr, ok := err.(*ldap.Error); ok && ldapErr.ResultCode == ldap.LDAPResultSizeLimitExceeded {
+			return nil
+		}
 		return fmt.Errorf("搜索失败: %w", err)
 	}
 

@@ -166,7 +166,7 @@
 
             <el-form-item label="默认角色">
               <el-select v-model="ldapConfig.defaultRoleId" placeholder="LDAP 用户首次登录时分配的角色" :disabled="!ldapConfig.enabled" clearable>
-                <el-option v-for="role in roles" :key="role.id" :label="role.name" :value="role.id" />
+                <el-option v-for="role in roles" :key="role.ID" :label="role.name" :value="role.ID" />
               </el-select>
               <div class="form-tip">LDAP 用户首次登录自动创建时将分配此角色</div>
             </el-form-item>

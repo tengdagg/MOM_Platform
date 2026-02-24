@@ -52,7 +52,7 @@ type SysLDAPConfig struct {
 	Port          int    `gorm:"default:389;comment:LDAP端口" json:"port"`
 	UseSSL        bool   `gorm:"default:false;comment:是否使用LDAPS" json:"useSsl"`
 	BindDN        string `gorm:"type:varchar(500);comment:绑定DN" json:"bindDn"`
-	BindPassword  string `gorm:"type:varchar(500);comment:绑定密码" json:"-"`
+	BindPassword  string `gorm:"type:varchar(500);comment:绑定密码" json:"bindPassword"`
 	PasswordSet   bool   `gorm:"-" json:"passwordSet"`
 	BaseDN        string `gorm:"type:varchar(500);comment:搜索基础DN" json:"baseDn"`
 	UserFilter    string `gorm:"type:varchar(500);default:'(&(objectClass=person)(sAMAccountName=%s))';comment:用户搜索过滤器" json:"userFilter"`
