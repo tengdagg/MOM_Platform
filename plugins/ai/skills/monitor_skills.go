@@ -97,13 +97,10 @@ func executeMonitorAlertSummary(ctx biz.SkillContext) (any, error) {
 	if d, ok := ctx.Params["days"].(float64); ok && d > 0 {
 		days = int(d)
 	}
-	severity, _ := ctx.Params["severity"].(string)
+
 	since := time.Now().AddDate(0, 0, -days)
 
 	baseQ := ctx.DB.Table("alert_logs").Where("created_at >= ?", since)
-	if severity != "" {
-		baseQ = baseQ.Where("severity = ?", severity)
-	}
 
 	var totalAlerts int64
 	baseQ.Count(&totalAlerts)
@@ -117,9 +114,6 @@ func executeMonitorAlertSummary(ctx biz.SkillContext) (any, error) {
 	tq := ctx.DB.Table("alert_logs").
 		Select("alert_type, COUNT(*) as count").
 		Where("created_at >= ?", since)
-	if severity != "" {
-		tq = tq.Where("severity = ?", severity)
-	}
 	tq.Group("alert_type").Order("count DESC").Find(&typeStats)
 
 	// 按状态统计
@@ -134,35 +128,32 @@ func executeMonitorAlertSummary(ctx biz.SkillContext) (any, error) {
 		Group("status").
 		Find(&statusStats)
 
-	// 按严重程度统计
-	type SeverityStat struct {
-		Severity string `json:"severity"`
-		Count    int64  `json:"count"`
+	// 按渠道类型统计
+	type ChannelStat struct {
+		ChannelType string `json:"channelType"`
+		Count       int64  `json:"count"`
 	}
-	var severityStats []SeverityStat
+	var channelStats []ChannelStat
 	ctx.DB.Table("alert_logs").
-		Select("severity, COUNT(*) as count").
+		Select("channel_type, COUNT(*) as count").
 		Where("created_at >= ?", since).
-		Group("severity").
+		Group("channel_type").
 		Order("count DESC").
-		Find(&severityStats)
+		Find(&channelStats)
 
 	// 最近告警记录
 	type RecentAlert struct {
-		ID        uint      `json:"id"`
-		AlertType string    `json:"alertType"`
-		Severity  string    `json:"severity"`
-		Status    string    `json:"status"`
-		Message   string    `json:"message"`
-		Target    string    `json:"target"`
-		CreatedAt time.Time `json:"createdAt"`
+		ID          uint      `json:"id"`
+		AlertType   string    `json:"alertType"`
+		Domain      string    `json:"domain"`
+		Status      string    `json:"status"`
+		Message     string    `json:"message"`
+		ChannelType string    `json:"channelType"`
+		CreatedAt   time.Time `json:"createdAt"`
 	}
 	var recentAlerts []RecentAlert
-	rq := ctx.DB.Table("alert_logs").Where("created_at >= ?", since)
-	if severity != "" {
-		rq = rq.Where("severity = ?", severity)
-	}
-	rq.Order("created_at DESC").Limit(20).Find(&recentAlerts)
+	ctx.DB.Table("alert_logs").Where("created_at >= ?", since).
+		Order("created_at DESC").Limit(20).Find(&recentAlerts)
 
 	// 未处理告警
 	var unresolvedCount int64
@@ -174,7 +165,7 @@ func executeMonitorAlertSummary(ctx biz.SkillContext) (any, error) {
 		"unresolved":   unresolvedCount,
 		"byType":       typeStats,
 		"byStatus":     statusStats,
-		"bySeverity":   severityStats,
+		"byChannel":    channelStats,
 		"recentAlerts": recentAlerts,
 	}, nil
 }

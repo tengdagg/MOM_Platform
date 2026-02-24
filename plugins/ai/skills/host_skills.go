@@ -347,7 +347,8 @@ func executeHostCollect(ctx biz.SkillContext) (any, error) {
 		query = query.Where("ip = ?", ip)
 	}
 	if groupName != "" {
-		query = query.Where("group_name = ?", groupName)
+		query = query.Joins("LEFT JOIN asset_group ON hosts.group_id = asset_group.id").
+			Where("asset_group.name LIKE ?", "%"+groupName+"%")
 	}
 	query.Limit(50).Find(&hosts)
 

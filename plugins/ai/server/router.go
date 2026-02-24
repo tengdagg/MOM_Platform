@@ -21,6 +21,7 @@ func RegisterRoutes(router *gin.RouterGroup, db *gorm.DB) {
 	agent := biz.NewAgent(db, registry)
 	convMgr := biz.NewConversationManager(db)
 	convMgr.EnsureSettingsTable()
+	convMgr.StartSessionCleanupScheduler()
 
 	handler := &Handler{
 		db:       db,

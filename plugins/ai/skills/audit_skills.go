@@ -113,14 +113,14 @@ func executeAuditOperationSummary(ctx biz.SkillContext) (any, error) {
 	recentQ.Order("created_at DESC").Limit(20).Find(&recentOps)
 
 	return map[string]any{
-		"period":     fmt.Sprintf("最近 %d 天", days),
-		"totalOps":   totalOps,
-		"errorOps":   errorOps,
-		"aiOps":      aiOps,
-		"byModule":   moduleStats,
-		"byUser":     userStats,
-		"byAction":   actionStats,
-		"recentOps":  recentOps,
+		"period":    fmt.Sprintf("最近 %d 天", days),
+		"totalOps":  totalOps,
+		"errorOps":  errorOps,
+		"aiOps":     aiOps,
+		"byModule":  moduleStats,
+		"byUser":    userStats,
+		"byAction":  actionStats,
+		"recentOps": recentOps,
 	}, nil
 }
 
@@ -143,7 +143,7 @@ func executeAuditLoginAnalysis(ctx biz.SkillContext) (any, error) {
 
 	// 成功登录
 	var successLogins int64
-	sq := ctx.DB.Table("sys_login_log").Where("created_at >= ? AND deleted_at IS NULL AND status = 1", since)
+	sq := ctx.DB.Table("sys_login_log").Where("created_at >= ? AND deleted_at IS NULL AND login_status = 'success'", since)
 	if username != "" {
 		sq = sq.Where("username = ?", username)
 	}
@@ -161,7 +161,7 @@ func executeAuditLoginAnalysis(ctx biz.SkillContext) (any, error) {
 	var failedUsers []FailedUser
 	ctx.DB.Table("sys_login_log").
 		Select("username, COUNT(*) as count, MAX(ip) as last_ip").
-		Where("created_at >= ? AND deleted_at IS NULL AND status = 0", since).
+		Where("created_at >= ? AND deleted_at IS NULL AND login_status = 'failed'", since).
 		Group("username").
 		Having("count > 2").
 		Order("count DESC").
@@ -176,7 +176,7 @@ func executeAuditLoginAnalysis(ctx biz.SkillContext) (any, error) {
 	}
 	var ipStats []IPStat
 	ctx.DB.Table("sys_login_log").
-		Select("ip, COUNT(*) as count, SUM(CASE WHEN status = 0 THEN 1 ELSE 0 END) as failed_count, SUM(CASE WHEN status = 1 THEN 1 ELSE 0 END) as success_count").
+		Select("ip, COUNT(*) as count, SUM(CASE WHEN login_status = 'failed' THEN 1 ELSE 0 END) as failed_count, SUM(CASE WHEN login_status = 'success' THEN 1 ELSE 0 END) as success_count").
 		Where("created_at >= ? AND deleted_at IS NULL", since).
 		Group("ip").
 		Order("count DESC").
@@ -222,13 +222,13 @@ func executeAuditLoginAnalysis(ctx biz.SkillContext) (any, error) {
 		Find(&hourlyStats)
 
 	return map[string]any{
-		"period":        fmt.Sprintf("最近 %d 天", days),
-		"totalLogins":   totalLogins,
-		"successLogins": successLogins,
-		"failedLogins":  failedLogins,
-		"failedUsers":   failedUsers,
-		"topIPs":        ipStats,
-		"anomalies":     anomalies,
+		"period":             fmt.Sprintf("最近 %d 天", days),
+		"totalLogins":        totalLogins,
+		"successLogins":      successLogins,
+		"failedLogins":       failedLogins,
+		"failedUsers":        failedUsers,
+		"topIPs":             ipStats,
+		"anomalies":          anomalies,
 		"hourlyDistribution": hourlyStats,
 	}, nil
 }
@@ -295,7 +295,7 @@ func executeAuditSessionSummary(ctx biz.SkillContext) (any, error) {
 
 	return map[string]any{
 		"period":         fmt.Sprintf("最近 %d 天", days),
-		"sshSessions":   sshSessions,
+		"sshSessions":    sshSessions,
 		"byUser":         sshUserStats,
 		"byHost":         hostStats,
 		"recentSessions": recentSessions,

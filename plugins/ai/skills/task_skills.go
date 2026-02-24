@@ -145,12 +145,12 @@ func executeTaskExecute(ctx biz.SkillContext) (any, error) {
 	// 未确认 → 返回待确认信息
 	if !isConfirmed(ctx.Params) {
 		return map[string]any{
-			"message":    fmt.Sprintf("命令 [%s] 将在 %d 台主机上执行", command, len(hosts)),
-			"command":    command,
-			"hostCount":  len(hosts),
-			"hosts":      hosts,
-			"status":     "pending_confirmation",
-			"warning":    "⚠️ 远程命令执行是高风险操作，请确认命令内容和目标主机无误后再执行",
+			"message":   fmt.Sprintf("命令 [%s] 将在 %d 台主机上执行", command, len(hosts)),
+			"command":   command,
+			"hostCount": len(hosts),
+			"hosts":     hosts,
+			"status":    "pending_confirmation",
+			"warning":   "⚠️ 远程命令执行是高风险操作，请确认命令内容和目标主机无误后再执行",
 		}, nil
 	}
 
@@ -201,11 +201,10 @@ func executeTaskAnsible(ctx biz.SkillContext) (any, error) {
 	// list 操作：列出可用的 Ansible 任务模板
 	if action == "list" {
 		type AnsibleInfo struct {
-			ID          uint      `json:"id"`
-			Name        string    `json:"name"`
-			Description string    `json:"description"`
-			Status      string    `json:"status"`
-			CreatedAt   time.Time `json:"createdAt"`
+			ID        uint      `json:"id"`
+			Name      string    `json:"name"`
+			Status    string    `json:"status"`
+			CreatedAt time.Time `json:"createdAt"`
 		}
 		var templates []AnsibleInfo
 		query := ctx.DB.Table("ansible_tasks")
@@ -235,12 +234,12 @@ func executeTaskAnsible(ctx biz.SkillContext) (any, error) {
 
 	// 查询可用的 Ansible 任务模板
 	type AnsibleTask struct {
-		ID       uint   `json:"id"`
-		Name     string `json:"name"`
-		Playbook string `json:"playbook"`
+		ID           uint   `json:"id"`
+		Name         string `json:"name"`
+		PlaybookPath string `json:"playbook_path"`
 	}
 	var templates []AnsibleTask
-	ctx.DB.Table("ansible_tasks").Select("id, name, playbook").Where("name LIKE ?", "%"+playbookName+"%").Limit(10).Find(&templates)
+	ctx.DB.Table("ansible_tasks").Select("id, name, playbook_path").Where("name LIKE ?", "%"+playbookName+"%").Limit(10).Find(&templates)
 
 	if !isConfirmed(ctx.Params) {
 		return map[string]any{
@@ -262,10 +261,10 @@ func executeTaskAnsible(ctx biz.SkillContext) (any, error) {
 			taskName, ctx.UserID)
 
 		return map[string]any{
-			"status":       "success",
-			"message":      fmt.Sprintf("✅ Ansible Playbook [%s] 执行任务已提交到任务队列", playbookName),
-			"taskName":     taskName,
-			"playbookName": playbookName,
+			"status":           "success",
+			"message":          fmt.Sprintf("✅ Ansible Playbook [%s] 执行任务已提交到任务队列", playbookName),
+			"taskName":         taskName,
+			"playbookName":     playbookName,
 			"matchedTemplates": templates,
 		}, nil
 	}

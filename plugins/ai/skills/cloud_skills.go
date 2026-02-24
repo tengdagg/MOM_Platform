@@ -100,19 +100,19 @@ func executeCloudListInstances(ctx biz.SkillContext) (any, error) {
 	}
 
 	type InstanceInfo struct {
-		ID              uint   `json:"id"`
-		Name            string `json:"name"`
-		IP              string `json:"ip"`
-		PublicIP        string `json:"publicIp"`
-		CloudProvider   string `json:"cloudProvider"`
-		CloudInstanceID string `json:"cloudInstanceId"`
-		CloudRegion     string `json:"cloudRegion"`
-		OS              string `json:"os"`
-		OSType          string `json:"osType"`
-		Status          int    `json:"status"`
-		CPUCores        int    `json:"cpuCores"`
+		ID              uint    `json:"id"`
+		Name            string  `json:"name"`
+		IP              string  `json:"ip"`
+		PublicIP        string  `json:"publicIp"`
+		CloudProvider   string  `json:"cloudProvider"`
+		CloudInstanceID string  `json:"cloudInstanceId"`
+		CloudRegion     string  `json:"cloudRegion"`
+		OS              string  `json:"os"`
+		OSType          string  `json:"osType"`
+		Status          int     `json:"status"`
+		CPUCores        int     `json:"cpuCores"`
 		MemoryUsage     float64 `json:"memoryUsage"`
-		GroupName       string `json:"groupName"`
+		GroupName       string  `json:"groupName"`
 	}
 
 	query := ctx.DB.Table("hosts").
@@ -216,11 +216,12 @@ func executeCloudImportHosts(ctx biz.SkillContext) (any, error) {
 		ctx.UserID)
 
 	return map[string]any{
-		"status":       "success",
-		"message":      fmt.Sprintf("✅ 云主机导入任务已提交: 从 %s [%s] %s 区域导入", provName, account.Name, region),
-		"accountName":  account.Name,
-		"provider":     provName,
-		"region":       region,
-		"targetGroup":  groupName,
+		"status":      "submitted",
+		"message":     fmt.Sprintf("📋 云主机导入任务已记录: 从 %s [%s] %s 区域导入", provName, account.Name, region),
+		"accountName": account.Name,
+		"provider":    provName,
+		"region":      region,
+		"targetGroup": groupName,
+		"note":        "⚠️ 当前版本仅创建导入任务记录，实际云 SDK 同步功能尚未实现，需要后续开发完成",
 	}, nil
 }

@@ -2,6 +2,8 @@ package biz
 
 import (
 	"fmt"
+	"log"
+	"time"
 
 	"gorm.io/gorm"
 )
@@ -42,10 +44,16 @@ func (m *ConversationManager) GetSession(sessionID uint, userID uint) (*ChatSess
 	return &session, nil
 }
 
-// ListSessions 获取用户的会话列表
+// ListSessions 获取用户的会话列表（根据保留天数过滤）
 func (m *ConversationManager) ListSessions(userID uint) ([]ChatSession, error) {
+	days := m.GetRetentionDays(userID)
 	var sessions []ChatSession
-	if err := m.db.Where("user_id = ?", userID).Order("updated_at DESC").Find(&sessions).Error; err != nil {
+	query := m.db.Where("user_id = ?", userID)
+	if days > 0 && days < 3650 {
+		cutoff := time.Now().AddDate(0, 0, -days)
+		query = query.Where("updated_at >= ?", cutoff)
+	}
+	if err := query.Order("updated_at DESC").Find(&sessions).Error; err != nil {
 		return nil, err
 	}
 	return sessions, nil
@@ -203,6 +211,72 @@ func (m *ConversationManager) EnsureSettingsTable() {
 		PRIMARY KEY (id),
 		UNIQUE KEY uk_user_key (user_id, ` + "`key`" + `)
 	) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`)
+}
+
+// StartSessionCleanupScheduler 启动 AI 对话会话定时清理任务
+func (m *ConversationManager) StartSessionCleanupScheduler() {
+	go func() {
+		// 启动后 2 分钟执行一次
+		time.Sleep(2 * time.Minute)
+		m.doSessionCleanup()
+
+		// 每 6 小时执行一次
+		ticker := time.NewTicker(6 * time.Hour)
+		defer ticker.Stop()
+
+		for range ticker.C {
+			m.doSessionCleanup()
+		}
+	}()
+}
+
+// doSessionCleanup 执行全局会话清理（遍历所有有保留设置的用户）
+func (m *ConversationManager) doSessionCleanup() {
+	// 获取所有设置了保留天数的用户
+	type UserSetting struct {
+		UserID uint   `gorm:"column:user_id"`
+		Value  string `gorm:"column:value"`
+	}
+	var settings []UserSetting
+	m.db.Table("ai_user_settings").
+		Select("user_id, value").
+		Where("`key` = 'session_retention_days'").
+		Find(&settings)
+
+	if len(settings) == 0 {
+		// 没有用户设置过保留天数，使用默认 30 天清理所有用户
+		cutoff := time.Now().AddDate(0, 0, -30)
+		var sessionIDs []uint
+		m.db.Model(&ChatSession{}).Where("updated_at < ?", cutoff).Pluck("id", &sessionIDs)
+		if len(sessionIDs) > 0 {
+			m.db.Where("session_id IN ?", sessionIDs).Delete(&ChatMessage{})
+			result := m.db.Where("id IN ?", sessionIDs).Delete(&ChatSession{})
+			if result.RowsAffected > 0 {
+				log.Printf("[ai-cleanup] 清理过期对话会话 %d 个（默认保留 30 天）", result.RowsAffected)
+			}
+		}
+		return
+	}
+
+	// 按用户逐个清理
+	totalDeleted := int64(0)
+	for _, s := range settings {
+		days := 30
+		fmt.Sscanf(s.Value, "%d", &days)
+		if days <= 0 {
+			days = 30
+		}
+		deleted, err := m.CleanupOldSessions(s.UserID, days)
+		if err != nil {
+			log.Printf("[ai-cleanup] 清理用户 %d 的过期会话失败: %v", s.UserID, err)
+			continue
+		}
+		totalDeleted += deleted
+	}
+
+	if totalDeleted > 0 {
+		log.Printf("[ai-cleanup] 定时清理完成，共清理 %d 个过期对话会话", totalDeleted)
+	}
 }
 
 // --- 摘要相关方法 ---

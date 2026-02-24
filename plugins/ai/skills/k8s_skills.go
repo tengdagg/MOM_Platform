@@ -3,6 +3,7 @@ package skills
 import (
 	"fmt"
 
+	"gopkg.in/yaml.v2"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/ydcloud-dy/mom/plugins/ai/biz"
@@ -32,6 +33,27 @@ func isConfirmed(params map[string]any) bool {
 		return true
 	}
 	return false
+}
+
+// extractValuesAsYAML 从参数中提取 values，支持 string（YAML）和 map（JSON 对象）两种格式
+// AI 模型通常传 JSON 对象如 {"image": {"tag": "1.29"}}，需要转成 YAML 字符串
+func extractValuesAsYAML(v any) string {
+	if v == nil {
+		return ""
+	}
+	// 如果是字符串，直接返回（认为是 YAML）
+	if s, ok := v.(string); ok {
+		return s
+	}
+	// 如果是 map（AI 传的 JSON 对象），转成 YAML
+	if m, ok := v.(map[string]any); ok {
+		data, err := yaml.Marshal(m)
+		if err != nil {
+			return ""
+		}
+		return string(data)
+	}
+	return ""
 }
 
 // executeK8sScale 扩缩容工作负载
@@ -315,7 +337,7 @@ func executeK8sHelmManage(ctx biz.SkillContext) (any, error) {
 	releaseName, _ := ctx.Params["release_name"].(string)
 	chartName, _ := ctx.Params["chart_name"].(string)
 	chartVersion, _ := ctx.Params["chart_version"].(string)
-	values, _ := ctx.Params["values"].(string)
+	values := extractValuesAsYAML(ctx.Params["values"])
 
 	// 初始化 Helm Service
 	// 注意：这里需要引入 plugins/kubernetes/service 包，请确保已导入

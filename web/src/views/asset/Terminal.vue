@@ -221,43 +221,45 @@
       </div>
     </el-drawer>
 
-    <!-- 虚拟键盘抽屉 -->
-    <el-drawer
-      v-model="virtualKeyboardVisible"
-      title="虚拟键盘 (US)"
-      direction="btt"
-      size="300px"
-      :show-close="true"
-      :modal="false"
-      class="file-drawer-dark"
-    >
-      <div class="virtual-keyboard">
-        <!-- 功能键行 -->
-        <div class="kb-row">
-          <button v-for="key in keyboardLayout.functionRow" :key="key.label" class="kb-key kb-fn" @mousedown.prevent="sendVKey(key.code)" :title="key.label">{{ key.label }}</button>
+    <!-- 悬浮虚拟键盘 -->
+    <Teleport to="body">
+      <div
+        v-show="virtualKeyboardVisible"
+        class="floating-keyboard"
+        :style="{ left: kbPos.x + 'px', top: kbPos.y + 'px' }"
+      >
+        <div class="kb-titlebar" @mousedown.prevent="startKbDrag">
+          <span class="kb-title">⌨ 虚拟键盘</span>
+          <button class="kb-close" @click="virtualKeyboardVisible = false">✕</button>
         </div>
-        <!-- 数字行 -->
-        <div class="kb-row">
-          <button v-for="key in keyboardLayout.numberRow" :key="key.label" class="kb-key" :class="{ 'kb-wide': key.wide }" @mousedown.prevent="sendVKey(key.code)" :title="key.label">{{ key.label }}</button>
-        </div>
-        <!-- 第一字母行 -->
-        <div class="kb-row">
-          <button v-for="key in keyboardLayout.row1" :key="key.label" class="kb-key" :class="{ 'kb-wide': key.wide }" @mousedown.prevent="sendVKey(key.code)" :title="key.label">{{ key.label }}</button>
-        </div>
-        <!-- 第二字母行 -->
-        <div class="kb-row">
-          <button v-for="key in keyboardLayout.row2" :key="key.label" class="kb-key" :class="{ 'kb-wide': key.wide }" @mousedown.prevent="sendVKey(key.code)" :title="key.label">{{ key.label }}</button>
-        </div>
-        <!-- 第三字母行 -->
-        <div class="kb-row">
-          <button v-for="key in keyboardLayout.row3" :key="key.label" class="kb-key" :class="{ 'kb-wide': key.wide }" @mousedown.prevent="sendVKey(key.code)" :title="key.label">{{ key.label }}</button>
-        </div>
-        <!-- 空格行 -->
-        <div class="kb-row">
-          <button v-for="key in keyboardLayout.spaceRow" :key="key.label" class="kb-key" :class="{ 'kb-space': key.space, 'kb-wide': key.wide }" @mousedown.prevent="sendVKey(key.code)" :title="key.label">{{ key.label }}</button>
+        <div class="virtual-keyboard">
+          <!-- 功能键行 -->
+          <div class="kb-row">
+            <button v-for="key in keyboardLayout.functionRow" :key="key.label" class="kb-key kb-fn" @mousedown.prevent="sendVKey(key.code)" :title="key.label">{{ key.label }}</button>
+          </div>
+          <!-- 数字行 -->
+          <div class="kb-row">
+            <button v-for="key in keyboardLayout.numberRow" :key="key.label" class="kb-key" :class="{ 'kb-wide': key.wide }" @mousedown.prevent="sendVKey(key.code)" :title="key.label">{{ key.label }}</button>
+          </div>
+          <!-- 第一字母行 -->
+          <div class="kb-row">
+            <button v-for="key in keyboardLayout.row1" :key="key.label" class="kb-key" :class="{ 'kb-wide': key.wide }" @mousedown.prevent="sendVKey(key.code)" :title="key.label">{{ key.label }}</button>
+          </div>
+          <!-- 第二字母行 -->
+          <div class="kb-row">
+            <button v-for="key in keyboardLayout.row2" :key="key.label" class="kb-key" :class="{ 'kb-wide': key.wide }" @mousedown.prevent="sendVKey(key.code)" :title="key.label">{{ key.label }}</button>
+          </div>
+          <!-- 第三字母行 -->
+          <div class="kb-row">
+            <button v-for="key in keyboardLayout.row3" :key="key.label" class="kb-key" :class="{ 'kb-wide': key.wide }" @mousedown.prevent="sendVKey(key.code)" :title="key.label">{{ key.label }}</button>
+          </div>
+          <!-- 空格行 -->
+          <div class="kb-row">
+            <button v-for="key in keyboardLayout.spaceRow" :key="key.label" class="kb-key" :class="{ 'kb-space': key.space, 'kb-wide': key.wide }" @mousedown.prevent="sendVKey(key.code)" :title="key.label">{{ key.label }}</button>
+          </div>
         </div>
       </div>
-    </el-drawer>
+    </Teleport>
 
 </template>>
 
@@ -1373,10 +1375,34 @@ const sendKeyCombination = (tabId: string, keys: number[]) => {
 // 虚拟键盘相关
 const virtualKeyboardVisible = ref(false)
 const virtualKeyboardTabId = ref('')
+const kbPos = ref({ x: Math.max(0, (window.innerWidth - 680) / 2), y: window.innerHeight - 340 })
+const kbDragState = ref({ dragging: false, offsetX: 0, offsetY: 0 })
 
 const toggleVirtualKeyboard = (tabId: string) => {
   virtualKeyboardTabId.value = tabId
   virtualKeyboardVisible.value = !virtualKeyboardVisible.value
+}
+
+const startKbDrag = (e: MouseEvent) => {
+  kbDragState.value = {
+    dragging: true,
+    offsetX: e.clientX - kbPos.value.x,
+    offsetY: e.clientY - kbPos.value.y
+  }
+  const onMouseMove = (ev: MouseEvent) => {
+    if (!kbDragState.value.dragging) return
+    kbPos.value = {
+      x: Math.max(0, Math.min(window.innerWidth - 200, ev.clientX - kbDragState.value.offsetX)),
+      y: Math.max(0, Math.min(window.innerHeight - 50, ev.clientY - kbDragState.value.offsetY))
+    }
+  }
+  const onMouseUp = () => {
+    kbDragState.value.dragging = false
+    document.removeEventListener('mousemove', onMouseMove)
+    document.removeEventListener('mouseup', onMouseUp)
+  }
+  document.addEventListener('mousemove', onMouseMove)
+  document.addEventListener('mouseup', onMouseUp)
 }
 
 // US 键盘布局 (X11 keysym)
@@ -2283,30 +2309,84 @@ onBeforeUnmount(() => {
   color: #4ec9b0;
 }
 
-/* 虚拟键盘样式 */
-.file-drawer-dark .virtual-keyboard {
+/* 悬浮虚拟键盘 */
+.floating-keyboard {
+  position: fixed;
+  z-index: 99999;
+  min-width: 640px;
+  background: rgba(30, 30, 30, 0.78);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+  overflow: hidden;
+  user-select: none;
+}
+
+.kb-titlebar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 12px;
+  background: rgba(255, 255, 255, 0.05);
+  cursor: grab;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.kb-titlebar:active {
+  cursor: grabbing;
+}
+
+.kb-title {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.65);
+  letter-spacing: 0.5px;
+}
+
+.kb-close {
+  width: 22px;
+  height: 22px;
+  border: none;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 12px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s;
+}
+
+.kb-close:hover {
+  background: #e06c75;
+  color: #fff;
+}
+
+.floating-keyboard .virtual-keyboard {
   display: flex;
   flex-direction: column;
   gap: 4px;
-  padding: 4px 0;
+  padding: 8px 10px;
 }
 
-.file-drawer-dark .kb-row {
+.floating-keyboard .kb-row {
   display: flex;
   gap: 3px;
   justify-content: center;
 }
 
-.file-drawer-dark .kb-key {
+.floating-keyboard .kb-key {
   min-width: 36px;
-  height: 34px;
+  height: 32px;
   padding: 0 6px;
-  border: 1px solid #4e4e4e;
-  border-radius: 4px;
-  background: #333333;
-  color: #cccccc;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 5px;
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.82);
   font-size: 11px;
-  font-family: 'Segoe UI', sans-serif;
+  font-family: 'Segoe UI', system-ui, sans-serif;
   cursor: pointer;
   transition: all 0.1s ease;
   display: flex;
@@ -2316,31 +2396,31 @@ onBeforeUnmount(() => {
   white-space: nowrap;
 }
 
-.file-drawer-dark .kb-key:hover {
-  background: #4e4e4e;
-  border-color: #6e6e6e;
+.floating-keyboard .kb-key:hover {
+  background: rgba(255, 255, 255, 0.16);
+  border-color: rgba(255, 255, 255, 0.22);
 }
 
-.file-drawer-dark .kb-key:active {
+.floating-keyboard .kb-key:active {
   background: #4ec9b0;
   border-color: #4ec9b0;
   color: #1e1e1e;
-  transform: scale(0.95);
+  transform: scale(0.94);
 }
 
-.file-drawer-dark .kb-fn {
+.floating-keyboard .kb-fn {
   min-width: 32px;
   font-size: 10px;
-  height: 28px;
-  background: #2a2a2a;
+  height: 26px;
+  background: rgba(255, 255, 255, 0.04);
 }
 
-.file-drawer-dark .kb-wide {
+.floating-keyboard .kb-wide {
   min-width: 56px;
   flex-shrink: 0;
 }
 
-.file-drawer-dark .kb-space {
+.floating-keyboard .kb-space {
   flex: 1;
   max-width: 280px;
 }
