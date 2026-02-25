@@ -115,8 +115,8 @@ MOM Platform 是一个功能强大的**插件化运维管理平台**，采用前
 
 ## AI 助手演示
 
-<video src="./docs/demovideo/MOM%20Platform.mp4" controls width="100%" height="auto" poster="./docs/images/demo-poster.png">
-  您的浏览器不支持 HTML5 视频，请 <a href="./docs/videos/demo.mp4">下载视频</a> 观看。
+<video src="./docs/demovideo/demo.mp4" controls width="100%" height="auto" poster="./docs/images/demo-poster.png">
+  您的浏览器不支持 HTML5 视频，请 <a href="./docs/demovideo/demo.mp4">下载视频</a> 观看。
 </video>
 
 ---
