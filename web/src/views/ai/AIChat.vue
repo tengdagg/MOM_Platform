@@ -109,7 +109,7 @@
               <el-icon><User /></el-icon>
             </el-avatar>
             <el-avatar v-else :size="36" style="background: #67c23a">
-              <el-icon><MagicStick /></el-icon>
+              <el-icon><CustomIcons name="Aibot" /></el-icon>
             </el-avatar>
           </div>
           <div class="message-content">
@@ -152,7 +152,7 @@
         <div v-if="isLoading" class="message-wrapper assistant">
           <div class="message-avatar">
             <el-avatar :size="36" style="background: #67c23a">
-              <el-icon><MagicStick /></el-icon>
+              <el-icon><CustomIcons name="Aibot" /></el-icon>
             </el-avatar>
           </div>
           <div class="message-content">
@@ -299,6 +299,7 @@ import {
   getModelList, sendMessage as apiSendMessage, getTemplates,
   getRetentionSettings, setRetentionSettings, cleanupSessions
 } from '@/api/ai'
+import CustomIcons from '@/components/icons/CustomIcons.vue'
 
 // 状态
 const sessions = ref<any[]>([])
@@ -802,10 +803,15 @@ function renderMarkdown(content: string): string {
   html = html.replace(/^## (.+)$/gm, '<h3>$1</h3>')
   html = html.replace(/^# (.+)$/gm, '<h2>$1</h2>')
   // 列表
-  html = html.replace(/^- (.+)$/gm, '<li>$1</li>')
-  html = html.replace(/(<li>.*<\/li>\n?)+/g, '<ul>$&</ul>')
+  html = html.replace(/^[-*] (.+)$/gm, '<li class="ul-item">$1</li>')
   // 有序列表
-  html = html.replace(/^\d+\. (.+)$/gm, '<li>$1</li>')
+  html = html.replace(/^\d+\. (.+)$/gm, '<li class="ol-item">$1</li>')
+  // 包装列表
+  html = html.replace(/(<li class="ul-item">.*<\/li>\n?)+/g, '<ul>$&</ul>')
+  html = html.replace(/(<li class="ol-item">.*<\/li>\n?)+/g, '<ol>$&</ol>')
+  // 清理内部标签
+  html = html.replace(/ class="ul-item"/g, '')
+  html = html.replace(/ class="ol-item"/g, '')
   // 换行
   html = html.replace(/\n/g, '<br>')
   return html
@@ -1090,7 +1096,7 @@ function formatJSON(data: any): string {
 
 .message-body {
   background: #fff;
-  padding: 12px 16px;
+  padding: 12px 15px;
   border-radius: 12px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
   line-height: 1.6;
@@ -1117,6 +1123,17 @@ function formatJSON(data: any): string {
   padding: 2px 6px;
   border-radius: 4px;
   font-size: 13px;
+}
+
+.message-body :deep(ul),
+.message-body :deep(ol) {
+  padding-left: 30px;
+  margin: 12px 0;
+}
+
+.message-body :deep(li) {
+  margin-bottom: 6px;
+  line-height: 1.6;
 }
 
 .message-body :deep(table.md-table) {

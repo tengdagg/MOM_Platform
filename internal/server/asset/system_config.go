@@ -27,6 +27,14 @@ func NewSystemConfigHandler(db *gorm.DB) *SystemConfigHandler {
 }
 
 // GetAllConfig 获取所有系统配置
+// @Summary 获取所有系统配置
+// @Description 获取系统的全局配置，如日志保留天数等
+// @Tags 系统配置
+// @Accept json
+// @Produce json
+// @Security Bearer
+// @Success 200 {object} response.Response{data=map[string]string} "获取成功"
+// @Router /api/v1/system-config [get]
 func (h *SystemConfigHandler) GetAllConfig(c *gin.Context) {
 	var configs []assetbiz.SystemConfig
 	h.db.Find(&configs)
@@ -40,6 +48,15 @@ func (h *SystemConfigHandler) GetAllConfig(c *gin.Context) {
 }
 
 // SaveAllConfig 批量保存系统配置
+// @Summary 批量保存系统配置
+// @Description 批量更新或保存系统的全局配置项
+// @Tags 系统配置
+// @Accept json
+// @Produce json
+// @Security Bearer
+// @Param body body map[string]interface{} true "配置键值对"
+// @Success 200 {object} response.Response "保存成功"
+// @Router /api/v1/system-config [put]
 func (h *SystemConfigHandler) SaveAllConfig(c *gin.Context) {
 	var req map[string]interface{}
 	if err := c.ShouldBindJSON(&req); err != nil {

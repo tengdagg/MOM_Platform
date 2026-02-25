@@ -265,9 +265,9 @@ func formatFileSize(size int64) string {
 // getStatusText 获取状态文本
 func getStatusText(status string) string {
 	statusMap := map[string]string{
-		"recording":  "录制中",
-		"completed":  "已完成",
-		"failed":     "失败",
+		"recording": "录制中",
+		"completed": "已完成",
+		"failed":    "失败",
 	}
 	if text, ok := statusMap[status]; ok {
 		return text
@@ -276,6 +276,14 @@ func getStatusText(status string) string {
 }
 
 // GetRetentionConfig 获取终端审计保留配置
+// @Summary 获取终端审计保留配置
+// @Description 获取终端审计会话记录和录制文件的保留天数配置
+// @Tags 终端审计
+// @Accept json
+// @Produce json
+// @Security Bearer
+// @Success 200 {object} response.Response{data=map[string]interface{}} "获取成功"
+// @Router /api/v1/terminal-sessions/retention [get]
 func (h *TerminalAuditHandler) GetRetentionConfig(c *gin.Context) {
 	var config assetbiz.SystemConfig
 	result := h.db.Where("config_key = ?", "terminal_audit_retention_days").First(&config)
@@ -283,7 +291,7 @@ func (h *TerminalAuditHandler) GetRetentionConfig(c *gin.Context) {
 		// 默认30天
 		response.Success(c, gin.H{
 			"retentionDays": 30,
-			"autoCleanup":  true,
+			"autoCleanup":   true,
 		})
 		return
 	}
@@ -295,11 +303,20 @@ func (h *TerminalAuditHandler) GetRetentionConfig(c *gin.Context) {
 
 	response.Success(c, gin.H{
 		"retentionDays": days,
-		"autoCleanup":  true,
+		"autoCleanup":   true,
 	})
 }
 
 // UpdateRetentionConfig 更新终端审计保留配置
+// @Summary 更新终端审计保留配置
+// @Description 更新终端审计记录的保留天数及是否自动清理
+// @Tags 终端审计
+// @Accept json
+// @Produce json
+// @Security Bearer
+// @Param body body map[string]interface{} true "保留配置信息"
+// @Success 200 {object} response.Response "保存成功"
+// @Router /api/v1/terminal-sessions/retention [put]
 func (h *TerminalAuditHandler) UpdateRetentionConfig(c *gin.Context) {
 	var req struct {
 		RetentionDays int  `json:"retentionDays" binding:"required,min=1,max=3650"`
@@ -329,6 +346,14 @@ func (h *TerminalAuditHandler) UpdateRetentionConfig(c *gin.Context) {
 }
 
 // CleanupExpiredSessions 手动触发清理过期会话
+// @Summary 手动清理过期终端会话
+// @Description 手动触发一次清理任务，删除超出保留期限的审计记录和录制文件
+// @Tags 终端审计
+// @Accept json
+// @Produce json
+// @Security Bearer
+// @Success 200 {object} response.Response "清理成功"
+// @Router /api/v1/terminal-sessions/cleanup [post]
 func (h *TerminalAuditHandler) CleanupExpiredSessions(c *gin.Context) {
 	deleted, err := h.doCleanup()
 	if err != nil {

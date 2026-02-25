@@ -1,7 +1,46 @@
 basePath: /api/v1
 definitions:
+  asset.AssetGroup:
+    properties:
+      category:
+        type: string
+      children:
+        items:
+          $ref: '#/definitions/asset.AssetGroup'
+        type: array
+      code:
+        type: string
+      createdAt:
+        type: string
+      deletedAt:
+        $ref: '#/definitions/gorm.DeletedAt'
+      description:
+        type: string
+      deviceCount:
+        description: 网络设备数量（不存储在数据库）
+        type: integer
+      hostCount:
+        description: 主机数量（不存储在数据库）
+        type: integer
+      id:
+        type: integer
+      name:
+        type: string
+      parent:
+        $ref: '#/definitions/asset.AssetGroup'
+      parentId:
+        type: integer
+      sort:
+        type: integer
+      status:
+        type: integer
+      updatedAt:
+        type: string
+    type: object
   asset.AssetGroupRequest:
     properties:
+      category:
+        type: string
       code:
         maxLength: 50
         minLength: 2
@@ -73,8 +112,37 @@ definitions:
     required:
     - accountId
     type: object
+  asset.Credential:
+    properties:
+      category:
+        type: string
+      createdAt:
+        type: string
+      deletedAt:
+        $ref: '#/definitions/gorm.DeletedAt'
+      description:
+        type: string
+      id:
+        type: integer
+      name:
+        type: string
+      passphrase:
+        type: string
+      password:
+        type: string
+      privateKey:
+        type: string
+      type:
+        type: string
+      updatedAt:
+        type: string
+      username:
+        type: string
+    type: object
   asset.CredentialRequest:
     properties:
+      category:
+        type: string
       description:
         type: string
       id:
@@ -122,9 +190,13 @@ definitions:
         maxLength: 100
         minLength: 2
         type: string
+      osType:
+        type: string
       port:
         maximum: 65535
         minimum: 1
+        type: integer
+      rdpPort:
         type: integer
       sshUser:
         type: string
@@ -141,6 +213,101 @@ definitions:
     - port
     - sshUser
     - type
+    type: object
+  asset.NetworkDevice:
+    properties:
+      brand:
+        type: string
+      brandModel:
+        type: string
+      createdAt:
+        type: string
+      credential:
+        $ref: '#/definitions/asset.Credential'
+      credentialId:
+        type: integer
+      deletedAt:
+        $ref: '#/definitions/gorm.DeletedAt'
+      description:
+        type: string
+      deviceType:
+        type: string
+      group:
+        $ref: '#/definitions/asset.AssetGroup'
+      groupId:
+        type: integer
+      id:
+        type: integer
+      ip:
+        type: string
+      name:
+        type: string
+      port:
+        type: integer
+      protocol:
+        type: string
+      serialNumber:
+        type: string
+      status:
+        type: integer
+      tags:
+        type: string
+      updatedAt:
+        type: string
+    type: object
+  asset.NetworkDeviceRequest:
+    properties:
+      brand:
+        type: string
+      brandModel:
+        type: string
+      credentialId:
+        type: integer
+      description:
+        type: string
+      deviceType:
+        enum:
+        - switch
+        - router
+        - firewall
+        - ac
+        - ap
+        - other
+        type: string
+      groupId:
+        type: integer
+      id:
+        type: integer
+      ip:
+        type: string
+      name:
+        maxLength: 100
+        minLength: 1
+        type: string
+      port:
+        type: integer
+      protocol:
+        enum:
+        - ssh
+        - telnet
+        type: string
+      serialNumber:
+        type: string
+      tags:
+        type: string
+    required:
+    - deviceType
+    - ip
+    - name
+    - protocol
+    type: object
+  gorm.DeletedAt:
+    properties:
+      time:
+        type: string
+      valid:
+        description: Valid is true if Time is not NULL
+        type: boolean
     type: object
   model.AlertChannel:
     properties:
@@ -354,6 +521,35 @@ definitions:
       updatedAt:
         type: string
     type: object
+  model.HelmRepo:
+    properties:
+      caFile:
+        type: string
+      certFile:
+        type: string
+      createdAt:
+        type: string
+      deletedAt:
+        $ref: '#/definitions/gorm.DeletedAt'
+      id:
+        type: integer
+      insecureSkipTLSVerify:
+        type: boolean
+      keyFile:
+        type: string
+      name:
+        type: string
+      password:
+        type: string
+      type:
+        type: string
+      updatedAt:
+        type: string
+      url:
+        type: string
+      username:
+        type: string
+    type: object
   model.InspectionOptions:
     properties:
       checkCapacity:
@@ -461,8 +657,11 @@ definitions:
     properties:
       assetGroupId:
         type: integer
+      assetType:
+        description: host 或 network_device，默认 host
+        type: string
       hostIds:
-        description: 空数组表示整个分组，非空表示指定主机
+        description: 空数组表示整个分组，非空表示指定主机/设备
         items:
           type: integer
         type: array
@@ -561,6 +760,13 @@ definitions:
     - password
     - username
     type: object
+  rbac.MenuSortItem:
+    properties:
+      id:
+        type: integer
+      sort:
+        type: integer
+    type: object
   rbac.RegisterRequest:
     properties:
       email:
@@ -587,13 +793,206 @@ definitions:
     required:
     - password
     type: object
+  rbac.SysDepartment:
+    properties:
+      children:
+        items:
+          $ref: '#/definitions/rbac.SysDepartment'
+        type: array
+      code:
+        type: string
+      createdAt:
+        type: string
+      deletedAt:
+        $ref: '#/definitions/gorm.DeletedAt'
+      deptType:
+        type: integer
+      id:
+        type: integer
+      name:
+        type: string
+      parent:
+        $ref: '#/definitions/rbac.SysDepartment'
+      parentId:
+        type: integer
+      sort:
+        type: integer
+      status:
+        type: integer
+      updatedAt:
+        type: string
+      userCount:
+        description: 用户数量（仅用于API响应）
+        type: integer
+    type: object
+  rbac.SysLDAPConfig:
+    properties:
+      attrEmail:
+        type: string
+      attrPhone:
+        type: string
+      attrRealName:
+        type: string
+      attrUsername:
+        type: string
+      baseDn:
+        type: string
+      bindDn:
+        type: string
+      bindPassword:
+        type: string
+      createdAt:
+        type: string
+      defaultRoleId:
+        type: integer
+      deletedAt:
+        $ref: '#/definitions/gorm.DeletedAt'
+      enabled:
+        type: boolean
+      host:
+        type: string
+      id:
+        type: integer
+      passwordSet:
+        type: boolean
+      port:
+        type: integer
+      updatedAt:
+        type: string
+      useSsl:
+        type: boolean
+      userFilter:
+        type: string
+    type: object
   rbac.SysMenu:
+    properties:
+      children:
+        items:
+          $ref: '#/definitions/rbac.SysMenu'
+        type: array
+      code:
+        type: string
+      component:
+        type: string
+      createdAt:
+        type: string
+      deletedAt:
+        $ref: '#/definitions/gorm.DeletedAt'
+      icon:
+        type: string
+      id:
+        type: integer
+      name:
+        type: string
+      parent:
+        $ref: '#/definitions/rbac.SysMenu'
+      parentId:
+        type: integer
+      path:
+        type: string
+      pluginName:
+        type: string
+      sort:
+        type: integer
+      status:
+        type: integer
+      type:
+        type: integer
+      updatedAt:
+        type: string
+      visible:
+        type: integer
     type: object
   rbac.SysPosition:
+    properties:
+      createdAt:
+        type: string
+      deletedAt:
+        $ref: '#/definitions/gorm.DeletedAt'
+      id:
+        type: integer
+      postCode:
+        type: string
+      postName:
+        type: string
+      postStatus:
+        type: integer
+      remark:
+        type: string
+      updatedAt:
+        type: string
+      users:
+        items:
+          $ref: '#/definitions/rbac.SysUser'
+        type: array
     type: object
   rbac.SysRole:
+    properties:
+      code:
+        type: string
+      createdAt:
+        type: string
+      deletedAt:
+        $ref: '#/definitions/gorm.DeletedAt'
+      description:
+        type: string
+      id:
+        type: integer
+      menus:
+        items:
+          $ref: '#/definitions/rbac.SysMenu'
+        type: array
+      name:
+        type: string
+      sort:
+        type: integer
+      status:
+        type: integer
+      updatedAt:
+        type: string
     type: object
   rbac.SysUser:
+    properties:
+      avatar:
+        type: string
+      bio:
+        type: string
+      createdAt:
+        type: string
+      deletedAt:
+        $ref: '#/definitions/gorm.DeletedAt'
+      department:
+        $ref: '#/definitions/rbac.SysDepartment'
+      departmentId:
+        type: integer
+      email:
+        type: string
+      id:
+        type: integer
+      lastLoginAt:
+        type: string
+      password:
+        type: string
+      phone:
+        type: string
+      positions:
+        items:
+          $ref: '#/definitions/rbac.SysPosition'
+        type: array
+      realName:
+        type: string
+      roles:
+        items:
+          $ref: '#/definitions/rbac.SysRole'
+        type: array
+      source:
+        type: string
+      status:
+        type: integer
+      updatedAt:
+        type: string
+      username:
+        type: string
     type: object
   rbac.VerifyCaptchaRequest:
     properties:
@@ -733,6 +1132,24 @@ definitions:
     - kubeConfig
     - name
     type: object
+  service.InstallReleaseRequest:
+    properties:
+      chartName:
+        type: string
+      clusterId:
+        type: integer
+      namespace:
+        type: string
+      releaseName:
+        type: string
+      repoId:
+        type: integer
+      values:
+        description: YAML format values
+        type: string
+      version:
+        type: string
+    type: object
   service.UpdateClusterRequest:
     properties:
       alias:
@@ -750,7 +1167,12 @@ definitions:
       region:
         type: string
     type: object
-host: localhost:8080
+  service.UpgradeReleaseRequest:
+    properties:
+      values:
+        description: YAML 格式的 values
+        type: string
+    type: object
 info:
   contact:
     email: support@swagger.io
@@ -2594,6 +3016,120 @@ paths:
       summary: 下载导入模板
       tags:
       - 资产管理-主机
+  /api/v1/ldap/config:
+    get:
+      consumes:
+      - application/json
+      description: 获取系统的 LDAP/AD 认证配置
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 获取成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/rbac.SysLDAPConfig'
+              type: object
+      security:
+      - Bearer: []
+      summary: 获取 LDAP 配置
+      tags:
+      - LDAP管理
+    put:
+      consumes:
+      - application/json
+      description: 更新或保存系统的 LDAP/AD 认证配置
+      parameters:
+      - description: LDAP配置信息
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/rbac.SysLDAPConfig'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 保存成功
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - Bearer: []
+      summary: 保存 LDAP 配置
+      tags:
+      - LDAP管理
+  /api/v1/ldap/sync:
+    post:
+      consumes:
+      - application/json
+      description: 手动从 LDAP 服务器同步用户列表到本地数据库
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 同步完成
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - Bearer: []
+      summary: 同步 LDAP 用户
+      tags:
+      - LDAP管理
+  /api/v1/ldap/test:
+    post:
+      consumes:
+      - application/json
+      description: 测试 LDAP 服务器的连接和绑定凭据是否有效
+      parameters:
+      - description: LDAP配置信息
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/rbac.SysLDAPConfig'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 连接成功或失败
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - Bearer: []
+      summary: 测试 LDAP 连接
+      tags:
+      - LDAP管理
+  /api/v1/ldap/users:
+    get:
+      consumes:
+      - application/json
+      description: 分页获取所有通过 LDAP 认证系统创建或同步的用户
+      parameters:
+      - default: 1
+        description: 页码
+        in: query
+        name: page
+        type: integer
+      - default: 10
+        description: 每页数量
+        in: query
+        name: pageSize
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 获取成功
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - Bearer: []
+      summary: 查询 LDAP 用户列表
+      tags:
+      - LDAP管理
   /api/v1/menus:
     post:
       consumes:
@@ -2715,11 +3251,79 @@ paths:
       summary: 更新菜单
       tags:
       - 菜单管理
+  /api/v1/menus/{id}/sort:
+    put:
+      consumes:
+      - application/json
+      description: 仅更新菜单排序字段
+      parameters:
+      - description: 菜单ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 排序信息
+        in: body
+        name: body
+        required: true
+        schema:
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 更新成功
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - Bearer: []
+      summary: 更新菜单排序
+      tags:
+      - 菜单管理
+  /api/v1/menus/sort:
+    put:
+      consumes:
+      - application/json
+      description: 批量更新多个菜单的排序
+      parameters:
+      - description: 排序信息列表
+        in: body
+        name: body
+        required: true
+        schema:
+          items:
+            $ref: '#/definitions/rbac.MenuSortItem'
+          type: array
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 更新成功
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - Bearer: []
+      summary: 批量更新菜单排序
+      tags:
+      - 菜单管理
   /api/v1/menus/tree:
     get:
       consumes:
       - application/json
-      description: 获取完整的菜单树形结构
+      description: 获取完整的菜单树形结构，支持 all 参数返回所有菜单（包括隐藏的）
+      parameters:
+      - description: 是否返回所有菜单（包括隐藏的），值为 true 时返回全部
+        in: query
+        name: all
+        type: string
       produces:
       - application/json
       responses:
@@ -2753,6 +3357,213 @@ paths:
       summary: 获取用户菜单
       tags:
       - 菜单管理
+  /api/v1/network-devices:
+    get:
+      consumes:
+      - application/json
+      description: 分页获取网络设备列表，根据用户权限过滤
+      parameters:
+      - default: 1
+        description: 页码
+        in: query
+        name: page
+        type: integer
+      - default: 10
+        description: 每页数量
+        in: query
+        name: pageSize
+        type: integer
+      - description: 搜索关键字(名称/IP)
+        in: query
+        name: keyword
+        type: string
+      - description: 设备类型
+        in: query
+        name: deviceType
+        type: string
+      - description: 连接协议
+        in: query
+        name: protocol
+        type: string
+      - description: 资产分组ID
+        in: query
+        name: groupId
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 获取成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  additionalProperties: true
+                  type: object
+              type: object
+      security:
+      - Bearer: []
+      summary: 获取网络设备列表
+      tags:
+      - 资产管理-网络设备
+    post:
+      consumes:
+      - application/json
+      description: 创建一个新的网络设备
+      parameters:
+      - description: 网络设备信息
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/asset.NetworkDeviceRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 创建成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/asset.NetworkDevice'
+              type: object
+      security:
+      - Bearer: []
+      summary: 创建网络设备
+      tags:
+      - 资产管理-网络设备
+  /api/v1/network-devices/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: 删除指定的网络设备
+      parameters:
+      - description: 设备ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 删除成功
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - Bearer: []
+      summary: 删除网络设备
+      tags:
+      - 资产管理-网络设备
+    get:
+      consumes:
+      - application/json
+      description: 根据ID获取单个网络设备详情
+      parameters:
+      - description: 设备ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 获取成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/asset.NetworkDevice'
+              type: object
+      security:
+      - Bearer: []
+      summary: 获取网络设备详情
+      tags:
+      - 资产管理-网络设备
+    put:
+      consumes:
+      - application/json
+      description: 更新指定的网络设备信息
+      parameters:
+      - description: 设备ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 网络设备信息
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/asset.NetworkDeviceRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 更新成功
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - Bearer: []
+      summary: 更新网络设备
+      tags:
+      - 资产管理-网络设备
+  /api/v1/network-devices/{id}/test:
+    post:
+      consumes:
+      - application/json
+      description: 用指定的协议（SSH或Telnet）测试网络设备是否能成功连接
+      parameters:
+      - description: 设备ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 连接成功
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: 连接失败
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - Bearer: []
+      summary: 测试网络设备连接
+      tags:
+      - 资产管理-网络设备
+  /api/v1/network-devices/all:
+    get:
+      consumes:
+      - application/json
+      description: 获取用户有权限访问的所有网络设备列表，不分页
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 获取成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/asset.NetworkDevice'
+                  type: array
+              type: object
+      security:
+      - Bearer: []
+      summary: 获取所有网络设备
+      tags:
+      - 资产管理-网络设备
   /api/v1/plugins:
     get:
       consumes:
@@ -2944,6 +3755,302 @@ paths:
       summary: 创建角色
       tags:
       - Kubernetes/Role
+  /api/v1/plugins/kubernetes/helm/clusters/{clusterId}/releases:
+    get:
+      consumes:
+      - application/json
+      description: 获取集群中的 Helm Release 列表
+      parameters:
+      - description: 集群ID
+        in: path
+        name: clusterId
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 获取成功
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - Bearer: []
+      summary: 获取 Helm Release 列表
+      tags:
+      - Kubernetes-Helm
+    post:
+      consumes:
+      - application/json
+      description: 在通过指定仓库安装 Helm Release
+      parameters:
+      - description: 集群ID
+        in: path
+        name: clusterId
+        required: true
+        type: integer
+      - description: 安装请求参数
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/service.InstallReleaseRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 安装成功
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - Bearer: []
+      summary: 安装 Helm Release
+      tags:
+      - Kubernetes-Helm
+  /api/v1/plugins/kubernetes/helm/clusters/{clusterId}/releases/{namespace}/{name}:
+    delete:
+      consumes:
+      - application/json
+      description: 卸载并删除指定的 Helm Release
+      parameters:
+      - description: 集群ID
+        in: path
+        name: clusterId
+        required: true
+        type: integer
+      - description: 命名空间
+        in: path
+        name: namespace
+        required: true
+        type: string
+      - description: Release名称
+        in: path
+        name: name
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 卸载成功
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - Bearer: []
+      summary: 卸载 Helm Release
+      tags:
+      - Kubernetes-Helm
+    get:
+      consumes:
+      - application/json
+      description: 获取集群中指定命名空间下的 Helm Release 详情
+      parameters:
+      - description: 集群ID
+        in: path
+        name: clusterId
+        required: true
+        type: integer
+      - description: 命名空间
+        in: path
+        name: namespace
+        required: true
+        type: string
+      - description: Release名称
+        in: path
+        name: name
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 获取成功
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - Bearer: []
+      summary: 获取 Helm Release 详情
+      tags:
+      - Kubernetes-Helm
+    put:
+      consumes:
+      - application/json
+      description: 升级指定的 Helm Release 最新属性、配置或版本
+      parameters:
+      - description: 集群ID
+        in: path
+        name: clusterId
+        required: true
+        type: integer
+      - description: 命名空间
+        in: path
+        name: namespace
+        required: true
+        type: string
+      - description: Release名称
+        in: path
+        name: name
+        required: true
+        type: string
+      - description: 升级请求参数
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/service.UpgradeReleaseRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 升级成功
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - Bearer: []
+      summary: 升级 Helm Release
+      tags:
+      - Kubernetes-Helm
+  /api/v1/plugins/kubernetes/helm/repos:
+    get:
+      consumes:
+      - application/json
+      description: 获取所有已配置的 Helm 仓库信息
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 获取成功
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - Bearer: []
+      summary: 获取 Helm 仓库列表
+      tags:
+      - Kubernetes-Helm
+    post:
+      consumes:
+      - application/json
+      description: 添加一个新的 Helm 仓库
+      parameters:
+      - description: 仓库请求信息
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/model.HelmRepo'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 添加成功
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - Bearer: []
+      summary: 添加 Helm 仓库
+      tags:
+      - Kubernetes-Helm
+  /api/v1/plugins/kubernetes/helm/repos/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: 删除指定的 Helm 仓库
+      parameters:
+      - description: 仓库ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 删除成功
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - Bearer: []
+      summary: 删除 Helm 仓库
+      tags:
+      - Kubernetes-Helm
+    put:
+      consumes:
+      - application/json
+      description: 更新指定的 Helm 仓库信息
+      parameters:
+      - description: 仓库ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 仓库请求信息
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/model.HelmRepo'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 更新成功
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - Bearer: []
+      summary: 更新 Helm 仓库
+      tags:
+      - Kubernetes-Helm
+  /api/v1/plugins/kubernetes/helm/repos/{repoId}/charts:
+    get:
+      consumes:
+      - application/json
+      description: 获取指定 Helm 仓库中的所有 Chart
+      parameters:
+      - description: 仓库ID
+        in: path
+        name: repoId
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 获取成功
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - Bearer: []
+      summary: 获取 Helm Chart 列表
+      tags:
+      - Kubernetes-Helm
+  /api/v1/plugins/kubernetes/helm/repos/{repoId}/charts/{chartName}/versions:
+    get:
+      consumes:
+      - application/json
+      description: 获取指定 Helm 仓库中某个 Chart 的所有版本信息
+      parameters:
+      - description: 仓库ID
+        in: path
+        name: repoId
+        required: true
+        type: integer
+      - description: Chart名称
+        in: path
+        name: chartName
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 获取成功
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - Bearer: []
+      summary: 获取 Helm Chart 的版本列表
+      tags:
+      - Kubernetes-Helm
   /api/v1/plugins/kubernetes/inspection/{inspectionId}:
     delete:
       consumes:
@@ -3081,6 +4188,306 @@ paths:
       summary: 开始集群巡检
       tags:
       - Kubernetes巡检
+  /api/v1/plugins/kubernetes/resources/crds:
+    get:
+      consumes:
+      - application/json
+      description: 获取集群中的所有 CustomResourceDefinition (CRD) 列表
+      parameters:
+      - description: 集群ID
+        in: query
+        name: clusterId
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 获取成功
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - Bearer: []
+      summary: 获取 CRD 列表
+      tags:
+      - Kubernetes-CRD
+  /api/v1/plugins/kubernetes/resources/crds/{name}:
+    delete:
+      consumes:
+      - application/json
+      description: 删除指定的 CustomResourceDefinition
+      parameters:
+      - description: 集群ID
+        in: query
+        name: clusterId
+        type: integer
+      - description: CRD名称
+        in: path
+        name: name
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 删除成功
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - Bearer: []
+      summary: 删除 CRD
+      tags:
+      - Kubernetes-CRD
+  /api/v1/plugins/kubernetes/resources/crds/{name}/yaml:
+    get:
+      consumes:
+      - application/json
+      description: 获取单个 CustomResourceDefinition 的详细 YAML 信息
+      parameters:
+      - description: 集群ID
+        in: query
+        name: clusterId
+        type: integer
+      - description: CRD名称
+        in: path
+        name: name
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 获取成功
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - Bearer: []
+      summary: 获取 CRD 详情
+      tags:
+      - Kubernetes-CRD
+  /api/v1/plugins/kubernetes/resources/custom:
+    get:
+      consumes:
+      - application/json
+      description: 获取指定 CRD 下的 Custom Resource 实例列表
+      parameters:
+      - description: 集群ID
+        in: query
+        name: clusterId
+        type: integer
+      - description: API Group
+        in: query
+        name: group
+        required: true
+        type: string
+      - description: API Version
+        in: query
+        name: version
+        required: true
+        type: string
+      - description: 资源名称(复数)
+        in: query
+        name: resource
+        required: true
+        type: string
+      - description: 命名空间
+        in: query
+        name: namespace
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 获取成功
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - Bearer: []
+      summary: 获取自定义资源列表
+      tags:
+      - Kubernetes-自定义资源
+  /api/v1/plugins/kubernetes/resources/custom/{namespace}/{name}:
+    delete:
+      consumes:
+      - application/json
+      description: 删除指定的 Custom Resource 实例
+      parameters:
+      - description: 集群ID
+        in: query
+        name: clusterId
+        type: integer
+      - description: API Group
+        in: query
+        name: group
+        required: true
+        type: string
+      - description: API Version
+        in: query
+        name: version
+        required: true
+        type: string
+      - description: 资源名称(复数)
+        in: query
+        name: resource
+        required: true
+        type: string
+      - description: 命名空间
+        in: path
+        name: namespace
+        required: true
+        type: string
+      - description: 资源名称
+        in: path
+        name: name
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 删除成功
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - Bearer: []
+      summary: 删除自定义资源
+      tags:
+      - Kubernetes-自定义资源
+  /api/v1/plugins/kubernetes/resources/custom/{namespace}/{name}/yaml:
+    get:
+      consumes:
+      - application/json
+      description: 获取单个 Custom Resource 的详情，格式为 JSON 对象
+      parameters:
+      - description: 集群ID
+        in: query
+        name: clusterId
+        type: integer
+      - description: API Group
+        in: query
+        name: group
+        required: true
+        type: string
+      - description: API Version
+        in: query
+        name: version
+        required: true
+        type: string
+      - description: 资源名称(复数)
+        in: query
+        name: resource
+        required: true
+        type: string
+      - description: 命名空间
+        in: path
+        name: namespace
+        required: true
+        type: string
+      - description: 资源名称
+        in: path
+        name: name
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 获取成功
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - Bearer: []
+      summary: 获取自定义资源详情
+      tags:
+      - Kubernetes-自定义资源
+  /api/v1/plugins/kubernetes/resources/custom/yaml:
+    post:
+      consumes:
+      - application/json
+      description: 通过 YAML 格式内容创建 Custom Resource 实例
+      parameters:
+      - description: 集群ID
+        in: query
+        name: clusterId
+        type: integer
+      - description: API Group
+        in: query
+        name: group
+        required: true
+        type: string
+      - description: API Version
+        in: query
+        name: version
+        required: true
+        type: string
+      - description: 资源名称(复数)
+        in: query
+        name: resource
+        required: true
+        type: string
+      - description: YAML内容对象
+        in: body
+        name: body
+        required: true
+        schema:
+          additionalProperties:
+            type: string
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 创建成功
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - Bearer: []
+      summary: YAML创建自定义资源
+      tags:
+      - Kubernetes-自定义资源
+    put:
+      consumes:
+      - application/json
+      description: 通过 YAML 格式内容更新 Custom Resource 实例
+      parameters:
+      - description: 集群ID
+        in: query
+        name: clusterId
+        type: integer
+      - description: API Group
+        in: query
+        name: group
+        required: true
+        type: string
+      - description: API Version
+        in: query
+        name: version
+        required: true
+        type: string
+      - description: 资源名称(复数)
+        in: query
+        name: resource
+        required: true
+        type: string
+      - description: YAML内容对象
+        in: body
+        name: body
+        required: true
+        schema:
+          additionalProperties:
+            type: string
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 更新成功
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - Bearer: []
+      summary: YAML更新自定义资源
+      tags:
+      - Kubernetes-自定义资源
   /api/v1/plugins/upload:
     post:
       consumes:
@@ -3439,6 +4846,28 @@ paths:
       summary: 修改用户密码
       tags:
       - 用户管理
+  /api/v1/public/ldap/status:
+    get:
+      consumes:
+      - application/json
+      description: 获取系统是否启用了 LDAP 认证功能，供登录页判断是否展示相关提示内容
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 获取成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  additionalProperties:
+                    type: boolean
+                  type: object
+              type: object
+      summary: 获取 LDAP 启用状态
+      tags:
+      - 认证管理
   /api/v1/public/login:
     post:
       consumes:
@@ -3685,6 +5114,54 @@ paths:
       summary: 获取所有角色
       tags:
       - 角色管理
+  /api/v1/system-config:
+    get:
+      consumes:
+      - application/json
+      description: 获取系统的全局配置，如日志保留天数等
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 获取成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  additionalProperties:
+                    type: string
+                  type: object
+              type: object
+      security:
+      - Bearer: []
+      summary: 获取所有系统配置
+      tags:
+      - 系统配置
+    put:
+      consumes:
+      - application/json
+      description: 批量更新或保存系统的全局配置项
+      parameters:
+      - description: 配置键值对
+        in: body
+        name: body
+        required: true
+        schema:
+          additionalProperties: true
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 保存成功
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - Bearer: []
+      summary: 批量保存系统配置
+      tags:
+      - 系统配置
   /api/v1/terminal-sessions:
     get:
       consumes:
@@ -3769,6 +5246,70 @@ paths:
       security:
       - Bearer: []
       summary: 播放终端会话
+      tags:
+      - 终端审计
+  /api/v1/terminal-sessions/cleanup:
+    post:
+      consumes:
+      - application/json
+      description: 手动触发一次清理任务，删除超出保留期限的审计记录和录制文件
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 清理成功
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - Bearer: []
+      summary: 手动清理过期终端会话
+      tags:
+      - 终端审计
+  /api/v1/terminal-sessions/retention:
+    get:
+      consumes:
+      - application/json
+      description: 获取终端审计会话记录和录制文件的保留天数配置
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 获取成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  additionalProperties: true
+                  type: object
+              type: object
+      security:
+      - Bearer: []
+      summary: 获取终端审计保留配置
+      tags:
+      - 终端审计
+    put:
+      consumes:
+      - application/json
+      description: 更新终端审计记录的保留天数及是否自动清理
+      parameters:
+      - description: 保留配置信息
+        in: body
+        name: body
+        required: true
+        schema:
+          additionalProperties: true
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 保存成功
+          schema:
+            $ref: '#/definitions/response.Response'
+      security:
+      - Bearer: []
+      summary: 更新终端审计保留配置
       tags:
       - 终端审计
   /api/v1/upload/avatar:
@@ -4684,6 +6225,28 @@ paths:
       summary: 更新集群
       tags:
       - Kubernetes/集群管理
+  /plugins/kubernetes/clusters/{id}/certs:
+    get:
+      consumes:
+      - application/json
+      description: 获取集群相关证书的过期时间信息
+      parameters:
+      - description: 集群ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 成功
+          schema:
+            additionalProperties: true
+            type: object
+      summary: 获取集群证书详情
+      tags:
+      - Kubernetes/Cluster
   /plugins/kubernetes/clusters/{id}/config:
     get:
       consumes:
@@ -4976,6 +6539,40 @@ paths:
       summary: 获取Deployment列表
       tags:
       - Kubernetes/工作负载
+  /plugins/kubernetes/resources/ingressclasses:
+    get:
+      consumes:
+      - application/json
+      description: 获取集群的 IngressClass 列表（集群级别资源）
+      parameters:
+      - description: 集群ID
+        in: query
+        name: clusterId
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: IngressClass列表
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: 参数错误
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: 服务器错误
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - Bearer: []
+      summary: 获取IngressClass列表
+      tags:
+      - Kubernetes/网络
   /plugins/kubernetes/resources/ingresses:
     get:
       consumes:
@@ -6037,6 +7634,38 @@ paths:
       summary: Pod终端WebSocket
       tags:
       - Kubernetes/终端
+  /plugins/monitor/domains/{id}/history:
+    get:
+      consumes:
+      - application/json
+      description: 获取指定域名的检查历史记录
+      parameters:
+      - description: 域名ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - default: 1
+        description: 页码
+        in: query
+        name: page
+        type: integer
+      - default: 20
+        description: 每页数量
+        in: query
+        name: pageSize
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 成功
+          schema:
+            additionalProperties: true
+            type: object
+      summary: 获取域名检查历史
+      tags:
+      - DomainMonitor
   /task/ansible-tasks:
     get:
       consumes:

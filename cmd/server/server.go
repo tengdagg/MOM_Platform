@@ -568,7 +568,8 @@ func stopServer(ctx context.Context, cfg *conf.Config) error {
 }
 
 func printStartupInfo(cfg *conf.Config) {
-	addr := fmt.Sprintf("%s:%d", "0.0.0.0", cfg.Server.HttpPort)
+	listenAddr := fmt.Sprintf("%s:%d", "0.0.0.0", cfg.Server.HttpPort)
+	displayAddr := fmt.Sprintf("%s:%d", "127.0.0.1", cfg.Server.HttpPort)
 
 	fmt.Println()
 	fmt.Println("========================================")
@@ -576,9 +577,9 @@ func printStartupInfo(cfg *conf.Config) {
 	fmt.Println("========================================")
 	fmt.Printf("版本:     1.0.0\n")
 	fmt.Printf("模式:     %s\n", cfg.Server.Mode)
-	fmt.Printf("监听地址: http://%s\n", addr)
-	fmt.Printf("健康检查: http://%s/health\n", addr)
-	fmt.Printf("API文档:  http://%s/swagger/index.html\n", addr)
+	fmt.Printf("监听地址: http://%s\n", listenAddr)
+	fmt.Printf("健康检查: http://%s/health\n", displayAddr)
+	fmt.Printf("API文档:  http://%s/swagger/index.html\n", displayAddr)
 	fmt.Println("========================================")
 	fmt.Println()
 }

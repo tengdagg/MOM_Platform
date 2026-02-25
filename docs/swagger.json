@@ -15,7 +15,6 @@
         },
         "version": "1.0"
     },
-    "host": "localhost:8080",
     "basePath": "/api/v1",
     "paths": {
         "/api/v1/asset-groups": {
@@ -2920,6 +2919,194 @@
                 }
             }
         },
+        "/api/v1/ldap/config": {
+            "get": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "获取系统的 LDAP/AD 认证配置",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "LDAP管理"
+                ],
+                "summary": "获取 LDAP 配置",
+                "responses": {
+                    "200": {
+                        "description": "获取成功",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/rbac.SysLDAPConfig"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            },
+            "put": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "更新或保存系统的 LDAP/AD 认证配置",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "LDAP管理"
+                ],
+                "summary": "保存 LDAP 配置",
+                "parameters": [
+                    {
+                        "description": "LDAP配置信息",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/rbac.SysLDAPConfig"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "保存成功",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/ldap/sync": {
+            "post": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "手动从 LDAP 服务器同步用户列表到本地数据库",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "LDAP管理"
+                ],
+                "summary": "同步 LDAP 用户",
+                "responses": {
+                    "200": {
+                        "description": "同步完成",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/ldap/test": {
+            "post": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "测试 LDAP 服务器的连接和绑定凭据是否有效",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "LDAP管理"
+                ],
+                "summary": "测试 LDAP 连接",
+                "parameters": [
+                    {
+                        "description": "LDAP配置信息",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/rbac.SysLDAPConfig"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "连接成功或失败",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/ldap/users": {
+            "get": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "分页获取所有通过 LDAP 认证系统创建或同步的用户",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "LDAP管理"
+                ],
+                "summary": "查询 LDAP 用户列表",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "default": 1,
+                        "description": "页码",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 10,
+                        "description": "每页数量",
+                        "name": "pageSize",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "获取成功",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/menus": {
             "post": {
                 "security": [
@@ -2971,6 +3158,54 @@
                 }
             }
         },
+        "/api/v1/menus/sort": {
+            "put": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "批量更新多个菜单的排序",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "菜单管理"
+                ],
+                "summary": "批量更新菜单排序",
+                "parameters": [
+                    {
+                        "description": "排序信息列表",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/rbac.MenuSortItem"
+                            }
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "更新成功",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "参数错误",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/menus/tree": {
             "get": {
                 "security": [
@@ -2978,7 +3213,7 @@
                         "Bearer": []
                     }
                 ],
-                "description": "获取完整的菜单树形结构",
+                "description": "获取完整的菜单树形结构，支持 all 参数返回所有菜单（包括隐藏的）",
                 "consumes": [
                     "application/json"
                 ],
@@ -2989,6 +3224,14 @@
                     "菜单管理"
                 ],
                 "summary": "获取菜单树",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "是否返回所有菜单（包括隐藏的），值为 true 时返回全部",
+                        "name": "all",
+                        "in": "query"
+                    }
+                ],
                 "responses": {
                     "200": {
                         "description": "获取成功",
@@ -3173,6 +3416,402 @@
                 }
             }
         },
+        "/api/v1/menus/{id}/sort": {
+            "put": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "仅更新菜单排序字段",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "菜单管理"
+                ],
+                "summary": "更新菜单排序",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "菜单ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "排序信息",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "type": "object"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "更新成功",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "参数错误",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/network-devices": {
+            "get": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "分页获取网络设备列表，根据用户权限过滤",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "资产管理-网络设备"
+                ],
+                "summary": "获取网络设备列表",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "default": 1,
+                        "description": "页码",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 10,
+                        "description": "每页数量",
+                        "name": "pageSize",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "搜索关键字(名称/IP)",
+                        "name": "keyword",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "设备类型",
+                        "name": "deviceType",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "连接协议",
+                        "name": "protocol",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "资产分组ID",
+                        "name": "groupId",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "获取成功",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "additionalProperties": true
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "创建一个新的网络设备",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "资产管理-网络设备"
+                ],
+                "summary": "创建网络设备",
+                "parameters": [
+                    {
+                        "description": "网络设备信息",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/asset.NetworkDeviceRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "创建成功",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/asset.NetworkDevice"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/network-devices/all": {
+            "get": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "获取用户有权限访问的所有网络设备列表，不分页",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "资产管理-网络设备"
+                ],
+                "summary": "获取所有网络设备",
+                "responses": {
+                    "200": {
+                        "description": "获取成功",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/asset.NetworkDevice"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/network-devices/{id}": {
+            "get": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "根据ID获取单个网络设备详情",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "资产管理-网络设备"
+                ],
+                "summary": "获取网络设备详情",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "设备ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "获取成功",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/asset.NetworkDevice"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            },
+            "put": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "更新指定的网络设备信息",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "资产管理-网络设备"
+                ],
+                "summary": "更新网络设备",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "设备ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "网络设备信息",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/asset.NetworkDeviceRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "更新成功",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "删除指定的网络设备",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "资产管理-网络设备"
+                ],
+                "summary": "删除网络设备",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "设备ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "删除成功",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/network-devices/{id}/test": {
+            "post": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "用指定的协议（SSH或Telnet）测试网络设备是否能成功连接",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "资产管理-网络设备"
+                ],
+                "summary": "测试网络设备连接",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "设备ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "连接成功",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "连接失败",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/plugins": {
             "get": {
                 "security": [
@@ -3239,6 +3878,472 @@
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/plugins/kubernetes/helm/clusters/{clusterId}/releases": {
+            "get": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "获取集群中的 Helm Release 列表",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Kubernetes-Helm"
+                ],
+                "summary": "获取 Helm Release 列表",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "集群ID",
+                        "name": "clusterId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "获取成功",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "在通过指定仓库安装 Helm Release",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Kubernetes-Helm"
+                ],
+                "summary": "安装 Helm Release",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "集群ID",
+                        "name": "clusterId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "安装请求参数",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/service.InstallReleaseRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "安装成功",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/plugins/kubernetes/helm/clusters/{clusterId}/releases/{namespace}/{name}": {
+            "get": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "获取集群中指定命名空间下的 Helm Release 详情",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Kubernetes-Helm"
+                ],
+                "summary": "获取 Helm Release 详情",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "集群ID",
+                        "name": "clusterId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "命名空间",
+                        "name": "namespace",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Release名称",
+                        "name": "name",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "获取成功",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "升级指定的 Helm Release 最新属性、配置或版本",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Kubernetes-Helm"
+                ],
+                "summary": "升级 Helm Release",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "集群ID",
+                        "name": "clusterId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "命名空间",
+                        "name": "namespace",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Release名称",
+                        "name": "name",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "升级请求参数",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/service.UpgradeReleaseRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "升级成功",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "卸载并删除指定的 Helm Release",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Kubernetes-Helm"
+                ],
+                "summary": "卸载 Helm Release",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "集群ID",
+                        "name": "clusterId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "命名空间",
+                        "name": "namespace",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Release名称",
+                        "name": "name",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "卸载成功",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/plugins/kubernetes/helm/repos": {
+            "get": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "获取所有已配置的 Helm 仓库信息",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Kubernetes-Helm"
+                ],
+                "summary": "获取 Helm 仓库列表",
+                "responses": {
+                    "200": {
+                        "description": "获取成功",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "添加一个新的 Helm 仓库",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Kubernetes-Helm"
+                ],
+                "summary": "添加 Helm 仓库",
+                "parameters": [
+                    {
+                        "description": "仓库请求信息",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/model.HelmRepo"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "添加成功",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/plugins/kubernetes/helm/repos/{id}": {
+            "put": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "更新指定的 Helm 仓库信息",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Kubernetes-Helm"
+                ],
+                "summary": "更新 Helm 仓库",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "仓库ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "仓库请求信息",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/model.HelmRepo"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "更新成功",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "删除指定的 Helm 仓库",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Kubernetes-Helm"
+                ],
+                "summary": "删除 Helm 仓库",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "仓库ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "删除成功",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/plugins/kubernetes/helm/repos/{repoId}/charts": {
+            "get": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "获取指定 Helm 仓库中的所有 Chart",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Kubernetes-Helm"
+                ],
+                "summary": "获取 Helm Chart 列表",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "仓库ID",
+                        "name": "repoId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "获取成功",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/plugins/kubernetes/helm/repos/{repoId}/charts/{chartName}/versions": {
+            "get": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "获取指定 Helm 仓库中某个 Chart 的所有版本信息",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Kubernetes-Helm"
+                ],
+                "summary": "获取 Helm Chart 的版本列表",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "仓库ID",
+                        "name": "repoId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Chart名称",
+                        "name": "chartName",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "获取成功",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
                         }
                     }
                 }
@@ -3449,6 +4554,469 @@
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/plugins/kubernetes/resources/crds": {
+            "get": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "获取集群中的所有 CustomResourceDefinition (CRD) 列表",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Kubernetes-CRD"
+                ],
+                "summary": "获取 CRD 列表",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "集群ID",
+                        "name": "clusterId",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "获取成功",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/plugins/kubernetes/resources/crds/{name}": {
+            "delete": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "删除指定的 CustomResourceDefinition",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Kubernetes-CRD"
+                ],
+                "summary": "删除 CRD",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "集群ID",
+                        "name": "clusterId",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "CRD名称",
+                        "name": "name",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "删除成功",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/plugins/kubernetes/resources/crds/{name}/yaml": {
+            "get": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "获取单个 CustomResourceDefinition 的详细 YAML 信息",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Kubernetes-CRD"
+                ],
+                "summary": "获取 CRD 详情",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "集群ID",
+                        "name": "clusterId",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "CRD名称",
+                        "name": "name",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "获取成功",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/plugins/kubernetes/resources/custom": {
+            "get": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "获取指定 CRD 下的 Custom Resource 实例列表",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Kubernetes-自定义资源"
+                ],
+                "summary": "获取自定义资源列表",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "集群ID",
+                        "name": "clusterId",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "API Group",
+                        "name": "group",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "API Version",
+                        "name": "version",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "资源名称(复数)",
+                        "name": "resource",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "命名空间",
+                        "name": "namespace",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "获取成功",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/plugins/kubernetes/resources/custom/yaml": {
+            "put": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "通过 YAML 格式内容更新 Custom Resource 实例",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Kubernetes-自定义资源"
+                ],
+                "summary": "YAML更新自定义资源",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "集群ID",
+                        "name": "clusterId",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "API Group",
+                        "name": "group",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "API Version",
+                        "name": "version",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "资源名称(复数)",
+                        "name": "resource",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "description": "YAML内容对象",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "更新成功",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "通过 YAML 格式内容创建 Custom Resource 实例",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Kubernetes-自定义资源"
+                ],
+                "summary": "YAML创建自定义资源",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "集群ID",
+                        "name": "clusterId",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "API Group",
+                        "name": "group",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "API Version",
+                        "name": "version",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "资源名称(复数)",
+                        "name": "resource",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "description": "YAML内容对象",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "创建成功",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/plugins/kubernetes/resources/custom/{namespace}/{name}": {
+            "delete": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "删除指定的 Custom Resource 实例",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Kubernetes-自定义资源"
+                ],
+                "summary": "删除自定义资源",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "集群ID",
+                        "name": "clusterId",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "API Group",
+                        "name": "group",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "API Version",
+                        "name": "version",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "资源名称(复数)",
+                        "name": "resource",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "命名空间",
+                        "name": "namespace",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "资源名称",
+                        "name": "name",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "删除成功",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/plugins/kubernetes/resources/custom/{namespace}/{name}/yaml": {
+            "get": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "获取单个 Custom Resource 的详情，格式为 JSON 对象",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Kubernetes-自定义资源"
+                ],
+                "summary": "获取自定义资源详情",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "集群ID",
+                        "name": "clusterId",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "API Group",
+                        "name": "group",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "API Version",
+                        "name": "version",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "资源名称(复数)",
+                        "name": "resource",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "命名空间",
+                        "name": "namespace",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "资源名称",
+                        "name": "name",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "获取成功",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
                         }
                     }
                 }
@@ -4241,6 +5809,44 @@
                 }
             }
         },
+        "/api/v1/public/ldap/status": {
+            "get": {
+                "description": "获取系统是否启用了 LDAP 认证功能，供登录页判断是否展示相关提示内容",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "认证管理"
+                ],
+                "summary": "获取 LDAP 启用状态",
+                "responses": {
+                    "200": {
+                        "description": "获取成功",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "additionalProperties": {
+                                                "type": "boolean"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/public/login": {
             "post": {
                 "description": "用户使用用户名、密码和验证码登录系统",
@@ -4628,6 +6234,87 @@
                 }
             }
         },
+        "/api/v1/system-config": {
+            "get": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "获取系统的全局配置，如日志保留天数等",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "系统配置"
+                ],
+                "summary": "获取所有系统配置",
+                "responses": {
+                    "200": {
+                        "description": "获取成功",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "additionalProperties": {
+                                                "type": "string"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            },
+            "put": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "批量更新或保存系统的全局配置项",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "系统配置"
+                ],
+                "summary": "批量保存系统配置",
+                "parameters": [
+                    {
+                        "description": "配置键值对",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "保存成功",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/terminal-sessions": {
             "get": {
                 "security": [
@@ -4671,6 +6358,113 @@
                 "responses": {
                     "200": {
                         "description": "获取成功",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/terminal-sessions/cleanup": {
+            "post": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "手动触发一次清理任务，删除超出保留期限的审计记录和录制文件",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "终端审计"
+                ],
+                "summary": "手动清理过期终端会话",
+                "responses": {
+                    "200": {
+                        "description": "清理成功",
+                        "schema": {
+                            "$ref": "#/definitions/response.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/terminal-sessions/retention": {
+            "get": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "获取终端审计会话记录和录制文件的保留天数配置",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "终端审计"
+                ],
+                "summary": "获取终端审计保留配置",
+                "responses": {
+                    "200": {
+                        "description": "获取成功",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/response.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "additionalProperties": true
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            },
+            "put": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "更新终端审计记录的保留天数及是否自动清理",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "终端审计"
+                ],
+                "summary": "更新终端审计保留配置",
+                "parameters": [
+                    {
+                        "description": "保留配置信息",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "保存成功",
                         "schema": {
                             "$ref": "#/definitions/response.Response"
                         }
@@ -6328,6 +8122,39 @@
                 }
             }
         },
+        "/plugins/kubernetes/clusters/{id}/certs": {
+            "get": {
+                "description": "获取集群相关证书的过期时间信息",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Kubernetes/Cluster"
+                ],
+                "summary": "获取集群证书详情",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "集群ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "成功",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
         "/plugins/kubernetes/clusters/{id}/config": {
             "get": {
                 "description": "获取集群的 KubeConfig 配置（已解密）",
@@ -6594,6 +8421,58 @@
                 "responses": {
                     "200": {
                         "description": "Deployment列表",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "参数错误",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "500": {
+                        "description": "服务器错误",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/plugins/kubernetes/resources/ingressclasses": {
+            "get": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "获取集群的 IngressClass 列表（集群级别资源）",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Kubernetes/网络"
+                ],
+                "summary": "获取IngressClass列表",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "集群ID",
+                        "name": "clusterId",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "IngressClass列表",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
@@ -8218,6 +10097,53 @@
                 }
             }
         },
+        "/plugins/monitor/domains/{id}/history": {
+            "get": {
+                "description": "获取指定域名的检查历史记录",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "DomainMonitor"
+                ],
+                "summary": "获取域名检查历史",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "域名ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "default": 1,
+                        "description": "页码",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 20,
+                        "description": "每页数量",
+                        "name": "pageSize",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "成功",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
         "/task/ansible-tasks": {
             "get": {
                 "security": [
@@ -9310,6 +11236,61 @@
         }
     },
     "definitions": {
+        "asset.AssetGroup": {
+            "type": "object",
+            "properties": {
+                "category": {
+                    "type": "string"
+                },
+                "children": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/asset.AssetGroup"
+                    }
+                },
+                "code": {
+                    "type": "string"
+                },
+                "createdAt": {
+                    "type": "string"
+                },
+                "deletedAt": {
+                    "$ref": "#/definitions/gorm.DeletedAt"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "deviceCount": {
+                    "description": "网络设备数量（不存储在数据库）",
+                    "type": "integer"
+                },
+                "hostCount": {
+                    "description": "主机数量（不存储在数据库）",
+                    "type": "integer"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "parent": {
+                    "$ref": "#/definitions/asset.AssetGroup"
+                },
+                "parentId": {
+                    "type": "integer"
+                },
+                "sort": {
+                    "type": "integer"
+                },
+                "status": {
+                    "type": "integer"
+                },
+                "updatedAt": {
+                    "type": "string"
+                }
+            }
+        },
         "asset.AssetGroupRequest": {
             "type": "object",
             "required": [
@@ -9318,6 +11299,9 @@
                 "status"
             ],
             "properties": {
+                "category": {
+                    "type": "string"
+                },
                 "code": {
                     "type": "string",
                     "maxLength": 50,
@@ -9414,6 +11398,47 @@
                 }
             }
         },
+        "asset.Credential": {
+            "type": "object",
+            "properties": {
+                "category": {
+                    "type": "string"
+                },
+                "createdAt": {
+                    "type": "string"
+                },
+                "deletedAt": {
+                    "$ref": "#/definitions/gorm.DeletedAt"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "passphrase": {
+                    "type": "string"
+                },
+                "password": {
+                    "type": "string"
+                },
+                "privateKey": {
+                    "type": "string"
+                },
+                "type": {
+                    "type": "string"
+                },
+                "updatedAt": {
+                    "type": "string"
+                },
+                "username": {
+                    "type": "string"
+                }
+            }
+        },
         "asset.CredentialRequest": {
             "type": "object",
             "required": [
@@ -9421,6 +11446,9 @@
                 "type"
             ],
             "properties": {
+                "category": {
+                    "type": "string"
+                },
                 "description": {
                     "type": "string"
                 },
@@ -9492,10 +11520,16 @@
                     "maxLength": 100,
                     "minLength": 2
                 },
+                "osType": {
+                    "type": "string"
+                },
                 "port": {
                     "type": "integer",
                     "maximum": 65535,
                     "minimum": 1
+                },
+                "rdpPort": {
+                    "type": "integer"
                 },
                 "sshUser": {
                     "type": "string"
@@ -9509,6 +11543,144 @@
                         "self",
                         "cloud"
                     ]
+                }
+            }
+        },
+        "asset.NetworkDevice": {
+            "type": "object",
+            "properties": {
+                "brand": {
+                    "type": "string"
+                },
+                "brandModel": {
+                    "type": "string"
+                },
+                "createdAt": {
+                    "type": "string"
+                },
+                "credential": {
+                    "$ref": "#/definitions/asset.Credential"
+                },
+                "credentialId": {
+                    "type": "integer"
+                },
+                "deletedAt": {
+                    "$ref": "#/definitions/gorm.DeletedAt"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "deviceType": {
+                    "type": "string"
+                },
+                "group": {
+                    "$ref": "#/definitions/asset.AssetGroup"
+                },
+                "groupId": {
+                    "type": "integer"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "ip": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "port": {
+                    "type": "integer"
+                },
+                "protocol": {
+                    "type": "string"
+                },
+                "serialNumber": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "integer"
+                },
+                "tags": {
+                    "type": "string"
+                },
+                "updatedAt": {
+                    "type": "string"
+                }
+            }
+        },
+        "asset.NetworkDeviceRequest": {
+            "type": "object",
+            "required": [
+                "deviceType",
+                "ip",
+                "name",
+                "protocol"
+            ],
+            "properties": {
+                "brand": {
+                    "type": "string"
+                },
+                "brandModel": {
+                    "type": "string"
+                },
+                "credentialId": {
+                    "type": "integer"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "deviceType": {
+                    "type": "string",
+                    "enum": [
+                        "switch",
+                        "router",
+                        "firewall",
+                        "ac",
+                        "ap",
+                        "other"
+                    ]
+                },
+                "groupId": {
+                    "type": "integer"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "ip": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string",
+                    "maxLength": 100,
+                    "minLength": 1
+                },
+                "port": {
+                    "type": "integer"
+                },
+                "protocol": {
+                    "type": "string",
+                    "enum": [
+                        "ssh",
+                        "telnet"
+                    ]
+                },
+                "serialNumber": {
+                    "type": "string"
+                },
+                "tags": {
+                    "type": "string"
+                }
+            }
+        },
+        "gorm.DeletedAt": {
+            "type": "object",
+            "properties": {
+                "time": {
+                    "type": "string"
+                },
+                "valid": {
+                    "description": "Valid is true if Time is not NULL",
+                    "type": "boolean"
                 }
             }
         },
@@ -9806,6 +11978,50 @@
                 }
             }
         },
+        "model.HelmRepo": {
+            "type": "object",
+            "properties": {
+                "caFile": {
+                    "type": "string"
+                },
+                "certFile": {
+                    "type": "string"
+                },
+                "createdAt": {
+                    "type": "string"
+                },
+                "deletedAt": {
+                    "$ref": "#/definitions/gorm.DeletedAt"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "insecureSkipTLSVerify": {
+                    "type": "boolean"
+                },
+                "keyFile": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "password": {
+                    "type": "string"
+                },
+                "type": {
+                    "type": "string"
+                },
+                "updatedAt": {
+                    "type": "string"
+                },
+                "url": {
+                    "type": "string"
+                },
+                "username": {
+                    "type": "string"
+                }
+            }
+        },
         "model.InspectionOptions": {
             "type": "object",
             "properties": {
@@ -9965,8 +12181,12 @@
                 "assetGroupId": {
                     "type": "integer"
                 },
+                "assetType": {
+                    "description": "host 或 network_device，默认 host",
+                    "type": "string"
+                },
                 "hostIds": {
-                    "description": "空数组表示整个分组，非空表示指定主机",
+                    "description": "空数组表示整个分组，非空表示指定主机/设备",
                     "type": "array",
                     "items": {
                         "type": "integer"
@@ -10109,6 +12329,17 @@
                 }
             }
         },
+        "rbac.MenuSortItem": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "integer"
+                },
+                "sort": {
+                    "type": "integer"
+                }
+            }
+        },
         "rbac.RegisterRequest": {
             "type": "object",
             "required": [
@@ -10147,17 +12378,309 @@
                 }
             }
         },
+        "rbac.SysDepartment": {
+            "type": "object",
+            "properties": {
+                "children": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/rbac.SysDepartment"
+                    }
+                },
+                "code": {
+                    "type": "string"
+                },
+                "createdAt": {
+                    "type": "string"
+                },
+                "deletedAt": {
+                    "$ref": "#/definitions/gorm.DeletedAt"
+                },
+                "deptType": {
+                    "type": "integer"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "parent": {
+                    "$ref": "#/definitions/rbac.SysDepartment"
+                },
+                "parentId": {
+                    "type": "integer"
+                },
+                "sort": {
+                    "type": "integer"
+                },
+                "status": {
+                    "type": "integer"
+                },
+                "updatedAt": {
+                    "type": "string"
+                },
+                "userCount": {
+                    "description": "用户数量（仅用于API响应）",
+                    "type": "integer"
+                }
+            }
+        },
+        "rbac.SysLDAPConfig": {
+            "type": "object",
+            "properties": {
+                "attrEmail": {
+                    "type": "string"
+                },
+                "attrPhone": {
+                    "type": "string"
+                },
+                "attrRealName": {
+                    "type": "string"
+                },
+                "attrUsername": {
+                    "type": "string"
+                },
+                "baseDn": {
+                    "type": "string"
+                },
+                "bindDn": {
+                    "type": "string"
+                },
+                "bindPassword": {
+                    "type": "string"
+                },
+                "createdAt": {
+                    "type": "string"
+                },
+                "defaultRoleId": {
+                    "type": "integer"
+                },
+                "deletedAt": {
+                    "$ref": "#/definitions/gorm.DeletedAt"
+                },
+                "enabled": {
+                    "type": "boolean"
+                },
+                "host": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "passwordSet": {
+                    "type": "boolean"
+                },
+                "port": {
+                    "type": "integer"
+                },
+                "updatedAt": {
+                    "type": "string"
+                },
+                "useSsl": {
+                    "type": "boolean"
+                },
+                "userFilter": {
+                    "type": "string"
+                }
+            }
+        },
         "rbac.SysMenu": {
-            "type": "object"
+            "type": "object",
+            "properties": {
+                "children": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/rbac.SysMenu"
+                    }
+                },
+                "code": {
+                    "type": "string"
+                },
+                "component": {
+                    "type": "string"
+                },
+                "createdAt": {
+                    "type": "string"
+                },
+                "deletedAt": {
+                    "$ref": "#/definitions/gorm.DeletedAt"
+                },
+                "icon": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "parent": {
+                    "$ref": "#/definitions/rbac.SysMenu"
+                },
+                "parentId": {
+                    "type": "integer"
+                },
+                "path": {
+                    "type": "string"
+                },
+                "pluginName": {
+                    "type": "string"
+                },
+                "sort": {
+                    "type": "integer"
+                },
+                "status": {
+                    "type": "integer"
+                },
+                "type": {
+                    "type": "integer"
+                },
+                "updatedAt": {
+                    "type": "string"
+                },
+                "visible": {
+                    "type": "integer"
+                }
+            }
         },
         "rbac.SysPosition": {
-            "type": "object"
+            "type": "object",
+            "properties": {
+                "createdAt": {
+                    "type": "string"
+                },
+                "deletedAt": {
+                    "$ref": "#/definitions/gorm.DeletedAt"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "postCode": {
+                    "type": "string"
+                },
+                "postName": {
+                    "type": "string"
+                },
+                "postStatus": {
+                    "type": "integer"
+                },
+                "remark": {
+                    "type": "string"
+                },
+                "updatedAt": {
+                    "type": "string"
+                },
+                "users": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/rbac.SysUser"
+                    }
+                }
+            }
         },
         "rbac.SysRole": {
-            "type": "object"
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "string"
+                },
+                "createdAt": {
+                    "type": "string"
+                },
+                "deletedAt": {
+                    "$ref": "#/definitions/gorm.DeletedAt"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "menus": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/rbac.SysMenu"
+                    }
+                },
+                "name": {
+                    "type": "string"
+                },
+                "sort": {
+                    "type": "integer"
+                },
+                "status": {
+                    "type": "integer"
+                },
+                "updatedAt": {
+                    "type": "string"
+                }
+            }
         },
         "rbac.SysUser": {
-            "type": "object"
+            "type": "object",
+            "properties": {
+                "avatar": {
+                    "type": "string"
+                },
+                "bio": {
+                    "type": "string"
+                },
+                "createdAt": {
+                    "type": "string"
+                },
+                "deletedAt": {
+                    "$ref": "#/definitions/gorm.DeletedAt"
+                },
+                "department": {
+                    "$ref": "#/definitions/rbac.SysDepartment"
+                },
+                "departmentId": {
+                    "type": "integer"
+                },
+                "email": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "lastLoginAt": {
+                    "type": "string"
+                },
+                "password": {
+                    "type": "string"
+                },
+                "phone": {
+                    "type": "string"
+                },
+                "positions": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/rbac.SysPosition"
+                    }
+                },
+                "realName": {
+                    "type": "string"
+                },
+                "roles": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/rbac.SysRole"
+                    }
+                },
+                "source": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "integer"
+                },
+                "updatedAt": {
+                    "type": "string"
+                },
+                "username": {
+                    "type": "string"
+                }
+            }
         },
         "rbac.VerifyCaptchaRequest": {
             "type": "object",
@@ -10364,6 +12887,33 @@
                 }
             }
         },
+        "service.InstallReleaseRequest": {
+            "type": "object",
+            "properties": {
+                "chartName": {
+                    "type": "string"
+                },
+                "clusterId": {
+                    "type": "integer"
+                },
+                "namespace": {
+                    "type": "string"
+                },
+                "releaseName": {
+                    "type": "string"
+                },
+                "repoId": {
+                    "type": "integer"
+                },
+                "values": {
+                    "description": "YAML format values",
+                    "type": "string"
+                },
+                "version": {
+                    "type": "string"
+                }
+            }
+        },
         "service.UpdateClusterRequest": {
             "type": "object",
             "properties": {
@@ -10386,6 +12936,15 @@
                     "type": "string"
                 },
                 "region": {
+                    "type": "string"
+                }
+            }
+        },
+        "service.UpgradeReleaseRequest": {
+            "type": "object",
+            "properties": {
+                "values": {
+                    "description": "YAML 格式的 values",
                     "type": "string"
                 }
             }

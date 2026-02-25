@@ -215,6 +215,14 @@ func (s *LDAPService) GetDefaultRoleID() uint {
 // ---- HTTP Handlers ----
 
 // GetLDAPConfig 获取 LDAP 配置
+// @Summary 获取 LDAP 配置
+// @Description 获取系统的 LDAP/AD 认证配置
+// @Tags LDAP管理
+// @Accept json
+// @Produce json
+// @Security Bearer
+// @Success 200 {object} response.Response{data=rbac.SysLDAPConfig} "获取成功"
+// @Router /api/v1/ldap/config [get]
 func (s *LDAPService) GetLDAPConfig(c *gin.Context) {
 	config, err := s.GetConfig()
 	if err != nil {
@@ -227,6 +235,15 @@ func (s *LDAPService) GetLDAPConfig(c *gin.Context) {
 }
 
 // SaveLDAPConfig 保存 LDAP 配置
+// @Summary 保存 LDAP 配置
+// @Description 更新或保存系统的 LDAP/AD 认证配置
+// @Tags LDAP管理
+// @Accept json
+// @Produce json
+// @Security Bearer
+// @Param body body rbac.SysLDAPConfig true "LDAP配置信息"
+// @Success 200 {object} response.Response "保存成功"
+// @Router /api/v1/ldap/config [put]
 func (s *LDAPService) SaveLDAPConfig(c *gin.Context) {
 	var config rbac.SysLDAPConfig
 	if err := c.ShouldBindJSON(&config); err != nil {
@@ -242,6 +259,15 @@ func (s *LDAPService) SaveLDAPConfig(c *gin.Context) {
 }
 
 // TestLDAPConnection 测试 LDAP 连接
+// @Summary 测试 LDAP 连接
+// @Description 测试 LDAP 服务器的连接和绑定凭据是否有效
+// @Tags LDAP管理
+// @Accept json
+// @Produce json
+// @Security Bearer
+// @Param body body rbac.SysLDAPConfig true "LDAP配置信息"
+// @Success 200 {object} response.Response "连接成功或失败"
+// @Router /api/v1/ldap/test [post]
 func (s *LDAPService) TestLDAPConnection(c *gin.Context) {
 	var config rbac.SysLDAPConfig
 	if err := c.ShouldBindJSON(&config); err != nil {
@@ -256,12 +282,27 @@ func (s *LDAPService) TestLDAPConnection(c *gin.Context) {
 }
 
 // GetLDAPStatus 获取 LDAP 启用状态（公开接口，登录页使用）
+// @Summary 获取 LDAP 启用状态
+// @Description 获取系统是否启用了 LDAP 认证功能，供登录页判断是否展示相关提示内容
+// @Tags 认证管理
+// @Accept json
+// @Produce json
+// @Success 200 {object} response.Response{data=map[string]bool} "获取成功"
+// @Router /api/v1/public/ldap/status [get]
 func (s *LDAPService) GetLDAPStatus(c *gin.Context) {
 	enabled := s.IsEnabled()
 	response.Success(c, gin.H{"enabled": enabled})
 }
 
 // SyncLDAPUsers 同步 LDAP 用户列表（手动触发）
+// @Summary 同步 LDAP 用户
+// @Description 手动从 LDAP 服务器同步用户列表到本地数据库
+// @Tags LDAP管理
+// @Accept json
+// @Produce json
+// @Security Bearer
+// @Success 200 {object} response.Response "同步完成"
+// @Router /api/v1/ldap/sync [post]
 func (s *LDAPService) SyncLDAPUsers(c *gin.Context) {
 	config, err := s.GetConfig()
 	if err != nil || !config.Enabled {
@@ -362,6 +403,16 @@ func (s *LDAPService) SyncLDAPUsers(c *gin.Context) {
 }
 
 // GetLDAPUsers 查询 LDAP 用户数
+// @Summary 查询 LDAP 用户列表
+// @Description 分页获取所有通过 LDAP 认证系统创建或同步的用户
+// @Tags LDAP管理
+// @Accept json
+// @Produce json
+// @Security Bearer
+// @Param page query int false "页码" default(1)
+// @Param pageSize query int false "每页数量" default(10)
+// @Success 200 {object} response.Response "获取成功"
+// @Router /api/v1/ldap/users [get]
 func (s *LDAPService) GetLDAPUsers(c *gin.Context) {
 	var count int64
 	s.db.Model(&rbac.SysUser{}).Where("source = 'ldap'").Count(&count)

@@ -54,6 +54,20 @@ func (s *NetworkDeviceService) invalidateGroupTreeCache(ctx context.Context) {
 }
 
 // ListNetworkDevices 网络设备列表（根据用户权限过滤）
+// @Summary 获取网络设备列表
+// @Description 分页获取网络设备列表，根据用户权限过滤
+// @Tags 资产管理-网络设备
+// @Accept json
+// @Produce json
+// @Security Bearer
+// @Param page query int false "页码" default(1)
+// @Param pageSize query int false "每页数量" default(10)
+// @Param keyword query string false "搜索关键字(名称/IP)"
+// @Param deviceType query string false "设备类型"
+// @Param protocol query string false "连接协议"
+// @Param groupId query int false "资产分组ID"
+// @Success 200 {object} response.Response{data=map[string]interface{}} "获取成功"
+// @Router /api/v1/network-devices [get]
 func (s *NetworkDeviceService) ListNetworkDevices(c *gin.Context) {
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	pageSize, _ := strconv.Atoi(c.DefaultQuery("pageSize", "10"))
@@ -101,6 +115,15 @@ func (s *NetworkDeviceService) ListNetworkDevices(c *gin.Context) {
 }
 
 // CreateNetworkDevice 创建网络设备
+// @Summary 创建网络设备
+// @Description 创建一个新的网络设备
+// @Tags 资产管理-网络设备
+// @Accept json
+// @Produce json
+// @Security Bearer
+// @Param body body asset.NetworkDeviceRequest true "网络设备信息"
+// @Success 200 {object} response.Response{data=asset.NetworkDevice} "创建成功"
+// @Router /api/v1/network-devices [post]
 func (s *NetworkDeviceService) CreateNetworkDevice(c *gin.Context) {
 	var req asset.NetworkDeviceRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -119,6 +142,16 @@ func (s *NetworkDeviceService) CreateNetworkDevice(c *gin.Context) {
 }
 
 // UpdateNetworkDevice 更新网络设备
+// @Summary 更新网络设备
+// @Description 更新指定的网络设备信息
+// @Tags 资产管理-网络设备
+// @Accept json
+// @Produce json
+// @Security Bearer
+// @Param id path int true "设备ID"
+// @Param body body asset.NetworkDeviceRequest true "网络设备信息"
+// @Success 200 {object} response.Response "更新成功"
+// @Router /api/v1/network-devices/{id} [put]
 func (s *NetworkDeviceService) UpdateNetworkDevice(c *gin.Context) {
 	idStr := c.Param("id")
 	id, err := strconv.ParseUint(idStr, 10, 32)
@@ -144,6 +177,15 @@ func (s *NetworkDeviceService) UpdateNetworkDevice(c *gin.Context) {
 }
 
 // DeleteNetworkDevice 删除网络设备
+// @Summary 删除网络设备
+// @Description 删除指定的网络设备
+// @Tags 资产管理-网络设备
+// @Accept json
+// @Produce json
+// @Security Bearer
+// @Param id path int true "设备ID"
+// @Success 200 {object} response.Response "删除成功"
+// @Router /api/v1/network-devices/{id} [delete]
 func (s *NetworkDeviceService) DeleteNetworkDevice(c *gin.Context) {
 	idStr := c.Param("id")
 	id, err := strconv.ParseUint(idStr, 10, 32)
@@ -162,6 +204,15 @@ func (s *NetworkDeviceService) DeleteNetworkDevice(c *gin.Context) {
 }
 
 // GetNetworkDevice 获取网络设备详情
+// @Summary 获取网络设备详情
+// @Description 根据ID获取单个网络设备详情
+// @Tags 资产管理-网络设备
+// @Accept json
+// @Produce json
+// @Security Bearer
+// @Param id path int true "设备ID"
+// @Success 200 {object} response.Response{data=asset.NetworkDevice} "获取成功"
+// @Router /api/v1/network-devices/{id} [get]
 func (s *NetworkDeviceService) GetNetworkDevice(c *gin.Context) {
 	idStr := c.Param("id")
 	id, err := strconv.ParseUint(idStr, 10, 32)
@@ -180,6 +231,14 @@ func (s *NetworkDeviceService) GetNetworkDevice(c *gin.Context) {
 }
 
 // GetAllNetworkDevices 获取所有网络设备（不分页，根据用户权限过滤）
+// @Summary 获取所有网络设备
+// @Description 获取用户有权限访问的所有网络设备列表，不分页
+// @Tags 资产管理-网络设备
+// @Accept json
+// @Produce json
+// @Security Bearer
+// @Success 200 {object} response.Response{data=[]asset.NetworkDevice} "获取成功"
+// @Router /api/v1/network-devices/all [get]
 func (s *NetworkDeviceService) GetAllNetworkDevices(c *gin.Context) {
 	userID := c.GetUint("user_id")
 
@@ -224,6 +283,16 @@ func (s *NetworkDeviceService) GetAllNetworkDevices(c *gin.Context) {
 }
 
 // TestNetworkDeviceConnection 测试网络设备连接
+// @Summary 测试网络设备连接
+// @Description 用指定的协议（SSH或Telnet）测试网络设备是否能成功连接
+// @Tags 资产管理-网络设备
+// @Accept json
+// @Produce json
+// @Security Bearer
+// @Param id path int true "设备ID"
+// @Success 200 {object} response.Response "连接成功"
+// @Failure 500 {object} response.Response "连接失败"
+// @Router /api/v1/network-devices/{id}/test [post]
 func (s *NetworkDeviceService) TestNetworkDeviceConnection(c *gin.Context) {
 	idStr := c.Param("id")
 	id, err := strconv.ParseUint(idStr, 10, 32)

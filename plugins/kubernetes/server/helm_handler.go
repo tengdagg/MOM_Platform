@@ -139,6 +139,14 @@ func isWriteRole(roleName string) bool {
 // ==================== 仓库管理（无需命名空间权限检查） ====================
 
 // ListRepos 获取仓库列表
+// @Summary 获取 Helm 仓库列表
+// @Description 获取所有已配置的 Helm 仓库信息
+// @Tags Kubernetes-Helm
+// @Accept json
+// @Produce json
+// @Security Bearer
+// @Success 200 {object} response.Response "获取成功"
+// @Router /api/v1/plugins/kubernetes/helm/repos [get]
 func (h *HelmHandler) ListRepos(c *gin.Context) {
 	repos, err := h.helmService.ListRepos(c.Request.Context())
 	if err != nil {
@@ -149,6 +157,15 @@ func (h *HelmHandler) ListRepos(c *gin.Context) {
 }
 
 // AddRepo 添加仓库
+// @Summary 添加 Helm 仓库
+// @Description 添加一个新的 Helm 仓库
+// @Tags Kubernetes-Helm
+// @Accept json
+// @Produce json
+// @Security Bearer
+// @Param body body model.HelmRepo true "仓库请求信息"
+// @Success 200 {object} response.Response "添加成功"
+// @Router /api/v1/plugins/kubernetes/helm/repos [post]
 func (h *HelmHandler) AddRepo(c *gin.Context) {
 	var req model.HelmRepo
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -165,6 +182,16 @@ func (h *HelmHandler) AddRepo(c *gin.Context) {
 }
 
 // UpdateRepo 更新仓库
+// @Summary 更新 Helm 仓库
+// @Description 更新指定的 Helm 仓库信息
+// @Tags Kubernetes-Helm
+// @Accept json
+// @Produce json
+// @Security Bearer
+// @Param id path int true "仓库ID"
+// @Param body body model.HelmRepo true "仓库请求信息"
+// @Success 200 {object} response.Response "更新成功"
+// @Router /api/v1/plugins/kubernetes/helm/repos/{id} [put]
 func (h *HelmHandler) UpdateRepo(c *gin.Context) {
 	idStr := c.Param("id")
 	id, err := strconv.ParseUint(idStr, 10, 32)
@@ -189,6 +216,15 @@ func (h *HelmHandler) UpdateRepo(c *gin.Context) {
 }
 
 // DeleteRepo 删除仓库
+// @Summary 删除 Helm 仓库
+// @Description 删除指定的 Helm 仓库
+// @Tags Kubernetes-Helm
+// @Accept json
+// @Produce json
+// @Security Bearer
+// @Param id path int true "仓库ID"
+// @Success 200 {object} response.Response "删除成功"
+// @Router /api/v1/plugins/kubernetes/helm/repos/{id} [delete]
 func (h *HelmHandler) DeleteRepo(c *gin.Context) {
 	idStr := c.Param("id")
 	id, err := strconv.ParseUint(idStr, 10, 32)
@@ -206,6 +242,15 @@ func (h *HelmHandler) DeleteRepo(c *gin.Context) {
 }
 
 // ListCharts 获取 Chart 列表
+// @Summary 获取 Helm Chart 列表
+// @Description 获取指定 Helm 仓库中的所有 Chart
+// @Tags Kubernetes-Helm
+// @Accept json
+// @Produce json
+// @Security Bearer
+// @Param repoId path int true "仓库ID"
+// @Success 200 {object} response.Response "获取成功"
+// @Router /api/v1/plugins/kubernetes/helm/repos/{repoId}/charts [get]
 func (h *HelmHandler) ListCharts(c *gin.Context) {
 	repoIDStr := c.Param("repoId")
 	repoID, err := strconv.ParseUint(repoIDStr, 10, 32)
@@ -224,6 +269,16 @@ func (h *HelmHandler) ListCharts(c *gin.Context) {
 }
 
 // GetChartVersions 获取 Chart 的所有版本
+// @Summary 获取 Helm Chart 的版本列表
+// @Description 获取指定 Helm 仓库中某个 Chart 的所有版本信息
+// @Tags Kubernetes-Helm
+// @Accept json
+// @Produce json
+// @Security Bearer
+// @Param repoId path int true "仓库ID"
+// @Param chartName path string true "Chart名称"
+// @Success 200 {object} response.Response "获取成功"
+// @Router /api/v1/plugins/kubernetes/helm/repos/{repoId}/charts/{chartName}/versions [get]
 func (h *HelmHandler) GetChartVersions(c *gin.Context) {
 	repoIDStr := c.Param("repoId")
 	repoID, err := strconv.ParseUint(repoIDStr, 10, 32)
@@ -250,6 +305,15 @@ func (h *HelmHandler) GetChartVersions(c *gin.Context) {
 // ==================== Release 管理（读操作，无需写权限检查） ====================
 
 // ListReleases 获取 Release 列表
+// @Summary 获取 Helm Release 列表
+// @Description 获取集群中的 Helm Release 列表
+// @Tags Kubernetes-Helm
+// @Accept json
+// @Produce json
+// @Security Bearer
+// @Param clusterId path int true "集群ID"
+// @Success 200 {object} response.Response "获取成功"
+// @Router /api/v1/plugins/kubernetes/helm/clusters/{clusterId}/releases [get]
 func (h *HelmHandler) ListReleases(c *gin.Context) {
 	clusterIDStr := c.Param("clusterId")
 	clusterID, err := strconv.ParseUint(clusterIDStr, 10, 32)
@@ -268,6 +332,17 @@ func (h *HelmHandler) ListReleases(c *gin.Context) {
 }
 
 // GetRelease 获取 Release 详情
+// @Summary 获取 Helm Release 详情
+// @Description 获取集群中指定命名空间下的 Helm Release 详情
+// @Tags Kubernetes-Helm
+// @Accept json
+// @Produce json
+// @Security Bearer
+// @Param clusterId path int true "集群ID"
+// @Param namespace path string true "命名空间"
+// @Param name path string true "Release名称"
+// @Success 200 {object} response.Response "获取成功"
+// @Router /api/v1/plugins/kubernetes/helm/clusters/{clusterId}/releases/{namespace}/{name} [get]
 func (h *HelmHandler) GetRelease(c *gin.Context) {
 	clusterIDStr := c.Param("clusterId")
 	clusterID, err := strconv.ParseUint(clusterIDStr, 10, 32)
@@ -291,6 +366,16 @@ func (h *HelmHandler) GetRelease(c *gin.Context) {
 // ==================== Release 写操作（需要 namespace-owner 权限） ====================
 
 // InstallRelease 安装 Release
+// @Summary 安装 Helm Release
+// @Description 在通过指定仓库安装 Helm Release
+// @Tags Kubernetes-Helm
+// @Accept json
+// @Produce json
+// @Security Bearer
+// @Param clusterId path int true "集群ID"
+// @Param body body service.InstallReleaseRequest true "安装请求参数"
+// @Success 200 {object} response.Response "安装成功"
+// @Router /api/v1/plugins/kubernetes/helm/clusters/{clusterId}/releases [post]
 func (h *HelmHandler) InstallRelease(c *gin.Context) {
 	var req service.InstallReleaseRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -322,6 +407,18 @@ func (h *HelmHandler) InstallRelease(c *gin.Context) {
 }
 
 // UpgradeRelease 升级 Release
+// @Summary 升级 Helm Release
+// @Description 升级指定的 Helm Release 最新属性、配置或版本
+// @Tags Kubernetes-Helm
+// @Accept json
+// @Produce json
+// @Security Bearer
+// @Param clusterId path int true "集群ID"
+// @Param namespace path string true "命名空间"
+// @Param name path string true "Release名称"
+// @Param body body service.UpgradeReleaseRequest true "升级请求参数"
+// @Success 200 {object} response.Response "升级成功"
+// @Router /api/v1/plugins/kubernetes/helm/clusters/{clusterId}/releases/{namespace}/{name} [put]
 func (h *HelmHandler) UpgradeRelease(c *gin.Context) {
 	clusterIDStr := c.Param("clusterId")
 	clusterID, err := strconv.ParseUint(clusterIDStr, 10, 32)
@@ -354,6 +451,17 @@ func (h *HelmHandler) UpgradeRelease(c *gin.Context) {
 }
 
 // UninstallRelease 卸载 Release
+// @Summary 卸载 Helm Release
+// @Description 卸载并删除指定的 Helm Release
+// @Tags Kubernetes-Helm
+// @Accept json
+// @Produce json
+// @Security Bearer
+// @Param clusterId path int true "集群ID"
+// @Param namespace path string true "命名空间"
+// @Param name path string true "Release名称"
+// @Success 200 {object} response.Response "卸载成功"
+// @Router /api/v1/plugins/kubernetes/helm/clusters/{clusterId}/releases/{namespace}/{name} [delete]
 func (h *HelmHandler) UninstallRelease(c *gin.Context) {
 	clusterIDStr := c.Param("clusterId")
 	clusterID, err := strconv.ParseUint(clusterIDStr, 10, 32)

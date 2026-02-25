@@ -23,8 +23,8 @@ import (
 	"fmt"
 	"os"
 
+	_ "github.com/ydcloud-dy/mom/cmd/config" // 注册配置命令
 	"github.com/ydcloud-dy/mom/cmd/root"
-	_ "github.com/ydcloud-dy/mom/cmd/config"  // 注册配置命令
 	_ "github.com/ydcloud-dy/mom/cmd/server"  // 注册服务命令
 	_ "github.com/ydcloud-dy/mom/cmd/version" // 注册版本命令
 	_ "github.com/ydcloud-dy/mom/docs"        // 导入 Swagger 生成的文档
@@ -42,7 +42,6 @@ import (
 // @license.name  Apache 2.0
 // @license.url   http://www.apache.org/licenses/LICENSE-2.0.html
 
-// @host      localhost:8080
 // @BasePath  /api/v1
 
 // @securityDefinitions.apikey Bearer

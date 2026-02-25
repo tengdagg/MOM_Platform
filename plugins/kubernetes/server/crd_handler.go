@@ -90,6 +90,15 @@ func (h *CRDHandler) parseClusterID(c *gin.Context) (uint, error) {
 }
 
 // ListCRDs 获取 CRD 列表
+// @Summary 获取 CRD 列表
+// @Description 获取集群中的所有 CustomResourceDefinition (CRD) 列表
+// @Tags Kubernetes-CRD
+// @Accept json
+// @Produce json
+// @Security Bearer
+// @Param clusterId query int false "集群ID"
+// @Success 200 {object} response.Response "获取成功"
+// @Router /api/v1/plugins/kubernetes/resources/crds [get]
 func (h *CRDHandler) ListCRDs(c *gin.Context) {
 	clusterID, err := h.parseClusterID(c)
 	if err != nil {
@@ -172,6 +181,16 @@ func (h *CRDHandler) ListCRDs(c *gin.Context) {
 }
 
 // GetCRD 获取单个 CRD 详情 (YAML)
+// @Summary 获取 CRD 详情
+// @Description 获取单个 CustomResourceDefinition 的详细 YAML 信息
+// @Tags Kubernetes-CRD
+// @Accept json
+// @Produce json
+// @Security Bearer
+// @Param clusterId query int false "集群ID"
+// @Param name path string true "CRD名称"
+// @Success 200 {object} response.Response "获取成功"
+// @Router /api/v1/plugins/kubernetes/resources/crds/{name}/yaml [get]
 func (h *CRDHandler) GetCRD(c *gin.Context) {
 	clusterID, err := h.parseClusterID(c)
 	if err != nil {
@@ -208,6 +227,16 @@ func (h *CRDHandler) GetCRD(c *gin.Context) {
 }
 
 // DeleteCRD 删除 CRD
+// @Summary 删除 CRD
+// @Description 删除指定的 CustomResourceDefinition
+// @Tags Kubernetes-CRD
+// @Accept json
+// @Produce json
+// @Security Bearer
+// @Param clusterId query int false "集群ID"
+// @Param name path string true "CRD名称"
+// @Success 200 {object} response.Response "删除成功"
+// @Router /api/v1/plugins/kubernetes/resources/crds/{name} [delete]
 func (h *CRDHandler) DeleteCRD(c *gin.Context) {
 	clusterID, err := h.parseClusterID(c)
 	if err != nil {
@@ -243,6 +272,19 @@ func (h *CRDHandler) DeleteCRD(c *gin.Context) {
 }
 
 // ListCustomResources 获取指定 CRD 的资源列表
+// @Summary 获取自定义资源列表
+// @Description 获取指定 CRD 下的 Custom Resource 实例列表
+// @Tags Kubernetes-自定义资源
+// @Accept json
+// @Produce json
+// @Security Bearer
+// @Param clusterId query int false "集群ID"
+// @Param group query string true "API Group"
+// @Param version query string true "API Version"
+// @Param resource query string true "资源名称(复数)"
+// @Param namespace query string false "命名空间"
+// @Success 200 {object} response.Response "获取成功"
+// @Router /api/v1/plugins/kubernetes/resources/custom [get]
 func (h *CRDHandler) ListCustomResources(c *gin.Context) {
 	clusterID, err := h.parseClusterID(c)
 	if err != nil {
@@ -295,6 +337,20 @@ func (h *CRDHandler) ListCustomResources(c *gin.Context) {
 }
 
 // GetCustomResource 获取单个 CR 详情
+// @Summary 获取自定义资源详情
+// @Description 获取单个 Custom Resource 的详情，格式为 JSON 对象
+// @Tags Kubernetes-自定义资源
+// @Accept json
+// @Produce json
+// @Security Bearer
+// @Param clusterId query int false "集群ID"
+// @Param group query string true "API Group"
+// @Param version query string true "API Version"
+// @Param resource query string true "资源名称(复数)"
+// @Param namespace path string true "命名空间"
+// @Param name path string true "资源名称"
+// @Success 200 {object} response.Response "获取成功"
+// @Router /api/v1/plugins/kubernetes/resources/custom/{namespace}/{name}/yaml [get]
 func (h *CRDHandler) GetCustomResource(c *gin.Context) {
 	clusterID, err := h.parseClusterID(c)
 	if err != nil {
@@ -346,6 +402,20 @@ func (h *CRDHandler) GetCustomResource(c *gin.Context) {
 }
 
 // DeleteCustomResource 删除 CR
+// @Summary 删除自定义资源
+// @Description 删除指定的 Custom Resource 实例
+// @Tags Kubernetes-自定义资源
+// @Accept json
+// @Produce json
+// @Security Bearer
+// @Param clusterId query int false "集群ID"
+// @Param group query string true "API Group"
+// @Param version query string true "API Version"
+// @Param resource query string true "资源名称(复数)"
+// @Param namespace path string true "命名空间"
+// @Param name path string true "资源名称"
+// @Success 200 {object} response.Response "删除成功"
+// @Router /api/v1/plugins/kubernetes/resources/custom/{namespace}/{name} [delete]
 func (h *CRDHandler) DeleteCustomResource(c *gin.Context) {
 	clusterID, err := h.parseClusterID(c)
 	if err != nil {
@@ -394,6 +464,19 @@ func (h *CRDHandler) DeleteCustomResource(c *gin.Context) {
 }
 
 // CreateCustomResourceFromYAML YAML创建 CR
+// @Summary YAML创建自定义资源
+// @Description 通过 YAML 格式内容创建 Custom Resource 实例
+// @Tags Kubernetes-自定义资源
+// @Accept json
+// @Produce json
+// @Security Bearer
+// @Param clusterId query int false "集群ID"
+// @Param group query string true "API Group"
+// @Param version query string true "API Version"
+// @Param resource query string true "资源名称(复数)"
+// @Param body body map[string]string true "YAML内容对象"
+// @Success 200 {object} response.Response "创建成功"
+// @Router /api/v1/plugins/kubernetes/resources/custom/yaml [post]
 func (h *CRDHandler) CreateCustomResourceFromYAML(c *gin.Context) {
 	clusterID, err := h.parseClusterID(c)
 	if err != nil {
@@ -463,6 +546,19 @@ func (h *CRDHandler) CreateCustomResourceFromYAML(c *gin.Context) {
 }
 
 // UpdateCustomResourceFromYAML YAML更新 CR
+// @Summary YAML更新自定义资源
+// @Description 通过 YAML 格式内容更新 Custom Resource 实例
+// @Tags Kubernetes-自定义资源
+// @Accept json
+// @Produce json
+// @Security Bearer
+// @Param clusterId query int false "集群ID"
+// @Param group query string true "API Group"
+// @Param version query string true "API Version"
+// @Param resource query string true "资源名称(复数)"
+// @Param body body map[string]string true "YAML内容对象"
+// @Success 200 {object} response.Response "更新成功"
+// @Router /api/v1/plugins/kubernetes/resources/custom/yaml [put]
 func (h *CRDHandler) UpdateCustomResourceFromYAML(c *gin.Context) {
 	clusterID, err := h.parseClusterID(c)
 	if err != nil {
