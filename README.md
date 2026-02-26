@@ -94,6 +94,12 @@ MOM Platform 是一个功能强大的**插件化运维管理平台**，采用前
       <td width="100%"><img src="./docs/images/hosts.png" alt="资产管理" width="100%"/></td>
     </tr>
     <tr>
+      <td width="100%"><img src="./docs/images/network_device.png" alt="资产管理" width="100%"/></td>
+    </tr>
+    <tr>
+      <td width="100%"><img src="./docs/images/terminal2.png" alt="终端连接" width="100%"/></td>
+    </tr>
+    <tr>
       <td width="100%"><img src="./docs/images/terminal.png" alt="终端连接" width="100%"/></td>
     </tr>
     <tr>
@@ -110,6 +116,12 @@ MOM Platform 是一个功能强大的**插件化运维管理平台**，采用前
     </tr>
     <tr>
       <td width="100%"><img src="./docs/images/domain.png" alt="域名监控" width="100%"/></td>
+    </tr>
+    <tr>
+      <td width="100%"><img src="./docs/images/Aichat.png" alt="域名监控" width="100%"/></td>
+    </tr>
+    <tr>
+      <td width="100%"><img src="./docs/images/skills.png" alt="域名监控" width="100%"/></td>
     </tr>
   </table>
 

@@ -218,20 +218,46 @@
                 <el-tag v-else type="info" size="small" effect="plain">未知</el-tag>
               </template>
             </el-table-column>
-            <el-table-column label="操作" width="220" fixed="right" align="center">
+            <el-table-column label="操作" width="180" fixed="right" align="center">
               <template #default="{ row }">
-                <el-button type="primary" link size="small" @click="handleConnect(row)">
-                  <el-icon><Connection /></el-icon> 连接
-                </el-button>
-                <el-button type="success" link size="small" @click="handleTest(row)">
-                  <el-icon><CircleCheck /></el-icon> 测试
-                </el-button>
-                <el-button type="warning" link size="small" @click="handleEdit(row)">
-                  <el-icon><Edit /></el-icon> 编辑
-                </el-button>
-                <el-button type="danger" link size="small" @click="handleDelete(row)">
-                  <el-icon><Delete /></el-icon> 删除
-                </el-button>
+                <div class="action-buttons">
+                  <el-tooltip content="连接" placement="top">
+                    <el-button
+                      link
+                      class="action-btn action-connect"
+                      @click="handleConnect(row)"
+                    >
+                      <el-icon><Connection /></el-icon>
+                    </el-button>
+                  </el-tooltip>
+                  <el-tooltip content="测试连接" placement="top">
+                    <el-button
+                      link
+                      class="action-btn action-refresh"
+                      @click="handleTest(row)"
+                    >
+                      <el-icon><CircleCheck /></el-icon>
+                    </el-button>
+                  </el-tooltip>
+                  <el-tooltip content="编辑" placement="top">
+                    <el-button
+                      link
+                      class="action-btn action-edit"
+                      @click="handleEdit(row)"
+                    >
+                      <el-icon><Edit /></el-icon>
+                    </el-button>
+                  </el-tooltip>
+                  <el-tooltip content="删除" placement="top">
+                    <el-button
+                      link
+                      class="action-btn action-delete"
+                      @click="handleDelete(row)"
+                    >
+                      <el-icon><Delete /></el-icon>
+                    </el-button>
+                  </el-tooltip>
+                </div>
               </template>
             </el-table-column>
           </el-table>
@@ -1250,5 +1276,51 @@ function getDeviceTypeIcon(type: string) {
 
 :deep(.el-tag) {
   border-radius: 0;
+}
+
+/* 操作按钮 */
+.action-buttons {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: center;
+}
+
+.action-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.action-btn :deep(.el-icon) {
+  font-size: 14px;
+}
+
+.action-btn:hover {
+  transform: scale(1.1);
+}
+
+.action-connect:hover {
+  background-color: #e8f4ff;
+  color: #409eff;
+}
+
+.action-refresh:hover {
+  background-color: #f0f9eb;
+  color: #67c23a;
+}
+
+.action-edit:hover {
+  background-color: #e8f4ff;
+  color: #409eff;
+}
+
+.action-delete:hover {
+  background-color: #fee;
+  color: #f56c6c;
 }
 </style>

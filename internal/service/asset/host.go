@@ -670,6 +670,9 @@ func (s *HostService) ImportFromCloud(c *gin.Context) {
 		return
 	}
 
+	// 云导入创建/更新了主机，需要失效分组树缓存以更新主机计数
+	s.invalidateGroupTreeCache(c.Request.Context())
+
 	response.SuccessWithMessage(c, "导入成功", nil)
 }
 
