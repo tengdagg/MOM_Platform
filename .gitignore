@@ -16,6 +16,7 @@ data/terminal-recordings/*.cast
 
 # Dependency directories
 vendor/
+config/config.yaml
 
 # Go workspace file
 go.work
