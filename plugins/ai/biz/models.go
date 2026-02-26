@@ -8,20 +8,21 @@ import (
 
 // AIModelConfig AI 模型配置
 type AIModelConfig struct {
-	ID          uint           `gorm:"primaryKey" json:"id"`
-	Name        string         `gorm:"size:100;not null" json:"name"`
-	Provider    string         `gorm:"size:50;not null" json:"provider"` // openai / ollama / custom
-	BaseURL     string         `gorm:"size:500" json:"baseUrl"`
-	APIKey      string         `gorm:"size:500" json:"-"`         // 加密存储，不返回给前端
-	APIKeySet   bool           `gorm:"-" json:"apiKeySet"`        // 前端判断是否已设置
-	ModelName   string         `gorm:"size:100" json:"modelName"` // gpt-4o / qwen-plus / llama3
-	MaxTokens   int            `gorm:"default:4096" json:"maxTokens"`
-	Temperature float64        `gorm:"type:decimal(3,2);default:0.70" json:"temperature"`
-	IsDefault   bool           `gorm:"default:false" json:"isDefault"`
-	Status      int            `gorm:"default:1" json:"status"` // 1=启用 0=禁用
-	CreatedAt   time.Time      `json:"createdAt"`
-	UpdatedAt   time.Time      `json:"updatedAt"`
-	DeletedAt   gorm.DeletedAt `gorm:"index" json:"-"`
+	ID           uint           `gorm:"primaryKey" json:"id"`
+	Name         string         `gorm:"size:100;not null" json:"name"`
+	Provider     string         `gorm:"size:50;not null" json:"provider"` // openai / ollama / custom
+	BaseURL      string         `gorm:"size:500" json:"baseUrl"`
+	APIKey       string         `gorm:"size:500" json:"-"`         // 加密存储，不返回给前端
+	APIKeySet    bool           `gorm:"-" json:"apiKeySet"`        // 前端判断是否已设置
+	ModelName    string         `gorm:"size:100" json:"modelName"` // gpt-4o / qwen-plus / llama3
+	MaxTokens    int            `gorm:"default:4096" json:"maxTokens"`
+	Temperature  float64        `gorm:"type:decimal(3,2);default:0.70" json:"temperature"`
+	MaxToolCalls int            `gorm:"default:10" json:"maxToolCalls"`
+	IsDefault    bool           `gorm:"default:false" json:"isDefault"`
+	Status       int            `gorm:"default:1" json:"status"` // 1=启用 0=禁用
+	CreatedAt    time.Time      `json:"createdAt"`
+	UpdatedAt    time.Time      `json:"updatedAt"`
+	DeletedAt    gorm.DeletedAt `gorm:"index" json:"-"`
 }
 
 func (AIModelConfig) TableName() string {

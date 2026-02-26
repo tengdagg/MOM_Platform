@@ -236,12 +236,21 @@
             :disabled="isLoading"
           />
           <el-button
+            v-if="isLoading"
+            class="stop-btn"
+            type="danger"
+            @click="stopGeneration"
+            circle
+          >
+            <el-icon><VideoPause /></el-icon>
+          </el-button>
+          <el-button
+            v-else
             class="send-btn"
             type="primary"
             :icon="Promotion"
             @click="sendMessage"
-            :disabled="!inputMessage.trim() || isLoading"
-            :loading="isLoading"
+            :disabled="!inputMessage.trim()"
             circle
           />
         </div>
@@ -292,7 +301,7 @@ import { ref, computed, nextTick, onMounted, onBeforeUnmount, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   Plus, Delete, User, MagicStick, ChatLineRound, ChatDotRound,
-  Promotion, Operation, ArrowDown, ArrowUp, Timer
+  Promotion, Operation, ArrowDown, ArrowUp, Timer, VideoPause
 } from '@element-plus/icons-vue'
 import {
   getSessions, createSession, deleteSession, getSessionMessages,
@@ -637,6 +646,13 @@ async function sendMessage() {
     isLoading.value = false
     scrollToBottom()
     loadSessions()
+  }
+}
+
+// 停止 AI 生成
+function stopGeneration() {
+  if (ws && ws.readyState === WebSocket.OPEN) {
+    ws.send(JSON.stringify({ type: 'stop' }))
   }
 }
 
@@ -1356,6 +1372,18 @@ function formatJSON(data: any): string {
   flex-shrink: 0;
   width: 40px;
   height: 40px;
+}
+
+.stop-btn {
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  animation: pulse-stop 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse-stop {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
 }
 
 .input-footer {

@@ -312,3 +312,17 @@ k8s_helm_mamage 原来直接返回 "模拟成功消息" 的逻辑解决，
 ### 20260224
 1、终端 Windows 虚拟键盘已改成悬浮可拖拽
 2、修复一些功能异常问题
+
+
+
+### 20260226
+后端：
+
+plugins/ai/biz/models.go — AIModelConfig 新增 MaxToolCalls 字段（默认 10）
+plugins/ai/server/model_handler.go — Create/Update 支持新字段
+plugins/ai/biz/agent.go — Run/RunStream 接受可配置的 maxToolCalls 参数 + context 取消支持
+plugins/ai/server/chat_handler.go — 传递 maxToolCalls，新增 stop 消息处理 + context.WithCancel 管理
+前端：
+
+web/src/views/ai/AIModelConfig.vue — 弹窗新增"最大调用次数"设置 + 卡片展示
+web/src/views/ai/AIChat.vue — 发送中时按钮变为红色停止按钮（脉冲动画），点击发送 {type:"stop"}

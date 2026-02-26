@@ -76,6 +76,10 @@
             <span class="label">Temperature</span>
             <span class="value">{{ model.temperature }}</span>
           </div>
+          <div class="model-field">
+            <span class="label">最大调用次数</span>
+            <span class="value">{{ model.maxToolCalls || 10 }} 次</span>
+          </div>
         </div>
       </el-card>
 
@@ -162,6 +166,12 @@
         <el-form-item label="Temperature">
           <el-slider v-model="form.temperature" :min="0" :max="2" :step="0.1" show-input :show-input-controls="false" />
         </el-form-item>
+        <el-form-item label="最大调用次数">
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <el-input-number v-model="form.maxToolCalls" :min="1" :max="50" :step="1" />
+            <span style="font-size: 12px; color: #909399;">次 (AI 对话的最大工具调用轮次)</span>
+          </div>
+        </el-form-item>
       </el-form>
       <template #footer>
         <el-button @click="dialogVisible = false">取消</el-button>
@@ -196,6 +206,7 @@ const form = ref({
   modelName: '',
   maxTokens: 4096,
   temperature: 0.7,
+  maxToolCalls: 10,
 })
 
 const rules = {
@@ -229,6 +240,7 @@ function showAddDialog() {
     modelName: '',
     maxTokens: 4096,
     temperature: 0.7,
+    maxToolCalls: 10,
   }
   dialogVisible.value = true
 }
@@ -244,6 +256,7 @@ function editModel(model: any) {
     modelName: model.modelName,
     maxTokens: model.maxTokens,
     temperature: model.temperature,
+    maxToolCalls: model.maxToolCalls || 10,
   }
   dialogVisible.value = true
 }

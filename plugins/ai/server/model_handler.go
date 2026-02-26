@@ -28,13 +28,14 @@ func (h *Handler) ListModels(c *gin.Context) {
 // CreateModel 添加模型配置
 func (h *Handler) CreateModel(c *gin.Context) {
 	var req struct {
-		Name        string  `json:"name" binding:"required"`
-		Provider    string  `json:"provider" binding:"required"`
-		BaseURL     string  `json:"baseUrl"`
-		APIKey      string  `json:"apiKey"`
-		ModelName   string  `json:"modelName" binding:"required"`
-		MaxTokens   int     `json:"maxTokens"`
-		Temperature float64 `json:"temperature"`
+		Name         string  `json:"name" binding:"required"`
+		Provider     string  `json:"provider" binding:"required"`
+		BaseURL      string  `json:"baseUrl"`
+		APIKey       string  `json:"apiKey"`
+		ModelName    string  `json:"modelName" binding:"required"`
+		MaxTokens    int     `json:"maxTokens"`
+		Temperature  float64 `json:"temperature"`
+		MaxToolCalls int     `json:"maxToolCalls"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		response.ErrorCode(c, http.StatusBadRequest, "参数错误: "+err.Error())
@@ -42,20 +43,24 @@ func (h *Handler) CreateModel(c *gin.Context) {
 	}
 
 	model := &biz.AIModelConfig{
-		Name:        req.Name,
-		Provider:    req.Provider,
-		BaseURL:     req.BaseURL,
-		APIKey:      req.APIKey,
-		ModelName:   req.ModelName,
-		MaxTokens:   req.MaxTokens,
-		Temperature: req.Temperature,
-		Status:      1,
+		Name:         req.Name,
+		Provider:     req.Provider,
+		BaseURL:      req.BaseURL,
+		APIKey:       req.APIKey,
+		ModelName:    req.ModelName,
+		MaxTokens:    req.MaxTokens,
+		Temperature:  req.Temperature,
+		MaxToolCalls: req.MaxToolCalls,
+		Status:       1,
 	}
 	if model.MaxTokens == 0 {
 		model.MaxTokens = 4096
 	}
 	if model.Temperature == 0 {
 		model.Temperature = 0.7
+	}
+	if model.MaxToolCalls == 0 {
+		model.MaxToolCalls = 10
 	}
 
 	if err := h.db.Create(model).Error; err != nil {
@@ -81,14 +86,15 @@ func (h *Handler) UpdateModel(c *gin.Context) {
 	}
 
 	var req struct {
-		Name        string  `json:"name"`
-		Provider    string  `json:"provider"`
-		BaseURL     string  `json:"baseUrl"`
-		APIKey      string  `json:"apiKey"`
-		ModelName   string  `json:"modelName"`
-		MaxTokens   int     `json:"maxTokens"`
-		Temperature float64 `json:"temperature"`
-		Status      *int    `json:"status"`
+		Name         string  `json:"name"`
+		Provider     string  `json:"provider"`
+		BaseURL      string  `json:"baseUrl"`
+		APIKey       string  `json:"apiKey"`
+		ModelName    string  `json:"modelName"`
+		MaxTokens    int     `json:"maxTokens"`
+		Temperature  float64 `json:"temperature"`
+		MaxToolCalls *int    `json:"maxToolCalls"`
+		Status       *int    `json:"status"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		response.ErrorCode(c, http.StatusBadRequest, "参数错误")
@@ -116,6 +122,9 @@ func (h *Handler) UpdateModel(c *gin.Context) {
 	}
 	if req.Temperature > 0 {
 		updates["temperature"] = req.Temperature
+	}
+	if req.MaxToolCalls != nil {
+		updates["max_tool_calls"] = *req.MaxToolCalls
 	}
 	if req.Status != nil {
 		updates["status"] = *req.Status

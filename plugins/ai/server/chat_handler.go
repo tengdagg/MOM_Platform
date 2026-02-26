@@ -1,10 +1,12 @@
 package server
 
 import (
+	"context"
 	"encoding/json"
 	"log"
 	"net/http"
 	"strconv"
+	"sync"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -122,7 +124,7 @@ func (h *Handler) SendMessage(c *gin.Context) {
 	adapter := biz.NewModelAdapter(model)
 	eventCh := make(chan biz.AgentEvent, 64)
 
-	go h.agent.Run(c.Request.Context(), adapter, req.SessionID, req.Content, uid, uname, eventCh)
+	go h.agent.Run(c.Request.Context(), adapter, req.SessionID, req.Content, uid, uname, model.MaxToolCalls, eventCh)
 
 	// 收集所有事件
 	var contentBuilder string
@@ -163,72 +165,143 @@ func (h *Handler) ChatWebSocket(c *gin.Context) {
 		return nil
 	})
 
+	// 写锁：WebSocket 不支持并发写
+	var writeMu sync.Mutex
+	safeWriteEvent := func(event biz.AgentEvent) error {
+		writeMu.Lock()
+		defer writeMu.Unlock()
+		return h.writeWSEvent(conn, event)
+	}
+	safeWriteJSON := func(v any) error {
+		writeMu.Lock()
+		defer writeMu.Unlock()
+		return h.writeWSJSON(conn, v)
+	}
+
 	// Ping 保活
 	go func() {
 		ticker := time.NewTicker(30 * time.Second)
 		defer ticker.Stop()
 		for range ticker.C {
-			if err := conn.WriteMessage(websocket.PingMessage, nil); err != nil {
+			writeMu.Lock()
+			err := conn.WriteMessage(websocket.PingMessage, nil)
+			writeMu.Unlock()
+			if err != nil {
 				return
 			}
 		}
 	}()
 
-	for {
-		_, message, err := conn.ReadMessage()
-		if err != nil {
-			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseNormalClosure) {
-				log.Printf("[ai-chat] WebSocket read error: %v", err)
-			}
-			return
-		}
+	// 用于取消当前正在运行的 Agent
+	var currentCancel context.CancelFunc
+	var cancelMu sync.Mutex
 
-		var req struct {
-			Type      string `json:"type"`
-			SessionID uint   `json:"sessionId"`
-			Content   string `json:"content"`
-			ModelID   uint   `json:"modelId"`
-		}
-		if err := json.Unmarshal(message, &req); err != nil {
-			h.writeWSEvent(conn, biz.AgentEvent{Type: "error", Error: "消息格式错误"})
-			continue
-		}
+	// 收到的 WebSocket 消息通过 channel 传递
+	type wsMsg struct {
+		Type      string `json:"type"`
+		SessionID uint   `json:"sessionId"`
+		Content   string `json:"content"`
+		ModelID   uint   `json:"modelId"`
+	}
+	msgCh := make(chan wsMsg, 8)
+	doneCh := make(chan struct{})
 
-		if req.Type != "message" || req.Content == "" {
-			continue
-		}
-
-		// 获取模型
-		model := h.getModel(req.ModelID)
-		if model == nil {
-			h.writeWSEvent(conn, biz.AgentEvent{Type: "error", Error: "未配置 AI 模型"})
-			continue
-		}
-
-		// 如果没有 session，创建一个
-		if req.SessionID == 0 {
-			session, err := h.convMgr.CreateSession(uid, uname, "", req.ModelID)
+	// 独立的读取 goroutine：持续读取 WebSocket 消息
+	go func() {
+		defer close(doneCh)
+		for {
+			_, message, err := conn.ReadMessage()
 			if err != nil {
-				h.writeWSEvent(conn, biz.AgentEvent{Type: "error", Error: "创建会话失败"})
-				continue
-			}
-			req.SessionID = session.ID
-			// 发送 session 创建事件
-			h.writeWSJSON(conn, map[string]any{
-				"type":    "session_created",
-				"session": session,
-			})
-		}
-
-		adapter := biz.NewModelAdapter(model)
-		eventCh := make(chan biz.AgentEvent, 64)
-
-		go h.agent.RunStream(c.Request.Context(), adapter, req.SessionID, req.Content, uid, uname, eventCh)
-
-		for event := range eventCh {
-			if err := h.writeWSEvent(conn, event); err != nil {
+				if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseNormalClosure) {
+					log.Printf("[ai-chat] WebSocket read error: %v", err)
+				}
+				// 连接断开时取消正在运行的 Agent
+				cancelMu.Lock()
+				if currentCancel != nil {
+					currentCancel()
+				}
+				cancelMu.Unlock()
 				return
 			}
+
+			var req wsMsg
+			if err := json.Unmarshal(message, &req); err != nil {
+				safeWriteEvent(biz.AgentEvent{Type: "error", Error: "消息格式错误"})
+				continue
+			}
+
+			// 停止请求直接在读取 goroutine 中处理（不走 channel），确保立即响应
+			if req.Type == "stop" {
+				cancelMu.Lock()
+				if currentCancel != nil {
+					currentCancel()
+					currentCancel = nil
+				}
+				cancelMu.Unlock()
+				continue
+			}
+
+			msgCh <- req
+		}
+	}()
+
+	// 主循环：处理消息请求
+	for {
+		select {
+		case req, ok := <-msgCh:
+			if !ok {
+				return
+			}
+
+			if req.Type != "message" || req.Content == "" {
+				continue
+			}
+
+			// 获取模型
+			model := h.getModel(req.ModelID)
+			if model == nil {
+				safeWriteEvent(biz.AgentEvent{Type: "error", Error: "未配置 AI 模型"})
+				continue
+			}
+
+			// 如果没有 session，创建一个
+			if req.SessionID == 0 {
+				session, err := h.convMgr.CreateSession(uid, uname, "", req.ModelID)
+				if err != nil {
+					safeWriteEvent(biz.AgentEvent{Type: "error", Error: "创建会话失败"})
+					continue
+				}
+				req.SessionID = session.ID
+				safeWriteJSON(map[string]any{
+					"type":    "session_created",
+					"session": session,
+				})
+			}
+
+			// 取消之前的 Agent（如果有）
+			cancelMu.Lock()
+			if currentCancel != nil {
+				currentCancel()
+			}
+			ctx, cancel := context.WithCancel(c.Request.Context())
+			currentCancel = cancel
+			cancelMu.Unlock()
+
+			adapter := biz.NewModelAdapter(model)
+			eventCh := make(chan biz.AgentEvent, 64)
+
+			go h.agent.RunStream(ctx, adapter, req.SessionID, req.Content, uid, uname, model.MaxToolCalls, eventCh)
+
+			// 转发事件给前端
+			for event := range eventCh {
+				if err := safeWriteEvent(event); err != nil {
+					cancel()
+					return
+				}
+			}
+
+		case <-doneCh:
+			return
 		}
 	}
 }

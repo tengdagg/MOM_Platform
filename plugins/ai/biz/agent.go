@@ -377,7 +377,7 @@ func (a *Agent) triggerSummaryIfNeeded(sessionID uint) {
 }
 
 // Run 执行 Agent（非流式，简单的 ReAct 循环）
-func (a *Agent) Run(ctx context.Context, adapter *ModelAdapter, sessionID uint, userMessage string, userID uint, username string, eventCh chan<- AgentEvent) {
+func (a *Agent) Run(ctx context.Context, adapter *ModelAdapter, sessionID uint, userMessage string, userID uint, username string, maxToolCalls int, eventCh chan<- AgentEvent) {
 	defer func() {
 		if r := recover(); r != nil {
 			eventCh <- AgentEvent{Type: "error", Error: fmt.Sprintf("Agent 异常: %v", r)}
@@ -397,13 +397,31 @@ func (a *Agent) Run(ctx context.Context, adapter *ModelAdapter, sessionID uint, 
 
 	// 收集所有工具调用记录（用于持久化）
 	var allToolCallRecords []map[string]any
+	var contentSoFar string
 
-	// ReAct 循环（最多 15 轮工具调用）
-	maxIterations := 15
+	// ReAct 循环
+	maxIterations := maxToolCalls
+	if maxIterations <= 0 {
+		maxIterations = 10
+	}
 	for i := 0; i < maxIterations; i++ {
+		// 检查是否已被取消
+		select {
+		case <-ctx.Done():
+			a.saveAssistantMessage(sessionID, contentSoFar+"\n\n[已停止]", allToolCallRecords)
+			eventCh <- AgentEvent{Type: "text_delta", Content: "\n\n[已停止]"}
+			return
+		default:
+		}
+
 		// 调用 LLM
 		resp, err := adapter.ChatCompletion(ctx, messages, tools)
 		if err != nil {
+			if ctx.Err() != nil {
+				a.saveAssistantMessage(sessionID, contentSoFar+"\n\n[已停止]", allToolCallRecords)
+				eventCh <- AgentEvent{Type: "text_delta", Content: "\n\n[已停止]"}
+				return
+			}
 			eventCh <- AgentEvent{Type: "error", Error: fmt.Sprintf("调用模型失败: %v", err)}
 			return
 		}
@@ -418,6 +436,7 @@ func (a *Agent) Run(ctx context.Context, adapter *ModelAdapter, sessionID uint, 
 
 		// 如果有文本内容，发送给前端
 		if assistantMsg.Content != "" {
+			contentSoFar += assistantMsg.Content
 			eventCh <- AgentEvent{Type: "text_delta", Content: assistantMsg.Content}
 		}
 
@@ -496,7 +515,7 @@ func (a *Agent) Run(ctx context.Context, adapter *ModelAdapter, sessionID uint, 
 }
 
 // RunStream 流式执行 Agent
-func (a *Agent) RunStream(ctx context.Context, adapter *ModelAdapter, sessionID uint, userMessage string, userID uint, username string, eventCh chan<- AgentEvent) {
+func (a *Agent) RunStream(ctx context.Context, adapter *ModelAdapter, sessionID uint, userMessage string, userID uint, username string, maxToolCalls int, eventCh chan<- AgentEvent) {
 	defer func() {
 		if r := recover(); r != nil {
 			eventCh <- AgentEvent{Type: "error", Error: fmt.Sprintf("Agent 异常: %v", r)}
@@ -516,13 +535,31 @@ func (a *Agent) RunStream(ctx context.Context, adapter *ModelAdapter, sessionID 
 
 	// 收集所有工具调用记录（用于持久化）
 	var allToolCallRecords []map[string]any
+	var contentSoFar string
 
 	// ReAct 循环
-	maxIterations := 15
+	maxIterations := maxToolCalls
+	if maxIterations <= 0 {
+		maxIterations = 10
+	}
 	for i := 0; i < maxIterations; i++ {
+		// 检查是否已被取消
+		select {
+		case <-ctx.Done():
+			a.saveAssistantMessage(sessionID, contentSoFar+"\n\n[已停止]", allToolCallRecords)
+			eventCh <- AgentEvent{Type: "text_delta", Content: "\n\n[已停止]"}
+			return
+		default:
+		}
+
 		// 流式调用 LLM
 		streamCh, err := adapter.ChatCompletionStream(ctx, messages, tools)
 		if err != nil {
+			if ctx.Err() != nil {
+				a.saveAssistantMessage(sessionID, contentSoFar+"\n\n[已停止]", allToolCallRecords)
+				eventCh <- AgentEvent{Type: "text_delta", Content: "\n\n[已停止]"}
+				return
+			}
 			eventCh <- AgentEvent{Type: "error", Error: fmt.Sprintf("调用模型失败: %v", err)}
 			return
 		}
@@ -537,6 +574,7 @@ func (a *Agent) RunStream(ctx context.Context, adapter *ModelAdapter, sessionID 
 			switch event.Type {
 			case "text_delta":
 				contentBuilder.WriteString(event.Content)
+				contentSoFar += event.Content
 				eventCh <- AgentEvent{Type: "text_delta", Content: event.Content}
 
 			case "tool_call_delta":
