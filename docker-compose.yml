@@ -45,19 +45,19 @@ services:
     ports:
       - "${BACKEND_PORT:-9876}:9876"
     environment:
-      mom_SERVER_MODE: ${mom_SERVER_MODE:-release}
-      mom_SERVER_HTTP_PORT: 9876
-      mom_SERVER_JWT_SECRET: ${mom_SERVER_JWT_SECRET:-your-secret-key-change-in-production}
-      mom_DATABASE_HOST: mysql
-      mom_DATABASE_PORT: 3306
-      mom_DATABASE_DATABASE: ${MYSQL_DATABASE:-mom}
-      mom_DATABASE_USERNAME: ${MYSQL_USERNAME:-root}
-      mom_DATABASE_PASSWORD: ${MYSQL_ROOT_PASSWORD:-123456}
-      mom_REDIS_HOST: redis
-      mom_REDIS_PORT: 6379
-      mom_REDIS_PASSWORD: ""
-      mom_GUACD_HOST: guacd
-      mom_GUACD_PORT: 4822
+      MOM_SERVER_MODE: ${MOM_SERVER_MODE:-release}
+      MOM_SERVER_HTTP_PORT: 9876
+      MOM_SERVER_JWT_SECRET: ${MOM_SERVER_JWT_SECRET:-your-secret-key-change-in-production}
+      MOM_DATABASE_HOST: mysql
+      MOM_DATABASE_PORT: 3306
+      MOM_DATABASE_DATABASE: ${MYSQL_DATABASE:-mom}
+      MOM_DATABASE_USERNAME: ${MYSQL_USERNAME:-root}
+      MOM_DATABASE_PASSWORD: ${MYSQL_ROOT_PASSWORD:-123456}
+      MOM_REDIS_HOST: redis
+      MOM_REDIS_PORT: 6379
+      MOM_REDIS_PASSWORD: ""
+      MOM_GUACD_HOST: guacd
+      MOM_GUACD_PORT: 4822
     depends_on:
       - mysql
       - redis
