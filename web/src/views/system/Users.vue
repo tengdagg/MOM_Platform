@@ -2,14 +2,28 @@
   <div class="users-container">
     <!-- 页面标题和操作按钮 -->
     <div class="page-header">
-      <h2 class="page-title">用户管理</h2>
-      <el-button class="black-button" @click="handleAdd">新增用户</el-button>
+      <div class="page-title-group">
+        <div class="page-title-icon">
+          <el-icon><User /></el-icon>
+        </div>
+        <div>
+          <h2 class="page-title">用户管理</h2>
+          <p class="page-subtitle">管理系统用户，支持新增、编辑、角色分配与部门管理</p>
+        </div>
+      </div>
+      <div class="header-actions">
+        <el-button class="black-button" @click="handleAdd">
+          <el-icon style="margin-right: 6px;"><Plus /></el-icon>
+          新增用户
+        </el-button>
+      </div>
     </div>
 
     <div class="content-wrapper">
       <!-- 左侧部门树 -->
       <div class="dept-tree-panel">
         <div class="panel-header">
+          <el-icon><OfficeBuilding /></el-icon>
           <span>部门组织</span>
         </div>
         <el-tree
@@ -44,73 +58,121 @@
           </el-button>
         </div>
 
-        <!-- 搜索表单 -->
-        <el-form :inline="true" :model="searchForm" class="search-form">
-          <el-form-item label="关键词">
-            <el-input v-model="searchForm.keyword" placeholder="用户名/邮箱" clearable />
-          </el-form-item>
-          <el-form-item label="来源">
-            <el-select v-model="searchForm.source" placeholder="全部" clearable style="width: 120px">
+        <!-- 搜索栏 -->
+        <div class="search-bar">
+          <div class="search-inputs">
+            <el-input
+              v-model="searchForm.keyword"
+              placeholder="搜索用户名/邮箱..."
+              clearable
+              class="search-input"
+              @keyup.enter="loadUsers"
+            >
+              <template #prefix>
+                <el-icon class="search-icon"><Search /></el-icon>
+              </template>
+            </el-input>
+
+            <el-select v-model="searchForm.source" placeholder="用户来源" clearable class="search-input" style="width: 160px">
               <el-option label="全部" value="" />
               <el-option label="本地用户" value="local" />
               <el-option label="LDAP 用户" value="ldap" />
             </el-select>
-          </el-form-item>
-          <el-form-item>
-            <el-button class="black-button" @click="loadUsers">查询</el-button>
-            <el-button @click="resetSearch">重置</el-button>
-          </el-form-item>
-        </el-form>
+          </div>
 
-        <!-- 表格 -->
-        <el-table :data="userList" border stripe v-loading="loading" style="width: 100%">
-          <el-table-column label="头像" width="60">
-            <template #default="{ row }">
-              <el-avatar v-if="row.avatar" :src="row.avatar" :size="32" />
-              <el-avatar v-else :size="32">{{ row.realName?.substring(0, 1) || row.username.substring(0, 1) }}</el-avatar>
-            </template>
-          </el-table-column>
-          <el-table-column prop="username" label="用户名" min-width="150">
-            <template #default="{ row }">
-              <span>{{ row.username }}</span>
-              <el-tag v-if="row.source === 'ldap'" size="small" type="warning" style="margin-left: 6px;">LDAP</el-tag>
-            </template>
-          </el-table-column>
-          <el-table-column prop="realName" label="真实姓名" min-width="120" />
-          <el-table-column prop="email" label="邮箱" min-width="180" />
-          <el-table-column prop="phone" label="手机号" min-width="130" />
-          <el-table-column label="部门" min-width="150">
-            <template #default="{ row }">
-              {{ row.department?.name || row.department?.deptName || '-' }}
-            </template>
-          </el-table-column>
-          <el-table-column label="状态" width="80">
-            <template #default="{ row }">
-              <el-tag :type="row.status === 1 ? 'success' : 'danger'">
-                {{ row.status === 1 ? '启用' : '禁用' }}
-              </el-tag>
-            </template>
-          </el-table-column>
-          <el-table-column label="操作" width="280" fixed="right">
-            <template #default="{ row }">
-              <el-button class="black-button" size="small" @click="handleEdit(row)">编辑</el-button>
-              <el-button class="black-button" size="small" @click="handleResetPassword(row)">重置密码</el-button>
-              <el-button type="danger" size="small" @click="handleDelete(row)">删除</el-button>
-            </template>
-          </el-table-column>
-        </el-table>
+          <div class="search-actions">
+            <el-button class="black-button" @click="loadUsers">
+              <el-icon style="margin-right: 4px;"><Search /></el-icon>
+              查询
+            </el-button>
+            <el-button class="reset-btn" @click="resetSearch">
+              <el-icon style="margin-right: 4px;"><RefreshLeft /></el-icon>
+              重置
+            </el-button>
+          </div>
+        </div>
 
-        <!-- 分页 -->
-        <el-pagination
-          v-model:current-page="pagination.page"
-          v-model:page-size="pagination.pageSize"
-          :total="pagination.total"
-          :page-sizes="[10, 20, 50, 100]"
-          layout="total, sizes, prev, pager, next, jumper"
-          @size-change="loadUsers"
-          @current-change="loadUsers"
-          style="margin-top: 20px; justify-content: center"
-        />
+        <!-- 表格容器 -->
+        <div class="table-wrapper">
+          <el-table
+            :data="userList"
+            v-loading="loading"
+            class="modern-table"
+            :header-cell-style="{ background: '#fafbfc', color: '#606266', fontWeight: '600' }"
+          >
+            <el-table-column label="头像" width="60" align="center">
+              <template #default="{ row }">
+                <el-avatar v-if="row.avatar" :src="row.avatar" :size="32" />
+                <el-avatar v-else :size="32">{{ row.realName?.substring(0, 1) || row.username.substring(0, 1) }}</el-avatar>
+              </template>
+            </el-table-column>
+            <el-table-column prop="username" label="用户名" min-width="150">
+              <template #default="{ row }">
+                <div class="user-name-cell">
+                  <span class="user-name">{{ row.username }}</span>
+                  <el-tag v-if="row.source === 'ldap'" size="small" type="warning" effect="dark">LDAP</el-tag>
+                </div>
+              </template>
+            </el-table-column>
+            <el-table-column prop="realName" label="真实姓名" min-width="120" />
+            <el-table-column prop="email" label="邮箱" min-width="180">
+              <template #default="{ row }">
+                <span class="description-text">{{ row.email || '-' }}</span>
+              </template>
+            </el-table-column>
+            <el-table-column prop="phone" label="手机号" min-width="130">
+              <template #default="{ row }">
+                <span class="description-text">{{ row.phone || '-' }}</span>
+              </template>
+            </el-table-column>
+            <el-table-column label="部门" min-width="150">
+              <template #default="{ row }">
+                <span class="description-text">{{ row.department?.name || row.department?.deptName || '-' }}</span>
+              </template>
+            </el-table-column>
+            <el-table-column label="状态" width="100" align="center">
+              <template #default="{ row }">
+                <el-tag :type="row.status === 1 ? 'success' : 'danger'" effect="dark">
+                  {{ row.status === 1 ? '启用' : '禁用' }}
+                </el-tag>
+              </template>
+            </el-table-column>
+            <el-table-column label="操作" width="200" fixed="right" align="center">
+              <template #default="{ row }">
+                <div class="action-buttons">
+                  <el-tooltip content="编辑" placement="top">
+                    <el-button link class="action-btn action-edit" @click="handleEdit(row)">
+                      <el-icon><Edit /></el-icon>
+                    </el-button>
+                  </el-tooltip>
+                  <el-tooltip v-if="row.source !== 'ldap'" content="重置密码" placement="top">
+                    <el-button link class="action-btn action-password" @click="handleResetPassword(row)">
+                      <el-icon><Key /></el-icon>
+                    </el-button>
+                  </el-tooltip>
+                  <el-tooltip content="删除" placement="top">
+                    <el-button link class="action-btn action-delete" @click="handleDelete(row)">
+                      <el-icon><Delete /></el-icon>
+                    </el-button>
+                  </el-tooltip>
+                </div>
+              </template>
+            </el-table-column>
+          </el-table>
+
+          <!-- 分页 -->
+          <div class="pagination-container">
+            <el-pagination
+              v-model:current-page="pagination.page"
+              v-model:page-size="pagination.pageSize"
+              :total="pagination.total"
+              :page-sizes="[10, 20, 50, 100]"
+              layout="total, sizes, prev, pager, next, jumper"
+              @size-change="loadUsers"
+              @current-change="loadUsers"
+            />
+          </div>
+        </div>
       </div>
     </div>
 
@@ -326,7 +388,8 @@ import { ref, reactive, onMounted, computed, watch } from 'vue'
 import { ElMessage, ElMessageBox, FormInstance } from 'element-plus'
 import {
   User, Postcard, Message, Phone, Lock,
-  OfficeBuilding, Key, Document, Check
+  OfficeBuilding, Key, Document, Check,
+  Plus, Edit, Delete, Search, RefreshLeft
 } from '@element-plus/icons-vue'
 import { getUserList, createUser, updateUser, deleteUser, resetUserPassword, assignUserRoles, assignUserPositions } from '@/api/user'
 import { getDepartmentTree } from '@/api/department'
@@ -726,60 +789,114 @@ onMounted(() => {
 
 <style scoped>
 .users-container {
-  padding: 16px;
-  background-color: #fff;
-  min-height: 100%;
+  padding: 0;
+  background-color: transparent;
 }
 
+/* 页面头部 */
 .page-header {
   display: flex;
   justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 12px;
+  padding: 16px 20px;
+  background: #fff;
+  border-radius: 0;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
+}
+
+.page-title-group {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.page-title-icon {
+  width: 48px;
+  height: 48px;
+  background: #0a466a;
+  border-radius: 0;
+  display: flex;
   align-items: center;
-  margin-bottom: 14px;
-  padding-bottom: 12px;
-  border-bottom: 1px solid #e6e6e6;
+  justify-content: center;
+  color: #ffffff;
+  font-size: 22px;
+  flex-shrink: 0;
+  border: none;
 }
 
 .page-title {
   margin: 0;
-  font-size: 15px;
-  font-weight: 500;
+  font-size: 20px;
+  font-weight: 600;
   color: #303133;
+  line-height: 1.3;
 }
 
+.page-subtitle {
+  margin: 4px 0 0 0;
+  font-size: 13px;
+  color: #909399;
+  line-height: 1.4;
+}
+
+.header-actions {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+/* 内容区域 */
 .content-wrapper {
   display: flex;
-  gap: 14px;
+  gap: 12px;
   min-height: calc(100vh - 180px);
 }
 
 /* 左侧部门树面板 */
 .dept-tree-panel {
-  width: 220px;
-  min-width: 220px;
-  background: #fafafa;
-  border: 1px solid #e6e6e6;
+  width: 240px;
+  min-width: 240px;
+  background: #fff;
   border-radius: 0;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
   display: flex;
   flex-direction: column;
+  overflow: hidden;
 }
 
 .panel-header {
-  padding: 10px 12px;
-  font-weight: 500;
-  font-size: 13px;
+  padding: 12px 16px;
+  font-weight: 600;
+  font-size: 14px;
   color: #303133;
-  border-bottom: 1px solid #e6e6e6;
-  background-color: #fff;
-  border-radius: 0;
+  border-bottom: 1px solid #f0f0f0;
+  background-color: #fafbfc;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.panel-header .el-icon {
+  color: #0a466a;
+  font-size: 16px;
 }
 
 .dept-tree {
   flex: 1;
   padding: 8px;
   overflow-y: auto;
-  background-color: #fafafa;
+  background-color: #fff;
   font-size: 13px;
+}
+
+.dept-tree :deep(.el-tree-node__content) {
+  height: 34px;
+  border-radius: 0;
+}
+
+.dept-tree :deep(.el-tree-node__content:hover) {
+  background-color: #f5f7fa;
 }
 
 .custom-tree-node {
@@ -815,11 +932,12 @@ onMounted(() => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 8px 12px;
+  padding: 10px 16px;
   margin-bottom: 12px;
-  background-color: #f0f9ff;
-  border: 1px solid #b3d8ff;
+  background-color: #fff;
+  border-left: 3px solid #409eff;
   border-radius: 0;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
   font-size: 13px;
 }
 
@@ -836,27 +954,191 @@ onMounted(() => {
 
 .dept-path-text .path {
   color: #409eff;
+  font-weight: 500;
 }
 
-.search-form {
+/* 搜索栏 */
+.search-bar {
   margin-bottom: 12px;
+  padding: 12px 16px;
+  background: #fff;
+  border-radius: 0;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
 }
 
-.search-form :deep(.el-form-item) {
-  margin-bottom: 12px;
+.search-inputs {
+  display: flex;
+  gap: 12px;
+  flex: 1;
 }
 
-.search-form :deep(.el-form-item__label) {
-  font-size: 13px;
+.search-input {
+  width: 280px;
 }
 
-/* 按钮样式 - 使用全局样式 .black-button */
+.search-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.reset-btn {
+  background: #f5f7fa;
+  border-color: #dcdfe6;
+  color: #606266;
+}
+
+.reset-btn:hover {
+  background: #e6e8eb;
+  border-color: #c0c4cc;
+}
+
+/* 搜索框样式 */
+.search-bar :deep(.el-input__wrapper) {
+  border-radius: 0;
+  border: 1px solid #dcdfe6;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
+  transition: all 0.3s ease;
+  background-color: #fff;
+}
+
+.search-bar :deep(.el-input__wrapper:hover) {
+  border-color: #ffffff;
+  box-shadow: 0 2px 8px rgba(212, 175, 55, 0.15);
+}
+
+.search-bar :deep(.el-input__wrapper.is-focus) {
+  border-color: #ffffff;
+  box-shadow: 0 2px 12px rgba(212, 175, 55, 0.25);
+}
+
+.search-icon {
+  color: #909399;
+}
+
+/* 表格容器 */
+.table-wrapper {
+  background: #fff;
+  border-radius: 0;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
+  overflow: hidden;
+}
+
+.modern-table {
+  width: 100%;
+}
+
+.modern-table :deep(.el-table__body-wrapper) {
+  border-radius: 0;
+}
+
+.modern-table :deep(.el-table__row) {
+  transition: background-color 0.2s ease;
+}
+
+.modern-table :deep(.el-table__row:hover) {
+  background-color: #f8fafc !important;
+}
+
+/* 用户名单元格 */
+.user-name-cell {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.user-name {
+  font-weight: 500;
+}
+
+.description-text {
+  color: #606266;
+}
+
+/* 操作按钮 */
+.action-buttons {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: center;
+}
+
+.action-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.action-btn :deep(.el-icon) {
+  font-size: 16px;
+}
+
+.action-btn:hover {
+  transform: scale(1.1);
+}
+
+.action-edit:hover {
+  background-color: #e8f4ff;
+  color: #409eff;
+}
+
+.action-password:hover {
+  background-color: #f0f9eb;
+  color: #67C23A;
+}
+
+.action-delete:hover {
+  background-color: #fee;
+  color: #f56c6c;
+}
+
+/* 分页器 */
+.pagination-container {
+  padding: 12px 16px;
+  display: flex;
+  justify-content: flex-end;
+  border-top: 1px solid #f0f0f0;
+}
+
+/* 标签样式 */
+:deep(.el-tag) {
+  border-radius: 0;
+  padding: 4px 10px;
+  font-weight: 500;
+}
+
+/* 输入框样式 */
+:deep(.el-input__wrapper),
+:deep(.el-textarea__inner) {
+  border-radius: 0;
+}
+
+:deep(.el-select .el-input__wrapper) {
+  border-radius: 0;
+}
 
 /* 用户对话框样式 */
-.user-dialog :deep(.el-dialog__body) {
-  padding: 14px 20px;
+:deep(.user-dialog .el-dialog__header) {
+  padding: 20px 24px 16px;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+:deep(.user-dialog .el-dialog__body) {
+  padding: 24px;
   max-height: 60vh;
   overflow-y: auto;
+}
+
+:deep(.user-dialog .el-dialog__footer) {
+  padding: 16px 24px;
+  border-top: 1px solid #f0f0f0;
 }
 
 .user-form {
@@ -910,7 +1192,7 @@ onMounted(() => {
 .dialog-footer {
   display: flex;
   justify-content: flex-end;
-  gap: 10px;
+  gap: 12px;
 }
 
 .dialog-footer .el-button {
