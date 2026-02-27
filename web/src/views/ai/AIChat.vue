@@ -428,8 +428,9 @@ onBeforeUnmount(() => {
 async function loadModels() {
   try {
     const data = await getModelList()
-    // request.ts 拦截器成功时直接返回 response.data.data
-    models.value = Array.isArray(data) ? data : (data?.list || [])
+    const allModels = Array.isArray(data) ? data : (data?.list || [])
+    // 只显示启用的模型
+    models.value = allModels.filter((m: any) => m.status === 1)
     const defaultModel = models.value.find((m: any) => m.isDefault)
     if (defaultModel) {
       selectedModelId.value = defaultModel.id

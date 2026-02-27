@@ -35,8 +35,8 @@ type FunctionCall struct {
 
 // ToolDefinition 工具定义（发送给 LLM）
 type ToolDefinition struct {
-	Type     string              `json:"type"` // function
-	Function ToolFunctionDef     `json:"function"`
+	Type     string          `json:"type"` // function
+	Function ToolFunctionDef `json:"function"`
 }
 
 // ToolFunctionDef 工具函数定义
@@ -123,6 +123,9 @@ func (a *ModelAdapter) getBaseURL() string {
 			baseURL = "https://dashscope.aliyuncs.com/compatible-mode/v1"
 		case "deepseek":
 			baseURL = "https://api.deepseek.com/v1"
+		case "zhipu":
+			// 智谱AI BigModel OpenAI 兼容端点
+			baseURL = "https://open.bigmodel.cn/api/paas/v4"
 		case "doubao":
 			// 字节豆包 ARK OpenAI 兼容端点
 			baseURL = "https://ark.cn-beijing.volces.com/api/v3"

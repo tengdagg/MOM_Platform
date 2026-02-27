@@ -110,6 +110,7 @@
             <el-option-group label="国内厂商">
               <el-option label="通义千问 (阿里)" value="qwen" />
               <el-option label="DeepSeek" value="deepseek" />
+              <el-option label="智谱AI" value="zhipu" />
               <el-option label="豆包 (字节)" value="doubao" />
             </el-option-group>
             <el-option-group label="本地 / 其他">
@@ -172,6 +173,9 @@
             <span style="font-size: 12px; color: #909399;">次 (AI 对话的最大工具调用轮次)</span>
           </div>
         </el-form-item>
+        <el-form-item v-if="isEdit" label="启用状态">
+          <el-switch v-model="form.status" :active-value="1" :inactive-value="0" active-text="启用" inactive-text="禁用" />
+        </el-form-item>
       </el-form>
       <template #footer>
         <el-button @click="dialogVisible = false">取消</el-button>
@@ -207,6 +211,7 @@ const form = ref({
   maxTokens: 4096,
   temperature: 0.7,
   maxToolCalls: 10,
+  status: 1,
 })
 
 const rules = {
@@ -241,6 +246,7 @@ function showAddDialog() {
     maxTokens: 4096,
     temperature: 0.7,
     maxToolCalls: 10,
+    status: 1,
   }
   dialogVisible.value = true
 }
@@ -257,6 +263,7 @@ function editModel(model: any) {
     maxTokens: model.maxTokens,
     temperature: model.temperature,
     maxToolCalls: model.maxToolCalls || 10,
+    status: model.status ?? 1,
   }
   dialogVisible.value = true
 }
@@ -345,6 +352,17 @@ const providerModels: Record<string, { label: string; value: string }[]> = {
     { label: 'DeepSeek-V3', value: 'deepseek-chat' },
     { label: 'DeepSeek-R1', value: 'deepseek-reasoner' },
   ],
+  zhipu: [
+    { label: 'GLM-5 (最新旗舰)', value: 'glm-5' },
+    { label: 'GLM-4.7-FlashX (深度思考)', value: 'glm-4.7-flashx' },
+    { label: 'GLM-4.7-Flash (免费)', value: 'glm-4.7-flash' },
+    { label: 'GLM-4.6', value: 'glm-4.6' },
+    { label: 'GLM-4.5 (推理+Agent)', value: 'glm-4.5' },
+    { label: 'GLM-4.5-Air (高性价比)', value: 'glm-4.5-air' },
+    { label: 'GLM-4-Plus', value: 'glm-4-plus' },
+    { label: 'GLM-4-Flash', value: 'glm-4-flash' },
+    { label: 'GLM-4-Long', value: 'glm-4-long' },
+  ],
   doubao: [
     { label: '豆包-Pro-32K', value: 'doubao-pro-32k' },
     { label: '豆包-Pro-128K', value: 'doubao-pro-128k' },
@@ -367,6 +385,7 @@ const providerDefaultUrls: Record<string, string> = {
   gemini: 'https://generativelanguage.googleapis.com/v1beta/openai',
   qwen: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
   deepseek: 'https://api.deepseek.com/v1',
+  zhipu: 'https://open.bigmodel.cn/api/paas/v4',
   doubao: 'https://ark.cn-beijing.volces.com/api/v3',
   ollama: 'http://localhost:11434/v1',
   openai_compatible: '',
@@ -380,7 +399,7 @@ function onProviderChange(provider: string) {
   // 自动填充名称
   const nameMap: Record<string, string> = {
     openai: 'OpenAI', gemini: 'Gemini', qwen: '通义千问',
-    deepseek: 'DeepSeek', doubao: '豆包', ollama: 'Ollama',
+    deepseek: 'DeepSeek', zhipu: '智谱AI', doubao: '豆包', ollama: 'Ollama',
   }
   if (nameMap[provider] && !form.value.name) {
     form.value.name = nameMap[provider]
@@ -393,6 +412,7 @@ function getProviderLabel(provider: string): string {
     gemini: 'Google Gemini',
     qwen: '通义千问',
     deepseek: 'DeepSeek',
+    zhipu: '智谱AI',
     doubao: '豆包',
     ollama: 'Ollama (本地)',
     openai_compatible: 'OpenAI 兼容',
@@ -407,6 +427,7 @@ function getProviderIcon(provider: string): string {
     gemini: 'G',
     qwen: '千',
     deepseek: 'DS',
+    zhipu: '智',
     doubao: '豆',
     ollama: '🦙',
     openai_compatible: 'AI',
@@ -534,6 +555,7 @@ function getBaseUrlPlaceholder(): string {
 .provider-badge.gemini { background: linear-gradient(135deg, #4285f4, #1a73e8); }
 .provider-badge.qwen { background: linear-gradient(135deg, #ff6a00, #ee5a24); }
 .provider-badge.deepseek { background: linear-gradient(135deg, #536dfe, #304ffe); }
+.provider-badge.zhipu { background: linear-gradient(135deg, #3a7bd5, #1a56db); }
 .provider-badge.doubao { background: linear-gradient(135deg, #00d4aa, #00b894); }
 .provider-badge.ollama { background: linear-gradient(135deg, #6366f1, #4f46e5); }
 .provider-badge.openai_compatible { background: linear-gradient(135deg, #10a37f, #1a7f64); }
