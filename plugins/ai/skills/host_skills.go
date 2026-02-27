@@ -408,12 +408,21 @@ func executeHostExecCommand(ctx biz.SkillContext) (any, error) {
 	}
 	ip, _ := ctx.Params["ip"].(string)
 
-	// 安全检查：拒绝危险命令
-	dangerousPatterns := []string{"rm -rf /", "mkfs", "dd if=", ":(){ :|:& };:", "> /dev/sd", "chmod -R 777 /"}
+	// 安全检查：拒绝危险命令（与 task.execute 统一黑名单）
+	dangerousPatterns := []string{"rm -rf /", "mkfs", "dd if=", ":(){ :|:& };:", "> /dev/sd", "chmod -R 777 /", "shutdown", "reboot", "init 0", "init 6"}
 	cmdLower := strings.ToLower(command)
 	for _, pattern := range dangerousPatterns {
 		if strings.Contains(cmdLower, pattern) {
 			return nil, fmt.Errorf("安全检查未通过：命令包含危险操作 [%s]，已被拒绝", pattern)
+		}
+	}
+
+	// 超时时间：默认 30 秒，最大 300 秒（安装软件等耗时操作可调大）
+	timeoutSec := 30
+	if t, ok := ctx.Params["timeout"].(float64); ok && t > 0 {
+		timeoutSec = int(t)
+		if timeoutSec > 300 {
+			timeoutSec = 300
 		}
 	}
 
@@ -445,8 +454,9 @@ func executeHostExecCommand(ctx biz.SkillContext) (any, error) {
 	// 未确认 → 返回待确认信息
 	if !isConfirmed(ctx.Params) {
 		return map[string]any{
-			"message":   fmt.Sprintf("命令 [%s] 将在 %d 台主机上执行", command, len(hosts)),
+			"message":   fmt.Sprintf("命令 [%s] 将在 %d 台主机上执行（超时: %ds）", command, len(hosts), timeoutSec),
 			"command":   command,
+			"timeout":   timeoutSec,
 			"hostCount": len(hosts),
 			"hosts":     hosts,
 			"status":    "pending_confirmation",
@@ -456,10 +466,11 @@ func executeHostExecCommand(ctx biz.SkillContext) (any, error) {
 
 	// 已确认 → 真正执行
 	type ExecResult struct {
-		Host   string `json:"host"`
-		IP     string `json:"ip"`
-		Output string `json:"output"`
-		Error  string `json:"error,omitempty"`
+		Host      string `json:"host"`
+		IP        string `json:"ip"`
+		Output    string `json:"output"`
+		Truncated bool   `json:"truncated,omitempty"`
+		Error     string `json:"error,omitempty"`
 	}
 	var results []ExecResult
 	successCount := 0
@@ -470,12 +481,20 @@ func executeHostExecCommand(ctx biz.SkillContext) (any, error) {
 			results = append(results, ExecResult{Host: h.Name, IP: h.IP, Error: err.Error()})
 			continue
 		}
-		output, err := client.ExecuteWithTimeout(command, 30*time.Second)
+		output, err := client.ExecuteWithTimeout(command, time.Duration(timeoutSec)*time.Second)
 		client.Close()
+
+		// 输出截断：超过 64KB 时截断，避免 LLM 上下文溢出
+		truncated := false
+		if len(output) > 65536 {
+			output = output[:65536] + "\n... [输出已截断，超过 64KB]"
+			truncated = true
+		}
+
 		if err != nil {
-			results = append(results, ExecResult{Host: h.Name, IP: h.IP, Output: output, Error: err.Error()})
+			results = append(results, ExecResult{Host: h.Name, IP: h.IP, Output: output, Truncated: truncated, Error: err.Error()})
 		} else {
-			results = append(results, ExecResult{Host: h.Name, IP: h.IP, Output: output})
+			results = append(results, ExecResult{Host: h.Name, IP: h.IP, Output: output, Truncated: truncated})
 			successCount++
 		}
 	}
@@ -484,10 +503,23 @@ func executeHostExecCommand(ctx biz.SkillContext) (any, error) {
 		"status":       "success",
 		"message":      fmt.Sprintf("✅ 命令已在 %d/%d 台主机上执行完成", successCount, len(hosts)),
 		"command":      command,
+		"timeout":      timeoutSec,
 		"results":      results,
 		"successCount": successCount,
 		"totalCount":   len(hosts),
 	}, nil
+}
+
+// isUnsafePath 检查是否为不安全的系统路径
+func isUnsafePath(path string) bool {
+	unsafePrefixes := []string{"/boot", "/dev", "/proc", "/sys", "/run"}
+	pathLower := strings.ToLower(strings.TrimRight(path, "/"))
+	for _, prefix := range unsafePrefixes {
+		if pathLower == prefix || strings.HasPrefix(pathLower, prefix+"/") {
+			return true
+		}
+	}
+	return false
 }
 
 // executeHostFileManage 远程文件管理
@@ -497,10 +529,15 @@ func executeHostFileManage(ctx biz.SkillContext) (any, error) {
 	ip, _ := ctx.Params["ip"].(string)
 
 	if action == "" {
-		return nil, fmt.Errorf("请指定操作类型: list / download / upload")
+		return nil, fmt.Errorf("请指定操作类型: list / read / download / write / backup")
 	}
 	if filePath == "" {
 		return nil, fmt.Errorf("请指定文件或目录路径")
+	}
+
+	// 路径安全检查
+	if isUnsafePath(filePath) {
+		return nil, fmt.Errorf("安全检查未通过：禁止操作系统关键路径 [%s]（/boot, /dev, /proc, /sys, /run）", filePath)
 	}
 
 	// 查找主机
@@ -537,25 +574,117 @@ func executeHostFileManage(ctx biz.SkillContext) (any, error) {
 		}, nil
 	}
 
-	// download / upload 需要确认
-	if !isConfirmed(ctx.Params) {
+	// read 操作是低风险，直接执行（查看文件内容，限制 64KB）
+	if action == "read" {
+		client, hostInfo, err := CreateSSHClient(ctx.DB, hostID)
+		if err != nil {
+			return nil, err
+		}
+		defer client.Close()
+		output, err := client.Execute(fmt.Sprintf("head -c 65536 %s", filePath))
+		if err != nil {
+			return nil, fmt.Errorf("读取文件失败: %v", err)
+		}
 		return map[string]any{
-			"action":  action,
+			"status":  "success",
+			"host":    hostInfo.IP,
 			"path":    filePath,
-			"hostID":  hostID,
-			"status":  "pending_confirmation",
-			"warning": fmt.Sprintf("⚠️ 将对主机执行文件 %s 操作: %s，请确认执行", action, filePath),
+			"content": output,
 		}, nil
 	}
 
-	// 已确认 → 执行 download（读取文件内容）
+	// backup 操作：备份文件为 .bak.时间戳
+	if action == "backup" {
+		if !isConfirmed(ctx.Params) {
+			return map[string]any{
+				"action":  "backup",
+				"path":    filePath,
+				"hostID":  hostID,
+				"status":  "pending_confirmation",
+				"warning": fmt.Sprintf("⚠️ 将备份文件: %s → %s.bak.时间戳，请确认", filePath, filePath),
+			}, nil
+		}
+		client, hostInfo, err := CreateSSHClient(ctx.DB, hostID)
+		if err != nil {
+			return nil, err
+		}
+		defer client.Close()
+		timestamp := time.Now().Format("20060102150405")
+		backupPath := fmt.Sprintf("%s.bak.%s", filePath, timestamp)
+		output, err := client.Execute(fmt.Sprintf("cp -p %s %s && echo 'backup ok'", filePath, backupPath))
+		if err != nil {
+			return nil, fmt.Errorf("备份文件失败: %v", err)
+		}
+		return map[string]any{
+			"status":     "success",
+			"message":    fmt.Sprintf("✅ 已备份文件: %s → %s", filePath, backupPath),
+			"host":       hostInfo.IP,
+			"sourcePath": filePath,
+			"backupPath": backupPath,
+			"output":     output,
+		}, nil
+	}
+
+	// write 操作：将内容写入文件（通过 heredoc）
+	if action == "write" {
+		content, _ := ctx.Params["content"].(string)
+		if content == "" {
+			return nil, fmt.Errorf("write 操作需要指定 content 参数（文件内容）")
+		}
+
+		if !isConfirmed(ctx.Params) {
+			// 展示待写入内容的前 500 字符
+			preview := content
+			if len(preview) > 500 {
+				preview = preview[:500] + "\n... [内容已截断]"
+			}
+			return map[string]any{
+				"action":        "write",
+				"path":          filePath,
+				"hostID":        hostID,
+				"contentLength": len(content),
+				"preview":       preview,
+				"status":        "pending_confirmation",
+				"warning":       fmt.Sprintf("⚠️ 将写入 %d 字节到文件 %s，请确认（建议先使用 backup 操作备份原文件）", len(content), filePath),
+			}, nil
+		}
+
+		client, hostInfo, err := CreateSSHClient(ctx.DB, hostID)
+		if err != nil {
+			return nil, err
+		}
+		defer client.Close()
+		// 使用 heredoc 方式写入文件
+		writeCmd := fmt.Sprintf("cat > %s << 'MOMEOF'\n%s\nMOMEOF", filePath, content)
+		output, err := client.ExecuteWithTimeout(writeCmd, 30*time.Second)
+		if err != nil {
+			return nil, fmt.Errorf("写入文件失败: %v", err)
+		}
+		return map[string]any{
+			"status":  "success",
+			"message": fmt.Sprintf("✅ 已成功写入 %d 字节到 %s", len(content), filePath),
+			"host":    hostInfo.IP,
+			"path":    filePath,
+			"output":  output,
+		}, nil
+	}
+
+	// download 需要确认
 	if action == "download" {
+		if !isConfirmed(ctx.Params) {
+			return map[string]any{
+				"action":  action,
+				"path":    filePath,
+				"hostID":  hostID,
+				"status":  "pending_confirmation",
+				"warning": fmt.Sprintf("⚠️ 将读取文件内容: %s，请确认执行", filePath),
+			}, nil
+		}
 		client, _, err := CreateSSHClient(ctx.DB, hostID)
 		if err != nil {
 			return nil, err
 		}
 		defer client.Close()
-		// 读取文件内容（限制大小）
 		output, err := client.Execute(fmt.Sprintf("head -c 65536 %s", filePath))
 		if err != nil {
 			return nil, fmt.Errorf("读取文件失败: %v", err)
@@ -567,10 +696,7 @@ func executeHostFileManage(ctx biz.SkillContext) (any, error) {
 		}, nil
 	}
 
-	return map[string]any{
-		"status":  "pending",
-		"message": fmt.Sprintf("文件 %s 操作需要通过文件管理界面完成", action),
-	}, nil
+	return nil, fmt.Errorf("不支持的操作类型: %s，支持: list / read / download / write / backup", action)
 }
 
 // executeHostManage 主机管理（创建/修改/删除/查凭证/查分组）

@@ -326,3 +326,25 @@ plugins/ai/server/chat_handler.go — 传递 maxToolCalls，新增 stop 消息�
 
 web/src/views/ai/AIModelConfig.vue — 弹窗新增"最大调用次数"设置 + 卡片展示
 web/src/views/ai/AIChat.vue — 发送中时按钮变为红色停止按钮（脉冲动画），点击发送 {type:"stop"}
+
+
+### 20260227
+
+文件	改动
+host_skills.go	exec_command: 黑名单 6→10、超时可配 max 300s、输出 64KB 截断
+host_skills.go	file_manage: 新增 read/write/backup 三个操作 + 路径安全检查
+task_skills.go	execute: 超时可配 + 输出截断（与 exec_command 对齐）
+agent.go	systemPrompt 追加「复杂运维操作指导」6 条原则
+3 个 SKILL.md	文档从 46/45/60 行扩展到 120+/110+/100 行
+效果示例： 当你对 AI 说"帮我在 web-01 上安装 nginx"，AI 现在会：
+
+rpm -q nginx（检查是否已安装）
+yum install -y nginx（timeout=120 安装）
+systemctl start nginx && systemctl enable nginx（启动+开机自启）
+systemctl status nginx（验证状态）
+当你说"帮我修改 nginx 配置"，AI 会：
+
+file_manage(read) 查看当前配置
+file_manage(backup) 备份为 .bak.时间戳
+file_manage(write) 写入新内容
+exec_command 执行 nginx -t && systemctl reload nginx

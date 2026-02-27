@@ -111,6 +111,15 @@ func executeTaskExecute(ctx biz.SkillContext) (any, error) {
 		}
 	}
 
+	// 超时时间：默认 30 秒，最大 300 秒
+	timeoutSec := 30
+	if t, ok := ctx.Params["timeout"].(float64); ok && t > 0 {
+		timeoutSec = int(t)
+		if timeoutSec > 300 {
+			timeoutSec = 300
+		}
+	}
+
 	// 查找目标主机
 	type SimpleHost struct {
 		ID   uint   `json:"id"`
@@ -145,8 +154,9 @@ func executeTaskExecute(ctx biz.SkillContext) (any, error) {
 	// 未确认 → 返回待确认信息
 	if !isConfirmed(ctx.Params) {
 		return map[string]any{
-			"message":   fmt.Sprintf("命令 [%s] 将在 %d 台主机上执行", command, len(hosts)),
+			"message":   fmt.Sprintf("命令 [%s] 将在 %d 台主机上执行（超时: %ds）", command, len(hosts), timeoutSec),
 			"command":   command,
+			"timeout":   timeoutSec,
 			"hostCount": len(hosts),
 			"hosts":     hosts,
 			"status":    "pending_confirmation",
@@ -156,10 +166,11 @@ func executeTaskExecute(ctx biz.SkillContext) (any, error) {
 
 	// 已确认 → 真正执行
 	type ExecResult struct {
-		Host   string `json:"host"`
-		IP     string `json:"ip"`
-		Output string `json:"output"`
-		Error  string `json:"error,omitempty"`
+		Host      string `json:"host"`
+		IP        string `json:"ip"`
+		Output    string `json:"output"`
+		Truncated bool   `json:"truncated,omitempty"`
+		Error     string `json:"error,omitempty"`
 	}
 	var results []ExecResult
 	successCount := 0
@@ -170,12 +181,20 @@ func executeTaskExecute(ctx biz.SkillContext) (any, error) {
 			results = append(results, ExecResult{Host: h.Name, IP: h.IP, Error: err.Error()})
 			continue
 		}
-		output, err := client.ExecuteWithTimeout(command, 30*time.Second)
+		output, err := client.ExecuteWithTimeout(command, time.Duration(timeoutSec)*time.Second)
 		client.Close()
+
+		// 输出截断：超过 64KB 时截断
+		truncated := false
+		if len(output) > 65536 {
+			output = output[:65536] + "\n... [输出已截断，超过 64KB]"
+			truncated = true
+		}
+
 		if err != nil {
-			results = append(results, ExecResult{Host: h.Name, IP: h.IP, Output: output, Error: err.Error()})
+			results = append(results, ExecResult{Host: h.Name, IP: h.IP, Output: output, Truncated: truncated, Error: err.Error()})
 		} else {
-			results = append(results, ExecResult{Host: h.Name, IP: h.IP, Output: output})
+			results = append(results, ExecResult{Host: h.Name, IP: h.IP, Output: output, Truncated: truncated})
 			successCount++
 		}
 	}
@@ -184,6 +203,7 @@ func executeTaskExecute(ctx biz.SkillContext) (any, error) {
 		"status":       "success",
 		"message":      fmt.Sprintf("✅ 命令已在 %d/%d 台主机上执行完成", successCount, len(hosts)),
 		"command":      command,
+		"timeout":      timeoutSec,
 		"results":      results,
 		"successCount": successCount,
 		"totalCount":   len(hosts),

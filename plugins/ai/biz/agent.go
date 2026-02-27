@@ -239,7 +239,16 @@ const systemPrompt = `你是 MOM 运维管理平台的 AI 助手。你可以帮�
 - 你: "即将把 Deployment/order-service 的副本数从当前调整为 5，确认执行吗？"
 - 用户: "确认"
 - 你: 调用 k8s-scale(resource_name="order-service", replicas=5, namespace="default", confirmed=true) → 返回 success
-- 你: "✅ 已成功将 order-service 的副本数调整为 5"`
+- 你: "✅ 已成功将 order-service 的副本数调整为 5"
+
+🔧 复杂运维操作指导：
+当用户需要执行复杂运维操作（如安装软件、修改配置、磁盘扩容等）时，请遵循以下原则：
+1. 分步执行：将复杂操作拆分为多个安全的小步骤，每步执行一个命令，不要一次性组合大量命令
+2. 先查后改：修改配置前先用 host-file_manage(action="read") 查看当前内容；安装前先检查是否已安装
+3. 备份优先：修改配置文件前先用 host-file_manage(action="backup") 备份原文件
+4. 合理超时：安装软件等耗时操作使用 timeout=120 或更大值（默认 30 秒可能不够）
+5. 验证结果：操作完成后执行验证命令确认操作成功（如 systemctl status、cat 查看配置等）
+6. 配置修改推荐流程：read（查看）→ backup（备份）→ write（写入新内容）→ 验证 → 重载服务`
 
 // buildMessages 构建发送给 LLM 的消息列表（公共逻辑）
 // 1. 系统提示词 + 动态上下文
