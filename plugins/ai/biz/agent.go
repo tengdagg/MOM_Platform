@@ -465,9 +465,10 @@ func (a *Agent) Run(ctx context.Context, adapter *ModelAdapter, sessionID uint, 
 
 		// 处理工具调用
 		messages = append(messages, ChatCompletionMessage{
-			Role:      "assistant",
-			Content:   assistantMsg.Content,
-			ToolCalls: assistantMsg.ToolCalls,
+			Role:             "assistant",
+			Content:          assistantMsg.Content,
+			ReasoningContent: assistantMsg.ReasoningContent, // DeepSeek R1 推理内容回传
+			ToolCalls:        assistantMsg.ToolCalls,
 		})
 
 		for _, tc := range assistantMsg.ToolCalls {
@@ -575,12 +576,17 @@ func (a *Agent) RunStream(ctx context.Context, adapter *ModelAdapter, sessionID 
 
 		// 收集完整的响应
 		var contentBuilder strings.Builder
+		var reasoningBuilder strings.Builder // DeepSeek R1 推理内容
 		var toolCalls []ToolCall
 		toolCallArgsBuilders := make(map[int]*strings.Builder)
 		var finishReason string
 
 		for event := range streamCh {
 			switch event.Type {
+			case "reasoning_delta":
+				// DeepSeek R1 推理内容，累积但不发送给前端
+				reasoningBuilder.WriteString(event.Content)
+
 			case "text_delta":
 				contentBuilder.WriteString(event.Content)
 				contentSoFar += event.Content
@@ -635,12 +641,17 @@ func (a *Agent) RunStream(ctx context.Context, adapter *ModelAdapter, sessionID 
 			return
 		}
 
-		// 处理工具调用
-		messages = append(messages, ChatCompletionMessage{
+		// 处理工具调用 —— 保留 reasoning_content（DeepSeek R1）
+		assistantMessage := ChatCompletionMessage{
 			Role:      "assistant",
 			Content:   content,
 			ToolCalls: toolCalls,
-		})
+		}
+		if reasoningBuilder.Len() > 0 {
+			rc := reasoningBuilder.String()
+			assistantMessage.ReasoningContent = &rc
+		}
+		messages = append(messages, assistantMessage)
 
 		for _, tc := range toolCalls {
 			llmName := tc.Function.Name

@@ -9,8 +9,9 @@
           <span>插件化</span>
           <span>多集群</span>
           <span>一站式</span>
+          <span>AI集成</span>
         </div>
-        <p class="brand-subtitle">现代化云原生运维管理专家</p>
+        <p class="brand-subtitle">大模型驱动现代化云原生运维管理专家</p>
         <div class="brand-illustration">
           <svg viewBox="0 0 400 300" class="illustration-svg">
             <defs>

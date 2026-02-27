@@ -14,10 +14,11 @@ import (
 
 // ChatCompletionMessage OpenAI 兼容消息格式
 type ChatCompletionMessage struct {
-	Role       string     `json:"role"`
-	Content    string     `json:"content,omitempty"`
-	ToolCalls  []ToolCall `json:"tool_calls,omitempty"`
-	ToolCallID string     `json:"tool_call_id,omitempty"`
+	Role             string     `json:"role"`
+	Content          string     `json:"content,omitempty"`
+	ReasoningContent *string    `json:"reasoning_content,omitempty"` // DeepSeek R1 推理内容
+	ToolCalls        []ToolCall `json:"tool_calls,omitempty"`
+	ToolCallID       string     `json:"tool_call_id,omitempty"`
 }
 
 // ToolCall 工具调用
@@ -73,9 +74,10 @@ type ChatCompletionResponse struct {
 
 // StreamDelta 流式响应片段
 type StreamDelta struct {
-	Role      string     `json:"role,omitempty"`
-	Content   string     `json:"content,omitempty"`
-	ToolCalls []ToolCall `json:"tool_calls,omitempty"`
+	Role             string     `json:"role,omitempty"`
+	Content          string     `json:"content,omitempty"`
+	ReasoningContent string     `json:"reasoning_content,omitempty"` // DeepSeek R1 推理内容
+	ToolCalls        []ToolCall `json:"tool_calls,omitempty"`
 }
 
 // StreamChoice 流式响应选择
@@ -269,6 +271,14 @@ func (a *ModelAdapter) ChatCompletionStream(ctx context.Context, messages []Chat
 
 			choice := streamResp.Choices[0]
 			delta := choice.Delta
+
+			// DeepSeek R1 推理内容
+			if delta.ReasoningContent != "" {
+				ch <- StreamEvent{
+					Type:    "reasoning_delta",
+					Content: delta.ReasoningContent,
+				}
+			}
 
 			// 文本内容
 			if delta.Content != "" {
