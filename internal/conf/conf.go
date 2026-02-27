@@ -37,12 +37,12 @@ type Config struct {
 
 // ServerConfig 服务器配置
 type ServerConfig struct {
-	Mode       string `mapstructure:"mode"`         // debug, release, test
-	HttpPort   int    `mapstructure:"http_port"`
-	RPCPort    int    `mapstructure:"rpc_port"`
-	ReadTimeout  int  `mapstructure:"read_timeout"`  // 毫秒
-	WriteTimeout int  `mapstructure:"write_timeout"` // 毫秒
-	JWTSecret  string `mapstructure:"jwt_secret"`    // JWT密钥
+	Mode         string `mapstructure:"mode"` // debug, release, test
+	HttpPort     int    `mapstructure:"http_port"`
+	RPCPort      int    `mapstructure:"rpc_port"`
+	ReadTimeout  int    `mapstructure:"read_timeout"`  // 毫秒
+	WriteTimeout int    `mapstructure:"write_timeout"` // 毫秒
+	JWTSecret    string `mapstructure:"jwt_secret"`    // JWT密钥
 }
 
 // DatabaseConfig 数据库配置
@@ -72,9 +72,9 @@ type RedisConfig struct {
 type LogConfig struct {
 	Level      string `mapstructure:"level"`
 	Filename   string `mapstructure:"filename"`
-	MaxSize    int    `mapstructure:"max_size"`     // MB
+	MaxSize    int    `mapstructure:"max_size"` // MB
 	MaxBackups int    `mapstructure:"max_backups"`
-	MaxAge     int    `mapstructure:"max_age"`      // days
+	MaxAge     int    `mapstructure:"max_age"` // days
 	Compress   bool   `mapstructure:"compress"`
 	Console    bool   `mapstructure:"console"`
 }
@@ -113,9 +113,41 @@ func Load(configPath string) (*Config, error) {
 	v.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 	v.AutomaticEnv()
 
-	// 读取配置文件
+	// 设置默认值（Docker 环境下可纯靠环境变量启动，无需配置文件）
+	v.SetDefault("server.mode", "release")
+	v.SetDefault("server.http_port", 9876)
+	v.SetDefault("server.rpc_port", 9090)
+	v.SetDefault("server.read_timeout", 60000)
+	v.SetDefault("server.write_timeout", 60000)
+	v.SetDefault("server.jwt_secret", "your-secret-key-change-in-production")
+	v.SetDefault("database.driver", "mysql")
+	v.SetDefault("database.host", "127.0.0.1")
+	v.SetDefault("database.port", 3306)
+	v.SetDefault("database.database", "mom")
+	v.SetDefault("database.username", "root")
+	v.SetDefault("database.password", "")
+	v.SetDefault("database.max_idle_conns", 10)
+	v.SetDefault("database.max_open_conns", 100)
+	v.SetDefault("database.conn_max_lifetime", 3600)
+	v.SetDefault("redis.host", "127.0.0.1")
+	v.SetDefault("redis.port", 6379)
+	v.SetDefault("redis.password", "")
+	v.SetDefault("redis.db", 0)
+	v.SetDefault("redis.pool_size", 10)
+	v.SetDefault("redis.min_idle_conn", 5)
+	v.SetDefault("guacd.host", "127.0.0.1")
+	v.SetDefault("guacd.port", 4822)
+	v.SetDefault("log.level", "info")
+	v.SetDefault("log.filename", "logs/app.log")
+	v.SetDefault("log.max_size", 100)
+	v.SetDefault("log.max_backups", 10)
+	v.SetDefault("log.max_age", 30)
+	v.SetDefault("log.compress", true)
+	v.SetDefault("log.console", true)
+
+	// 读取配置文件（文件不存在时使用默认值 + 环境变量）
 	if err := v.ReadInConfig(); err != nil {
-		return nil, fmt.Errorf("读取配置文件失败: %w", err)
+		fmt.Printf("[配置] 配置文件 %s 未找到，使用默认值 + 环境变量\n", configPath)
 	}
 
 	// 解析配置
