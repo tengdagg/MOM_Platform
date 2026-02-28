@@ -1033,8 +1033,6 @@ VALUES
   ('task', 1, NOW(), NOW()),
   ('ai', 1, NOW(), NOW());
 
-SET FOREIGN_KEY_CHECKS = 1;
-
 -- 创建默认的admin用户
 -- 密码: 123456
 -- 警告: 生产环境请立即修改默认密码!
@@ -1048,3 +1046,20 @@ INSERT INTO `sys_user_role` (`user_id`, `role_id`) VALUES (1, 1);
 INSERT INTO `system_config` (`config_key`, `value`, `remark`, `created_at`, `updated_at`) 
 SELECT 'logRetentionDays', '30', '日志保留天数', NOW(), NOW() 
 WHERE NOT EXISTS (SELECT 1 FROM `system_config` WHERE `config_key` = 'logRetentionDays');
+
+-- ============================================================
+-- 12. DDL 补充（原 autoMigrate 逻辑）
+-- ============================================================
+
+-- sys_user 虚拟列 + 联合唯一索引（防止软删除后用户名/邮箱冲突）
+ALTER TABLE `sys_user` ADD COLUMN `is_deleted` TINYINT(1) GENERATED ALWAYS AS (CASE WHEN deleted_at IS NULL THEN 0 ELSE 1 END) VIRTUAL;
+CREATE UNIQUE INDEX `idx_username_email_is_deleted` ON `sys_user`(`username`, `email`, `is_deleted`);
+
+-- 扩展操作审计日志列宽度（支持 AI 操作审计）
+ALTER TABLE `sys_operation_log` MODIFY COLUMN `action` varchar(100) COMMENT '操作类型';
+ALTER TABLE `sys_operation_log` MODIFY COLUMN `method` varchar(20) COMMENT '请求方法';
+
+-- 确保个人信息菜单隐藏
+UPDATE `sys_menu` SET `visible` = 0 WHERE `code` = 'profile';
+
+SET FOREIGN_KEY_CHECKS = 1;
