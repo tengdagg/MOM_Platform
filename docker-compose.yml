@@ -39,7 +39,7 @@ services:
     #build:
     #  context: .
     #  dockerfile: Dockerfile
-    image: registry.cn-hangzhou.aliyuncs.com/registry_dat/mom_platrorm:latest
+    image: registry.cn-hangzhou.aliyuncs.com/registry_dat/mom_platform:latest
     container_name: mom-backend
     restart: unless-stopped
     ports:
@@ -69,7 +69,7 @@ services:
 
   # Guacamole 代理守护进程 (用于 Windows RDP 远程连接)
   guacd:
-    image: guacamole/guacd:latest
+    image: registry.cn-hangzhou.aliyuncs.com/registry_dat/guacd:latest
     container_name: mom-guacd
     restart: unless-stopped
     ports:
@@ -81,11 +81,11 @@ services:
 
   # 前端服务（nginx 静态文件服务）
   frontend:
-    image: registry.cn-hangzhou.aliyuncs.com/registry_dat/mom_platrorm_front:latest
+    image: registry.cn-hangzhou.aliyuncs.com/registry_dat/mom_platform_front:latest
     container_name: mom-frontend
     restart: unless-stopped
     ports:
-      - "${FRONTEND_PORT:-80}:80"
+      - "${FRONTEND_PORT:-8080}:80"
     depends_on:
       - backend
     networks:
@@ -94,8 +94,16 @@ services:
 volumes:
   mysql-data:
     driver: local
+    driver_opts:
+      type: none
+      device: /var/lib/mysql-data  # 修改为你想要的路径
+      o: bind
   redis-data:
     driver: local
+    driver_opts:
+      type: none
+      device: /var/lib/redis-data  # 修改为你想要的路径
+      o: bind
 
 networks:
   mom-network:
