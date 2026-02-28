@@ -918,90 +918,97 @@ VALUES
   (1, '管理员', 'admin', '系统管理员，拥有所有权限', 0, 1, NOW(), NOW()),
   (2, '普通用户', 'user', '普通用户，具有基本操作权限', 1, 1, NOW(), NOW());
 
--- 插入默认菜单（从当前数据库导出的完整菜单结构）
-INSERT INTO `sys_menu` (`id`, `name`, `code`, `type`, `parent_id`, `path`, `component`, `icon`, `sort`, `visible`, `status`, `created_at`, `updated_at`)
+-- 插入默认菜单（与生产环境一致，含排序、自定义图标、plugin_name）
+INSERT INTO `sys_menu` (`id`, `name`, `code`, `type`, `parent_id`, `path`, `component`, `icon`, `sort`, `visible`, `status`, `plugin_name`, `created_at`, `updated_at`)
 VALUES
-  -- ========== 顶级菜单 ==========
-  (10, '仪表盘', 'dashboard', 1, 0, '/dashboard', '', 'HomeFilled', 0, 1, 1, NOW(), NOW()),
-  (15, '资产管理', 'asset-management', 1, 0, '/asset', '', 'Coin', 1, 1, 1, NOW(), NOW()),
-  (23, '操作审计', 'audit', 1, 0, '/audit', '', 'Document', 50, 1, 1, NOW(), NOW()),
-  (30, '插件管理', 'plugin', 1, 0, '/plugin', '', 'Grid', 80, 1, 1, NOW(), NOW()),
-  (42, '监控中心', '_monitor', 1, 0, '/monitor', '', 'Monitor', 80, 1, 1, NOW(), NOW()),
-  (61, '任务中心', '_task', 1, 0, '/task', '', 'Grid', 90, 1, 1, NOW(), NOW()),
-  (1, '系统管理', 'system', 1, 0, '', '', 'Setting', 100, 1, 1, NOW(), NOW()),
-  (29, '个人信息', 'profile', 2, 0, '/profile', 'Profile', 'UserFilled', 100, 0, 1, NOW(), NOW()),
-  (36, '容器管理', '_kubernetes', 1, 0, '/kubernetes', '', 'Platform', 100, 1, 1, NOW(), NOW()),
+  -- ========== 顶级菜单（按 sort 排序，与侧边栏一致）==========
+  (1,  '仪表盘',     'dashboard',        2, 0, '/dashboard', 'Dashboard',       'Odometer',       0,  1, 1, '',           NOW(), NOW()),
+  (12, '资产管理',   'asset-management',  1, 0, '/asset',     '',                'Grid',           1,  1, 1, '',           NOW(), NOW()),
+  (59, 'AI 助手',    '_ai',              1, 0, '/ai',        '',                'Aibot',          5,  1, 1, 'ai',         NOW(), NOW()),
+  (50, 'Kubernetes', '_kubernetes',       1, 0, '/kubernetes','',                'Kubernetes',    15,  1, 1, 'kubernetes', NOW(), NOW()),
+  (43, '监控中心',   '_monitor',          1, 0, '/monitor',   '',                'Monitor',       20,  1, 1, 'monitor',   NOW(), NOW()),
+  (9,  '操作审计',   'audit',             1, 0, '/audit',     '',                'Document',      50,  1, 1, '',           NOW(), NOW()),
+  (19, '插件管理',   'plugin',            1, 0, '/plugin',    '',                'Grid',          80,  1, 1, '',           NOW(), NOW()),
+  (48, '任务中心',   '_task',             1, 0, '/task',      '',                'Tickets',       90,  1, 1, 'task',       NOW(), NOW()),
+  (27, '测试插件',   '_test',             1, 0, '/test',      '',                'Grape',         95,  1, 1, 'test',       NOW(), NOW()),
+  (2,  '系统管理',   'system',            1, 0, '',           '',                'Setting',       99,  1, 1, '',           NOW(), NOW()),
+  (22, '个人信息',   'profile',           2, 0, '/profile',   'Profile',         'UserFilled',   100,  0, 1, '',           NOW(), NOW()),
 
-  -- ========== 系统管理子菜单 (parent_id=1) ==========
-  (2, '用户管理', 'users', 2, 1, '/users', 'system/Users', 'User', 1, 1, 1, NOW(), NOW()),
-  (3, '角色管理', 'roles', 2, 1, '/roles', 'system/Roles', 'UserFilled', 2, 1, 1, NOW(), NOW()),
-  (5, '菜单管理', 'menus', 2, 1, '/menus', 'system/Menus', 'Menu', 4, 1, 1, NOW(), NOW()),
-  (11, '部门信息', 'dept-info', 2, 1, '/dept-info', 'system/DeptInfo', 'OfficeBuilding', 5, 1, 1, NOW(), NOW()),
-  (12, '岗位信息', 'position-info', 2, 1, '/position-info', 'system/PositionInfo', 'Avatar', 6, 1, 1, NOW(), NOW()),
-  (13, '系统配置', 'system-config', 2, 1, '/system-config', 'system/SystemConfig', 'Setting', 7, 1, 1, NOW(), NOW()),
+  -- ========== 系统管理子菜单 (parent_id=2) ==========
+  (3,  '用户管理',   'users',             2, 2, '/users',          'system/Users',         'User',           1, 1, 1, '', NOW(), NOW()),
+  (4,  '角色管理',   'roles',             2, 2, '/roles',          'system/Roles',         'UserFilled',     2, 1, 1, '', NOW(), NOW()),
+  (5,  '菜单管理',   'menus',             2, 2, '/menus',          'system/Menus',         'Menu',           3, 1, 1, '', NOW(), NOW()),
+  (6,  '部门信息',   'dept-info',         2, 2, '/dept-info',      'system/DeptInfo',      'OfficeBuilding', 4, 1, 1, '', NOW(), NOW()),
+  (7,  '岗位信息',   'position-info',     2, 2, '/position-info',  'system/PositionInfo',  'Avatar',         5, 1, 1, '', NOW(), NOW()),
+  (8,  '系统配置',   'system-config',     2, 2, '/system-config',  'system/SystemConfig',  'Tools',          6, 1, 1, '', NOW(), NOW()),
 
-  -- ========== 资产管理子菜单 (parent_id=15) ==========
-  (16, '主机管理', 'host-management', 2, 15, '/asset/hosts', 'asset/Hosts', 'Monitor', 1, 1, 1, NOW(), NOW()),
-  (19, '凭据管理', 'asset:credentials', 3, 15, '/asset/credentials', 'asset/Credentials', 'Lock', 2, 1, 1, NOW(), NOW()),
-  (17, '业务分组', 'business-group', 2, 15, '/asset/groups', 'asset/Groups', 'Collection', 3, 1, 1, NOW(), NOW()),
-  (27, '云账号管理', 'cloud-accounts', 2, 15, '/asset/cloud-accounts', 'asset/CloudAccounts', 'Cloudy', 5, 1, 1, NOW(), NOW()),
-  (34, '终端审计', 'asset_terminal_audit', 2, 15, '/asset/terminal-audit', '', 'View', 5, 1, 1, NOW(), NOW()),
-  (65, '权限配置', 'asset_permission', 2, 15, '/asset/permissions', 'views/asset/AssetPermission.vue', 'Lock', 6, 1, 1, NOW(), NOW()),
+  -- ========== 资产管理子菜单 (parent_id=12) ==========
+  (63, '网络设备',   'network-devices',      2, 12, '/asset/network-devices',  'asset/NetworkDevices',  'NetworkDevice',  1, 1, 1, '', NOW(), NOW()),
+  (13, '主机管理',   'host-management',      2, 12, '/asset/hosts',            'asset/Hosts',           'Monitor',        1, 1, 1, '', NOW(), NOW()),
+  (14, '凭据管理',   'asset:credentials',    2, 12, '/asset/credentials',      'asset/Credentials',     'Lock',           2, 1, 1, '', NOW(), NOW()),
+  (15, '业务分组',   'business-group',       2, 12, '/asset/groups',           'asset/Groups',          'Collection',     3, 1, 1, '', NOW(), NOW()),
+  (16, '云账号管理', 'cloud-accounts',       2, 12, '/asset/cloud-accounts',   'asset/CloudAccounts',   'User',           4, 1, 1, '', NOW(), NOW()),
+  (17, '终端审计',   'asset_terminal_audit', 2, 12, '/asset/terminal-audit',   'asset/TerminalAudit',   'Audit',          5, 1, 1, '', NOW(), NOW()),
+  (18, '资产授权',   'asset_permission',     2, 12, '/asset/permissions',      'asset/AssetPermission', 'Lock',           6, 1, 1, '', NOW(), NOW()),
 
-  -- ========== 操作审计子菜单 (parent_id=23) ==========
-  (24, '操作日志', 'operation-logs', 2, 23, '/audit/operation-logs', 'audit/OperationLogs', 'Document', 1, 1, 1, NOW(), NOW()),
-  (25, '登录日志', 'login-logs', 2, 23, '/audit/login-logs', 'audit/LoginLogs', 'CircleCheck', 2, 1, 1, NOW(), NOW()),
+  -- ========== 操作审计子菜单 (parent_id=9) ==========
+  (10, '操作日志',   'operation-logs', 2, 9, '/audit/operation-logs', 'audit/OperationLogs', 'Document',    1, 1, 1, '', NOW(), NOW()),
+  (11, '登录日志',   'login-logs',     2, 9, '/audit/login-logs',    'audit/LoginLogs',     'CircleCheck', 2, 1, 1, '', NOW(), NOW()),
 
-  -- ========== 插件管理子菜单 (parent_id=30) ==========
-  (32, '插件列表', 'plugin-list', 2, 30, '/plugin/list', 'plugin/PluginList', 'Grid', 1, 1, 1, NOW(), NOW()),
-  (33, '插件安装', 'plugin-install', 2, 30, '/plugin/install', 'plugin/PluginInstall', 'Upload', 2, 1, 1, NOW(), NOW()),
+  -- ========== 插件管理子菜单 (parent_id=19) ==========
+  (20, '插件列表',   'plugin-list',    2, 19, '/plugin/list',    'plugin/PluginList',    'Grid',   1, 1, 1, '', NOW(), NOW()),
+  (21, '插件安装',   'plugin-install', 2, 19, '/plugin/install', 'plugin/PluginInstall', 'Upload', 2, 1, 1, '', NOW(), NOW()),
 
-  -- ========== 容器管理子菜单 (parent_id=36) ==========
-  (69, '集群管理', 'kubernetes_clusters', 2, 36, '/kubernetes/clusters', '', 'Connection', 1, 1, 1, NOW(), NOW()),
-  (70, '节点管理', 'kubernetes_nodes', 2, 36, '/kubernetes/nodes', '', 'Monitor', 2, 1, 1, NOW(), NOW()),
-  (71, '命名空间', 'kubernetes_namespaces', 2, 36, '/kubernetes/namespaces', '', 'FolderOpened', 3, 1, 1, NOW(), NOW()),
-  (72, '工作负载', 'kubernetes_workloads', 2, 36, '/kubernetes/workloads', '', 'Grid', 4, 1, 1, NOW(), NOW()),
-  (73, '网络管理', 'kubernetes_network', 2, 36, '/kubernetes/network', '', 'Connection', 5, 1, 1, NOW(), NOW()),
-  (74, '配置管理', 'kubernetes_config', 2, 36, '/kubernetes/config', '', 'Tools', 6, 1, 1, NOW(), NOW()),
-  (75, '存储管理', 'kubernetes_storage', 2, 36, '/kubernetes/storage', '', 'Files', 7, 1, 1, NOW(), NOW()),
-  (76, '访问控制', 'kubernetes_access', 2, 36, '/kubernetes/access', '', 'Lock', 8, 1, 1, NOW(), NOW()),
-  (77, '终端审计', 'kubernetes_audit', 2, 36, '/kubernetes/audit', '', 'Monitor', 9, 1, 1, NOW(), NOW()),
-  (85, '应用诊断', 'kubernetes_application_diagnosis', 2, 36, '/kubernetes/application-diagnosis', '', 'Grid', 10, 1, 1, NOW(), NOW()),
-  (86, '集群巡检', 'kubernetes_cluster_inspection', 2, 36, '/kubernetes/cluster-inspection', '', 'Grid', 11, 1, 1, NOW(), NOW()),
-  (87, '自定义资源', 'kubernetes_custom_resources', 2, 36, '/kubernetes/custom-resources', '', 'Document', 12, 1, 1, NOW(), NOW()),
-  (88, 'Helm', 'kubernetes_helm', 2, 36, '/kubernetes/helm', '', 'Helm', 13, 1, 1, NOW(), NOW()),
+  -- ========== Kubernetes 容器管理子菜单 (parent_id=50, plugin=kubernetes) ==========
+  (30, '集群管理',   '_kubernetes_clusters',              2, 50, '/kubernetes/clusters',              '', 'Kubernetes',  1, 1, 1, 'kubernetes', NOW(), NOW()),
+  (33, '节点管理',   '_kubernetes_nodes',                 2, 50, '/kubernetes/nodes',                 '', 'Monitor',     2, 1, 1, 'kubernetes', NOW(), NOW()),
+  (34, '命名空间',   '_kubernetes_namespaces',            2, 50, '/kubernetes/namespaces',            '', 'FolderOpened',3, 1, 1, 'kubernetes', NOW(), NOW()),
+  (35, '工作负载',   '_kubernetes_workloads',             2, 50, '/kubernetes/workloads',             '', 'Workload',    4, 1, 1, 'kubernetes', NOW(), NOW()),
+  (36, '网络管理',   '_kubernetes_network',               2, 50, '/kubernetes/network',               '', 'Service',     5, 1, 1, 'kubernetes', NOW(), NOW()),
+  (37, '配置管理',   '_kubernetes_config',                2, 50, '/kubernetes/config',                '', 'Document',    6, 1, 1, 'kubernetes', NOW(), NOW()),
+  (38, '存储管理',   '_kubernetes_storage',               2, 50, '/kubernetes/storage',               '', 'Storage',     7, 1, 1, 'kubernetes', NOW(), NOW()),
+  (39, '访问控制',   '_kubernetes_access',                2, 50, '/kubernetes/access',                '', 'Lock',        8, 1, 1, 'kubernetes', NOW(), NOW()),
+  (41, '自定义资源', '_kubernetes_custom-resources',      2, 50, '/kubernetes/custom-resources',      '', 'Document',    9, 1, 1, 'kubernetes', NOW(), NOW()),
+  (42, 'Helm',       '_kubernetes_helm',                  2, 50, '/kubernetes/helm',                  '', 'Helm',       10, 1, 1, 'kubernetes', NOW(), NOW()),
+  (40, '终端审计',   '_kubernetes_audit',                 2, 50, '/kubernetes/audit',                 '', 'View',       11, 1, 1, 'kubernetes', NOW(), NOW()),
+  (31, '应用诊断',   '_kubernetes_application-diagnosis', 2, 50, '/kubernetes/application-diagnosis', '', 'Diagnosis',  12, 1, 1, 'kubernetes', NOW(), NOW()),
+  (32, '集群巡检',   '_kubernetes_cluster-inspection',    2, 50, '/kubernetes/cluster-inspection',    '', 'Inspection', 13, 1, 1, 'kubernetes', NOW(), NOW()),
 
-  -- ========== 监控中心子菜单 (parent_id=42) ==========
-  (78, '域名监控', 'monitor_domain', 2, 42, '/monitor/domain', '', 'Monitor', 1, 1, 1, NOW(), NOW()),
-  (79, '告警通道', 'monitor_alert_channels', 2, 42, '/monitor/alert-channels', '', 'Grid', 2, 1, 1, NOW(), NOW()),
-  (80, '告警接收人', 'monitor_alert_receivers', 2, 42, '/monitor/alert-receivers', '', 'User', 3, 1, 1, NOW(), NOW()),
-  (81, '告警日志', 'monitor_alert_logs', 2, 42, '/monitor/alert-logs', '', 'Document', 4, 1, 1, NOW(), NOW()),
+  -- ========== 监控中心子菜单 (parent_id=43, plugin=monitor) ==========
+  (44, '域名监控',   '_monitor_domain',           2, 43, '/monitor/domain',          '', 'Monitor',  1, 1, 1, 'monitor', NOW(), NOW()),
+  (45, '告警通道',   '_monitor_alert-channels',   2, 43, '/monitor/alert-channels',  '', 'Bell',     2, 1, 1, 'monitor', NOW(), NOW()),
+  (46, '告警接收人', '_monitor_alert-receivers',  2, 43, '/monitor/alert-receivers', '', 'User',     3, 1, 1, 'monitor', NOW(), NOW()),
+  (47, '告警日志',   '_monitor_alert-logs',       2, 43, '/monitor/alert-logs',      '', 'Document', 4, 1, 1, 'monitor', NOW(), NOW()),
 
-  -- ========== 任务中心子菜单 (parent_id=61) ==========
-  (82, '任务模板', 'task_templates', 2, 61, '/task/templates', '', 'Document', 1, 1, 1, NOW(), NOW()),
-  (83, '执行任务', 'task_execute', 2, 61, '/task/execute', '', 'Tools', 2, 1, 1, NOW(), NOW()),
-  (84, '文件分发', 'task_file_distribution', 2, 61, '/task/file-distribution', '', 'Files', 3, 1, 1, NOW(), NOW()),
+  -- ========== 任务中心子菜单 (parent_id=48, plugin=task) ==========
+  (23, '执行任务',   '_task_execute',            2, 48, '/task/execute',            '', 'VideoPlay',    1, 1, 1, 'task', NOW(), NOW()),
+  (24, '模板管理',   '_task_templates',          2, 48, '/task/templates',          '', 'Document',     2, 1, 1, 'task', NOW(), NOW()),
+  (25, '文件分发',   '_task_file-distribution',  2, 48, '/task/file-distribution',  '', 'FolderOpened', 3, 1, 1, 'task', NOW(), NOW()),
+  (49, '执行记录',   '_task_execution-history',  2, 48, '/task/execution-history',  '', 'Notebook',     4, 1, 1, 'task', NOW(), NOW()),
 
-  -- ========== AI 助手子菜单 (parent_id=89) ==========
-  (89, 'AI 助手', '_ai', 1, 0, '/ai', '', 'ChatDotRound', 5, 1, 1, NOW(), NOW()),
-  (90, 'AI 对话', 'ai_chat', 2, 89, '/ai/chat', '', 'ChatLineRound', 1, 1, 1, NOW(), NOW()),
-  (91, 'Skill 管理', 'ai_skills', 2, 89, '/ai/skills', '', 'MagicStick', 2, 1, 1, NOW(), NOW()),
-  (92, '模型配置', 'ai_models', 2, 89, '/ai/models', '', 'Setting', 3, 1, 1, NOW(), NOW());
+  -- ========== AI 助手子菜单 (parent_id=59, plugin=ai) ==========
+  (60, 'AI 对话',    '_ai_chat',   2, 59, '/ai/chat',   '', 'Aibot',  1, 1, 1, 'ai', NOW(), NOW()),
+  (61, 'Skill 管理', '_ai_skills', 2, 59, '/ai/skills', '', 'skills', 2, 1, 1, 'ai', NOW(), NOW()),
+  (62, '模型配置',   '_ai_models', 2, 59, '/ai/models', '', 'Modle',  3, 1, 1, 'ai', NOW(), NOW()),
+
+  -- ========== 测试插件子菜单 (parent_id=27, plugin=test) ==========
+  (28, '测试首页',   '_test_home', 2, 27, '/test/home', '', 'House', 1, 1, 1, 'test', NOW(), NOW());
 
 -- 为管理员角色分配所有菜单权限
 INSERT INTO `sys_role_menu` (`role_id`, `menu_id`)
 VALUES
-  (1, 1), (1, 2), (1, 3), (1, 5), (1, 10), (1, 11), (1, 12), (1, 13), (1, 15), (1, 16), (1, 17), (1, 19),
-  (1, 23), (1, 24), (1, 25), (1, 27), (1, 29), (1, 30), (1, 32), (1, 33), (1, 34), (1, 36),
-  (1, 42), (1, 61), (1, 65), (1, 69), (1, 70), (1, 71), (1, 72), (1, 73), (1, 74), (1, 75), (1, 76), (1, 77),
-  (1, 78), (1, 79), (1, 80), (1, 81), (1, 82), (1, 83), (1, 84), (1, 85), (1, 86), (1, 87), (1, 88),
-  (1, 89), (1, 90), (1, 91), (1, 92);
+  (1, 1), (1, 2), (1, 3), (1, 4), (1, 5), (1, 6), (1, 7), (1, 8), (1, 9), (1, 10),
+  (1, 11), (1, 12), (1, 13), (1, 14), (1, 15), (1, 16), (1, 17), (1, 18), (1, 19), (1, 20),
+  (1, 21), (1, 22), (1, 23), (1, 24), (1, 25), (1, 27), (1, 28),
+  (1, 30), (1, 31), (1, 32), (1, 33), (1, 34), (1, 35), (1, 36), (1, 37), (1, 38), (1, 39),
+  (1, 40), (1, 41), (1, 42), (1, 43), (1, 44), (1, 45), (1, 46), (1, 47), (1, 48), (1, 49),
+  (1, 50), (1, 59), (1, 60), (1, 61), (1, 62), (1, 63);
 
 -- 为普通用户角色分配基础菜单权限
 INSERT INTO `sys_role_menu` (`role_id`, `menu_id`)
 VALUES
-  (2, 10), (2, 15), (2, 16), (2, 17), (2, 19), (2, 27), (2, 34), (2, 65),
-  (2, 23), (2, 24), (2, 25), (2, 36), (2, 42), (2, 61);
+  (2, 1), (2, 9), (2, 10), (2, 11), (2, 12), (2, 13), (2, 14), (2, 15), (2, 16), (2, 17), (2, 18), (2, 63),
+  (2, 43), (2, 48), (2, 50);
 
 -- ============================================================
 -- 11. 插件状态表
