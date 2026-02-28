@@ -28,6 +28,7 @@ import (
 	"github.com/gin-gonic/gin"
 	swaggerFiles "github.com/swaggo/files"
 	ginSwagger "github.com/swaggo/gin-swagger"
+	versionPkg "github.com/ydcloud-dy/mom/cmd/version"
 	"github.com/ydcloud-dy/mom/internal/conf"
 	"github.com/ydcloud-dy/mom/internal/data"
 	rbacdata "github.com/ydcloud-dy/mom/internal/data/rbac"
@@ -191,6 +192,18 @@ func (s *HTTPServer) registerRoutes(router *gin.Engine, jwtSecret string) {
 	public := router.Group("/api/v1/public")
 	{
 		public.GET("/example", s.svc.Example)
+		// 版本号接口（登录页展示，无需认证）
+		public.GET("/version", func(c *gin.Context) {
+			c.JSON(200, gin.H{
+				"code":    0,
+				"message": "success",
+				"data": gin.H{
+					"version":   versionPkg.Version,
+					"gitCommit": versionPkg.GitCommit,
+					"buildTime": versionPkg.BuildTime,
+				},
+			})
+		})
 	}
 
 	// 插件路由

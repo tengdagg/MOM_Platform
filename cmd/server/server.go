@@ -30,6 +30,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"github.com/ydcloud-dy/mom/cmd/root"
+	versionPkg "github.com/ydcloud-dy/mom/cmd/version"
 	"github.com/ydcloud-dy/mom/internal/biz"
 	assetmodel "github.com/ydcloud-dy/mom/internal/biz/asset"
 	auditmodel "github.com/ydcloud-dy/mom/internal/biz/audit"
@@ -118,7 +119,7 @@ func runServer() (*conf.Config, error) {
 	defer appLogger.Sync()
 
 	appLogger.Info("服务启动中...",
-		zap.String("version", "1.0.0"),
+		zap.String("version", versionPkg.Version),
 		zap.String("mode", cfg.Server.Mode),
 	)
 
@@ -575,7 +576,7 @@ func printStartupInfo(cfg *conf.Config) {
 	fmt.Println("========================================")
 	fmt.Println("       mom 运维管理平台启动成功")
 	fmt.Println("========================================")
-	fmt.Printf("版本:     1.0.0\n")
+	fmt.Printf("版本:     %s\n", versionPkg.Version)
 	fmt.Printf("模式:     %s\n", cfg.Server.Mode)
 	fmt.Printf("监听地址: http://%s\n", listenAddr)
 	fmt.Printf("健康检查: http://%s/health\n", displayAddr)

@@ -28,7 +28,7 @@ import (
 
 var (
 	// Version 版本号
-	Version = "1.0.0"
+	Version = "2.0.1"
 	// GitCommit Git提交哈希
 	GitCommit = "unknown"
 	// BuildTime 构建时间

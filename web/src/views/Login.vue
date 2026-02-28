@@ -127,6 +127,11 @@
             </el-button>
           </el-form-item>
         </el-form>
+
+        <!-- 版本号 -->
+        <div class="version-footer" v-if="platformVersion">
+          <span>MOM Platform {{ platformVersion }}</span>
+        </div>
       </div>
     </div>
   </div>
@@ -148,6 +153,7 @@ const captchaImage = ref('')
 const captchaId = ref('')
 
 const ldapEnabled = ref(false)
+const platformVersion = ref('')
 
 const loginForm = reactive({
   username: '',
@@ -239,6 +245,18 @@ const checkLDAPStatus = async () => {
   }
 }
 
+// 获取平台版本号
+const fetchVersion = async () => {
+  try {
+    const res: any = await request.get('/api/v1/public/version')
+    if (res?.version) {
+      platformVersion.value = 'v' + res.version
+    }
+  } catch {
+    platformVersion.value = ''
+  }
+}
+
 onMounted(() => {
   // 加载记住的用户名
   const rememberedUsername = localStorage.getItem('rememberedUsername')
@@ -251,6 +269,8 @@ onMounted(() => {
   refreshCaptcha()
   // 检查 LDAP 状态
   checkLDAPStatus()
+  // 获取版本号
+  fetchVersion()
 })
 </script>
 
@@ -629,5 +649,18 @@ onMounted(() => {
   .login-wrapper {
     padding: 16px;
   }
+}
+
+/* 版本号 */
+.version-footer {
+  text-align: center;
+  margin-top: 16px;
+}
+
+.version-footer span {
+  font-size: 12px;
+  color: #595959;
+  letter-spacing: 1px;
+  font-weight: 300;
 }
 </style>
