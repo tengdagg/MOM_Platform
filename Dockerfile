@@ -26,7 +26,8 @@ RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o mom main.go
 FROM swr.cn-north-4.myhuaweicloud.com/ddn-k8s/docker.io/selectdb/alpine:latest
 
 # Install ca-certificates, tzdata and kubectl
-RUN apk --no-cache add ca-certificates tzdata curl nodejs python3 && \
+RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.aliyun.com/g' /etc/apk/repositories && \
+    apk --no-cache add ca-certificates tzdata curl nodejs python3 && \
     curl -LO "https://dl.k8s.io/release/v1.29.0/bin/linux/amd64/kubectl" && \
     chmod +x kubectl && \
     mv kubectl /usr/local/bin/
