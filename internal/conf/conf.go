@@ -167,7 +167,7 @@ func Get() *Config {
 
 // GetDSN 获取数据库连接字符串
 func (c *DatabaseConfig) GetDSN() string {
-	return fmt.Sprintf("%s:%s@tcp(%s:%d)/%s?charset=utf8mb4&parseTime=true&loc=Local",
+	return fmt.Sprintf("%s:%s@tcp(%s:%d)/%s?charset=utf8mb4&parseTime=true&loc=Local&multiStatements=true",
 		c.Username,
 		c.Password,
 		c.Host,
