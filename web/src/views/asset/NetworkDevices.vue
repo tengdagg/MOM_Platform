@@ -139,6 +139,15 @@
             </el-select>
           </div>
           <div class="filter-actions">
+            <el-button
+              v-if="selectedDevices.length > 0"
+              type="danger"
+              plain
+              @click="handleBatchDelete"
+            >
+              <el-icon style="margin-right: 4px;"><Delete /></el-icon>
+              批量删除 ({{ selectedDevices.length }})
+            </el-button>
             <el-button @click="resetFilters">
               <el-icon style="margin-right: 4px;"><RefreshLeft /></el-icon>
               重置
@@ -155,23 +164,41 @@
           <el-table
             :data="deviceList"
             v-loading="loading"
-            stripe
-            style="width: 100%"
+            class="modern-table"
+            :header-cell-style="{ background: '#fafbfc', color: '#606266', fontWeight: '600' }"
+            @selection-change="handleSelectionChange"
             @row-dblclick="handleConnect"
           >
-            <el-table-column label="设备名称" prop="name" min-width="140">
+            <el-table-column type="selection" width="30" fixed="left" />
+            <el-table-column width="30" fixed="left" align="center">
               <template #default="{ row }">
-                <div class="device-name-cell">
+                <div class="device-avatar">
                   <el-icon class="device-icon" :style="{ color: getDeviceTypeColor(row.deviceType) }">
                     <component :is="getDeviceTypeIcon(row.deviceType)" />
                   </el-icon>
-                  <span>{{ row.name }}</span>
                 </div>
               </template>
             </el-table-column>
-            <el-table-column label="IP 地址" prop="ip" min-width="130">
+            <el-table-column label="设备名称" prop="name" min-width="100" fixed="left">
               <template #default="{ row }">
-                <span class="ip-text">{{ row.ip }}</span>
+                <div class="device-name-cell">
+                  <div class="device-info">
+                    <div class="device-name">{{ row.name }}</div>
+                    <div class="device-meta">
+                      <span class="ip">{{ row.ip }}</span>
+                    </div>
+                  </div>
+                </div>
+              </template>
+            </el-table-column>
+            <el-table-column label="状态" width="80" align="center">
+              <template #default="{ row }">
+                <div class="status-cell">
+                  <span class="status-dot" :class="`status-dot-${row.status ?? -1}`"></span>
+                  <span class="status-text" :class="`status-text-${row.status ?? -1}`">
+                    {{ row.status === 1 ? '在线' : row.status === 0 ? '离线' : '未知' }}
+                  </span>
+                </div>
               </template>
             </el-table-column>
             <el-table-column label="品牌" prop="brand" width="120">
@@ -203,19 +230,6 @@
               <template #default="{ row }">
                 <span v-if="row.credential">{{ row.credential.name }}</span>
                 <span v-else class="text-muted">未配置</span>
-              </template>
-            </el-table-column>
-            <el-table-column label="分组" min-width="100">
-              <template #default="{ row }">
-                <span v-if="row.group">{{ row.group.name }}</span>
-                <span v-else class="text-muted">未分组</span>
-              </template>
-            </el-table-column>
-            <el-table-column label="状态" width="80" align="center">
-              <template #default="{ row }">
-                <el-tag v-if="row.status === 1" type="success" size="small" effect="plain">在线</el-tag>
-                <el-tag v-else-if="row.status === 0" type="danger" size="small" effect="plain">离线</el-tag>
-                <el-tag v-else type="info" size="small" effect="plain">未知</el-tag>
               </template>
             </el-table-column>
             <el-table-column label="操作" width="180" fixed="right" align="center">
@@ -537,6 +551,7 @@ const searchKeyword = ref('')
 const filterDeviceType = ref('')
 const filterProtocol = ref('')
 const credentials = ref<any[]>([])
+const selectedDevices = ref<any[]>([])
 
 // 分组树
 const groupLoading = ref(false)
@@ -866,6 +881,51 @@ async function handleSubmit() {
   }
 }
 
+// 选中项变化
+function handleSelectionChange(selection: any[]) {
+  selectedDevices.value = selection
+}
+
+// 批量删除
+async function handleBatchDelete() {
+  if (selectedDevices.value.length === 0) {
+    ElMessage.warning('请先选择要删除的设备')
+    return
+  }
+
+  try {
+    await ElMessageBox.confirm(
+      `确定要删除选中的 ${selectedDevices.value.length} 台设备吗？`,
+      '批量删除确认',
+      {
+        confirmButtonText: '确定',
+        cancelButtonText: '取消',
+        type: 'warning'
+      }
+    )
+
+    let successCount = 0
+    for (const device of selectedDevices.value) {
+      if (!hasDevicePermission(device.id, PERMISSION.DELETE)) {
+        continue
+      }
+      try {
+        await deleteNetworkDevice(device.id)
+        successCount++
+      } catch (e) {
+        console.error('删除设备失败', device.name, e)
+      }
+    }
+
+    if (successCount > 0) {
+      ElMessage.success(`成功删除 ${successCount} 台设备`)
+      loadDevices()
+    } else {
+      ElMessage.warning('没有设备被删除，可能原因：权限不足或设备不存在')
+    }
+  } catch { /* cancelled */ }
+}
+
 async function handleDelete(row: any) {
   if (!isAdmin.value && !hasDevicePermission(row.id, PERMISSION.DELETE)) {
     ElMessage.error('无权限，请联系管理员操作')
@@ -1143,9 +1203,63 @@ function getDeviceTypeIcon(type: string) {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 13px;
 }
 
+.ip {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: #909399;
+}
+
+/* 状态单元格 */
+.status-cell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.status-dot-1 {
+  background: #67c23a;
+  box-shadow: 0 0 0 2px rgba(103, 194, 58, 0.2);
+}
+
+.status-dot-0 {
+  background: #f56c6c;
+  box-shadow: 0 0 0 2px rgba(245, 108, 108, 0.2);
+}
+
+.status-dot--1 {
+  background: #909399;
+  box-shadow: 0 0 0 2px rgba(144, 148, 153, 0.2);
+}
+
+.status-text {
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.status-text-1 {
+  color: #67c23a;
+}
+
+.status-text-0 {
+  color: #f56c6c;
+}
+
+.status-text--1 {
+  color: #909399;
+}
+
+/* 覆盖现代表格样式 */
 .node-count {
   font-size: 11px;
   color: #909399;
@@ -1221,27 +1335,28 @@ function getDeviceTypeIcon(type: string) {
   align-items: center;
 }
 
-.table-wrapper {
-  background: #fff;
-  padding: 0 16px 16px;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.03);
-  flex: 1;
-}
-
+/* 设备信息单元格 */
 .device-name-cell {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 4px; /* Reduced gap */
 }
 
 .device-icon {
-  font-size: 16px;
+  font-size: 18px;
+  /* Removed background property */
+}
+
+.device-name {
+  font-weight: 600; /* Made bold */
+  color: #303133;
+  font-size: 14px;
 }
 
 .ip-text {
   font-family: 'SF Mono', 'Monaco', 'Menlo', monospace;
   font-size: 13px;
-  color: #409EFF;
+  color: #909399; /* Changed to light gray */
 }
 
 .text-muted {
@@ -1322,5 +1437,10 @@ function getDeviceTypeIcon(type: string) {
 .action-delete:hover {
   background-color: #fee;
   color: #f56c6c;
+}
+
+.table-wrapper {
+  background: #fff;
+  flex: 1;
 }
 </style>

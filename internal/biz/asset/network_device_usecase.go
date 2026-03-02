@@ -87,8 +87,8 @@ func (uc *NetworkDeviceUseCase) GetByID(ctx context.Context, id uint) (*NetworkD
 	}
 
 	// 加载分组信息
-	if device.GroupID > 0 {
-		group, err := uc.groupRepo.GetByID(ctx, device.GroupID)
+	if device.GroupID != nil && *device.GroupID > 0 {
+		group, err := uc.groupRepo.GetByID(ctx, *device.GroupID)
 		if err == nil && group != nil {
 			device.Group = group
 		}
@@ -116,8 +116,8 @@ func (uc *NetworkDeviceUseCase) List(ctx context.Context, page, pageSize int, ke
 				}
 			}
 		}
-		if device.GroupID > 0 {
-			group, err := uc.groupRepo.GetByID(ctx, device.GroupID)
+		if device.GroupID != nil && *device.GroupID > 0 {
+			group, err := uc.groupRepo.GetByID(ctx, *device.GroupID)
 			if err == nil && group != nil {
 				device.Group = group
 			}
@@ -146,8 +146,8 @@ func (uc *NetworkDeviceUseCase) ListFiltered(ctx context.Context, page, pageSize
 				}
 			}
 		}
-		if device.GroupID > 0 {
-			group, err := uc.groupRepo.GetByID(ctx, device.GroupID)
+		if device.GroupID != nil && *device.GroupID > 0 {
+			group, err := uc.groupRepo.GetByID(ctx, *device.GroupID)
 			if err == nil && group != nil {
 				device.Group = group
 			}

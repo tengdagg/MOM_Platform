@@ -120,8 +120,8 @@ func (uc *HostUseCase) GetByID(ctx context.Context, id uint) (*HostInfoVO, error
 	vo := uc.toInfoVO(host)
 
 	// 加载分组信息
-	if host.GroupID > 0 {
-		group, err := uc.groupRepo.GetByID(ctx, host.GroupID)
+	if host.GroupID != nil && *host.GroupID > 0 {
+		group, err := uc.groupRepo.GetByID(ctx, *host.GroupID)
 		if err == nil && group != nil {
 			vo.GroupName = group.Name
 		}
@@ -161,8 +161,8 @@ func (uc *HostUseCase) List(ctx context.Context, page, pageSize int, keyword str
 		vo := uc.toInfoVO(host)
 
 		// 加载分组信息
-		if host.GroupID > 0 {
-			group, err := uc.groupRepo.GetByID(ctx, host.GroupID)
+		if host.GroupID != nil && *host.GroupID > 0 {
+			group, err := uc.groupRepo.GetByID(ctx, *host.GroupID)
 			if err == nil && group != nil {
 				vo.GroupName = group.Name
 			}
@@ -1531,7 +1531,7 @@ func (uc *HostUseCase) ImportFromExcel(ctx context.Context, excelData []byte) (*
 		// 查找分组ID
 		if groupCode != "" {
 			if groupID, ok := groupCodeMap[groupCode]; ok {
-				hostReq.GroupID = groupID
+				hostReq.GroupID = &groupID
 			} else {
 				result.FailedCount++
 				result.FailedRows = append(result.FailedRows, rowNum)
@@ -1665,13 +1665,13 @@ func (uc *HostUseCase) ImportFromExcelWithType(ctx context.Context, excelData []
 
 		// 如果有默认分组ID，使用默认分组
 		if defaultGroupID > 0 {
-			hostReq.GroupID = defaultGroupID
+			hostReq.GroupID = &defaultGroupID
 		}
 
 		// 如果Excel中指定了分组编码，查找分组ID
 		if groupCode != "" {
 			if groupID, ok := groupCodeMap[groupCode]; ok {
-				hostReq.GroupID = groupID
+				hostReq.GroupID = &groupID
 			} else {
 				result.FailedCount++
 				result.FailedRows = append(result.FailedRows, rowNum)

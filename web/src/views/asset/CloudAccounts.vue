@@ -1115,8 +1115,6 @@ onMounted(() => {
 .account-form :deep(.el-input__wrapper),
 .account-form :deep(.el-textarea__inner) {
   border-radius: 0;
-  border: 1px solid #dcdfe6;
-  transition: all 0.3s ease;
 }
 
 .account-form :deep(.el-input__wrapper:hover),

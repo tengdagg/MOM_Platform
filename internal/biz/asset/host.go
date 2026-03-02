@@ -29,7 +29,7 @@ import (
 type Host struct {
 	gorm.Model
 	Name            string      `gorm:"type:varchar(100);not null;comment:主机名称" json:"name"`
-	GroupID         uint        `gorm:"column:group_id;comment:分组ID" json:"groupId"`
+	GroupID         *uint       `gorm:"column:group_id;comment:分组ID" json:"groupId"`
 	Group           *AssetGroup `gorm:"-" json:"group,omitempty"`
 	Type            string      `gorm:"type:varchar(20);not null;default:'self';comment:主机类型 self:自建 cloud:云主机" json:"type"`
 	CloudProvider   string      `gorm:"type:varchar(50);comment:云厂商 aliyun/tencent/aws" json:"cloudProvider,omitempty"`
@@ -67,7 +67,7 @@ type Host struct {
 type HostRequest struct {
 	ID              uint   `json:"id"`
 	Name            string `json:"name" binding:"required,min=2,max=100"`
-	GroupID         uint   `json:"groupId"`
+	GroupID         *uint  `json:"groupId"`
 	Type            string `json:"type" binding:"required,oneof=self cloud"`
 	CloudProvider   string `json:"cloudProvider,omitempty"`
 	CloudInstanceID string `json:"cloudInstanceId,omitempty"`
@@ -87,7 +87,7 @@ type HostInfoVO struct {
 	ID                uint          `json:"id"`
 	Name              string        `json:"name"`
 	GroupName         string        `json:"groupName"`
-	GroupID           uint          `json:"groupId"`
+	GroupID           *uint         `json:"groupId"`
 	Type              string        `json:"type"`
 	TypeText          string        `json:"typeText"`
 	CloudProvider     string        `json:"cloudProvider,omitempty"`
@@ -270,7 +270,7 @@ type CloudImportRequest struct {
 	AccountID   uint     `json:"accountId" binding:"required"`
 	AccountName string   `json:"accountName"`
 	Region      string   `json:"region"`
-	GroupID     uint     `json:"groupId"`
+	GroupID     *uint    `json:"groupId"`
 	InstanceIDs []string `json:"instanceIds"` // 要导入的实例ID列表
 }
 
@@ -308,7 +308,7 @@ type NetworkDevice struct {
 	Port         int            `gorm:"type:int;default:22;comment:连接端口" json:"port"`
 	CredentialID uint           `gorm:"column:credential_id;comment:凭证ID" json:"credentialId"`
 	Credential   *Credential    `gorm:"-" json:"credential,omitempty"`
-	GroupID      uint           `gorm:"column:group_id;comment:分组ID" json:"groupId"`
+	GroupID      *uint          `gorm:"column:group_id;comment:分组ID" json:"groupId"`
 	Group        *AssetGroup    `gorm:"-" json:"group,omitempty"`
 	Description  string         `gorm:"type:varchar(500);comment:备注" json:"description"`
 	Status       int            `gorm:"type:tinyint;default:-1;comment:状态 1:在线 0:离线 -1:未知" json:"status"`
@@ -331,7 +331,7 @@ type NetworkDeviceRequest struct {
 	Protocol     string `json:"protocol" binding:"required,oneof=ssh telnet"`
 	Port         int    `json:"port"`
 	CredentialID uint   `json:"credentialId"`
-	GroupID      uint   `json:"groupId"`
+	GroupID      *uint  `json:"groupId"`
 	Description  string `json:"description"`
 	Tags         string `json:"tags"`
 }

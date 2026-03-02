@@ -199,14 +199,18 @@
             :header-cell-style="{ background: '#fafbfc', color: '#606266', fontWeight: '600' }"
             @selection-change="handleHostSelectionChange"
           >
-            <el-table-column type="selection" width="55" fixed="left" />
+            <el-table-column type="selection" width="30" fixed="left" />
+            <el-table-column width="30" fixed="left" align="center">
+              <template #default="{ row }">
+                <div class="host-avatar" :class="`host-status-${row.status}`">
+                  <OsIcon v-if="row.osType === 'windows'" :os="'Windows'" :size="16" />
+                  <el-icon v-else><Monitor /></el-icon>
+                </div>
+              </template>
+            </el-table-column>
             <el-table-column label="主机" prop="name" min-width="140" fixed="left">
               <template #default="{ row }">
                 <div class="hostname-cell" @click="handleShowHostDetail(row)">
-                  <div class="host-avatar" :class="`host-status-${row.status}`">
-                    <OsIcon v-if="row.osType === 'windows'" :os="'Windows'" :size="16" />
-                    <el-icon v-else><Monitor /></el-icon>
-                  </div>
                   <div class="host-info">
                     <div class="hostname hostname-clickable">{{ row.name }}</div>
                     <div class="host-meta">
@@ -530,13 +534,13 @@
               <el-select v-model="hostForm.osType" placeholder="请选择操作系统" style="width: 100%">
                 <el-option label="Linux" value="linux">
                   <div style="display: flex; align-items: center; gap: 8px;">
-                    <span style="font-size: 14px;">🐧</span>
+                    <OsIcon os="linux" :size="16" />
                     <span>Linux</span>
                   </div>
                 </el-option>
                 <el-option label="Windows" value="windows">
                   <div style="display: flex; align-items: center; gap: 8px;">
-                    <span style="font-size: 14px;">🪟</span>
+                    <OsIcon os="windows" :size="16" />
                     <span>Windows</span>
                   </div>
                 </el-option>
@@ -3133,34 +3137,23 @@ watch(() => userStore.userInfo, (newUserInfo, oldUserInfo) => {
 .hostname-cell {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 6px;
 }
 
 /* 主机头像/状态图标 */
 .host-avatar {
-  width: 36px;
-  height: 36px;
-  border-radius: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  background: #f0f2f5;
-  color: #909399;
+
 }
 
 .host-avatar.host-status-1 {
-  background: #e7f8e8;
   color: #67c23a;
 }
 
 .host-avatar.host-status-0 {
-  background: #fef0f0;
   color: #f56c6c;
 }
 
 .host-avatar.host-status--1 {
-  background: #f4f4f5;
   color: #909399;
 }
 
@@ -3175,7 +3168,7 @@ watch(() => userStore.userInfo, (newUserInfo, oldUserInfo) => {
 }
 
 .hostname {
-  font-weight: 500;
+  font-weight: 600;
   color: #303133;
   font-size: 14px;
   overflow: hidden;
@@ -3195,6 +3188,7 @@ watch(() => userStore.userInfo, (newUserInfo, oldUserInfo) => {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  color: #909399;
 }
 
 .port {
@@ -3394,19 +3388,10 @@ watch(() => userStore.userInfo, (newUserInfo, oldUserInfo) => {
 
 /* 主机头像/状态图标 */
 .host-avatar {
-  width: 36px;
-  height: 36px;
-  border-radius: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  background: #f0f2f5;
-  color: #909399;
+
 }
 
 .host-avatar.host-status-1 {
-  background: #e7f8e8;
   color: #67c23a;
 }
 
