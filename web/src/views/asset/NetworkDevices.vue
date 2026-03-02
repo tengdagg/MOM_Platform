@@ -181,9 +181,9 @@
             </el-table-column>
             <el-table-column label="设备名称" prop="name" min-width="100" fixed="left">
               <template #default="{ row }">
-                <div class="device-name-cell">
+                <div class="device-name-cell" @click="handleShowDeviceDetail(row)">
                   <div class="device-info">
-                    <div class="device-name">{{ row.name }}</div>
+                    <div class="device-name device-name-clickable">{{ row.name }}</div>
                     <div class="device-meta">
                       <span class="ip">{{ row.ip }}</span>
                     </div>
@@ -291,6 +291,55 @@
         </div>
       </div>
     </div>
+
+    <!-- 设备详情对话框 -->
+    <el-dialog
+      v-model="showDeviceDetailDialog"
+      title="设备详情"
+      width="50%"
+      class="device-detail-dialog"
+      @close="handleCloseDeviceDetail"
+    >
+      <div v-loading="deviceDetailLoading" class="device-detail-content">
+        <template v-if="deviceDetail">
+          <el-descriptions title="基本信息" :column="2" border>
+            <el-descriptions-item label="设备名称">{{ deviceDetail.name }}</el-descriptions-item>
+            <el-descriptions-item label="IP 地址">{{ deviceDetail.ip }}</el-descriptions-item>
+            <el-descriptions-item label="设备类型">
+              <el-tag :color="getDeviceTypeColor(deviceDetail.deviceType)" effect="dark" size="small" style="border: none; color: #fff;">
+                {{ getDeviceTypeLabel(deviceDetail.deviceType) }}
+              </el-tag>
+            </el-descriptions-item>
+            <el-descriptions-item label="状态">
+              <span class="status-text" :class="`status-text-${deviceDetail.status ?? -1}`">
+                {{ deviceDetail.status === 1 ? '在线' : deviceDetail.status === 0 ? '离线' : '未知' }}
+              </span>
+            </el-descriptions-item>
+            <el-descriptions-item label="品牌">{{ deviceDetail.brand || '-' }}</el-descriptions-item>
+            <el-descriptions-item label="型号">{{ deviceDetail.brandModel || '-' }}</el-descriptions-item>
+            <el-descriptions-item label="SN 序列号">{{ deviceDetail.serialNumber || '-' }}</el-descriptions-item>
+            <el-descriptions-item label="连接协议">{{ deviceDetail.protocol?.toUpperCase() }}</el-descriptions-item>
+            <el-descriptions-item label="端口">{{ deviceDetail.port }}</el-descriptions-item>
+            <el-descriptions-item label="凭证">{{ deviceDetail.credential ? deviceDetail.credential.name : '未配置' }}</el-descriptions-item>
+            <el-descriptions-item label="标签" :span="2">
+              <template v-if="deviceDetail.tags">
+                <el-tag v-for="tag in deviceDetail.tags.split(',')" :key="tag" size="small" style="margin-right: 4px;">
+                  {{ tag }}
+                </el-tag>
+              </template>
+              <span v-else>-</span>
+            </el-descriptions-item>
+            <el-descriptions-item label="备注" :span="2">{{ deviceDetail.description || '-' }}</el-descriptions-item>
+          </el-descriptions>
+        </template>
+      </div>
+      <template #footer>
+        <el-button @click="showDeviceDetailDialog = false">关闭</el-button>
+        <el-button type="primary" @click="handleConnect(deviceDetail)" :disabled="!isAdmin && !hasDevicePermission(deviceDetail?.id, PERMISSION.TERMINAL)">
+          <el-icon><Monitor /></el-icon> 连接终端
+        </el-button>
+      </template>
+    </el-dialog>
 
     <!-- 新增/编辑弹窗 -->
     <el-dialog
@@ -616,6 +665,21 @@ const formRules = {
   brand: [{ required: true, message: '请选择品牌', trigger: 'change' }],
   deviceType: [{ required: true, message: '请选择设备类型', trigger: 'change' }],
   protocol: [{ required: true, message: '请选择连接协议', trigger: 'change' }]
+}
+
+// 设备详情对话框
+const showDeviceDetailDialog = ref(false)
+const deviceDetailLoading = ref(false)
+const deviceDetail = ref<any>(null)
+
+function handleShowDeviceDetail(row: any) {
+  deviceDetail.value = row
+  showDeviceDetailDialog.value = true
+}
+
+function handleCloseDeviceDetail() {
+  showDeviceDetailDialog.value = false
+  deviceDetail.value = null
 }
 
 onMounted(() => {
@@ -1340,6 +1404,20 @@ function getDeviceTypeIcon(type: string) {
   display: flex;
   align-items: center;
   gap: 4px; /* Reduced gap */
+}
+
+.device-name-cell:hover {
+  cursor: pointer;
+}
+
+.device-name-clickable {
+  color: #409eff;
+  transition: color 0.2s;
+}
+
+.device-name-clickable:hover {
+  color: #66b1ff;
+  text-decoration: underline;
 }
 
 .device-icon {

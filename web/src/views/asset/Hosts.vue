@@ -661,7 +661,7 @@
     <el-dialog
       v-model="showHostDetailDialog"
       title=""
-      width="65%"
+      width="50%"
       class="host-detail-dialog"
       @close="handleCloseHostDetail"
     >
@@ -679,7 +679,6 @@
               </div>
             </div>
           </div>
-          <el-button link @click="close"><el-icon><Close /></el-icon></el-button>
         </div>
       </template>
       <div v-loading="hostDetailLoading" class="host-detail-content">
@@ -881,7 +880,7 @@
               <div class="info-icon info-icon-remark">
                 <el-icon><Document /></el-icon>
               </div>
-              <span class="section-title">备注</span>
+              <span class="info-card-title">备注</span>
             </div>
             <div class="remark-content">{{ hostDetail.description }}</div>
           </div>
@@ -3887,15 +3886,15 @@ watch(() => userStore.userInfo, (newUserInfo, oldUserInfo) => {
 }
 
 .info-icon-basic {
-  background: linear-gradient(135deg, #409eff 0%, #66b1ff 100%);
+  color: #3e3e3e;
 }
 
 .info-icon-system {
-  background: linear-gradient(135deg, #67c23a 0%, #85ce61 100%);
 }
 
 .info-icon-auth {
-  background: linear-gradient(135deg, #e6a23c 0%, #ebb563 100%);
+
+  color: #3e3e3e;
 }
 
 .info-icon-tags {
@@ -3903,11 +3902,11 @@ watch(() => userStore.userInfo, (newUserInfo, oldUserInfo) => {
 }
 
 .info-icon-resource {
-  background: linear-gradient(135deg, #f56c6c 0%, #f78989 100%);
+  color: #27ad00;
 }
 
 .info-icon-remark {
-  background: linear-gradient(135deg, #606266 0%, #909399 100%);
+  color: #3e3e3e;
 }
 
 .info-card-title {
@@ -3963,7 +3962,7 @@ watch(() => userStore.userInfo, (newUserInfo, oldUserInfo) => {
 }
 
 .section-title {
-  font-size: 17px;
+  font-size: 16px;
   font-weight: 600;
   color: #303133;
 }
