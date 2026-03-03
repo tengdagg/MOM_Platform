@@ -408,3 +408,108 @@ exec_command 执行 nginx -t && systemctl reload nginx
 
 **涉及文件**：
 - `internal/data/rbac/user.go` — `Update` 方法移除 source 字段
+
+### 20260303-2
+AI Skills & Agent 代码审阅修复（安全、稳定性、代码质量）
+
+#### 1. Shell 命令注入修复（严重）
+**问题**：`host.file_manage` 技能中 `filePath` 和 `content` 参数未做 shell 转义，直接拼接到远程命令中，恶意输入可执行任意命令。
+
+**修复**：
+- 新增 `shellQuote()` 函数，对所有文件路径进行 shell 安全引用
+- `list`/`read`/`download`/`backup` 操作的路径全部使用 `shellQuote()` 包裹
+- `write` 操作从 heredoc 改为 base64 编码传输，杜绝内容注入
+- 新增路径遍历检查（禁止 `..`）和写入大小限制（最大 1MB）
+
+**涉及文件**：`plugins/ai/skills/host_skills.go`
+
+#### 2. SQL 运算符优先级 Bug（严重）
+**问题**：`analysis.security_audit` 中 SQL 条件 `AND action LIKE '%critical%' OR action LIKE '%high%'` 缺少括号，导致 OR 条件脱离 AND 约束，查询结果不准确。
+
+**修复**：加括号 → `AND (action LIKE '%critical%' OR action LIKE '%high%')`
+
+**涉及文件**：`plugins/ai/skills/analysis_skills.go`
+
+#### 3. SkillContext.Ctx 未赋值（严重）
+**问题**：`executeTool()` 创建 `SkillContext` 时未传入 `Ctx`，导致请求取消无法传播到 Skill 执行层。
+
+**修复**：`executeTool()` 增加 `ctx context.Context` 参数，创建 SkillContext 时正确传入 `Ctx: ctx`。
+
+**涉及文件**：`plugins/ai/biz/agent.go`
+
+#### 4. K8s PV 容量方法错误（严重）
+**问题**：`getPV()` 中使用 `StorageEphemeral()` 获取 PV 容量，该方法返回的是临时存储而非持久卷容量，结果始终为 0。
+
+**修复**：改为 `pv.Spec.Capacity[v1.ResourceStorage]` 正确获取存储容量。
+
+**涉及文件**：`plugins/ai/skills/k8s_kubectl_skill.go`
+
+#### 5. CronJob Suspend 空指针 Panic（严重）
+**问题**：`getCronJobs()` 中直接 `*cj.Spec.Suspend` 解引用，当 Suspend 字段为 nil 时引发 panic。
+
+**修复**：先判空再解引用，nil 时默认为 false。
+
+**涉及文件**：`plugins/ai/skills/k8s_kubectl_skill.go`
+
+#### 6. 加密密钥去重
+**问题**：`device_skills.go` 中重复定义了 `credEncryptionKey` 和 `decryptCredentialPassword()`，与 `service_helper.go` 功能完全一致。
+
+**修复**：删除 `device_skills.go` 中的重复代码，统一复用 `service_helper.go` 的 `decryptCredential()` 函数。
+
+**涉及文件**：`plugins/ai/skills/device_skills.go`
+
+#### 7. 流式 Tool Call Index 处理
+**问题**：流式响应中多个并行工具调用时，未按 API 返回的 `index` 字段分发参数片段，导致参数可能混淆。
+
+**修复**：ToolCall 结构体增加 `Index *int` 字段，流式处理中按 index 正确分发参数到对应 tool call。
+
+**涉及文件**：`plugins/ai/biz/agent.go`、`plugins/ai/biz/model_adapter.go`
+
+#### 8. 重复 message_end 事件
+**问题**：`Run()` 方法中 defer 和正常退出路径各发一次 `message_end`，前端可能收到重复的结束信号。
+
+**修复**：使用 `messageSent` 标志防止重复发送。
+
+**涉及文件**：`plugins/ai/biz/agent.go`
+
+#### 9. host_ids / device_ids 覆盖 ip 查询结果
+**问题**：`host.exec_command` 和 `device.exec_command` 中同时提供 ip 和 host_ids/device_ids 时，后者查询结果会覆盖前者。
+
+**修复**：改为合并（append）而非覆盖。
+
+**涉及文件**：`plugins/ai/skills/host_skills.go`、`plugins/ai/skills/device_skills.go`
+
+#### 10. GORM baseQ 复用导致查询污染
+**问题**：`monitor.alert_summary` 中共享 `baseQ` 变量，后续查询会被前一个 `Count()` 调用污染。
+
+**修复**：每次查询独立创建 query，不复用变量。
+
+**涉及文件**：`plugins/ai/skills/monitor_skills.go`
+
+#### 11. 未检查的 DB 错误
+**问题**：删除域名监控时关联告警配置的 `Exec` 未检查错误。
+
+**修复**：增加错误检查和返回。
+
+**涉及文件**：`plugins/ai/skills/monitor_skills.go`
+
+#### 12. 禁用 Skill 未反注册
+**问题**：`LoadCustomSkills()` 只注册启用的自定义 Skill，不会反注册已禁用的，禁用操作不会生效直到重启。
+
+**修复**：加载时同时查询已禁用的自定义 Skill 并从 ToolRegistry 中移除。
+
+**涉及文件**：`plugins/ai/biz/skill_engine.go`
+
+#### 13. SKILL.md 参数定义对齐
+**问题**：部分 SKILL.md 的参数列表与 Go 实现不一致。
+
+**修复**：
+- `monitor.alert_config/SKILL.md` — 重写 action 类型和参数列表
+- `device.exec_command/SKILL.md` — 移除不存在的 timeout 参数
+
+#### 14. analysis_skills.go 函数签名优化
+**问题**：`generateCapacityRecommendations()` 使用匿名结构体参数，可读性差。
+
+**修复**：提取为具名类型 `UsageStats`，与 `executeCapacityPlan` 复用同一类型。
+
+---

@@ -387,11 +387,14 @@ func (a *Agent) triggerSummaryIfNeeded(sessionID uint) {
 
 // Run 执行 Agent（非流式，简单的 ReAct 循环）
 func (a *Agent) Run(ctx context.Context, adapter *ModelAdapter, sessionID uint, userMessage string, userID uint, username string, maxToolCalls int, eventCh chan<- AgentEvent) {
+	messageSent := false
 	defer func() {
 		if r := recover(); r != nil {
 			eventCh <- AgentEvent{Type: "error", Error: fmt.Sprintf("Agent 异常: %v", r)}
 		}
-		eventCh <- AgentEvent{Type: "message_end"}
+		if !messageSent {
+			eventCh <- AgentEvent{Type: "message_end"}
+		}
 	}()
 
 	// 构建消息列表（含摘要注入）
@@ -451,7 +454,6 @@ func (a *Agent) Run(ctx context.Context, adapter *ModelAdapter, sessionID uint, 
 
 		// 如果没有工具调用，结束循环
 		if len(assistantMsg.ToolCalls) == 0 {
-			// 保存助手消息（附带工具调用记录）
 			a.saveAssistantMessage(sessionID, assistantMsg.Content, allToolCallRecords)
 			eventCh <- AgentEvent{
 				Type: "message_end",
@@ -460,6 +462,7 @@ func (a *Agent) Run(ctx context.Context, adapter *ModelAdapter, sessionID uint, 
 					CompletionTokens: resp.Usage.CompletionTokens,
 				},
 			}
+			messageSent = true
 			return
 		}
 
@@ -488,7 +491,7 @@ func (a *Agent) Run(ctx context.Context, adapter *ModelAdapter, sessionID uint, 
 				RiskLevel:  riskLevel,
 			}
 
-			result := a.executeTool(llmName, toolArgs, userID, username)
+			result := a.executeTool(ctx, llmName, toolArgs, userID, username)
 			resultJSON, _ := json.Marshal(result)
 
 			// 记录工具调用
@@ -521,7 +524,6 @@ func (a *Agent) Run(ctx context.Context, adapter *ModelAdapter, sessionID uint, 
 	// 超过最大迭代次数
 	a.saveAssistantMessage(sessionID, "\n\n[已达到最大工具调用次数，结束处理]", allToolCallRecords)
 	eventCh <- AgentEvent{Type: "text_delta", Content: "\n\n[已达到最大工具调用次数，结束处理]"}
-	eventCh <- AgentEvent{Type: "message_end"}
 }
 
 // RunStream 流式执行 Agent
@@ -594,22 +596,26 @@ func (a *Agent) RunStream(ctx context.Context, adapter *ModelAdapter, sessionID 
 
 			case "tool_call_delta":
 				for _, tc := range event.ToolCalls {
-					idx := 0
-					if tc.ID != "" {
-						toolCalls = append(toolCalls, ToolCall{
-							ID:   tc.ID,
-							Type: "function",
-							Function: FunctionCall{
-								Name: tc.Function.Name,
-							},
-						})
-						idx = len(toolCalls) - 1
-						toolCallArgsBuilders[idx] = &strings.Builder{}
-					} else {
-						idx = len(toolCalls) - 1
+					idx := len(toolCalls) - 1
+					if tc.Index != nil {
+						idx = *tc.Index
 					}
-					if builder, ok := toolCallArgsBuilders[idx]; ok {
-						builder.WriteString(tc.Function.Arguments)
+					if tc.ID != "" {
+						for len(toolCalls) <= idx {
+							toolCalls = append(toolCalls, ToolCall{Type: "function"})
+						}
+						toolCalls[idx].ID = tc.ID
+						toolCalls[idx].Type = "function"
+						toolCalls[idx].Function.Name = tc.Function.Name
+						if toolCallArgsBuilders[idx] == nil {
+							toolCallArgsBuilders[idx] = &strings.Builder{}
+						}
+					}
+					if idx >= 0 && idx < len(toolCalls) {
+						if toolCallArgsBuilders[idx] == nil {
+							toolCallArgsBuilders[idx] = &strings.Builder{}
+						}
+						toolCallArgsBuilders[idx].WriteString(tc.Function.Arguments)
 					}
 				}
 
@@ -670,7 +676,7 @@ func (a *Agent) RunStream(ctx context.Context, adapter *ModelAdapter, sessionID 
 				RiskLevel:  riskLevel,
 			}
 
-			result := a.executeTool(llmName, toolArgs, userID, username)
+			result := a.executeTool(ctx, llmName, toolArgs, userID, username)
 			resultJSON, _ := json.Marshal(result)
 
 			hasError := false
@@ -717,7 +723,7 @@ func (a *Agent) saveAssistantMessage(sessionID uint, content string, toolCallRec
 }
 
 // executeTool 执行工具
-func (a *Agent) executeTool(name string, argsJSON string, userID uint, username string) map[string]any {
+func (a *Agent) executeTool(ctx context.Context, name string, argsJSON string, userID uint, username string) map[string]any {
 	skill, ok := a.registry.Get(name)
 	if !ok {
 		return map[string]any{"error": fmt.Sprintf("工具 %s 不存在", name)}
@@ -735,6 +741,7 @@ func (a *Agent) executeTool(name string, argsJSON string, userID uint, username 
 
 	// 执行
 	result, err := skill.Execute(SkillContext{
+		Ctx:      ctx,
 		UserID:   userID,
 		Username: username,
 		Params:   params,

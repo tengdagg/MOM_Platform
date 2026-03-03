@@ -273,7 +273,7 @@ func executeSecurityAudit(ctx biz.SkillContext) (any, error) {
 	// 7. 检查高风险 AI 操作
 	var highRiskAIOps int64
 	ctx.DB.Table("sys_operation_log").
-		Where("created_at >= ? AND deleted_at IS NULL AND method = 'SKILL' AND action LIKE '%critical%' OR action LIKE '%high%'", since).
+		Where("created_at >= ? AND deleted_at IS NULL AND method = 'SKILL' AND (action LIKE '%critical%' OR action LIKE '%high%')", since).
 		Count(&highRiskAIOps)
 	if highRiskAIOps > 0 {
 		risks = append(risks, map[string]any{
@@ -305,15 +305,6 @@ func executeSecurityAudit(ctx biz.SkillContext) (any, error) {
 
 // executeCapacityPlan 容量规划建议
 func executeCapacityPlan(ctx biz.SkillContext) (any, error) {
-	type UsageStats struct {
-		AvgCPU    float64 `json:"avgCpu"`
-		MaxCPU    float64 `json:"maxCpu"`
-		AvgMemory float64 `json:"avgMemory"`
-		MaxMemory float64 `json:"maxMemory"`
-		AvgDisk   float64 `json:"avgDisk"`
-		MaxDisk   float64 `json:"maxDisk"`
-	}
-
 	var stats UsageStats
 	ctx.DB.Table("hosts").
 		Select("AVG(cpu_usage) as avg_cpu, MAX(cpu_usage) as max_cpu, AVG(memory_usage) as avg_memory, MAX(memory_usage) as max_memory, AVG(disk_usage) as avg_disk, MAX(disk_usage) as max_disk").
@@ -387,14 +378,17 @@ func executeCapacityPlan(ctx biz.SkillContext) (any, error) {
 	}, nil
 }
 
-func generateCapacityRecommendations(stats struct {
+// UsageStats 资源使用统计（复用类型）
+type UsageStats struct {
 	AvgCPU    float64 `json:"avgCpu"`
 	MaxCPU    float64 `json:"maxCpu"`
 	AvgMemory float64 `json:"avgMemory"`
 	MaxMemory float64 `json:"maxMemory"`
 	AvgDisk   float64 `json:"avgDisk"`
 	MaxDisk   float64 `json:"maxDisk"`
-}, highUsageCount int) []string {
+}
+
+func generateCapacityRecommendations(stats UsageStats, highUsageCount int) []string {
 	var recs []string
 	if stats.AvgCPU > 70 {
 		recs = append(recs, fmt.Sprintf("整体 CPU 平均使用率 %.1f%% 偏高，建议考虑扩展计算资源或优化高负载服务", stats.AvgCPU))

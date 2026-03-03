@@ -100,10 +100,8 @@ func executeMonitorAlertSummary(ctx biz.SkillContext) (any, error) {
 
 	since := time.Now().AddDate(0, 0, -days)
 
-	baseQ := ctx.DB.Table("alert_logs").Where("created_at >= ?", since)
-
 	var totalAlerts int64
-	baseQ.Count(&totalAlerts)
+	ctx.DB.Table("alert_logs").Where("created_at >= ?", since).Count(&totalAlerts)
 
 	// 按类型统计
 	type TypeStat struct {
@@ -111,10 +109,10 @@ func executeMonitorAlertSummary(ctx biz.SkillContext) (any, error) {
 		Count     int64  `json:"count"`
 	}
 	var typeStats []TypeStat
-	tq := ctx.DB.Table("alert_logs").
+	ctx.DB.Table("alert_logs").
 		Select("alert_type, COUNT(*) as count").
-		Where("created_at >= ?", since)
-	tq.Group("alert_type").Order("count DESC").Find(&typeStats)
+		Where("created_at >= ?", since).
+		Group("alert_type").Order("count DESC").Find(&typeStats)
 
 	// 按状态统计
 	type StatusStat struct {
@@ -458,7 +456,9 @@ func executeMonitorDomainManage(ctx biz.SkillContext) (any, error) {
 		}
 
 		// 删除关联的告警配置
-		ctx.DB.Exec("DELETE FROM alert_configs WHERE domain_monitor_id = ?", targetID)
+		if err := ctx.DB.Exec("DELETE FROM alert_configs WHERE domain_monitor_id = ?", targetID).Error; err != nil {
+			return nil, fmt.Errorf("删除关联告警配置失败: %v", err)
+		}
 		// 删除域名监控
 		if err := ctx.DB.Exec("DELETE FROM domain_monitors WHERE id = ?", targetID).Error; err != nil {
 			return nil, fmt.Errorf("删除失败: %v", err)

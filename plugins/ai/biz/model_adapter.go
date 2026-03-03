@@ -23,6 +23,7 @@ type ChatCompletionMessage struct {
 
 // ToolCall 工具调用
 type ToolCall struct {
+	Index    *int         `json:"index,omitempty"`
 	ID       string       `json:"id"`
 	Type     string       `json:"type"` // function
 	Function FunctionCall `json:"function"`

@@ -1,12 +1,18 @@
 package skills
 
 import (
+	"encoding/base64"
 	"fmt"
 	"strings"
 	"time"
 
 	"github.com/ydcloud-dy/mom/plugins/ai/biz"
 )
+
+// shellQuote 对文件路径进行 shell 安全引用，防止命令注入
+func shellQuote(s string) string {
+	return "'" + strings.ReplaceAll(s, "'", "'\"'\"'") + "'"
+}
 
 // RegisterHostSkills 注册主机管理 Skills
 func RegisterHostSkills(registry *biz.ToolRegistry) {
@@ -444,7 +450,9 @@ func executeHostExecCommand(ctx biz.SkillContext) (any, error) {
 				ids = append(ids, uint(v))
 			}
 		}
-		ctx.DB.Table("hosts").Select("id, name, ip").Where("id IN ? AND deleted_at IS NULL", ids).Find(&hosts)
+		var idHosts []SimpleHost
+		ctx.DB.Table("hosts").Select("id, name, ip").Where("id IN ? AND deleted_at IS NULL", ids).Find(&idHosts)
+		hosts = append(hosts, idHosts...)
 	}
 
 	if len(hosts) == 0 {
@@ -539,6 +547,9 @@ func executeHostFileManage(ctx biz.SkillContext) (any, error) {
 	if isUnsafePath(filePath) {
 		return nil, fmt.Errorf("安全检查未通过：禁止操作系统关键路径 [%s]（/boot, /dev, /proc, /sys, /run）", filePath)
 	}
+	if strings.Contains(filePath, "..") {
+		return nil, fmt.Errorf("安全检查未通过：路径不允许包含 '..'")
+	}
 
 	// 查找主机
 	var hostID uint
@@ -562,7 +573,7 @@ func executeHostFileManage(ctx biz.SkillContext) (any, error) {
 			return nil, err
 		}
 		defer client.Close()
-		output, err := client.Execute(fmt.Sprintf("ls -la %s", filePath))
+		output, err := client.Execute(fmt.Sprintf("ls -la %s", shellQuote(filePath)))
 		if err != nil {
 			return nil, fmt.Errorf("列出目录失败: %v", err)
 		}
@@ -581,7 +592,7 @@ func executeHostFileManage(ctx biz.SkillContext) (any, error) {
 			return nil, err
 		}
 		defer client.Close()
-		output, err := client.Execute(fmt.Sprintf("head -c 65536 %s", filePath))
+		output, err := client.Execute(fmt.Sprintf("head -c 65536 %s", shellQuote(filePath)))
 		if err != nil {
 			return nil, fmt.Errorf("读取文件失败: %v", err)
 		}
@@ -611,7 +622,7 @@ func executeHostFileManage(ctx biz.SkillContext) (any, error) {
 		defer client.Close()
 		timestamp := time.Now().Format("20060102150405")
 		backupPath := fmt.Sprintf("%s.bak.%s", filePath, timestamp)
-		output, err := client.Execute(fmt.Sprintf("cp -p %s %s && echo 'backup ok'", filePath, backupPath))
+		output, err := client.Execute(fmt.Sprintf("cp -p %s %s && echo 'backup ok'", shellQuote(filePath), shellQuote(backupPath)))
 		if err != nil {
 			return nil, fmt.Errorf("备份文件失败: %v", err)
 		}
@@ -649,13 +660,17 @@ func executeHostFileManage(ctx biz.SkillContext) (any, error) {
 			}, nil
 		}
 
+		if len(content) > 1024*1024 {
+			return nil, fmt.Errorf("写入内容过大（%d 字节），最大支持 1MB", len(content))
+		}
 		client, hostInfo, err := CreateSSHClient(ctx.DB, hostID)
 		if err != nil {
 			return nil, err
 		}
 		defer client.Close()
-		// 使用 heredoc 方式写入文件
-		writeCmd := fmt.Sprintf("cat > %s << 'MOMEOF'\n%s\nMOMEOF", filePath, content)
+		// 使用 base64 编码传输，避免 heredoc 注入
+		encoded := base64.StdEncoding.EncodeToString([]byte(content))
+		writeCmd := fmt.Sprintf("echo %s | base64 -d > %s", shellQuote(encoded), shellQuote(filePath))
 		output, err := client.ExecuteWithTimeout(writeCmd, 30*time.Second)
 		if err != nil {
 			return nil, fmt.Errorf("写入文件失败: %v", err)
@@ -685,7 +700,7 @@ func executeHostFileManage(ctx biz.SkillContext) (any, error) {
 			return nil, err
 		}
 		defer client.Close()
-		output, err := client.Execute(fmt.Sprintf("head -c 65536 %s", filePath))
+		output, err := client.Execute(fmt.Sprintf("head -c 65536 %s", shellQuote(filePath)))
 		if err != nil {
 			return nil, fmt.Errorf("读取文件失败: %v", err)
 		}

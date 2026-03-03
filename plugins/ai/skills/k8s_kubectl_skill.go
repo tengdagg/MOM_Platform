@@ -451,8 +451,12 @@ func getPV(ctx context.Context, c *kubernetes.Clientset, cluster string, opts me
 	}
 	var items []map[string]any
 	for _, pv := range list.Items {
+		capacity := ""
+		if storage, ok := pv.Spec.Capacity[v1.ResourceStorage]; ok {
+			capacity = storage.String()
+		}
 		items = append(items, map[string]any{
-			"name": pv.Name, "capacity": pv.Spec.Capacity.StorageEphemeral().String(),
+			"name": pv.Name, "capacity": capacity,
 			"accessModes": pv.Spec.AccessModes, "status": string(pv.Status.Phase),
 			"storageClass": pv.Spec.StorageClassName, "age": formatAge(pv.CreationTimestamp.Time),
 		})
@@ -614,9 +618,13 @@ func getCronJobs(ctx context.Context, c *kubernetes.Clientset, cluster, ns strin
 			return nil, err
 		}
 		for _, cj := range list.Items {
+			suspend := false
+			if cj.Spec.Suspend != nil {
+				suspend = *cj.Spec.Suspend
+			}
 			items = append(items, map[string]any{
 				"name": cj.Name, "namespace": cj.Namespace,
-				"schedule": cj.Spec.Schedule, "suspend": *cj.Spec.Suspend,
+				"schedule": cj.Spec.Schedule, "suspend": suspend,
 				"active": len(cj.Status.Active), "age": formatAge(cj.CreationTimestamp.Time),
 			})
 		}
@@ -626,9 +634,13 @@ func getCronJobs(ctx context.Context, c *kubernetes.Clientset, cluster, ns strin
 			return nil, err
 		}
 		for _, cj := range list.Items {
+			suspend := false
+			if cj.Spec.Suspend != nil {
+				suspend = *cj.Spec.Suspend
+			}
 			items = append(items, map[string]any{
 				"name": cj.Name, "namespace": cj.Namespace,
-				"schedule": cj.Spec.Schedule, "suspend": *cj.Spec.Suspend,
+				"schedule": cj.Spec.Schedule, "suspend": suspend,
 				"active": len(cj.Status.Active), "age": formatAge(cj.CreationTimestamp.Time),
 			})
 		}

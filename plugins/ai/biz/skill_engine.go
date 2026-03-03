@@ -26,14 +26,24 @@ func NewSkillEngine(db *gorm.DB, registry *ToolRegistry) *SkillEngine {
 }
 
 // LoadCustomSkills 从数据库加载自定义 Skills 并注册到 ToolRegistry
+// 同时反注册已被禁用的 Skills
 func (e *SkillEngine) LoadCustomSkills() {
-	var skills []SkillDefinition
-	if err := e.db.Where("is_enabled = ? AND script_type != 'builtin'", true).Find(&skills).Error; err != nil {
+	var enabledSkills []SkillDefinition
+	if err := e.db.Where("is_enabled = ? AND script_type != 'builtin'", true).Find(&enabledSkills).Error; err != nil {
 		log.Printf("[skill-engine] 加载自定义 Skills 失败: %v", err)
 		return
 	}
 
-	for _, skill := range skills {
+	// 反注册已禁用的自定义 Skills
+	var disabledSkills []SkillDefinition
+	if err := e.db.Where("is_enabled = ? AND script_type != 'builtin'", false).Find(&disabledSkills).Error; err == nil {
+		for _, skill := range disabledSkills {
+			e.registry.Unregister(skill.Name)
+			log.Printf("[skill-engine] 反注册禁用的 Skill: %s", skill.Name)
+		}
+	}
+
+	for _, skill := range enabledSkills {
 		customSkill := &CustomScriptSkill{
 			definition: skill,
 			sandbox:    e.sandbox,

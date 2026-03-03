@@ -1,9 +1,6 @@
 package skills
 
 import (
-	"crypto/aes"
-	"crypto/cipher"
-	"encoding/base64"
 	"fmt"
 	"net"
 	"strings"
@@ -13,38 +10,6 @@ import (
 	"golang.org/x/crypto/ssh"
 	"gorm.io/gorm"
 )
-
-// 凭证加密密钥（与 internal/data/asset/host.go 保持一致）
-var credEncryptionKey = []byte("mom-encrypt-key-32bytes-long!!@@")
-
-// decryptCredentialPassword AES-GCM 解密凭证密码
-func decryptCredentialPassword(ciphertext string) (string, error) {
-	if ciphertext == "" {
-		return "", nil
-	}
-	data, err := base64.StdEncoding.DecodeString(ciphertext)
-	if err != nil {
-		return "", err
-	}
-	block, err := aes.NewCipher(credEncryptionKey)
-	if err != nil {
-		return "", err
-	}
-	gcm, err := cipher.NewGCM(block)
-	if err != nil {
-		return "", err
-	}
-	nonceSize := gcm.NonceSize()
-	if len(data) < nonceSize {
-		return "", fmt.Errorf("ciphertext too short")
-	}
-	nonce, cipherData := data[:nonceSize], data[nonceSize:]
-	plaintext, err := gcm.Open(nil, nonce, cipherData, nil)
-	if err != nil {
-		return "", err
-	}
-	return string(plaintext), nil
-}
 
 // getDeviceCredential 从数据库获取设备凭证（自动解密）
 func getDeviceCredential(db *gorm.DB, deviceID uint) (username, password string, err error) {
@@ -58,9 +23,9 @@ func getDeviceCredential(db *gorm.DB, deviceID uint) (username, password string,
 	db.Table("credentials").Select("username").Where("id = ?", credentialID).Scan(&encUsername)
 	db.Table("credentials").Select("password").Where("id = ?", credentialID).Scan(&encPassword)
 
-	// 用户名不加密，密码需要解密
+	// 用户名不加密，密码需要解密（复用 service_helper.go 的 decryptCredential）
 	username = encUsername
-	password, err = decryptCredentialPassword(encPassword)
+	password, err = decryptCredential(encPassword)
 	if err != nil {
 		return "", "", fmt.Errorf("解密密码失败: %v", err)
 	}
@@ -439,8 +404,10 @@ func executeDeviceExecCommand(ctx biz.SkillContext) (any, error) {
 				ids = append(ids, uint(v))
 			}
 		}
+		var idDevices []SimpleDevice
 		ctx.DB.Table("network_devices").Select("id, name, ip, protocol, port").
-			Where("id IN ? AND deleted_at IS NULL", ids).Find(&devices)
+			Where("id IN ? AND deleted_at IS NULL", ids).Find(&idDevices)
+		devices = append(devices, idDevices...)
 	}
 
 	if len(devices) == 0 {

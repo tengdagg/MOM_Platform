@@ -18,9 +18,6 @@ parameters:
     command:
       type: string
       description: 要执行的设备命令（如 show version、display interface brief）
-    timeout:
-      type: integer
-      description: 执行超时时间（秒），默认 30
     confirmed:
       type: boolean
       description: 用户确认执行时设为 true，首次调用不传此参数
