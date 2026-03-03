@@ -717,10 +717,32 @@
         <el-tabs v-model="activeDetailTab" type="border-card" class="detail-tabs">
           <el-tab-pane label="容器组" name="pods">
             <div class="tab-content">
-              <el-table :data="detailData.pods" size="default" class="pods-table">
+              <el-table 
+                :data="podsTableData" 
+                size="default" 
+                class="pods-table"
+                :row-key="(row) => row._isEventRow ? `_evt_${row._podName}` : row.metadata?.name"
+                :span-method="podTableSpanMethod"
+                :row-class-name="podRowClassName"
+              >
                 <el-table-column prop="metadata.name" label="名称" min-width="220" show-overflow-tooltip>
                   <template #default="{ row }">
-                    <div class="pod-name-cell" @click="showPodDetail(row)" style="cursor: pointer;">
+                    <div v-if="row._isEventRow" class="pod-events-inline">
+                      <div 
+                        v-for="(evt, idx) in row._events" 
+                        :key="idx" 
+                        class="pod-event-step"
+                        :class="{ 'is-warning': (evt.type || evt.Type) === 'Warning', 'is-latest': idx === (row._events?.length || 0) - 1 }"
+                      >
+                        <div class="step-dot"></div>
+                        <div class="step-content">
+                          <span class="step-reason">{{ evt.reason || evt.Reason }}</span>
+                          <span class="step-message">{{ evt.message || evt.Message }}</span>
+                          <span class="step-age">{{ formatEventAge(evt.lastTimestamp || evt.LastTimestamp || evt.firstTimestamp || evt.FirstTimestamp, row._tick) }}</span>
+                        </div>
+                      </div>
+                    </div>
+                    <div v-else class="pod-name-cell" @click="showPodDetail(row)" style="cursor: pointer;">
                       <el-icon class="pod-icon"><Box /></el-icon>
                       <span class="pod-name">{{ row.metadata?.name }}</span>
                     </div>
@@ -772,6 +794,7 @@
                   </template>
                 </el-table-column>
               </el-table>
+
             </div>
           </el-tab-pane>
 
@@ -1543,7 +1566,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, computed, nextTick, onUnmounted, watch } from 'vue'
+import { ref, reactive, onMounted, computed, nextTick, onUnmounted, watch } from 'vue'
 import { ElMessage, ElMessageBox, ElLoading } from 'element-plus'
 import axios from 'axios'
 import request from '@/utils/request'
@@ -1734,6 +1757,65 @@ const updateImageForm = ref({
   image: ''
 })
 const containerOptions = ref<{ name: string; image: string }[]>([])
+
+// 每个 Pod 的 Events（按 Pod 名称索引，使用 reactive 对象确保响应性）
+const podEventsObj = reactive<Record<string, any[]>>({})
+const fadingPodNames = ref<string[]>([])
+const fadingTimers: Record<string, ReturnType<typeof setTimeout>> = {}
+const eventRenderTick = ref(0)
+
+// 独立的事件轮询：API 获取 3 秒一次，渲染刷新 1 秒一次
+let eventPollTimer: any = null
+let eventTickTimer: any = null
+
+const startEventPolling = () => {
+  stopEventPolling()
+  eventPollTimer = setInterval(() => {
+    refreshDetailPods()
+    refreshPodEvents()
+  }, 3000)
+  eventTickTimer = setInterval(() => {
+    eventRenderTick.value++
+  }, 1000)
+}
+
+const stopEventPolling = () => {
+  if (eventPollTimer) {
+    clearInterval(eventPollTimer)
+    eventPollTimer = null
+  }
+  if (eventTickTimer) {
+    clearInterval(eventTickTimer)
+    eventTickTimer = null
+  }
+}
+
+// 计算属性：将 Pod 和事件行交错组合为表格数据
+const podsTableData = computed(() => {
+  const tick = eventRenderTick.value
+  const result: any[] = []
+  for (const pod of (detailData.value?.pods || [])) {
+    result.push(pod)
+    const podName = pod.metadata?.name
+    if (podName && podEventsObj[podName]?.length) {
+      result.push({ _isEventRow: true, _podName: podName, _events: podEventsObj[podName], _tick: tick })
+    }
+  }
+  return result
+})
+
+const podTableSpanMethod = ({ row, columnIndex }: any) => {
+  if (row._isEventRow) {
+    return columnIndex === 0 ? { rowspan: 1, colspan: 7 } : { rowspan: 0, colspan: 0 }
+  }
+}
+
+const podRowClassName = ({ row }: any) => {
+  if (row._isEventRow) {
+    return fadingPodNames.value.includes(row._podName) ? 'pod-events-row is-fading' : 'pod-events-row'
+  }
+  return ''
+}
 
 // Pod 详情弹窗
 const podDetailVisible = ref(false)
@@ -3158,6 +3240,9 @@ const handleShowDetail = async (workload: Workload) => {
     }
     // 获取容器列表，用于修改镜像
     containerOptions.value = getContainersFromWorkload(workloadObj)
+    // 加载 Pod Events 并启动独立事件轮询
+    refreshPodEvents()
+    startEventPolling()
     detailDialogVisible.value = true
   } catch (error: any) {
     ElMessage.error('获取工作负载详情失败')
@@ -3213,12 +3298,11 @@ let podPollTimer: any = null
 // 开始 Pod 列表轮询
 const startPodPolling = () => {
   stopPodPolling()
-  // 每2秒刷新一次，持续60秒
+  startEventPolling()
   let count = 0
   podPollTimer = setInterval(() => {
     count++
     refreshDetailPods()
-    // 每隔两次（4秒）也刷新工作负载详情和历史版本，更新副本数显示
     if (count % 2 === 0) {
       refreshWorkloadInfo()
       refreshHistory()
@@ -3241,7 +3325,7 @@ const stopPodPolling = () => {
 watch(detailDialogVisible, (val) => {
   if (!val) {
     stopPodPolling()
-    // 关闭详情弹窗时刷新主列表，确保扩缩容/回滚等操作的结果同步到列表
+    resetPodEvents()
     loadWorkloads()
   }
 })
@@ -3400,6 +3484,82 @@ const refreshWorkloadInfo = async () => {
   }
 }
 
+// 获取单个 Pod 的 Events
+const fetchPodEvents = async (ns: string, podName: string, clusterId: number) => {
+  const token = localStorage.getItem('token') || ''
+  const response = await axios.get(
+    `/api/v1/plugins/kubernetes/resources/pods/${ns}/${podName}/events`,
+    { params: { clusterId }, headers: { Authorization: `Bearer ${token}` } }
+  )
+  return (response.data?.events || []).sort((a: any, b: any) => {
+    const ta = a.lastTimestamp || a.LastTimestamp || a.firstTimestamp || a.FirstTimestamp || ''
+    const tb = b.lastTimestamp || b.LastTimestamp || b.firstTimestamp || b.FirstTimestamp || ''
+    return String(ta).localeCompare(String(tb))
+  })
+}
+
+// 刷新 Pod Events，Running 后最终获取一次完整事件，10 秒后自动清除
+const refreshPodEvents = async () => {
+  if (!detailData.value || !selectedClusterId.value) return
+  const pods: any[] = detailData.value.pods || []
+  const ns = detailData.value.namespace
+  const clusterId = selectedClusterId.value
+
+  const nonRunningPods = pods.filter(p => p.status?.phase !== 'Running')
+
+  // 检测刚变为 Running 的 Pod：最后拉一次完整事件，然后启动淡出定时器
+  for (const pod of pods) {
+    const name = pod.metadata?.name
+    if (!name) continue
+    if (pod.status?.phase === 'Running' && podEventsObj[name] && !fadingPodNames.value.includes(name) && !fadingTimers[name]) {
+      try {
+        podEventsObj[name] = await fetchPodEvents(ns, name, clusterId)
+      } catch { /* keep existing events */ }
+      fadingPodNames.value = [...fadingPodNames.value, name]
+      fadingTimers[name] = setTimeout(() => {
+        fadingPodNames.value = fadingPodNames.value.filter(n => n !== name)
+        delete podEventsObj[name]
+        delete fadingTimers[name]
+      }, 3000)
+    }
+  }
+
+  // 清除已不存在的 Pod 的事件
+  for (const name of Object.keys(podEventsObj)) {
+    if (!pods.find(p => p.metadata?.name === name)) {
+      delete podEventsObj[name]
+      if (fadingTimers[name]) {
+        clearTimeout(fadingTimers[name])
+        delete fadingTimers[name]
+      }
+      fadingPodNames.value = fadingPodNames.value.filter(n => n !== name)
+    }
+  }
+
+  // 为非 Running Pod 获取最新事件
+  const fetchPromises = nonRunningPods.map(async (pod) => {
+    const podName = pod.metadata?.name
+    if (!podName) return
+    try {
+      podEventsObj[podName] = await fetchPodEvents(ns, podName, clusterId)
+    } catch { /* 静默 */ }
+  })
+  await Promise.all(fetchPromises)
+
+  // 如果没有任何可见事件了（所有 Pod Running 且无淡出中的），停止事件轮询
+  if (nonRunningPods.length === 0 && fadingPodNames.value.length === 0 && Object.keys(podEventsObj).length === 0) {
+    stopEventPolling()
+  }
+}
+
+const resetPodEvents = () => {
+  stopEventPolling()
+  for (const key of Object.keys(podEventsObj)) delete podEventsObj[key]
+  fadingPodNames.value = []
+  for (const timer of Object.values(fadingTimers)) clearTimeout(timer)
+  for (const key of Object.keys(fadingTimers)) delete fadingTimers[key]
+}
+
 // 选择容器时自动填充当前镜像
 const onContainerChange = (containerName: string) => {
   const container = containerOptions.value.find(c => c.name === containerName)
@@ -3408,7 +3568,16 @@ const onContainerChange = (containerName: string) => {
   }
 }
 
-// 格式化年龄显示（短格式）
+// 格式化事件时间：<120s 显示秒，>=120s 显示 XmYs
+const formatEventAge = (timestamp: any, _tick?: number) => {
+  if (!timestamp) return ''
+  const d = new Date(typeof timestamp === 'string' ? timestamp : timestamp.toString())
+  if (isNaN(d.getTime())) return ''
+  const diff = Math.max(0, Math.floor((Date.now() - d.getTime()) / 1000))
+  if (diff < 120) return `${diff}s`
+  return `${Math.floor(diff / 60)}m${diff % 60}s`
+}
+
 const formatAgeShort = (timestamp: string) => {
   if (!timestamp) return '-'
   const now = new Date()
@@ -6311,6 +6480,7 @@ onUnmounted(() => {
   }
   // 停止日志自动刷新
   stopLogsAutoRefresh()
+  resetPodEvents()
 })
 
 // 获取当前历史版本限制
@@ -8036,6 +8206,125 @@ onMounted(() => {
 .pods-table :deep(.el-dropdown-menu__item .el-icon) {
   color: #409eff;
   font-size: 14px;
+}
+
+/* Pod Events 内联行 */
+.pods-table :deep(.pod-events-row) td {
+  padding: 0 !important;
+  background: #f8fafc !important;
+  border-bottom: 1px solid #ebeef5;
+}
+
+.pods-table :deep(.pod-events-row:hover) td {
+  background: #f8fafc !important;
+}
+
+.pods-table :deep(.pod-events-row.is-fading) td {
+  padding: 0 !important;
+}
+
+.pods-table :deep(.pod-events-row.is-fading) .pod-events-inline {
+  max-height: 0;
+  opacity: 0;
+  padding-top: 0;
+  padding-bottom: 0;
+  border-left-color: transparent;
+}
+
+.pod-events-inline {
+  padding: 6px 16px 6px 32px;
+  border-left: 3px solid #409eff;
+  max-height: 500px;
+  opacity: 1;
+  overflow: hidden;
+  transition: max-height 2.5s cubic-bezier(0.4, 0, 0.2, 1),
+              opacity 2s ease-out,
+              padding 2.5s cubic-bezier(0.4, 0, 0.2, 1),
+              border-left-color 1.5s ease-out;
+}
+
+.pod-event-step {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 4px 0;
+  position: relative;
+}
+
+.pod-event-step:not(:last-child)::before {
+  content: '';
+  position: absolute;
+  left: 4px;
+  top: 18px;
+  bottom: -4px;
+  width: 1px;
+  background: #dcdfe6;
+}
+
+.pod-event-step.is-warning {
+  color: #e6a23c;
+}
+
+.pod-event-step.is-warning .step-dot {
+  background: #e6a23c;
+}
+
+.step-dot {
+  flex-shrink: 0;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #67c23a;
+  margin-top: 4px;
+  position: relative;
+  z-index: 1;
+}
+
+.pod-event-step.is-latest .step-dot {
+  animation: dot-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes dot-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(103, 194, 58, 0.4); }
+  50% { box-shadow: 0 0 0 4px rgba(103, 194, 58, 0); }
+}
+
+.pod-event-step.is-warning.is-latest .step-dot {
+  animation: dot-pulse-warn 1.5s ease-in-out infinite;
+}
+
+@keyframes dot-pulse-warn {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(230, 162, 60, 0.4); }
+  50% { box-shadow: 0 0 0 4px rgba(230, 162, 60, 0); }
+}
+
+.step-content {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 12px;
+  line-height: 1.5;
+  flex-wrap: wrap;
+}
+
+.step-age {
+  flex-shrink: 0;
+  color: #b0b3b8;
+  font-family: 'Menlo', 'Monaco', monospace;
+  font-size: 11px;
+  margin-left: auto;
+  padding-left: 12px;
+}
+
+.step-reason {
+  flex-shrink: 0;
+  font-weight: 600;
+  color: #1f2329;
+}
+
+.step-message {
+  color: #606266;
+  word-break: break-word;
 }
 
 /* 运行时信息表格样式 */

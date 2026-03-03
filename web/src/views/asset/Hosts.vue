@@ -4013,9 +4013,9 @@ watch(() => userStore.userInfo, (newUserInfo, oldUserInfo) => {
 }
 
 .terminal-button {
-  background-color: #1a1a1a !important;
+  background-color: #16a34a !important;
   color: #ffffff !important;
-  border-color: #1a1a1a !important;
+  border-color: #16a34a !important;
   border-radius: 0;
   padding: 10px 20px;
   font-weight: 500;
@@ -4023,8 +4023,8 @@ watch(() => userStore.userInfo, (newUserInfo, oldUserInfo) => {
 }
 
 .terminal-button:hover {
-  background-color: #0d5a87 !important;
-  border-color: #0d5a87 !important;
+  background-color: #15803d !important;
+  border-color: #15803d !important;
 }
 
 /* 视图容器 */
