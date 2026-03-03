@@ -1,8 +1,8 @@
-# mom 数据库初始化指南
+# mom 数据库迁移指南
 
 <p align="center">
   <img src="https://img.shields.io/badge/Database-MySQL%208.0+-4479A1?style=flat&logo=mysql" alt="MySQL">
-  <img src="https://img.shields.io/badge/Tables-32-blue?style=flat" alt="Tables">
+  <img src="https://img.shields.io/badge/Migrate-golang--migrate%20v4-00ADD8?style=flat&logo=go" alt="golang-migrate">
   <img src="https://img.shields.io/badge/Charset-utf8mb4-green?style=flat" alt="Charset">
 </p>
 
@@ -10,40 +10,144 @@
 
 ## 概述
 
-本文档介绍如何为 mom 项目初始化数据库。所有必要的表结构和初始化数据都包含在 `migrations/init.sql` 文件中。
+MOM Platform 使用 [golang-migrate](https://github.com/golang-migrate/migrate) 进行数据库版本化迁移管理。所有 SQL 迁移文件通过 Go 的 `embed.FS` 嵌入到二进制中，应用启动时**自动执行**，无需手动导入 SQL。
+
+### 迁移文件位置
+
+```
+internal/migration/
+├── migration.go                        # 迁移执行逻辑 + baseline 处理
+└── migrations/
+    ├── 000001_init_schema.up.sql       # 初始建表 + 种子数据
+    ├── 000001_init_schema.down.sql     # 回滚：删除所有表
+    ├── 000002_xxx.up.sql               # 后续增量迁移...
+    └── 000002_xxx.down.sql
+```
+
+---
+
+## 工作原理
+
+### 启动时自动迁移
+
+应用在 `cmd/server/server.go` 中调用 `migration.Run(dsn)`，执行流程：
+
+1. 打开原生 `database/sql` 连接
+2. **Baseline 检测**：如果检测到已有业务表（`sys_user`）但没有 `schema_migrations` 表，说明是从旧版本升级，自动标记 v1 已完成（跳过初始建表）
+3. 使用 `embed.FS` 读取 SQL 迁移文件
+4. 调用 `m.Up()` 执行所有未执行的迁移
+5. 打印当前数据库版本
+
+### 版本追踪
+
+golang-migrate 通过 `schema_migrations` 表追踪迁移状态：
+
+| 字段 | 类型 | 说明 |
+|:-----|:-----|:-----|
+| `version` | bigint | 迁移版本号 |
+| `dirty` | boolean | 是否处于脏状态（迁移中断） |
 
 ---
 
 ## 快速开始
 
-### 1. 创建数据库
+### 全新部署
 
 ```bash
+# 1. 创建空数据库
 mysql -u root -p -e "CREATE DATABASE mom CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+
+# 2. 配置 config.yaml 中的数据库连接
+
+# 3. 启动应用（自动执行所有迁移）
+go run main.go server
+# 输出: [迁移] 数据库版本: 1, dirty: false
 ```
 
-### 2. 执行初始化脚本
+无需手动导入任何 SQL 文件，启动即完成建表和初始数据填充。
 
-```bash
-mysql -u root -p mom < migrations/init.sql
-```
+### 从旧版本升级
 
-### 3. 验证初始化
+如果数据库是之前通过 `init.sql` 手动导入创建的：
+
+1. 启动新版应用
+2. 迁移模块自动检测到 `sys_user` 表存在但 `schema_migrations` 不存在
+3. 自动执行 baseline：创建 `schema_migrations` 表并标记 v1 完成
+4. 只执行 v1 之后的增量迁移
+
+**无需任何手动操作**，平滑升级。
+
+### 验证迁移状态
 
 ```sql
 USE mom;
+
+-- 查看当前迁移版本
+SELECT * FROM schema_migrations;
+
+-- 查看所有表
 SHOW TABLES;
--- 应该看到 33 个表
-SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'mom';
 ```
+
+---
+
+## 添加新迁移
+
+### 命名规范
+
+```
+{序号}_{描述}.up.sql      # 正向迁移
+{序号}_{描述}.down.sql    # 回滚迁移
+```
+
+序号为 6 位数字，从当前最大值递增：
+
+```
+000001_init_schema.up.sql
+000001_init_schema.down.sql
+000002_add_ai_tables.up.sql
+000002_add_ai_tables.down.sql
+000003_add_network_device_table.up.sql
+000003_add_network_device_table.down.sql
+```
+
+### 编写迁移
+
+**up.sql** — 正向迁移（创建/修改）：
+
+```sql
+-- 000002_add_ai_tables.up.sql
+CREATE TABLE IF NOT EXISTS `ai_chat_sessions` (
+    `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+    `user_id` bigint unsigned NOT NULL,
+    `title` varchar(255) DEFAULT '',
+    `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
+    `updated_at` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    `deleted_at` datetime DEFAULT NULL,
+    PRIMARY KEY (`id`),
+    KEY `idx_user_id` (`user_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+```
+
+**down.sql** — 回滚迁移（撤销 up.sql 的变更）：
+
+```sql
+-- 000002_add_ai_tables.down.sql
+DROP TABLE IF EXISTS `ai_chat_sessions`;
+```
+
+### 注意事项
+
+- 每个迁移文件只包含**一条**完整的 DDL 语句，或用分号分隔的多条语句
+- `up.sql` 和 `down.sql` 必须成对存在
+- 迁移文件一旦发布到生产环境，**不能修改**，只能添加新的迁移
+- 使用 `IF NOT EXISTS` / `IF EXISTS` 增强幂等性
 
 ---
 
 ## 表结构概览
 
-### 总计：33 张表
-
----
+### 总计：33+ 张表
 
 ### 系统核心表 (11 个)
 
@@ -61,8 +165,6 @@ SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'mom';
 | `sys_login_log` | 登录审计日志 | user_id, login_type, login_status, ip |
 | `sys_data_log` | 数据变更日志 | user_id, table_name, action, old_data, new_data |
 
----
-
 ### 资产管理表 (6 个)
 
 | 表名 | 说明 | 主要字段 |
@@ -74,8 +176,6 @@ SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'mom';
 | `sys_role_asset_permission` | 角色资产权限 | role_id, asset_group_id, host_ids, permissions |
 | `ssh_terminal_sessions` | SSH 终端会话 | host_id, user_id, recording_path, duration |
 
----
-
 ### 任务管理表 (3 个)
 
 | 表名 | 说明 | 主要字段 |
@@ -83,8 +183,6 @@ SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'mom';
 | `job_templates` | 任务模板 | name, code, content, category, platform, timeout |
 | `job_tasks` | 任务执行记录 | name, template_id, task_type, status, result |
 | `ansible_tasks` | Ansible 任务 | name, playbook_content, inventory, status |
-
----
 
 ### Kubernetes 表 (5 个)
 
@@ -95,8 +193,6 @@ SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'mom';
 | `k8s_user_role_bindings` | 用户角色绑定 | cluster_id, user_id, role_name, role_type |
 | `k8s_cluster_inspections` | 集群巡检记录 | cluster_id, status, score, report_data |
 | `k8s_terminal_sessions` | K8S 终端会话 | cluster_id, pod_name, container_name, recording_path |
-
----
 
 ### 监控告警表 (6 个)
 
@@ -109,8 +205,6 @@ SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'mom';
 | `alert_receiver_channels` | 接收人-通道关联 | receiver_id, channel_id, config |
 | `alert_logs` | 告警日志 | alert_type, domain, status, message, sent_at |
 
----
-
 ### 插件管理表 (1 个)
 
 | 表名 | 说明 | 主要字段 |
@@ -121,49 +215,27 @@ SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'mom';
 
 ## 初始化数据
 
-初始化脚本包含以下基础数据：
+初始迁移 `000001_init_schema` 包含以下种子数据：
 
-### 1. 默认部门
-
-| ID | 名称 | 编码 | 类型 |
-|:---|:-----|:-----|:-----|
-| 1 | 总公司 | head | 公司 |
-
-### 2. 默认角色
-
-| ID | 名称 | 编码 | 说明 |
-|:---|:-----|:-----|:-----|
-| 1 | 管理员 | admin | 拥有所有权限 |
-| 2 | 普通用户 | user | 基本操作权限 |
-
-### 3. 默认菜单 (44 个)
-
-包括以下功能模块：
-
-| 模块 | 子菜单 |
-|:-----|:-------|
-| 仪表盘 | - |
-| 资产管理 | 主机管理、凭据管理、业务分组、云账号管理、终端审计、权限配置 |
-| 操作审计 | 操作日志、登录日志 |
-| 插件管理 | 插件列表、插件安装 |
-| 容器管理 | 集群管理、节点管理、命名空间、工作负载、网络管理、配置管理、存储管理、访问控制、终端审计、应用诊断、集群巡检 |
-| 监控中心 | 域名监控、告警通道、告警接收人、告警日志 |
-| 任务中心 | 任务模板、执行任务、文件分发 |
-| 系统管理 | 用户管理、角色管理、菜单管理、部门信息、岗位信息、系统配置 |
-| 个人信息 | - |
-
-### 4. 默认用户
+### 默认账号
 
 | 用户名 | 密码 | 角色 | 邮箱 |
 |:-------|:-----|:-----|:-----|
 | admin | 123456 | 管理员 | admin@mom.io |
 
-> ⚠️ **重要**: 生产环境请立即修改默认密码！
+> **重要**: 生产环境请立即修改默认密码！
 
-### 5. 默认插件状态
+### 默认角色
 
-| 插件名称 | 状态 |
-|:---------|:-----|
+| ID | 名称 | 编码 |
+|:---|:-----|:-----|
+| 1 | 管理员 | admin |
+| 2 | 普通用户 | user |
+
+### 默认插件状态
+
+| 插件 | 状态 |
+|:-----|:-----|
 | kubernetes | 启用 |
 | monitor | 启用 |
 | task | 启用 |
@@ -194,11 +266,9 @@ database:
 ### 重置数据库
 
 ```bash
-# 删除并重建数据库
+# 删除并重建数据库，重启应用自动迁移
 mysql -u root -p -e "DROP DATABASE IF EXISTS mom; CREATE DATABASE mom CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
-
-# 重新导入初始化脚本
-mysql -u root -p mom < migrations/init.sql
+go run main.go server
 ```
 
 ### 备份数据库
@@ -207,8 +277,8 @@ mysql -u root -p mom < migrations/init.sql
 # 完整备份
 mysqldump -u root -p mom > mom_backup_$(date +%Y%m%d).sql
 
-# 仅备份数据（不含结构）
-mysqldump -u root -p --no-create-info mom > mom_data_$(date +%Y%m%d).sql
+# 压缩备份
+mysqldump -u root -p mom | gzip > mom_$(date +%Y%m%d).sql.gz
 ```
 
 ### 恢复数据库
@@ -226,92 +296,20 @@ SET password='$2a$10$RLkgoedTSa0dYj3ujbXMcunSED3c6GLvfdKYsmpz0l0YFZbVrSBqW'
 WHERE username='admin';
 ```
 
-### 添加新用户
-
-```sql
--- 插入用户
-INSERT INTO sys_user (username, password, real_name, email, status, department_id, created_at, updated_at)
-VALUES ('newuser', '$2a$10$xxx', '新用户', 'new@example.com', 1, 1, NOW(), NOW());
-
--- 获取新用户ID
-SET @user_id = LAST_INSERT_ID();
-
--- 分配角色（普通用户）
-INSERT INTO sys_user_role (user_id, role_id) VALUES (@user_id, 2);
-```
-
 ---
 
-## 数据类型说明
+## 故障排查
 
-| 类型 | 用途 | 说明 |
-|:-----|:-----|:-----|
-| `bigint unsigned` | 主键/外键 | 支持更大的 ID 范围 |
-| `varchar(n)` | 字符串 | 根据实际需求设定长度 |
-| `text` | 中等文本 | JSON 数据、配置等 |
-| `longtext` | 大文本 | 脚本内容、报告数据 |
-| `json` | JSON 数据 | MySQL 5.7+ 原生支持 |
-| `tinyint` | 状态标志 | 0/1 布尔值或枚举 |
-| `datetime` | 时间戳 | 创建/更新时间 |
+### Q: 迁移报 dirty 状态？
 
----
-
-## 索引说明
-
-所有关键字段都已创建索引：
-
-| 索引类型 | 用途 |
-|:---------|:-----|
-| 主键索引 | 每张表的 `id` 字段 |
-| 唯一索引 | 用户名、角色编码等唯一字段 |
-| 普通索引 | 状态、时间戳等查询字段 |
-| 外键索引 | 关联表的外键字段 |
-
----
-
-## 性能优化建议
-
-### 1. 定期清理日志
+**A:** 说明上一次迁移中断，需要手动修复：
 
 ```sql
--- 删除 30 天前的操作日志
-DELETE FROM sys_operation_log WHERE created_at < DATE_SUB(NOW(), INTERVAL 30 DAY);
+-- 查看当前状态
+SELECT * FROM schema_migrations;
 
--- 删除 30 天前的登录日志
-DELETE FROM sys_login_log WHERE created_at < DATE_SUB(NOW(), INTERVAL 30 DAY);
-
--- 删除 30 天前的告警日志
-DELETE FROM alert_logs WHERE created_at < DATE_SUB(NOW(), INTERVAL 30 DAY);
-```
-
-### 2. 优化表
-
-```sql
-OPTIMIZE TABLE sys_operation_log;
-OPTIMIZE TABLE sys_login_log;
-OPTIMIZE TABLE alert_logs;
-```
-
-### 3. 分析表
-
-```sql
-ANALYZE TABLE sys_user;
-ANALYZE TABLE hosts;
-ANALYZE TABLE k8s_clusters;
-```
-
----
-
-## 常见问题
-
-### Q: 导入脚本报外键约束错误？
-
-**A:** 临时禁用外键检查：
-
-```sql
-SET FOREIGN_KEY_CHECKS = 0;
-SOURCE migrations/init.sql;
-SET FOREIGN_KEY_CHECKS = 1;
+-- 如果确认数据完整，强制标记为干净
+UPDATE schema_migrations SET dirty = false;
 ```
 
 ### Q: 字符集问题导致乱码？
@@ -322,25 +320,25 @@ SET FOREIGN_KEY_CHECKS = 1;
 ALTER DATABASE mom CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 ```
 
-### Q: 自动迁移失败？
+### Q: 从旧版本升级后迁移未生效？
 
-**A:** 应用启动时 GORM 会自动迁移表结构。如果失败：
+**A:** 检查 baseline 是否正确执行：
 
-1. 查看应用日志获取详细错误
-2. 检查数据库连接配置
-3. 确保数据库用户有建表权限
-4. 必要时手动执行 init.sql
+```sql
+-- 应该看到 version=1, dirty=false
+SELECT * FROM schema_migrations;
+
+-- 如果表不存在，可能 baseline 失败，手动执行：
+CREATE TABLE IF NOT EXISTS `schema_migrations` (`version` bigint NOT NULL PRIMARY KEY, `dirty` boolean NOT NULL);
+INSERT INTO `schema_migrations` (`version`, `dirty`) VALUES (1, false);
+-- 然后重启应用
+```
 
 ### Q: 如何查看表结构？
 
 ```sql
--- 查看所有表
 SHOW TABLES;
-
--- 查看表结构
 DESCRIBE sys_user;
-
--- 查看建表语句
 SHOW CREATE TABLE sys_user;
 ```
 
@@ -349,17 +347,5 @@ SHOW CREATE TABLE sys_user;
 ## 相关文档
 
 - [mom 主文档](../README.md)
+- [数据库结构参考](DATABASE.md)
 - [部署指南](../docs/deployment.md)
-- [Kubernetes 插件](../docs/plugins/kubernetes.md)
-- [任务中心插件](../docs/plugins/task.md)
-- [监控中心插件](../docs/plugins/monitor.md)
-
----
-
-## 支持
-
-如遇到问题，请：
-
-1. 查看应用日志获取详细错误信息
-2. 检查 MySQL 服务状态和连接配置
-3. 提交 Issue: [GitHub Issues](https://github.com/ydcloud-dy/mom/issues)

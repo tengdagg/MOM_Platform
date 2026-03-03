@@ -240,6 +240,7 @@ MOM Platform 是一个功能强大的**插件化运维管理平台**，采用前
 | `jwt-go` | 5.3+ | JWT 认证 |
 | `zap` | 1.27+ | 高性能日志库 |
 | `gorilla/websocket` | 1.5+ | WebSocket 支持（AI 流式对话、终端） |
+| `golang-migrate` | 4.x | 数据库版本化迁移管理 |
 | `golang.org/x/crypto` | - | SSH 客户端 |
 
 ### 前端
@@ -284,7 +285,7 @@ MOM Platform 是一个功能强大的**插件化运维管理平台**，采用前
                           │ Menu    │ Monitor    │ Tool     │ Cloud     │
                           │ Dept    │ AI         │ Registry │ Account   │
                           ├─────────┴────────────┴──────────┴───────────┤
-                          │               GORM / Data Layer              │
+                          │        GORM / Data Layer / Migrate            │
                           └──────────┬──────────────────────┬───────────┘
                                      │                      │
                           ┌──────────▼──────┐    ┌──────────▼──────────┐
@@ -311,15 +312,13 @@ git clone https://gitee.com/monkey_dat/mom_platform.git
 cd mom
 ```
 
-### 2. 初始化数据库
+### 2. 创建数据库
 
 ```bash
-# 创建数据库
 mysql -u root -p -e "CREATE DATABASE mom CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
-
-# 导入初始化脚本
-mysql -u root -p mom < migrations/init.sql
 ```
+
+> 只需创建空数据库，**无需手动导入 SQL**。应用启动时会通过 `golang-migrate` 自动执行所有迁移（建表 + 初始数据）。
 
 ### 3. 配置后端
 
@@ -331,7 +330,7 @@ cp config/config.yaml.example config/config.yaml
 ### 4. 启动服务
 
 ```bash
-# 启动后端
+# 启动后端（首次启动自动完成数据库迁移）
 go run main.go server
 
 # 启动前端（新终端）
@@ -418,7 +417,7 @@ my-skill/
 git clone https://gitee.com/monkey_dat/mom_platform.git
 cd mom
 
-# 启动服务
+# 启动服务（数据库迁移随后端容器启动自动完成）
 docker-compose up -d
 
 # 访问系统
@@ -433,7 +432,7 @@ docker-compose up -d
 | 文档 | 链接 |
 |:-----|:-----|
 | 部署指南 | [docs/deployment.md](docs/deployment.md) |
-| 数据库初始化 | [migrations/README.md](migrations/README.md) |
+| 数据库迁移 | [migrations/README.md](migrations/README.md) |
 | Kubernetes 插件 | [docs/plugins/kubernetes.md](docs/plugins/kubernetes.md) |
 | 任务中心插件 | [docs/plugins/task.md](docs/plugins/task.md) |
 | 监控中心插件 | [docs/plugins/monitor.md](docs/plugins/monitor.md) |
@@ -452,6 +451,8 @@ mom/
 │   │   ├── rbac/          # 用户、角色、部门、菜单
 │   │   └── audit/         # 操作日志、登录日志、数据日志
 │   ├── data/              # 数据访问层
+│   ├── migration/         # golang-migrate 数据库迁移
+│   │   └── migrations/    # SQL 迁移文件（embed.FS 嵌入）
 │   ├── plugin/            # 插件系统核心
 │   ├── server/            # HTTP 服务、中间件
 │   │   └── asset/         # 资产管理（主机/凭据/云账号/Guacamole）
@@ -467,7 +468,7 @@ mom/
 ├── pkg/                    # 公共包
 │   ├── ssh/               # SSH 客户端
 │   └── util/              # 工具函数
-├── migrations/             # 数据库脚本
+├── migrations/             # 数据库文档与辅助脚本
 ├── web/                    # 前端代码
 │   ├── src/
 │   │   ├── plugins/       # 前端插件（K8s/Task/Monitor/AI）
