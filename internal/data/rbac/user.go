@@ -43,7 +43,9 @@ func (r *userRepo) Create(ctx context.Context, user *rbac.SysUser) error {
 }
 
 func (r *userRepo) Update(ctx context.Context, user *rbac.SysUser) error {
-	return r.db.WithContext(ctx).Model(user).Omit("created_at").Updates(user).Error
+	return r.db.WithContext(ctx).Model(user).
+		Select("real_name", "email", "phone", "avatar", "status", "department_id", "bio").
+		Updates(user).Error
 }
 
 func (r *userRepo) Delete(ctx context.Context, id uint) error {

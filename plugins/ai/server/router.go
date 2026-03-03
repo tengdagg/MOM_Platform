@@ -68,6 +68,9 @@ func RegisterRoutes(router *gin.RouterGroup, db *gorm.DB) {
 			skillGroup.DELETE("/:id", handler.DeleteSkill)
 		}
 
+		// 统计
+		ai.GET("/stats/model-calls", handler.GetModelCallStats)
+
 		// 对话模板
 		ai.GET("/templates", handler.ListTemplates)
 	}

@@ -80,6 +80,10 @@ export const getSkillStats = () => {
   return request.get('/api/v1/plugins/ai/skills/stats')
 }
 
+export const getModelCallStats = () => {
+  return request.get('/api/v1/plugins/ai/stats/model-calls')
+}
+
 export const uploadSkill = (file: File) => {
   const formData = new FormData()
   formData.append('file', file)

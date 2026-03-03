@@ -348,3 +348,63 @@ file_manage(read) 查看当前配置
 file_manage(backup) 备份为 .bak.时间戳
 file_manage(write) 写入新内容
 exec_command 执行 nginx -t && systemctl reload nginx
+
+
+### 20260303
+
+#### 1. Dashboard 模型调用次数统计改为真实数据
+**问题**：原来"模型调用次数"从操作日志 `sys_operation_log` 模糊匹配关键字（ai、model、chat 等），匹配范围过广导致数据不准确（实际没调用模型却显示 53 次）。
+
+**修复**：
+- 后端新增 `GET /api/v1/plugins/ai/stats/model-calls` 接口，直接从 `ai_chat_messages` 表统计 `role='assistant'` 的消息数（每条 = 一次真实模型调用），通过 `ai_chat_sessions.model_id` 关联 `ai_model_configs.name` 获取模型名称
+- 返回数据：按天+模型分组的 `daily` 数组、`todayTotal`、`total`
+- 前端 Dashboard 图表改为按模型分组显示多条折线，每个模型独立颜色，支持图例切换
+- 移除旧的 `getOperationLogList` 依赖和 `isModelCallLog` 模糊匹配逻辑
+
+**涉及文件**：
+- `plugins/ai/server/handler.go` — 新增 `GetModelCallStats` 方法
+- `plugins/ai/server/router.go` — 注册 `/stats/model-calls` 路由
+- `web/src/api/ai.ts` — 新增 `getModelCallStats` API
+- `web/src/views/Dashboard.vue` — 重写模型调用图表渲染逻辑
+
+#### 2. 任务中心模板管理按钮修复
+**问题**：新建旁的 Setting、FullScreen 按钮无事件绑定点击无反应；操作列只有编辑无删除；删除函数未调用 API。
+
+**修复**：
+- 移除无功能的 Setting、FullScreen 按钮，保留 Refresh 并添加 tooltip
+- 操作列改为与主机管理一致的图标按钮样式（link 类型 + action-btn/action-edit/action-delete 样式类，28x28 方形，hover 缩放变色）
+- 启用删除按钮，`handleDelete` 补全 `await deleteJobTemplate(row.id)` 调用
+- 新增 `deleteJobTemplate` API 导入
+
+**涉及文件**：
+- `web/src/views/task/Templates.vue` — 模板/样式/逻辑全面修复
+
+#### 3. 用户管理本地用户标签显示
+**问题**：LDAP 用户有橙色 LDAP 标签，本地用户没有标签；LDAP 标签尺寸偏大。
+
+**修复**：
+- 本地用户新增灰色 `info` 类型 "本地" 标签（`effect="plain"`）
+- 统一使用 `.source-tag` 样式：高度 18px、字体 11px、内边距 `0 6px`，比默认 `size="small"` 更紧凑
+
+**涉及文件**：
+- `web/src/views/system/Users.vue` — 模板新增 `v-else` 标签 + 样式
+
+#### 4. 用户禁用/启用状态更新失败（GORM 零值陷阱）
+**问题**：编辑用户后将状态改为"禁用"（`status=0`），提示更新成功但数据库仍为启用状态。
+
+**根因**：GORM 的 `Updates(struct)` 方法默认跳过零值字段，`int` 类型的 `0` 被视为零值，`status=0` 永远不会被写入。
+
+**修复**：将 `Update` 方法从 `Omit("created_at").Updates(user)` 改为使用 `Select` 显式指定要更新的字段列表（`real_name, email, phone, avatar, status, department_id, bio`），确保零值也能正确写入。
+
+**涉及文件**：
+- `internal/data/rbac/user.go` — `Update` 方法重写
+
+#### 5. LDAP 用户编辑后来源变成本地用户
+**问题**：编辑 LDAP 用户（如禁用再启用）后，用户来源从 LDAP 变成本地。
+
+**根因**：上述修复中 `Select` 列表包含了 `"source"` 字段，但前端 `userForm` 没有 `source` 字段，提交时 `Source` 为空字符串，被强制写入数据库覆盖了原有的 `"ldap"` 值。
+
+**修复**：从 `Select` 列表中移除 `"source"`。用户来源只在创建用户或 LDAP 同步时设置，不应通过编辑表单修改。
+
+**涉及文件**：
+- `internal/data/rbac/user.go` — `Update` 方法移除 source 字段

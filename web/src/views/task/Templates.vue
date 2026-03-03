@@ -41,9 +41,9 @@
             <el-icon style="margin-right: 6px;"><Plus /></el-icon>
             新建
           </el-button>
-          <el-button :icon="Refresh" @click="loadTemplates" />
-          <el-button :icon="Setting" />
-          <el-button :icon="FullScreen" />
+          <el-tooltip content="刷新" placement="top">
+            <el-button :icon="Refresh" @click="loadTemplates" />
+          </el-tooltip>
         </div>
       </div>
       <el-table :data="templates" v-loading="loading">
@@ -56,11 +56,20 @@
         </el-table-column>
         <el-table-column label="模板内容" prop="content" min-width="300" show-overflow-tooltip />
         <el-table-column label="描述信息" prop="description" min-width="200" show-overflow-tooltip />
-        <el-table-column label="操作" width="150" align="center" fixed="right">
+        <el-table-column label="操作" width="120" align="center" fixed="right">
           <template #default="{ row }">
-            <el-button type="primary" size="small" link @click="handleEdit(row)">编辑</el-button>
-            <!-- 删除功能已被禁用 -->
-            <!-- <el-button type="danger" size="small" link @click="handleDelete(row)">删除</el-button> -->
+            <div class="action-buttons">
+              <el-tooltip content="编辑" placement="top">
+                <el-button link class="action-btn action-edit" @click="handleEdit(row)">
+                  <el-icon><Edit /></el-icon>
+                </el-button>
+              </el-tooltip>
+              <el-tooltip content="删除" placement="top">
+                <el-button link class="action-btn action-delete" @click="handleDelete(row)">
+                  <el-icon><Delete /></el-icon>
+                </el-button>
+              </el-tooltip>
+            </div>
           </template>
         </el-table-column>
       </el-table>
@@ -232,12 +241,12 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   Plus,
   Refresh,
-  Setting,
-  FullScreen,
+  Edit,
+  Delete,
   Document,
   QuestionFilled
 } from '@element-plus/icons-vue'
-import { getJobTemplateList, createJobTemplate, updateJobTemplate } from '@/api/task'
+import { getJobTemplateList, createJobTemplate, updateJobTemplate, deleteJobTemplate } from '@/api/task'
 
 // 搜索表单
 const searchForm = ref({
@@ -386,10 +395,13 @@ const handleDelete = async (row: any) => {
       cancelButtonText: '取消',
       type: 'warning',
     })
+    await deleteJobTemplate(row.id)
     ElMessage.success('删除成功')
     loadTemplates()
-  } catch {
-    // 用户取消
+  } catch (error: any) {
+    if (error !== 'cancel' && error !== 'close') {
+      ElMessage.error(error?.message || '删除失败')
+    }
   }
 }
 
@@ -510,6 +522,10 @@ onMounted(() => {
 }
 
 .page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 12px;
   padding: 16px 20px;
   background: #fff;
   border-radius: 0;
@@ -525,15 +541,15 @@ onMounted(() => {
 .page-title-icon {
   width: 48px;
   height: 48px;
-  border-radius: 0;
   background: #0a466a;
-  border: none;
+  border-radius: 0;
   display: flex;
   align-items: center;
   justify-content: center;
   color: #ffffff;
   font-size: 22px;
   flex-shrink: 0;
+  border: none;
 }
 
 .page-title {
@@ -541,14 +557,14 @@ onMounted(() => {
   font-size: 20px;
   font-weight: 600;
   color: #303133;
-  line-height: 28px;
+  line-height: 1.3;
 }
 
 .page-subtitle {
   margin: 4px 0 0 0;
-  font-size: 14px;
+  font-size: 13px;
   color: #909399;
-  line-height: 20px;
+  line-height: 1.4;
 }
 
 .search-card {
@@ -605,7 +621,40 @@ onMounted(() => {
   }
 }
 
-/* 按钮样式 - 使用全局样式 .black-button */
+.action-buttons {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: center;
+}
+
+.action-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.action-btn :deep(.el-icon) {
+  font-size: 14px;
+}
+
+.action-btn:hover {
+  transform: scale(1.1);
+}
+
+.action-edit:hover {
+  background-color: #e8f4ff;
+  color: #409eff;
+}
+
+.action-delete:hover {
+  background-color: #fee;
+  color: #f56c6c;
+}
 
 .pagination {
   padding: 16px 20px;

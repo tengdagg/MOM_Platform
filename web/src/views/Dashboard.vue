@@ -1,12 +1,11 @@
 <template>
   <div class="dashboard">
-    <!-- 顶部统计卡片 -->
-    <el-row :gutter="20" class="stats-row">
-      <el-col :span="6" v-for="(stat, index) in topStats" :key="index">
+    <el-row :gutter="10" class="stats-row">
+      <el-col :xl="4" :lg="4" :md="8" :sm="12" :xs="12" v-for="(stat, index) in topStats" :key="index">
         <el-card class="stat-card" shadow="hover">
           <div class="stat-content">
             <div class="stat-icon" :style="{ backgroundColor: stat.color }">
-              <el-icon :size="22" :color="'#fff'">
+              <el-icon :size="22" color="#fff">
                 <component :is="stat.icon" />
               </el-icon>
             </div>
@@ -19,8 +18,7 @@
       </el-col>
     </el-row>
 
-    <!-- 图表展示区域 -->
-    <el-row :gutter="20" class="chart-row">
+    <el-row :gutter="16" class="chart-row">
       <el-col :span="12">
         <el-card class="chart-card" shadow="hover">
           <template #header>
@@ -37,43 +35,68 @@
         <el-card class="chart-card" shadow="hover">
           <template #header>
             <div class="card-header">
-              <span class="card-title">K8s集群资源概览</span>
+              <span class="card-title">网络设备状态分布</span>
+              <span class="view-all-link" @click="$router.push('/asset/network-devices')">查看全部</span>
+            </div>
+          </template>
+          <div ref="deviceStatusChart" class="chart-container"></div>
+        </el-card>
+      </el-col>
+    </el-row>
+
+    <el-row :gutter="16" class="chart-row">
+      <el-col :span="12">
+        <el-card class="chart-card" shadow="hover">
+          <template #header>
+            <div class="card-header">
+              <span class="card-title">K8s节点数概览</span>
               <span class="view-all-link" @click="$router.push('/kubernetes/clusters')">查看全部</span>
             </div>
           </template>
           <div ref="k8sResourceChart" class="chart-container"></div>
         </el-card>
       </el-col>
-    </el-row>
 
-    <el-row :gutter="20" class="chart-row">
       <el-col :span="12">
         <el-card class="chart-card" shadow="hover">
           <template #header>
             <div class="card-header">
-              <span class="card-title">操作趋势（最近7天）</span>
+              <span class="card-title">模型调用次数（最近7天）</span>
               <span class="view-all-link" @click="$router.push('/audit/operation-logs')">查看全部</span>
             </div>
           </template>
           <div ref="operationTrendChart" class="chart-container"></div>
         </el-card>
       </el-col>
+    </el-row>
 
+    <el-row :gutter="16" class="chart-row">
       <el-col :span="12">
         <el-card class="chart-card" shadow="hover">
           <template #header>
             <div class="card-header">
-              <span class="card-title">告警统计</span>
+              <span class="card-title">告警类型分布</span>
               <span class="view-all-link" @click="$router.push('/monitor/alert-logs')">查看全部</span>
             </div>
           </template>
           <div ref="alertStatsChart" class="chart-container"></div>
         </el-card>
       </el-col>
+
+      <el-col :span="12">
+        <el-card class="chart-card" shadow="hover">
+          <template #header>
+            <div class="card-header">
+              <span class="card-title">AI Skill 分类分布</span>
+              <span class="view-all-link" @click="$router.push('/ai/skills')">查看全部</span>
+            </div>
+          </template>
+          <div ref="aiSkillChart" class="chart-container"></div>
+        </el-card>
+      </el-col>
     </el-row>
 
-    <!-- 快速入口 -->
-    <el-row :gutter="20" class="quick-access-row">
+    <el-row :gutter="16" class="quick-access-row">
       <el-col :span="24">
         <el-card class="quick-access-card" shadow="hover">
           <template #header>
@@ -85,6 +108,14 @@
             <div class="quick-item" @click="$router.push('/asset/hosts')">
               <el-icon :size="24" color="#409EFF"><OfficeBuilding /></el-icon>
               <span>主机管理</span>
+            </div>
+            <div class="quick-item" @click="$router.push('/asset/network-devices')">
+              <el-icon :size="24" color="#9254de"><SetUp /></el-icon>
+              <span>网络设备</span>
+            </div>
+            <div class="quick-item" @click="$router.push('/ai/chat')">
+              <el-icon :size="24" color="#13c2c2"><MagicStick /></el-icon>
+              <span>AI 助手</span>
             </div>
             <div class="quick-item" @click="$router.push('/kubernetes/clusters')">
               <el-icon :size="24" color="#67C23A"><Connection /></el-icon>
@@ -98,14 +129,6 @@
               <el-icon :size="24" color="#F56C6C"><Warning /></el-icon>
               <span>告警日志</span>
             </div>
-            <div class="quick-item" @click="$router.push('/asset/credentials')">
-              <el-icon :size="24" color="#909399"><Key /></el-icon>
-              <span>凭据管理</span>
-            </div>
-            <div class="quick-item" @click="$router.push('/asset/cloud-accounts')">
-              <el-icon :size="24" color="#606266"><Cloudy /></el-icon>
-              <span>云账号</span>
-            </div>
           </div>
         </el-card>
       </el-col>
@@ -114,474 +137,436 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, nextTick, markRaw } from 'vue'
+import { ref, onMounted, onBeforeUnmount, markRaw, nextTick } from 'vue'
+import type { ECharts } from 'echarts'
+import * as echarts from 'echarts'
 import {
   OfficeBuilding,
+  SetUp,
   Connection,
   Document,
   Warning,
-  Key,
-  Cloudy
+  MagicStick
 } from '@element-plus/icons-vue'
-import { getHostList } from '@/api/host'
+import { getHostList, getNetworkDeviceList } from '@/api/host'
 import { getClusterList } from '@/api/kubernetes'
-import { getOperationLogList } from '@/api/audit'
 import { getAlertLogs } from '@/api/alert-config'
-import * as echarts from 'echarts'
+import { getSkillStats, getModelCallStats } from '@/api/ai'
 
-// 顶部统计数据
 const topStats = ref([
-  {
-    label: '主机总数',
-    value: '0',
-    icon: markRaw(OfficeBuilding),
-    color: '#409EFF'
-  },
-  {
-    label: 'K8s集群',
-    value: '0',
-    icon: markRaw(Connection),
-    color: '#67C23A'
-  },
-  {
-    label: '今日操作',
-    value: '0',
-    icon: markRaw(Document),
-    color: '#E6A23C'
-  },
-  {
-    label: '活跃告警',
-    value: '0',
-    icon: markRaw(Warning),
-    color: '#F56C6C'
-  }
+  { label: '主机总数', value: '0', icon: markRaw(OfficeBuilding), color: '#409EFF' },
+  { label: '网络设备', value: '0', icon: markRaw(SetUp), color: '#9254de' },
+  { label: 'K8s集群', value: '0', icon: markRaw(Connection), color: '#67C23A' },
+  { label: 'AI Skills启用', value: '0', icon: markRaw(MagicStick), color: '#13c2c2' },
+  { label: '今日模型调用', value: '0', icon: markRaw(Document), color: '#E6A23C' },
+  { label: '活跃告警', value: '0', icon: markRaw(Warning), color: '#F56C6C' }
 ])
 
-// 图表DOM引用
 const hostStatusChart = ref<HTMLElement>()
+const deviceStatusChart = ref<HTMLElement>()
 const k8sResourceChart = ref<HTMLElement>()
 const operationTrendChart = ref<HTMLElement>()
 const alertStatsChart = ref<HTMLElement>()
+const aiSkillChart = ref<HTMLElement>()
 
-// 数据存储
+const chartInstances = new Map<string, ECharts>()
+
 const hosts = ref<any[]>([])
+const devices = ref<any[]>([])
 const clusters = ref<any[]>([])
-const operationLogs = ref<any[]>([])
 const alertLogs = ref<any[]>([])
+const skillStats = ref<any>(null)
+const modelCallStats = ref<any>(null)
 
-// 获取主机列表
-const fetchHosts = async () => {
-  try {
-    const res: any = await getHostList({ page: 1, pageSize: 100 })
-    if (res) {
-      if (res.list && Array.isArray(res.list)) {
-        hosts.value = res.list
-        topStats.value[0].value = String(res.total || res.list.length || 0)
-      } else if (Array.isArray(res)) {
-        hosts.value = res
-        topStats.value[0].value = String(res.length || 0)
-      }
-    }
-    await nextTick()
-    renderHostStatusChart()
-  } catch (error) {
-    topStats.value[0].value = '0'
-  }
+const toList = (res: any): any[] => {
+  if (!res) return []
+  if (Array.isArray(res)) return res
+  if (Array.isArray(res.list)) return res.list
+  return []
 }
 
-// 获取K8s集群列表
-const fetchClusters = async () => {
-  try {
-    const res: any = await getClusterList()
-    if (res) {
-      if (res.list && Array.isArray(res.list)) {
-        clusters.value = res.list
-        topStats.value[1].value = String(res.total || res.list.length || 0)
-      } else if (Array.isArray(res)) {
-        clusters.value = res
-        topStats.value[1].value = String(res.length || 0)
-      }
-    }
-    await nextTick()
-    renderK8sResourceChart()
-  } catch (error) {
-    topStats.value[1].value = '0'
-  }
+const toTotal = (res: any, list: any[]): number => {
+  if (!res) return list.length
+  if (typeof res.total === 'number') return res.total
+  return list.length
 }
 
-// 获取操作日志列表
-const fetchOperationLogs = async () => {
-  try {
-    const today = new Date()
-    today.setHours(0, 0, 0, 0)
-
-    const res: any = await getOperationLogList({ page: 1, pageSize: 500 })
-    if (res) {
-      if (res.list && Array.isArray(res.list)) {
-        operationLogs.value = res.list
-        const todayCount = res.list.filter((log: any) => {
-          const logDate = new Date(log.createdAt)
-          return logDate >= today
-        }).length
-        topStats.value[2].value = String(todayCount)
-      } else if (Array.isArray(res)) {
-        operationLogs.value = res
-        const todayCount = res.filter((log: any) => {
-          const logDate = new Date(log.createdAt)
-          return logDate >= today
-        }).length
-        topStats.value[2].value = String(todayCount)
-      }
-    }
-    await nextTick()
-    renderOperationTrendChart()
-  } catch (error) {
-    topStats.value[2].value = '0'
-  }
+const ensureChart = (key: string, el?: HTMLElement): ECharts | null => {
+  if (!el) return null
+  if (chartInstances.has(key)) return chartInstances.get(key) || null
+  const ins = echarts.init(el)
+  chartInstances.set(key, ins)
+  return ins
 }
 
-// 获取告警日志列表
-const fetchAlertLogs = async () => {
-  try {
-    const res: any = await getAlertLogs({ page: 1, pageSize: 100 })
-    if (res) {
-      if (res.list && Array.isArray(res.list)) {
-        alertLogs.value = res.list
-        const activeCount = res.list.filter((log: any) => log.status === 'failed').length
-        topStats.value[3].value = String(activeCount)
-      } else if (Array.isArray(res)) {
-        alertLogs.value = res
-        const activeCount = res.filter((log: any) => log.status === 'failed').length
-        topStats.value[3].value = String(activeCount)
-      }
-    }
-    await nextTick()
-    renderAlertStatsChart()
-  } catch (error) {
-    topStats.value[3].value = '0'
-  }
+const resizeAllCharts = () => {
+  chartInstances.forEach((chart) => chart.resize())
 }
 
-// 渲染主机状态图表
 const renderHostStatusChart = () => {
-  if (!hostStatusChart.value) return
-
-  const chart = echarts.init(hostStatusChart.value)
-
-  const onlineCount = hosts.value.filter(h => h.status === 1).length
-  const offlineCount = hosts.value.filter(h => h.status !== 1).length
-
-  const option = {
-    tooltip: {
-      trigger: 'item',
-      formatter: '{b}: {c} ({d}%)'
-    },
-    legend: {
-      orient: 'vertical',
-      right: 10,
-      top: 'center'
-    },
-    series: [
-      {
-        name: '主机状态',
-        type: 'pie',
-        radius: ['40%', '70%'],
-        center: ['40%', '50%'],
-        avoidLabelOverlap: false,
-        itemStyle: {
-          borderRadius: 10,
-          borderColor: '#fff',
-          borderWidth: 2
-        },
-        label: {
-          show: false,
-          position: 'center'
-        },
-        emphasis: {
-          label: {
-            show: true,
-            fontSize: 20,
-            fontWeight: 'bold'
-          }
-        },
-        labelLine: {
-          show: false
-        },
-        data: [
-          { value: onlineCount, name: '在线', itemStyle: { color: '#67C23A' } },
-          { value: offlineCount, name: '离线', itemStyle: { color: '#909399' } }
-        ]
-      }
-    ]
-  }
-
-  chart.setOption(option)
-
-  // 响应式
-  window.addEventListener('resize', () => chart.resize())
+  const chart = ensureChart('host', hostStatusChart.value)
+  if (!chart) return
+  const online = hosts.value.filter((h) => h?.status === 1).length
+  const offline = Math.max(hosts.value.length - online, 0)
+  chart.setOption({
+    tooltip: { trigger: 'item', formatter: '{b}: {c} ({d}%)' },
+    legend: { bottom: 0 },
+    series: [{
+      name: '主机状态',
+      type: 'pie',
+      radius: ['45%', '70%'],
+      center: ['50%', '45%'],
+      data: [
+        { value: online, name: '在线', itemStyle: { color: '#67C23A' } },
+        { value: offline, name: '离线', itemStyle: { color: '#909399' } }
+      ]
+    }]
+  })
 }
 
-// 渲染K8s资源图表
+const renderDeviceStatusChart = () => {
+  const chart = ensureChart('device', deviceStatusChart.value)
+  if (!chart) return
+  const online = devices.value.filter((d) => d?.status === 1).length
+  const offline = devices.value.filter((d) => d?.status === 0).length
+  const unknown = Math.max(devices.value.length - online - offline, 0)
+  chart.setOption({
+    tooltip: { trigger: 'item', formatter: '{b}: {c} ({d}%)' },
+    legend: { bottom: 0 },
+    series: [{
+      name: '网络设备状态',
+      type: 'pie',
+      radius: ['45%', '70%'],
+      center: ['50%', '45%'],
+      data: [
+        { value: online, name: '在线', itemStyle: { color: '#67C23A' } },
+        { value: offline, name: '离线', itemStyle: { color: '#F56C6C' } },
+        { value: unknown, name: '未知', itemStyle: { color: '#909399' } }
+      ]
+    }]
+  })
+}
+
 const renderK8sResourceChart = () => {
-  if (!k8sResourceChart.value) return
-
-  const chart = echarts.init(k8sResourceChart.value)
-
-  const clusterNames = clusters.value.map(c => c.name || '未命名')
-  const nodeCounts = clusters.value.map(c => c.nodeCount || 0)
-  const podCounts = clusters.value.map(c => c.podCount || 0)
-
-  const option = {
-    tooltip: {
-      trigger: 'axis',
-      axisPointer: {
-        type: 'shadow'
-      }
-    },
-    legend: {
-      data: ['节点数', 'Pod数'],
-      top: 10
-    },
-    grid: {
-      left: '3%',
-      right: '4%',
-      bottom: '3%',
-      top: '15%',
-      containLabel: true
-    },
+  const chart = ensureChart('k8s', k8sResourceChart.value)
+  if (!chart) return
+  const names = clusters.value.map((c) => c.name || '未命名')
+  const nodeCounts = clusters.value.map((c) => c.nodeCount || 0)
+  chart.setOption({
+    tooltip: { trigger: 'axis' },
+    legend: { data: ['节点数'], top: 8 },
+    grid: { left: '3%', right: '4%', bottom: '3%', top: '16%', containLabel: true },
     xAxis: {
       type: 'category',
-      data: clusterNames.length > 0 ? clusterNames : ['暂无数据'],
-      axisLabel: {
-        interval: 0,
-        rotate: clusterNames.length > 3 ? 30 : 0
-      }
+      data: names.length ? names : ['暂无数据'],
+      axisLabel: { interval: 0, rotate: names.length > 3 ? 25 : 0 }
     },
-    yAxis: {
-      type: 'value'
-    },
+    yAxis: { type: 'value' },
     series: [
-      {
-        name: '节点数',
-        type: 'bar',
-        data: nodeCounts.length > 0 ? nodeCounts : [0],
-        itemStyle: { color: '#409EFF' },
-        barMaxWidth: 40
-      },
-      {
-        name: 'Pod数',
-        type: 'bar',
-        data: podCounts.length > 0 ? podCounts : [0],
-        itemStyle: { color: '#67C23A' },
-        barMaxWidth: 40
-      }
+      { name: '节点数', type: 'bar', data: nodeCounts.length ? nodeCounts : [0], itemStyle: { color: '#409EFF' }, barMaxWidth: 40 }
     ]
-  }
-
-  chart.setOption(option)
-  window.addEventListener('resize', () => chart.resize())
+  })
 }
 
-// 渲染操作趋势图表
+const modelColors = ['#E6A23C', '#409EFF', '#67C23A', '#9254de', '#F56C6C', '#13c2c2', '#ff85c0']
+
 const renderOperationTrendChart = () => {
-  if (!operationTrendChart.value) return
+  const chart = ensureChart('operation', operationTrendChart.value)
+  if (!chart) return
+  const daily = modelCallStats.value?.daily || []
 
-  const chart = echarts.init(operationTrendChart.value)
-
-  // 统计最近7天的操作数
   const today = new Date()
   const dates: string[] = []
-  const counts: number[] = []
-
+  const dateKeys: string[] = []
   for (let i = 6; i >= 0; i--) {
-    const date = new Date(today)
-    date.setDate(date.getDate() - i)
-    const dateStr = `${date.getMonth() + 1}/${date.getDate()}`
-    dates.push(dateStr)
-
-    const count = operationLogs.value.filter((log: any) => {
-      const logDate = new Date(log.createdAt)
-      return logDate.toDateString() === date.toDateString()
-    }).length
-
-    counts.push(count)
+    const d = new Date(today)
+    d.setDate(d.getDate() - i)
+    dates.push(`${d.getMonth() + 1}/${d.getDate()}`)
+    const y = d.getFullYear()
+    const m = String(d.getMonth() + 1).padStart(2, '0')
+    const dd = String(d.getDate()).padStart(2, '0')
+    dateKeys.push(`${y}-${m}-${dd}`)
   }
 
-  const option = {
-    tooltip: {
-      trigger: 'axis'
-    },
-    grid: {
-      left: '3%',
-      right: '4%',
-      bottom: '3%',
-      top: '10%',
-      containLabel: true
-    },
-    xAxis: {
-      type: 'category',
-      boundaryGap: false,
-      data: dates
-    },
-    yAxis: {
-      type: 'value'
-    },
-    series: [
-      {
-        name: '操作次数',
-        type: 'line',
-        smooth: true,
-        data: counts,
-        areaStyle: {
-          color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-            { offset: 0, color: 'rgba(230, 162, 60, 0.3)' },
-            { offset: 1, color: 'rgba(230, 162, 60, 0.05)' }
-          ])
-        },
-        itemStyle: { color: '#E6A23C' },
-        lineStyle: { width: 2 }
-      }
-    ]
+  const modelMap = new Map<string, Map<string, number>>()
+  for (const row of daily) {
+    const name = row.modelName || '默认模型'
+    if (!modelMap.has(name)) modelMap.set(name, new Map())
+    modelMap.get(name)!.set(row.day, row.count)
   }
 
-  chart.setOption(option)
-  window.addEventListener('resize', () => chart.resize())
-}
-
-// 渲染告警统计图表
-const renderAlertStatsChart = () => {
-  if (!alertStatsChart.value) return
-
-  const chart = echarts.init(alertStatsChart.value)
-
-  const successCount = alertLogs.value.filter((log: any) => log.status === 'success').length
-  const failedCount = alertLogs.value.filter((log: any) => log.status === 'failed').length
-
-  // 按告警类型统计
-  const typeMap = new Map<string, number>()
-  alertLogs.value.forEach((log: any) => {
-    const type = log.alertType || '未知'
-    typeMap.set(type, (typeMap.get(type) || 0) + 1)
+  const modelNames = Array.from(modelMap.keys())
+  const series = modelNames.map((name, idx) => {
+    const dayMap = modelMap.get(name)!
+    const data = dateKeys.map((dk) => dayMap.get(dk) || 0)
+    const color = modelColors[idx % modelColors.length]
+    return {
+      name,
+      type: 'line' as const,
+      smooth: true,
+      data,
+      areaStyle: {
+        color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+          { offset: 0, color: color + '4D' },
+          { offset: 1, color: color + '0A' }
+        ])
+      },
+      itemStyle: { color },
+      lineStyle: { width: 2 }
+    }
   })
 
+  if (series.length === 0) {
+    series.push({
+      name: '模型调用',
+      type: 'line' as const,
+      smooth: true,
+      data: dateKeys.map(() => 0),
+      areaStyle: {
+        color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+          { offset: 0, color: 'rgba(230, 162, 60, 0.3)' },
+          { offset: 1, color: 'rgba(230, 162, 60, 0.04)' }
+        ])
+      },
+      itemStyle: { color: '#E6A23C' },
+      lineStyle: { width: 2 }
+    })
+  }
+
+  chart.setOption({
+    tooltip: { trigger: 'axis' },
+    legend: { data: modelNames, top: 4 },
+    grid: { left: '3%', right: '4%', bottom: '3%', top: modelNames.length > 1 ? '18%' : '10%', containLabel: true },
+    xAxis: { type: 'category', boundaryGap: false, data: dates },
+    yAxis: { type: 'value', minInterval: 1 },
+    series
+  })
+}
+
+const renderAlertStatsChart = () => {
+  const chart = ensureChart('alert', alertStatsChart.value)
+  if (!chart) return
+  const typeMap = new Map<string, number>()
+  alertLogs.value.forEach((log: any) => {
+    const type = log?.alertType || '未知'
+    typeMap.set(type, (typeMap.get(type) || 0) + 1)
+  })
   const typeData = Array.from(typeMap.entries())
     .map(([name, value]) => ({ name, value }))
     .sort((a, b) => b.value - a.value)
-    .slice(0, 5)
-
-  const option = {
-    tooltip: {
-      trigger: 'item',
-      formatter: '{b}: {c} ({d}%)'
-    },
+    .slice(0, 6)
+  const dataForLegend = typeData.length ? typeData : [{ name: '暂无数据', value: 0 }]
+  chart.setOption({
+    tooltip: { trigger: 'item', formatter: '{b}: {c} ({d}%)' },
     legend: {
-      orient: 'vertical',
-      right: 10,
-      top: 'center',
-      data: typeData.map(d => d.name)
-    },
-    series: [
-      {
-        name: '告警类型',
-        type: 'pie',
-        radius: ['40%', '70%'],
-        center: ['40%', '50%'],
-        data: typeData.length > 0 ? typeData : [{ name: '暂无数据', value: 1 }],
-        emphasis: {
-          itemStyle: {
-            shadowBlur: 10,
-            shadowOffsetX: 0,
-            shadowColor: 'rgba(0, 0, 0, 0.5)'
-          }
-        }
+      bottom: 0,
+      formatter: (name: string) => {
+        const row = dataForLegend.find((i) => i.name === name)
+        return `${name} (${row ? row.value : 0})`
       }
-    ]
-  }
-
-  chart.setOption(option)
-  window.addEventListener('resize', () => chart.resize())
+    },
+    series: [{
+      name: '告警类型',
+      type: 'pie',
+      radius: ['45%', '70%'],
+      center: ['50%', '45%'],
+      label: {
+        show: true,
+        formatter: '{b}: {c}',
+        fontSize: 12
+      },
+      data: typeData.length ? typeData : [{ name: '暂无数据', value: 0 }]
+    }]
+  })
 }
 
-// 页面加载时获取数据
-onMounted(() => {
-  fetchHosts()
-  fetchClusters()
-  fetchOperationLogs()
-  fetchAlertLogs()
+const renderAISkillChart = () => {
+  const chart = ensureChart('aiSkill', aiSkillChart.value)
+  if (!chart) return
+  const byCategory = skillStats.value?.byCategory || {}
+  const data = Object.keys(byCategory).map((key) => ({
+    name: key || 'other',
+    value: Number(byCategory[key]) || 0
+  }))
+  chart.setOption({
+    tooltip: { trigger: 'item', formatter: '{b}: {c} ({d}%)' },
+    legend: { bottom: 0 },
+    series: [{
+      name: 'Skill分类',
+      type: 'pie',
+      radius: ['45%', '70%'],
+      center: ['50%', '45%'],
+      data: data.length ? data : [{ name: '暂无数据', value: 1 }]
+    }]
+  })
+}
+
+const fetchHosts = async () => {
+  try {
+    const res: any = await getHostList({ page: 1, pageSize: 200 })
+    const list = toList(res)
+    hosts.value = list
+    topStats.value[0].value = String(toTotal(res, list))
+    renderHostStatusChart()
+  } catch {
+    hosts.value = []
+    topStats.value[0].value = '0'
+    renderHostStatusChart()
+  }
+}
+
+const fetchNetworkDevices = async () => {
+  try {
+    const res: any = await getNetworkDeviceList({ page: 1, pageSize: 200 })
+    const list = toList(res)
+    devices.value = list
+    topStats.value[1].value = String(toTotal(res, list))
+    renderDeviceStatusChart()
+  } catch {
+    devices.value = []
+    topStats.value[1].value = '0'
+    renderDeviceStatusChart()
+  }
+}
+
+const fetchClusters = async () => {
+  try {
+    const res: any = await getClusterList()
+    const list = toList(res)
+    clusters.value = list
+    topStats.value[2].value = String(toTotal(res, list))
+    renderK8sResourceChart()
+  } catch {
+    clusters.value = []
+    topStats.value[2].value = '0'
+    renderK8sResourceChart()
+  }
+}
+
+const fetchSkillStats = async () => {
+  try {
+    const res: any = await getSkillStats()
+    skillStats.value = res || {}
+    const enabled = Number(res?.builtinEnabled || 0) + Number(res?.customEnabled || 0)
+    topStats.value[3].value = String(enabled)
+    renderAISkillChart()
+  } catch {
+    skillStats.value = null
+    topStats.value[3].value = '0'
+    renderAISkillChart()
+  }
+}
+
+const fetchModelCallStats = async () => {
+  try {
+    const res: any = await getModelCallStats()
+    modelCallStats.value = res || {}
+    topStats.value[4].value = String(res?.todayTotal || 0)
+    renderOperationTrendChart()
+  } catch {
+    modelCallStats.value = null
+    topStats.value[4].value = '0'
+    renderOperationTrendChart()
+  }
+}
+
+const fetchAlertLogs = async () => {
+  try {
+    const res: any = await getAlertLogs({ page: 1, pageSize: 500 })
+    const list = toList(res)
+    alertLogs.value = list
+    const activeCount = list.filter((log: any) => ['failed', 'error', 'firing'].includes(String(log?.status || '').toLowerCase())).length
+    topStats.value[5].value = String(activeCount)
+    renderAlertStatsChart()
+  } catch {
+    alertLogs.value = []
+    topStats.value[5].value = '0'
+    renderAlertStatsChart()
+  }
+}
+
+onMounted(async () => {
+  window.addEventListener('resize', resizeAllCharts)
+  await nextTick()
+  await Promise.all([
+    fetchHosts(),
+    fetchNetworkDevices(),
+    fetchClusters(),
+    fetchSkillStats(),
+    fetchModelCallStats(),
+    fetchAlertLogs()
+  ])
+})
+
+onBeforeUnmount(() => {
+  window.removeEventListener('resize', resizeAllCharts)
+  chartInstances.forEach((chart) => chart.dispose())
+  chartInstances.clear()
 })
 </script>
 
 <style scoped>
 .dashboard {
   padding: 0;
-  background-color: transparent;
 }
 
-.stats-row {
+.stats-row,
+.chart-row,
+.quick-access-row {
   margin-bottom: 16px;
 }
 
-.stat-card {
-  border-radius: 0;
+.stat-card,
+.chart-card,
+.quick-access-card {
+  border-radius: 12px;
+  border: 1px solid #f0f2f5;
   overflow: hidden;
 }
 
 .stat-card :deep(.el-card__body) {
+  padding: 10px 12px;
+}
+
+.chart-card :deep(.el-card__header),
+.quick-access-card :deep(.el-card__header) {
+  padding: 12px 14px;
+  border-bottom: 1px solid #f0f2f5;
+}
+
+.chart-card :deep(.el-card__body),
+.quick-access-card :deep(.el-card__body) {
   padding: 14px;
 }
 
 .stat-content {
   display: flex;
   align-items: center;
+  gap: 8px;
 }
 
 .stat-icon {
-  width: 44px;
-  height: 44px;
-  border-radius: 0;
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
   display: flex;
   align-items: center;
   justify-content: center;
-  margin-right: 12px;
-}
-
-.stat-icon :deep(.el-icon) {
-  font-size: 22px !important;
-}
-
-.stat-info {
-  flex: 1;
+  flex-shrink: 0;
 }
 
 .stat-value {
-  font-size: 20px;
-  font-weight: bold;
+  font-size: 16px;
+  font-weight: 700;
   color: #303133;
   line-height: 1;
-  margin-bottom: 4px;
 }
 
 .stat-label {
-  font-size: 12px;
+  margin-top: 3px;
+  font-size: 11px;
   color: #909399;
-}
-
-.chart-row {
-  margin-bottom: 16px;
-}
-
-.chart-card {
-  border-radius: 0;
-  height: 100%;
-}
-
-.chart-card :deep(.el-card__header) {
-  padding: 10px 14px;
-  border-bottom: 1px solid #ebeef5;
-}
-
-.chart-card :deep(.el-card__body) {
-  padding: 14px;
+  white-space: nowrap;
 }
 
 .card-header {
@@ -592,13 +577,13 @@ onMounted(() => {
 
 .card-title {
   font-size: 14px;
-  font-weight: 500;
+  font-weight: 600;
   color: #303133;
 }
 
 .view-all-link {
   font-size: 12px;
-  color: #409EFF;
+  color: #409eff;
   cursor: pointer;
 }
 
@@ -608,29 +593,12 @@ onMounted(() => {
 
 .chart-container {
   width: 100%;
-  height: 240px;
-}
-
-.quick-access-row {
-  margin-bottom: 16px;
-}
-
-.quick-access-card {
-  border-radius: 0;
-}
-
-.quick-access-card :deep(.el-card__header) {
-  padding: 10px 14px;
-  border-bottom: 1px solid #ebeef5;
-}
-
-.quick-access-card :deep(.el-card__body) {
-  padding: 14px;
+  height: 260px;
 }
 
 .quick-access-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
   gap: 12px;
 }
 
@@ -640,20 +608,15 @@ onMounted(() => {
   align-items: center;
   justify-content: center;
   padding: 14px;
-  border-radius: 0;
-  background-color: #f5f7fa;
+  border-radius: 10px;
+  background: linear-gradient(180deg, #fafbfc 0%, #f5f7fa 100%);
   cursor: pointer;
-  transition: all 0.3s;
-}
-
-.quick-item :deep(.el-icon) {
-  font-size: 24px !important;
+  transition: all 0.2s;
 }
 
 .quick-item:hover {
-  background-color: #ecf5ff;
   transform: translateY(-2px);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.08);
 }
 
 .quick-item span {
@@ -663,30 +626,9 @@ onMounted(() => {
   font-weight: 500;
 }
 
-/* 响应式设计 */
-@media (max-width: 1200px) {
-  .stat-value {
-    font-size: 18px;
-  }
-
-  .stat-icon {
-    width: 40px;
-    height: 40px;
-  }
-
+@media (max-width: 992px) {
   .chart-container {
-    height: 200px;
-  }
-}
-
-@media (max-width: 768px) {
-  .quick-access-grid {
-    grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
-    gap: 10px;
-  }
-
-  .quick-item {
-    padding: 10px;
+    height: 220px;
   }
 }
 </style>

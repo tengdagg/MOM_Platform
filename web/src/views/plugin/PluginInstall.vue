@@ -298,6 +298,7 @@ const handleBackToList = () => {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
+  margin-bottom: 12px;
   padding: 16px 20px;
   background: #fff;
   border-radius: 0;
@@ -313,15 +314,15 @@ const handleBackToList = () => {
 .page-title-icon {
   width: 48px;
   height: 48px;
-  border-radius: 0;
   background: #0a466a;
-  border: none;
+  border-radius: 0;
   display: flex;
   align-items: center;
   justify-content: center;
   color: #ffffff;
   font-size: 22px;
   flex-shrink: 0;
+  border: none;
 }
 
 .page-title {
@@ -329,14 +330,14 @@ const handleBackToList = () => {
   font-size: 20px;
   font-weight: 600;
   color: #303133;
-  line-height: 28px;
+  line-height: 1.3;
 }
 
 .page-subtitle {
   margin: 4px 0 0 0;
-  font-size: 14px;
+  font-size: 13px;
   color: #909399;
-  line-height: 20px;
+  line-height: 1.4;
 }
 
 .info-panel,

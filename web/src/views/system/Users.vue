@@ -110,7 +110,8 @@
               <template #default="{ row }">
                 <div class="user-name-cell">
                   <span class="user-name">{{ row.username }}</span>
-                  <el-tag v-if="row.source === 'ldap'" size="small" type="warning" effect="dark">LDAP</el-tag>
+                  <el-tag v-if="row.source === 'ldap'" class="source-tag" type="warning" effect="dark">LDAP</el-tag>
+                  <el-tag v-else class="source-tag" type="info" effect="plain">本地</el-tag>
                 </div>
               </template>
             </el-table-column>
@@ -1047,11 +1048,19 @@ onMounted(() => {
 .user-name-cell {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
 }
 
 .user-name {
   font-weight: 500;
+}
+
+.source-tag {
+  padding: 0 6px !important;
+  height: 18px !important;
+  line-height: 18px !important;
+  font-size: 11px !important;
+  border-radius: 0 !important;
 }
 
 .description-text {
