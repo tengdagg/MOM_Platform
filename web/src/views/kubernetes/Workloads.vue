@@ -3218,11 +3218,14 @@ const startPodPolling = () => {
   podPollTimer = setInterval(() => {
     count++
     refreshDetailPods()
-    // 如果已经全部就绪且达到目标副本数，或者超过60秒，停止轮询 (但如果是扩容过程，可能需要一直等到Running)
+    // 每隔两次（4秒）也刷新工作负载详情和历史版本，更新副本数显示
+    if (count % 2 === 0) {
+      refreshWorkloadInfo()
+      refreshHistory()
+    }
     if (count > 30) {
       stopPodPolling()
     }
-    // 如果达到目标且都Running了，也可以停止（可选，这里保持持续刷新一段时间体验更好）
   }, 2000)
 }
 
@@ -3238,6 +3241,8 @@ const stopPodPolling = () => {
 watch(detailDialogVisible, (val) => {
   if (!val) {
     stopPodPolling()
+    // 关闭详情弹窗时刷新主列表，确保扩缩容/回滚等操作的结果同步到列表
+    loadWorkloads()
   }
 })
 
@@ -3259,7 +3264,8 @@ const performScale = async (replicas: number, actionName: string = '扩缩容') 
       replicas: replicas
     })
     ElMessage.success(`${actionName}成功，目标副本数: ${replicas}`)
-    // 立即刷新并开始轮询
+    // 立即刷新工作负载详情（更新期望副本数）+ Pod 列表，并开始轮询
+    refreshWorkloadInfo()
     refreshDetailPods()
     startPodPolling()
   } catch (error: any) {
@@ -3856,7 +3862,7 @@ const refreshHistory = async () => {
 const handleRollback = async (replicaSet: any) => {
   try {
     await ElMessageBox.confirm(
-      `确定要回滚到版本 #${getReplicaSetRevision(replicaSet)} 吗？此操作将创建一个新的 ReplicaSet 并更新工作负载。`,
+      `确定要回滚到版本 #${getReplicaSetRevision(replicaSet)} 的配置吗？回滚后 Kubernetes 会生成一个新的版本号。`,
       '回滚确认',
       {
         confirmButtonText: '确定',

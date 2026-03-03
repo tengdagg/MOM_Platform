@@ -10089,13 +10089,28 @@ func (h *ResourceHandler) RollbackWorkload(c *gin.Context) {
 	case "Deployment":
 		fmt.Printf("📦 Processing Deployment rollback...\n")
 
-		// 使用 Kubernetes Rollback API (如果可用) 或者手动回滚
-		// 注意：Kubernetes 1.15+ 移除了 rollout undo 命令，需要使用其他方式
-		// 这里我们使用创建新的 ReplicaSet 的方式来回滚
+		// 先获取 Deployment 以读取其真实的 selector
+		deployment, err := clientset.AppsV1().Deployments(req.Namespace).Get(c.Request.Context(), req.Name, metav1.GetOptions{})
+		if err != nil {
+			fmt.Printf("❌ Get Deployment error: %v\n", err)
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"code":    500,
+				"message": "获取 Deployment 失败: " + err.Error(),
+			})
+			return
+		}
 
-		// 首先找到对应版本的 ReplicaSet
+		// 使用 Deployment 实际的 matchLabels 构建 labelSelector
+		var selectors []string
+		for k, v := range deployment.Spec.Selector.MatchLabels {
+			selectors = append(selectors, fmt.Sprintf("%s=%s", k, v))
+		}
+		labelSelector := strings.Join(selectors, ",")
+		fmt.Printf("📋 Using labelSelector: %s\n", labelSelector)
+
+		// 通过正确的 labelSelector 查找所有 ReplicaSet
 		replicaSets, err := clientset.AppsV1().ReplicaSets(req.Namespace).List(c.Request.Context(), metav1.ListOptions{
-			LabelSelector: fmt.Sprintf("app=%s", req.Name), // 假设有 app 标签
+			LabelSelector: labelSelector,
 		})
 		if err != nil {
 			fmt.Printf("❌ List ReplicaSets error: %v\n", err)
@@ -10111,6 +10126,7 @@ func (h *ResourceHandler) RollbackWorkload(c *gin.Context) {
 		for i := range replicaSets.Items {
 			rs := &replicaSets.Items[i]
 			revision := rs.Annotations["deployment.kubernetes.io/revision"]
+			fmt.Printf("  RS: %s, revision=%s, ownerRefs=%d\n", rs.Name, revision, len(rs.OwnerReferences))
 			if revision == req.Revision {
 				targetReplicaSet = rs
 				break
@@ -10118,26 +10134,15 @@ func (h *ResourceHandler) RollbackWorkload(c *gin.Context) {
 		}
 
 		if targetReplicaSet == nil {
-			fmt.Printf("❌ Target ReplicaSet not found for revision %s\n", req.Revision)
+			fmt.Printf("❌ Target ReplicaSet not found for revision %s (found %d ReplicaSets)\n", req.Revision, len(replicaSets.Items))
 			c.JSON(http.StatusNotFound, gin.H{
 				"code":    404,
-				"message": "未找到指定版本的 ReplicaSet",
+				"message": fmt.Sprintf("未找到指定版本的 ReplicaSet（revision=%s，共找到 %d 个 ReplicaSet）", req.Revision, len(replicaSets.Items)),
 			})
 			return
 		}
 
 		fmt.Printf("✅ Found target ReplicaSet: %s\n", targetReplicaSet.Name)
-
-		// 获取当前 Deployment
-		deployment, err := clientset.AppsV1().Deployments(req.Namespace).Get(c.Request.Context(), req.Name, metav1.GetOptions{})
-		if err != nil {
-			fmt.Printf("❌ Get Deployment error: %v\n", err)
-			c.JSON(http.StatusInternalServerError, gin.H{
-				"code":    500,
-				"message": "获取 Deployment 失败: " + err.Error(),
-			})
-			return
-		}
 
 		// 更新 Deployment 的 template 来匹配目标 ReplicaSet
 		deployment.Spec.Template = targetReplicaSet.Spec.Template
