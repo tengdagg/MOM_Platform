@@ -528,9 +528,13 @@ func (a *Agent) Run(ctx context.Context, adapter *ModelAdapter, sessionID uint, 
 
 // RunStream 流式执行 Agent
 func (a *Agent) RunStream(ctx context.Context, adapter *ModelAdapter, sessionID uint, userMessage string, userID uint, username string, maxToolCalls int, eventCh chan<- AgentEvent) {
+	messageSent := false
 	defer func() {
 		if r := recover(); r != nil {
 			eventCh <- AgentEvent{Type: "error", Error: fmt.Sprintf("Agent 异常: %v", r)}
+		}
+		if !messageSent {
+			eventCh <- AgentEvent{Type: "message_end"}
 		}
 		close(eventCh)
 	}()
@@ -560,6 +564,8 @@ func (a *Agent) RunStream(ctx context.Context, adapter *ModelAdapter, sessionID 
 		case <-ctx.Done():
 			a.saveAssistantMessage(sessionID, contentSoFar+"\n\n[已停止]", allToolCallRecords)
 			eventCh <- AgentEvent{Type: "text_delta", Content: "\n\n[已停止]"}
+			eventCh <- AgentEvent{Type: "message_end"}
+			messageSent = true
 			return
 		default:
 		}
@@ -570,6 +576,8 @@ func (a *Agent) RunStream(ctx context.Context, adapter *ModelAdapter, sessionID 
 			if ctx.Err() != nil {
 				a.saveAssistantMessage(sessionID, contentSoFar+"\n\n[已停止]", allToolCallRecords)
 				eventCh <- AgentEvent{Type: "text_delta", Content: "\n\n[已停止]"}
+				eventCh <- AgentEvent{Type: "message_end"}
+				messageSent = true
 				return
 			}
 			eventCh <- AgentEvent{Type: "error", Error: fmt.Sprintf("调用模型失败: %v", err)}
@@ -644,6 +652,7 @@ func (a *Agent) RunStream(ctx context.Context, adapter *ModelAdapter, sessionID 
 		if len(toolCalls) == 0 || finishReason == "stop" {
 			a.saveAssistantMessage(sessionID, content, allToolCallRecords)
 			eventCh <- AgentEvent{Type: "message_end"}
+			messageSent = true
 			return
 		}
 
@@ -660,6 +669,15 @@ func (a *Agent) RunStream(ctx context.Context, adapter *ModelAdapter, sessionID 
 		messages = append(messages, assistantMessage)
 
 		for _, tc := range toolCalls {
+			// 工具执行前检查是否已被取消
+			if ctx.Err() != nil {
+				a.saveAssistantMessage(sessionID, contentSoFar+"\n\n[已停止]", allToolCallRecords)
+				eventCh <- AgentEvent{Type: "text_delta", Content: "\n\n[已停止]"}
+				eventCh <- AgentEvent{Type: "message_end"}
+				messageSent = true
+				return
+			}
+
 			llmName := tc.Function.Name
 			toolArgs := tc.Function.Arguments
 			displayName := a.registry.ResolveName(llmName)
@@ -708,6 +726,7 @@ func (a *Agent) RunStream(ctx context.Context, adapter *ModelAdapter, sessionID 
 	a.saveAssistantMessage(sessionID, "\n\n[已达到最大工具调用次数]", allToolCallRecords)
 	eventCh <- AgentEvent{Type: "text_delta", Content: "\n\n[已达到最大工具调用次数]"}
 	eventCh <- AgentEvent{Type: "message_end"}
+	messageSent = true
 }
 
 // saveAssistantMessage 保存助手消息（附带工具调用记录）并异步触发摘要

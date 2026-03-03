@@ -289,12 +289,47 @@ func (h *Handler) ChatWebSocket(c *gin.Context) {
 
 			adapter := biz.NewModelAdapter(model)
 			eventCh := make(chan biz.AgentEvent, 64)
+			streamSessionID := req.SessionID
 
 			go h.agent.RunStream(ctx, adapter, req.SessionID, req.Content, uid, uname, model.MaxToolCalls, eventCh)
 
-			// 转发事件给前端
+			// 转发事件给前端，附带 sessionId 让前端区分会话
 			for event := range eventCh {
-				if err := safeWriteEvent(event); err != nil {
+				wrappedEvent := map[string]any{
+					"type":      event.Type,
+					"sessionId": streamSessionID,
+				}
+				if event.Content != "" {
+					wrappedEvent["content"] = event.Content
+				}
+				if event.ToolName != "" {
+					wrappedEvent["toolName"] = event.ToolName
+				}
+				if event.ToolParams != "" {
+					wrappedEvent["toolParams"] = event.ToolParams
+				}
+				if event.ToolResult != "" {
+					wrappedEvent["toolResult"] = event.ToolResult
+				}
+				if event.ActionID != "" {
+					wrappedEvent["actionId"] = event.ActionID
+				}
+				if event.Description != "" {
+					wrappedEvent["description"] = event.Description
+				}
+				if event.RiskLevel != "" {
+					wrappedEvent["riskLevel"] = event.RiskLevel
+				}
+				if event.FinishReason != "" {
+					wrappedEvent["finishReason"] = event.FinishReason
+				}
+				if event.Error != "" {
+					wrappedEvent["error"] = event.Error
+				}
+				if event.Usage != nil {
+					wrappedEvent["usage"] = event.Usage
+				}
+				if err := safeWriteJSON(wrappedEvent); err != nil {
 					cancel()
 					return
 				}

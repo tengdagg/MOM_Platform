@@ -320,6 +320,10 @@ const inputMessage = ref('')
 const isLoading = ref(false)
 const streamingContent = ref('')
 const currentToolCalls = ref<any[]>([])
+const streamingSessionId = ref<number>(0) // 正在流式输出的会话 ID
+const stoppedByUser = ref(false) // 用户是否主动停止了生成
+// 按会话缓冲流式内容，切换回来时可恢复
+const streamingBuffers = new Map<number, { content: string; toolCalls: any[] }>()
 const messagesContainer = ref<HTMLElement>()
 const templates = ref<any[]>([])
 const retentionDays = ref(30)
@@ -468,8 +472,24 @@ async function createNewSession() {
 
 // 切换会话
 async function switchSession(id: number) {
+  streamingContent.value = ''
+  currentToolCalls.value = []
+
+  const isTargetStreaming = streamingSessionId.value === id && streamingSessionId.value !== 0
+  isLoading.value = isTargetStreaming
   currentSessionId.value = id
   await loadMessages(id)
+
+  // 如果目标会话正在流式中，从缓冲恢复已有内容
+  // 缓冲始终保有完整的流式内容，直接用缓冲覆盖即可
+  if (isTargetStreaming) {
+    const buf = streamingBuffers.get(id)
+    if (buf) {
+      streamingContent.value = buf.content
+      currentToolCalls.value = buf.toolCalls.map(tc => ({ ...tc }))
+      scrollToBottom()
+    }
+  }
 }
 
 // 加载会话消息
@@ -533,66 +553,128 @@ function connectWebSocket() {
   }
 }
 
+// 获取或创建会话的流式缓冲
+function getBuffer(sid: number) {
+  if (!streamingBuffers.has(sid)) {
+    streamingBuffers.set(sid, { content: '', toolCalls: [] })
+  }
+  return streamingBuffers.get(sid)!
+}
+
 // 处理 WebSocket 事件
 function handleWSEvent(event: any) {
+  const eventSessionId = event.sessionId as number
+  const isCurrentSession = !eventSessionId || eventSessionId === currentSessionId.value
+
   switch (event.type) {
     case 'session_created':
       sessions.value.unshift(event.session)
       currentSessionId.value = event.session.id
+      streamingSessionId.value = event.session.id
       break
 
-    case 'text_delta':
-      streamingContent.value += event.content
-      scrollToBottom()
+    case 'text_delta': {
+      if (stoppedByUser.value) break
+      // 无论是否当前会话，都写入缓冲
+      if (eventSessionId) {
+        getBuffer(eventSessionId).content += event.content
+      }
+      if (isCurrentSession) {
+        streamingContent.value += event.content
+        scrollToBottom()
+      }
       break
+    }
 
-    case 'tool_call_start':
-      currentToolCalls.value.push({
+    case 'tool_call_start': {
+      if (stoppedByUser.value) break
+      const tcItem = {
         toolName: event.toolName,
         params: event.toolParams,
         riskLevel: event.riskLevel || 'low',
         status: 'running',
         startTime: Date.now(),
-      })
-      scrollToBottom()
-      break
-
-    case 'tool_call_result': {
-      // 按名称匹配最后一个 running 状态的 tool call
-      const tc = [...currentToolCalls.value].reverse().find(
-        t => t.toolName === event.toolName && t.status === 'running'
-      ) || currentToolCalls.value[currentToolCalls.value.length - 1]
-      if (tc) {
-        tc.result = event.toolResult
-        tc.status = event.toolResult?.includes('"error"') ? 'error' : 'success'
-        tc.duration = Date.now() - (tc.startTime || Date.now())
       }
-      scrollToBottom()
+      if (eventSessionId) {
+        getBuffer(eventSessionId).toolCalls.push({ ...tcItem })
+      }
+      if (isCurrentSession) {
+        currentToolCalls.value.push(tcItem)
+        scrollToBottom()
+      }
       break
     }
 
-    case 'message_end':
-      // 将流式内容合并为正式消息
-      if (streamingContent.value) {
+    case 'tool_call_result': {
+      if (stoppedByUser.value) break
+      // 更新缓冲中的 tool call 状态
+      if (eventSessionId) {
+        const buf = getBuffer(eventSessionId)
+        const bufTc = [...buf.toolCalls].reverse().find(
+          t => t.toolName === event.toolName && t.status === 'running'
+        ) || buf.toolCalls[buf.toolCalls.length - 1]
+        if (bufTc) {
+          bufTc.result = event.toolResult
+          bufTc.status = event.toolResult?.includes('"error"') ? 'error' : 'success'
+          bufTc.duration = Date.now() - (bufTc.startTime || Date.now())
+        }
+      }
+      if (isCurrentSession) {
+        const tc = [...currentToolCalls.value].reverse().find(
+          t => t.toolName === event.toolName && t.status === 'running'
+        ) || currentToolCalls.value[currentToolCalls.value.length - 1]
+        if (tc) {
+          tc.result = event.toolResult
+          tc.status = event.toolResult?.includes('"error"') ? 'error' : 'success'
+          tc.duration = Date.now() - (tc.startTime || Date.now())
+        }
+        scrollToBottom()
+      }
+      break
+    }
+
+    case 'message_end': {
+      const buf = eventSessionId ? streamingBuffers.get(eventSessionId) : null
+      if (!stoppedByUser.value && isCurrentSession && streamingContent.value) {
         messages.value.push({
           id: Date.now(),
           role: 'assistant',
           content: streamingContent.value,
           toolCalls: currentToolCalls.value.map(tc => ({ ...tc, _expanded: false })),
         })
+      } else if (!stoppedByUser.value && !isCurrentSession && buf && buf.content) {
+        // 非当前会话完成：内容已保存到后端数据库，清理缓冲即可
+        // 用户切回时 loadMessages 会从后端拉取完整消息
       }
       streamingContent.value = ''
       currentToolCalls.value = []
-      isLoading.value = false
+      if (eventSessionId) {
+        streamingBuffers.delete(eventSessionId)
+      }
+      streamingSessionId.value = 0
+      stoppedByUser.value = false
+      if (isCurrentSession) {
+        isLoading.value = false
+      }
       scrollToBottom()
-      loadSessions() // 刷新会话标题
+      loadSessions()
       break
+    }
 
     case 'error':
-      ElMessage.error(event.error || '请求处理失败')
-      isLoading.value = false
+      if (isCurrentSession && !stoppedByUser.value) {
+        ElMessage.error(event.error || '请求处理失败')
+      }
+      if (isCurrentSession) {
+        isLoading.value = false
+      }
       streamingContent.value = ''
       currentToolCalls.value = []
+      if (eventSessionId) {
+        streamingBuffers.delete(eventSessionId)
+      }
+      streamingSessionId.value = 0
+      stoppedByUser.value = false
       break
   }
 }
@@ -617,6 +699,8 @@ async function sendMessage() {
   inputMessage.value = ''
   isLoading.value = true
   streamingContent.value = ''
+  streamingSessionId.value = currentSessionId.value
+  stoppedByUser.value = false
   scrollToBottom()
 
   // 优先使用 WebSocket
@@ -652,9 +736,27 @@ async function sendMessage() {
 
 // 停止 AI 生成
 function stopGeneration() {
+  stoppedByUser.value = true
   if (ws && ws.readyState === WebSocket.OPEN) {
     ws.send(JSON.stringify({ type: 'stop' }))
   }
+  // 立即将已有的流式内容保存为消息，不等后端 message_end
+  if (streamingContent.value) {
+    messages.value.push({
+      id: Date.now(),
+      role: 'assistant',
+      content: streamingContent.value + '\n\n[已停止]',
+      toolCalls: currentToolCalls.value.map(tc => ({ ...tc, _expanded: false })),
+    })
+  }
+  streamingContent.value = ''
+  currentToolCalls.value = []
+  if (streamingSessionId.value) {
+    streamingBuffers.delete(streamingSessionId.value)
+  }
+  streamingSessionId.value = 0
+  isLoading.value = false
+  scrollToBottom()
 }
 
 // 加载对话模板
