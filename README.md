@@ -308,7 +308,7 @@ MOM Platform 是一个功能强大的**插件化运维管理平台**，采用前
 ### 1. 克隆项目
 
 ```bash
-git clone https://gitee.com/monkey_dat/mom_platform.git
+git clone https://github.com/tengdagg/MOM_Platform.git
 cd mom
 ```
 
@@ -414,7 +414,7 @@ my-skill/
 
 ```bash
 # 克隆项目
-git clone https://gitee.com/monkey_dat/mom_platform.git
+git clone https://github.com/tengdagg/MOM_Platform.git
 cd mom
 
 # 启动服务（数据库迁移随后端容器启动自动完成）
@@ -480,19 +480,10 @@ mom/
 └── main.go
 ```
 
----
+```json
+本项目基于开源项目 https://github.com/ydcloud-dy/opshub 二次开发
+```
 
-## 贡献指南
-
-欢迎提交 Issue 和 Pull Request！
-
-1. Fork 本仓库
-2. 创建特性分支 (`git checkout -b feature/AmazingFeature`)
-3. 提交更改 (`git commit -m 'Add some AmazingFeature'`)
-4. 推送到分支 (`git push origin feature/AmazingFeature`)
-5. 提交 Pull Request
-
----
 
 ## 许可证
 
