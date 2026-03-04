@@ -1770,9 +1770,16 @@ let eventTickTimer: any = null
 
 const startEventPolling = () => {
   stopEventPolling()
+  let eventPollCount = 0
   eventPollTimer = setInterval(() => {
+    eventPollCount++
     refreshDetailPods()
     refreshPodEvents()
+    // 每两轮（6秒）刷新工作负载详情和历史版本（运行时信息、暂停状态等）
+    if (eventPollCount % 2 === 0) {
+      refreshWorkloadInfo()
+      refreshHistory()
+    }
   }, 3000)
   eventTickTimer = setInterval(() => {
     eventRenderTick.value++

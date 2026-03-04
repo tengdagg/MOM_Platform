@@ -201,6 +201,7 @@ const categories = [
   { value: 'audit', label: '审计分析' },
   { value: 'cloud', label: '云账号' },
   { value: 'analysis', label: '综合分析' },
+  { value: 'device', label: '网络设备'}
 ]
 
 onMounted(() => {

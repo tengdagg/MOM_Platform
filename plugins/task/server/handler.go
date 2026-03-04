@@ -182,17 +182,27 @@ func (h *Handler) UpdateJobTask(c *gin.Context) {
 
 // DeleteJobTask 删除任务作业
 // @Summary 删除任务作业
-// @Description 删除指定的任务作业记录（已禁用）
+// @Description 删除指定的任务作业记录（软删除）
 // @Tags 任务管理-任务作业
 // @Accept json
 // @Produce json
 // @Security Bearer
 // @Param id path int true "任务ID"
 // @Success 200 {object} response.Response "删除成功"
-// @Failure 403 {object} response.Response "操作已禁用"
+// @Failure 400 {object} response.Response "参数错误"
+// @Failure 500 {object} response.Response "删除失败"
 // @Router /task/job-tasks/{id} [delete]
 func (h *Handler) DeleteJobTask(c *gin.Context) {
-	response.ErrorCode(c, http.StatusForbidden, "删除任务记录功能已被禁用，如需删除请联系系统管理员")
+	id, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		response.ErrorCode(c, http.StatusBadRequest, "无效的任务ID")
+		return
+	}
+	if err := h.db.Where("id = ?", id).Delete(&model.JobTask{}).Error; err != nil {
+		response.ErrorCode(c, http.StatusInternalServerError, "删除任务记录失败: "+err.Error())
+		return
+	}
+	response.Success(c, nil)
 }
 
 // ==================== 任务模板 ====================
@@ -341,17 +351,27 @@ func (h *Handler) UpdateJobTemplate(c *gin.Context) {
 
 // DeleteJobTemplate 删除任务模板
 // @Summary 删除任务模板
-// @Description 删除指定的任务模板（已禁用）
+// @Description 删除指定的任务模板（软删除）
 // @Tags 任务管理-任务模板
 // @Accept json
 // @Produce json
 // @Security Bearer
 // @Param id path int true "模板ID"
 // @Success 200 {object} response.Response "删除成功"
-// @Failure 403 {object} response.Response "操作已禁用"
+// @Failure 400 {object} response.Response "参数错误"
+// @Failure 500 {object} response.Response "删除失败"
 // @Router /task/job-templates/{id} [delete]
 func (h *Handler) DeleteJobTemplate(c *gin.Context) {
-	response.ErrorCode(c, http.StatusForbidden, "删除模板功能已被禁用，如需删除请联系系统管理员")
+	id, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		response.ErrorCode(c, http.StatusBadRequest, "无效的模板ID")
+		return
+	}
+	if err := h.db.Where("id = ?", id).Delete(&model.JobTemplate{}).Error; err != nil {
+		response.ErrorCode(c, http.StatusInternalServerError, "删除模板失败: "+err.Error())
+		return
+	}
+	response.Success(c, nil)
 }
 
 // ==================== Ansible任务 ====================
@@ -484,17 +504,27 @@ func (h *Handler) UpdateAnsibleTask(c *gin.Context) {
 
 // DeleteAnsibleTask 删除Ansible任务
 // @Summary 删除Ansible任务
-// @Description 删除指定的Ansible任务（已禁用）
+// @Description 删除指定的Ansible任务（软删除）
 // @Tags 任务管理-Ansible任务
 // @Accept json
 // @Produce json
 // @Security Bearer
 // @Param id path int true "任务ID"
 // @Success 200 {object} response.Response "删除成功"
-// @Failure 403 {object} response.Response "操作已禁用"
+// @Failure 400 {object} response.Response "参数错误"
+// @Failure 500 {object} response.Response "删除失败"
 // @Router /task/ansible-tasks/{id} [delete]
 func (h *Handler) DeleteAnsibleTask(c *gin.Context) {
-	response.ErrorCode(c, http.StatusForbidden, "删除Ansible任务功能已被禁用，如需删除请联系系统管理员")
+	id, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		response.ErrorCode(c, http.StatusBadRequest, "无效的任务ID")
+		return
+	}
+	if err := h.db.Where("id = ?", id).Delete(&model.AnsibleTask{}).Error; err != nil {
+		response.ErrorCode(c, http.StatusInternalServerError, "删除Ansible任务失败: "+err.Error())
+		return
+	}
+	response.Success(c, nil)
 }
 
 // ==================== 任务执行 ====================
