@@ -1,6 +1,6 @@
 ---
 name: task.execute
-description: 在指定主机上执行 Ad-hoc 命令。支持按 IP、分组名称或主机 ID 列表选择目标主机。高风险操作，执行前需用户确认。自动拒绝危险命令
+description: 【仅用于按分组批量执行】在指定主机分组的所有在线主机上批量执行 Ad-hoc 命令。必须通过 group_name 指定目标分组。如果用户只指定了 IP 或单台主机，请改用 host.exec_command 而不是此 Skill。高风险操作，执行前需用户确认。自动拒绝危险命令
 category: task
 riskLevel: critical
 scriptType: builtin

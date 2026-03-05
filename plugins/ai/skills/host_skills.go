@@ -14,6 +14,98 @@ func shellQuote(s string) string {
 	return "'" + strings.ReplaceAll(s, "'", "'\"'\"'") + "'"
 }
 
+// isDangerousHostCommand 判断命令是否为危险的变更/破坏类命令（需要人工确认）
+// 采用黑名单模式：只有匹配危险模式的命令才需要确认，其余命令默认直接执行
+func isDangerousHostCommand(command string) bool {
+	cmd := strings.TrimSpace(strings.ToLower(command))
+	// 危险命令关键词/模式黑名单
+	dangerousPatterns := []string{
+		// 文件删除/移动（破坏性）
+		"rm ", "rm\t", "rmdir ",
+		// 权限修改
+		"chmod ", "chown ", "chgrp ",
+		// 进程管理（终止进程）
+		"kill ", "kill\t", "killall ", "pkill ",
+		// 服务管理（启停/重启）
+		"systemctl start ", "systemctl stop ", "systemctl restart ",
+		"systemctl reload ", "systemctl enable ", "systemctl disable ",
+		"systemctl mask ", "systemctl unmask ",
+		"service ", // service xxx start/stop/restart
+		// 系统关机/重启
+		"shutdown", "reboot", "init 0", "init 6", "poweroff", "halt",
+		// 磁盘/分区操作
+		"mkfs", "fdisk ", "parted ", "gdisk ",
+		"mount ", "umount ", "swapon", "swapoff",
+		"dd if=", "dd of=",
+		"resize2fs ", "xfs_growfs ", "growpart ",
+		"lvextend ", "lvreduce ", "lvcreate ", "lvremove ",
+		"vgcreate ", "vgremove ", "vgextend ",
+		"pvcreate ", "pvremove ",
+		// 网络配置修改
+		"ifdown ", "ifup ",
+		"nmcli con mod", "nmcli connection mod",
+		"ip addr add", "ip addr del", "ip route add", "ip route del",
+		"ip link set",
+		// 防火墙修改
+		"iptables -a", "iptables -d", "iptables -i", "iptables -f",
+		"iptables -x", "iptables -p",
+		"firewall-cmd --add", "firewall-cmd --remove",
+		"firewall-cmd --set", "firewall-cmd --reload",
+		"ufw allow", "ufw deny", "ufw delete", "ufw enable", "ufw disable",
+		// 用户管理
+		"useradd ", "userdel ", "usermod ", "groupadd ", "groupdel ",
+		"passwd ", "chpasswd",
+		// 包管理（安装/卸载）
+		"yum install", "yum remove", "yum erase", "yum update", "yum upgrade",
+		"dnf install", "dnf remove", "dnf erase", "dnf update", "dnf upgrade",
+		"apt install", "apt remove", "apt purge", "apt upgrade",
+		"apt-get install", "apt-get remove", "apt-get purge", "apt-get upgrade",
+		"pip install", "pip uninstall", "pip3 install", "pip3 uninstall",
+		"npm install", "npm uninstall", "npm update",
+		// 文件写入/覆盖
+		"sed -i", "tee ", "tee\t",
+		// 定时任务修改
+		"crontab -e", "crontab -r",
+		// Docker 变更操作
+		"docker stop", "docker rm", "docker rmi", "docker pull",
+		"docker run", "docker exec", "docker restart",
+		"docker start", "docker kill", "docker pause", "docker unpause",
+		"docker update", "docker rename", "docker prune",
+		"docker network create", "docker network rm",
+		"docker volume create", "docker volume rm",
+		"docker compose up", "docker compose down",
+		"docker compose stop", "docker compose start",
+		"docker compose restart", "docker compose pull",
+		"docker compose rm", "docker compose build",
+		"docker-compose up", "docker-compose down",
+		"docker-compose stop", "docker-compose start",
+		"docker-compose restart", "docker-compose pull",
+		"docker-compose rm", "docker-compose build",
+		// 危险 shell 操作
+		"> /dev/", ">> /dev/",
+		":(){ :|:& };:",
+		// SELinux
+		"setenforce", "setsebool",
+		// 内核参数修改
+		"sysctl -w",
+		// 系统日志清理
+		"truncate ", "shred ",
+	}
+
+	for _, pattern := range dangerousPatterns {
+		if strings.Contains(cmd, pattern) {
+			return true
+		}
+	}
+
+	// 检查重定向覆盖（> 文件，但排除 2>/dev/null 等常见无害用法）
+	if strings.Contains(cmd, " > ") && !strings.Contains(cmd, " 2>/dev/null") && !strings.Contains(cmd, " > /dev/null") {
+		return true
+	}
+
+	return false
+}
+
 // RegisterHostSkills 注册主机管理 Skills
 func RegisterHostSkills(registry *biz.ToolRegistry) {
 	registry.Register(MustLoadBuiltinSkill("host.list", executeHostList))
@@ -423,12 +515,12 @@ func executeHostExecCommand(ctx biz.SkillContext) (any, error) {
 		}
 	}
 
-	// 超时时间：默认 30 秒，最大 300 秒（安装软件等耗时操作可调大）
-	timeoutSec := 30
+	// 超时时间：默认 60 秒，最大 600 秒（安装软件等耗时操作可调大）
+	timeoutSec := 60
 	if t, ok := ctx.Params["timeout"].(float64); ok && t > 0 {
 		timeoutSec = int(t)
-		if timeoutSec > 300 {
-			timeoutSec = 300
+		if timeoutSec > 600 {
+			timeoutSec = 600
 		}
 	}
 
@@ -457,6 +549,53 @@ func executeHostExecCommand(ctx biz.SkillContext) (any, error) {
 
 	if len(hosts) == 0 {
 		return nil, fmt.Errorf("未找到目标主机，请指定主机 IP 或 ID 列表")
+	}
+
+	// 非危险命令 → 直接执行，跳过确认
+	if !isDangerousHostCommand(command) {
+		type ExecResult struct {
+			Host      string `json:"host"`
+			IP        string `json:"ip"`
+			Output    string `json:"output"`
+			Truncated bool   `json:"truncated,omitempty"`
+			Error     string `json:"error,omitempty"`
+		}
+		var results []ExecResult
+		successCount := 0
+
+		for _, h := range hosts {
+			client, _, err := CreateSSHClient(ctx.DB, h.ID)
+			if err != nil {
+				results = append(results, ExecResult{Host: h.Name, IP: h.IP, Error: err.Error()})
+				continue
+			}
+			output, err := client.ExecuteWithTimeout(command, time.Duration(timeoutSec)*time.Second)
+			client.Close()
+
+			truncated := false
+			if len(output) > 65536 {
+				output = output[:65536] + "\n... [输出已截断，超过 64KB]"
+				truncated = true
+			}
+
+			if err != nil {
+				results = append(results, ExecResult{Host: h.Name, IP: h.IP, Output: output, Truncated: truncated, Error: err.Error()})
+			} else {
+				results = append(results, ExecResult{Host: h.Name, IP: h.IP, Output: output, Truncated: truncated})
+				successCount++
+			}
+		}
+
+		return map[string]any{
+			"status":             "success",
+			"effectiveRiskLevel": "low",
+			"message":            fmt.Sprintf("✅ 命令已在 %d/%d 台主机上执行完成（安全命令，已跳过确认）", successCount, len(hosts)),
+			"command":            command,
+			"timeout":            timeoutSec,
+			"results":            results,
+			"successCount":       successCount,
+			"totalCount":         len(hosts),
+		}, nil
 	}
 
 	// 未确认 → 返回待确认信息

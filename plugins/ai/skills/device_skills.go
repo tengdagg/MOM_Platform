@@ -65,6 +65,41 @@ func buildDeviceSSHConfig(username, password string) *ssh.ClientConfig {
 	}
 }
 
+// isDangerousDeviceCommand 判断网络设备命令是否为危险命令（需要人工确认）
+// 采用黑名单模式：只有配置修改、系统重启、密码清空等破坏性命令才需要确认
+func isDangerousDeviceCommand(command string) bool {
+	cmd := strings.TrimSpace(strings.ToLower(command))
+	// 危险命令关键词/模式黑名单（网络设备）
+	dangerousPatterns := []string{
+		// 进入配置模式
+		"configure terminal", "conf t", "system-view", "sys",
+		// 破坏性操作
+		"write erase", "erase startup-config", "format ",
+		"delete /force", "reset saved-configuration", "restore factory",
+		"clear ", // clear counters, clear arp等
+		// 关键启停
+		"reload", "reboot", "shutdown",
+		// 删除配置
+		"no ", "undo ",
+		// VTY/Console 配置
+		"line vty", "line console",
+		// 路由协议变更
+		"router bgp", "router ospf", "router rip",
+		"ospf ", "bgp ",
+		// 用户密码修改
+		"username ", "password ", "enable secret", "enable password",
+		"local-user ",
+	}
+
+	for _, pattern := range dangerousPatterns {
+		// 简单包含匹配
+		if strings.Contains(cmd, pattern) {
+			return true
+		}
+	}
+	return false
+}
+
 // RegisterDeviceSkills 注册网络设备管理 Skills
 func RegisterDeviceSkills(registry *biz.ToolRegistry) {
 	registry.Register(MustLoadBuiltinSkill("device.list", executeDeviceList))
@@ -412,6 +447,71 @@ func executeDeviceExecCommand(ctx biz.SkillContext) (any, error) {
 
 	if len(devices) == 0 {
 		return nil, fmt.Errorf("未找到目标网络设备，请指定设备 IP 或 ID 列表")
+	}
+
+	// 非危险命令 → 直接执行，跳过确认
+	if !isDangerousDeviceCommand(command) {
+		type ExecResult struct {
+			Device string `json:"device"`
+			IP     string `json:"ip"`
+			Output string `json:"output"`
+			Error  string `json:"error,omitempty"`
+		}
+		var results []ExecResult
+		successCount := 0
+
+		for _, d := range devices {
+			if d.Protocol == "telnet" {
+				results = append(results, ExecResult{
+					Device: d.Name, IP: d.IP,
+					Error: "Telnet 设备暂不支持 AI 远程命令执行，请使用终端手动操作",
+				})
+				continue
+			}
+
+			username, password, credErr := getDeviceCredential(ctx.DB, d.ID)
+			if credErr != nil {
+				results = append(results, ExecResult{Device: d.Name, IP: d.IP, Error: credErr.Error()})
+				continue
+			}
+
+			addr := fmt.Sprintf("%s:%d", d.IP, d.Port)
+			config := buildDeviceSSHConfig(username, password)
+
+			client, err := ssh.Dial("tcp", addr, config)
+			if err != nil {
+				results = append(results, ExecResult{Device: d.Name, IP: d.IP, Error: fmt.Sprintf("SSH连接失败: %v", err)})
+				continue
+			}
+
+			session, err := client.NewSession()
+			if err != nil {
+				client.Close()
+				results = append(results, ExecResult{Device: d.Name, IP: d.IP, Error: fmt.Sprintf("创建会话失败: %v", err)})
+				continue
+			}
+
+			output, err := session.CombinedOutput(command)
+			session.Close()
+			client.Close()
+
+			if err != nil {
+				results = append(results, ExecResult{Device: d.Name, IP: d.IP, Output: string(output), Error: err.Error()})
+			} else {
+				results = append(results, ExecResult{Device: d.Name, IP: d.IP, Output: string(output)})
+				successCount++
+			}
+		}
+
+		return map[string]any{
+			"status":             "success",
+			"effectiveRiskLevel": "low",
+			"message":            fmt.Sprintf("✅ 命令已在 %d/%d 台网络设备上执行完成（安全命令，已跳过确认）", successCount, len(devices)),
+			"command":            command,
+			"results":            results,
+			"successCount":       successCount,
+			"totalCount":         len(devices),
+		}, nil
 	}
 
 	// 未确认 → 返回待确认信息

@@ -294,9 +294,17 @@ function showSkillDetail(skill: any) {
 }
 
 function renderMarkdown(md: string): string {
-  // 简单的 Markdown 渲染（标题、列表、代码块、粗体、分隔线）
+  // 简单的 Markdown 渲染（带 HTML 转义、标题、列表、代码块、粗体、分隔线）
   if (!md) return ''
-  return md
+  
+  // 1. HTML 转义
+  let html = md
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+
+  // 2. Markdown 转换
+  return html
     .replace(/^### (.+)$/gm, '<h5>$1</h5>')
     .replace(/^## (.+)$/gm, '<h4>$1</h4>')
     .replace(/^# (.+)$/gm, '<h3>$1</h3>')

@@ -5,12 +5,27 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"regexp"
 	"strings"
 	"sync"
 	"time"
 
 	"gorm.io/gorm"
 )
+
+// dsmlPattern 匹配 DeepSeek 模型内部标记（<｜DSML｜...> 或 <|DSML|...> 等）
+// DeepSeek R1/V3 有时将 function_calls 以文本形式输出，需要过滤
+var dsmlPattern = regexp.MustCompile(`(?s)<[｜|]DSML[｜|].*`)
+
+// thinkPattern 匹配模型输出中的 <think>...</think> 深度思考标记
+var thinkPattern = regexp.MustCompile(`(?s)<think>.*?</think>\s*`)
+
+// stripModelArtifacts 过滤模型输出中的内部标记（如 DeepSeek DSML、<think> 标签等）
+func stripModelArtifacts(content string) string {
+	content = thinkPattern.ReplaceAllString(content, "")
+	content = dsmlPattern.ReplaceAllString(content, "")
+	return content
+}
 
 // SkillContext Skill 执行上下文
 type SkillContext struct {
@@ -248,7 +263,59 @@ const systemPrompt = `你是 MOM 运维管理平台的 AI 助手。你可以帮�
 3. 备份优先：修改配置文件前先用 host-file_manage(action="backup") 备份原文件
 4. 合理超时：安装软件等耗时操作使用 timeout=120 或更大值（默认 30 秒可能不够）
 5. 验证结果：操作完成后执行验证命令确认操作成功（如 systemctl status、cat 查看配置等）
-6. 配置修改推荐流程：read（查看）→ backup（备份）→ write（写入新内容）→ 验证 → 重载服务`
+6. 配置修改推荐流程：read（查看）→ backup（备份）→ write（写入新内容）→ 验证 → 重载服务
+
+🔗 跨工具协作流程（务必遵循"先查后做"原则）：
+
+📌 主机运维：
+- 查主机信息：host-list（列表筛选）→ host-detail（单台详情）
+- 远程操作：host-detail（确认目标）→ host-exec_command（执行命令）→ host-exec_command（验证结果）
+- 配置修改：host-file_manage(read) → host-file_manage(backup) → host-file_manage(write) → host-exec_command（验证/重载）
+- 批量操作：host-list（按条件筛选得到 host_id 列表）→ host-exec_command(host_ids=[...])（批量执行）
+- 新主机接入：host-manage(list_credentials)（查凭证 ID）→ host-manage(list_groups)（查分组 ID）→ host-manage(create)（创建）→ host-collect（采集信息）
+- 健康巡检：host-analyze（找出异常主机）→ host-detail（查看异常主机详情）→ host-exec_command（深入排查）
+- 磁盘清理：host-exec_command(df -h) → host-exec_command(du -sh) 找大目录 → host-file_manage(backup) → 清理 → 验证
+
+📌 网络设备管理：
+- 查设备信息：device-list（列表筛选）→ device-detail（单台详情）
+- 批量操作前必须先查：device-list（获取设备 ID 列表）→ device-exec_command(device_ids=[...])（批量执行命令）
+- 设备巡检：device-list → device-test_connection（批量测试连通性）→ 对离线设备 device-detail 排查
+- 新设备接入：device-manage(list_credentials) → device-manage(list_groups) → device-manage(create) → device-test_connection（验证连通性）
+- 配置查看：device-list/detail（查设备 ID）→ device-exec_command(command="show running-config" 或 "display current-configuration")
+- 远程命令：只执行 show/display 等查看类命令；配置变更类命令应提醒用户高风险
+
+📌 Kubernetes 集群：
+- 资源查询：k8s-kubectl(action="get", resource="deployments/pods/services/..." ) 查看资源列表或详情
+- 故障排查：k8s-diagnose（诊断 Pod/Node）→ k8s-log_query（查看日志）→ k8s-kubectl(action="describe")（查事件）→ k8s-restart（重启修复）
+- 扩缩容：k8s-kubectl(action="get", resource="deployments")（查看当前副本数）→ k8s-scale（调整副本数）
+- 节点维护：k8s-node_manage(action="cordon")（标记不可调度）→ k8s-node_manage(action="drain")（排空）→ 维护 → k8s-node_manage(action="uncordon")（恢复）
+- Helm 应用：k8s-helm_manage(action="list")（查看已安装 Release）→ k8s-helm_manage(action="install/upgrade/uninstall")
+- 创建资源：k8s-kubectl(action="create/apply", yaml="...")
+
+📌 任务执行：
+- Ad-hoc 命令：task-execute（指定 IP/分组/主机 ID 列表执行命令）
+- Ansible Playbook：task-ansible（执行 Playbook）
+- 查看历史：task-history（查询之前的执行结果和状态）
+
+📌 监控告警：
+- 域名监控：monitor-domain_status（查看状态）→ monitor-domain_manage(action="create")（添加监控）
+- 告警管理：monitor-alert_summary（汇总告警）→ monitor-alert_config(action="list")（查看规则）→ monitor-alert_config(action="create/update")（配置规则）
+- SSL 到期排查：monitor-domain_status → 筛选证书即将到期的域名 → 提醒用户续期
+
+📌 审计安全：
+- 登录安全：audit-login_analysis（分析异常登录和暴力破解）→ analysis-security_audit（综合安全评估）
+- 操作追踪：audit-operation_summary（统计操作分布）→ audit-data_changes（追踪具体变更）
+- 会话审计：audit-session_summary（统计终端会话情况）
+
+📌 综合报告与分析：
+- 每日巡检：host-analyze + device-list + monitor-domain_status + monitor-alert_summary + audit-login_analysis → 汇总输出
+- 周报/月报：analysis-infra_report（基础设施概况）+ audit-operation_summary（操作统计）+ monitor-alert_summary（告警统计）
+- 容量规划：host-analyze（资源使用分析）→ analysis-capacity_plan（生成扩容建议）
+- 安全审计：audit-login_analysis + audit-data_changes + analysis-security_audit → 综合安全报告
+
+📌 云资源管理：
+- 查看云账号：cloud-list_accounts → cloud-list_instances（查看已导入实例）
+- 导入云主机：cloud-list_accounts（获取账号 ID）→ cloud-list_instances（查看可导入实例）→ cloud-import_hosts（导入到 MOM 平台）→ host-collect（采集信息）`
 
 // buildMessages 构建发送给 LLM 的消息列表（公共逻辑）
 // 1. 系统提示词 + 动态上下文
@@ -407,6 +474,12 @@ func (a *Agent) Run(ctx context.Context, adapter *ModelAdapter, sessionID uint, 
 	// 获取工具定义
 	tools := a.registry.GetToolDefinitionsFiltered(a.db)
 
+	// pendingTools：从 DB 加载上一轮 pending_confirmation 的工具（跨调用确认）
+	pendingTools := a.getSessionPendingTools(sessionID)
+	// forceTextOnly：当工具返回 pending_confirmation 后，下一轮迭代不传 tools，
+	// 迫使 LLM 只能生成文本（确认提示），循环自然中断，等待用户真正确认。
+	forceTextOnly := false
+
 	// 收集所有工具调用记录（用于持久化）
 	var allToolCallRecords []map[string]any
 	var contentSoFar string
@@ -426,8 +499,15 @@ func (a *Agent) Run(ctx context.Context, adapter *ModelAdapter, sessionID uint, 
 		default:
 		}
 
+		// 如果上一轮有工具返回 pending_confirmation，本轮不传 tools，强制 LLM 只生成文本
+		currentTools := tools
+		if forceTextOnly {
+			currentTools = nil
+			forceTextOnly = false
+		}
+
 		// 调用 LLM
-		resp, err := adapter.ChatCompletion(ctx, messages, tools)
+		resp, err := adapter.ChatCompletion(ctx, messages, currentTools)
 		if err != nil {
 			if ctx.Err() != nil {
 				a.saveAssistantMessage(sessionID, contentSoFar+"\n\n[已停止]", allToolCallRecords)
@@ -446,15 +526,18 @@ func (a *Agent) Run(ctx context.Context, adapter *ModelAdapter, sessionID uint, 
 		choice := resp.Choices[0]
 		assistantMsg := choice.Message
 
-		// 如果有文本内容，发送给前端
+		// 如果有文本内容，过滤模型内部标记后发送给前端
 		if assistantMsg.Content != "" {
-			contentSoFar += assistantMsg.Content
-			eventCh <- AgentEvent{Type: "text_delta", Content: assistantMsg.Content}
+			cleaned := stripModelArtifacts(assistantMsg.Content)
+			if cleaned != "" {
+				contentSoFar += cleaned
+				eventCh <- AgentEvent{Type: "text_delta", Content: cleaned}
+			}
 		}
 
 		// 如果没有工具调用，结束循环
 		if len(assistantMsg.ToolCalls) == 0 {
-			a.saveAssistantMessage(sessionID, assistantMsg.Content, allToolCallRecords)
+			a.saveAssistantMessage(sessionID, stripModelArtifacts(assistantMsg.Content), allToolCallRecords)
 			eventCh <- AgentEvent{
 				Type: "message_end",
 				Usage: &Usage{
@@ -491,8 +574,25 @@ func (a *Agent) Run(ctx context.Context, adapter *ModelAdapter, sessionID uint, 
 				RiskLevel:  riskLevel,
 			}
 
-			result := a.executeTool(ctx, llmName, toolArgs, userID, username)
+			result := a.executeTool(ctx, llmName, toolArgs, userID, username, pendingTools)
 			resultJSON, _ := json.Marshal(result)
+
+			// 如果工具返回了动态风险等级（如安全命令跳过确认时降为 low），覆盖静态风险等级
+			if effectiveRL, ok := result["effectiveRiskLevel"].(string); ok && effectiveRL != "" {
+				riskLevel = effectiveRL
+			}
+
+			// 管理 pending 状态
+			if status, _ := result["status"].(string); status == "pending_confirmation" {
+				// 记录 pending 状态并标记下一轮为纯文本模式
+				pendingTools[llmName] = true
+				pendingTools[displayName] = true
+				forceTextOnly = true
+			} else {
+				// 非 pending 结果：消费掉 pending 状态（单次确认）
+				delete(pendingTools, llmName)
+				delete(pendingTools, displayName)
+			}
 
 			// 记录工具调用
 			hasError := false
@@ -511,6 +611,7 @@ func (a *Agent) Run(ctx context.Context, adapter *ModelAdapter, sessionID uint, 
 				Type:       "tool_call_result",
 				ToolName:   displayName,
 				ToolResult: string(resultJSON),
+				RiskLevel:  riskLevel,
 			}
 
 			messages = append(messages, ChatCompletionMessage{
@@ -549,6 +650,12 @@ func (a *Agent) RunStream(ctx context.Context, adapter *ModelAdapter, sessionID 
 	// 获取工具定义（排除被禁用的 Skills）
 	tools := a.registry.GetToolDefinitionsFiltered(a.db)
 
+	// pendingTools：从 DB 加载上一轮 pending_confirmation 的工具（跨调用确认）
+	pendingTools := a.getSessionPendingTools(sessionID)
+	// forceTextOnly：当工具返回 pending_confirmation 后，下一轮迭代不传 tools，
+	// 迫使 LLM 只能生成文本（确认提示），循环自然中断，等待用户真正确认。
+	forceTextOnly := false
+
 	// 收集所有工具调用记录（用于持久化）
 	var allToolCallRecords []map[string]any
 	var contentSoFar string
@@ -570,8 +677,15 @@ func (a *Agent) RunStream(ctx context.Context, adapter *ModelAdapter, sessionID 
 		default:
 		}
 
+		// 如果上一轮有工具返回 pending_confirmation，本轮不传 tools，强制 LLM 只生成文本
+		currentTools := tools
+		if forceTextOnly {
+			currentTools = nil
+			forceTextOnly = false
+		}
+
 		// 流式调用 LLM
-		streamCh, err := adapter.ChatCompletionStream(ctx, messages, tools)
+		streamCh, err := adapter.ChatCompletionStream(ctx, messages, currentTools)
 		if err != nil {
 			if ctx.Err() != nil {
 				a.saveAssistantMessage(sessionID, contentSoFar+"\n\n[已停止]", allToolCallRecords)
@@ -590,17 +704,91 @@ func (a *Agent) RunStream(ctx context.Context, adapter *ModelAdapter, sessionID 
 		var toolCalls []ToolCall
 		toolCallArgsBuilders := make(map[int]*strings.Builder)
 		var finishReason string
+		dsmlDetected := false // DeepSeek 模型内部标记检测
+		reasoningStarted := false
+		reasoningEnded := false
+		// text_delta 中 <think> 标签过滤状态
+		inThinkBlock := false        // 是否在 <think>...</think> 块内（抑制输出）
+		var thinkBuf strings.Builder // 用于检测跨 chunk 的标签
 
 		for event := range streamCh {
 			switch event.Type {
 			case "reasoning_delta":
-				// DeepSeek R1 推理内容，累积但不发送给前端
+				// DeepSeek / M37 推理内容
+				if !reasoningStarted {
+					reasoningStarted = true
+					// 开始输出思考过程
+					eventCh <- AgentEvent{Type: "text_delta", Content: "<think>\n"}
+					contentSoFar += "<think>\n"
+				}
 				reasoningBuilder.WriteString(event.Content)
-
-			case "text_delta":
-				contentBuilder.WriteString(event.Content)
 				contentSoFar += event.Content
 				eventCh <- AgentEvent{Type: "text_delta", Content: event.Content}
+
+			case "text_delta":
+				if reasoningStarted && !reasoningEnded {
+					reasoningEnded = true
+					// 结束输出思考过程
+					eventCh <- AgentEvent{Type: "text_delta", Content: "\n</think>\n\n"}
+					contentSoFar += "\n</think>\n\n"
+				}
+
+				// 过滤 text_delta 中内嵌的 <think>...</think> 标签
+				delta := event.Content
+				thinkBuf.WriteString(delta)
+				bufStr := thinkBuf.String()
+
+				// 处理 <think> 开标签
+				if !inThinkBlock {
+					if idx := strings.Index(bufStr, "<think>"); idx >= 0 {
+						// 发送 <think> 之前的内容
+						before := bufStr[:idx]
+						if before != "" {
+							contentBuilder.WriteString(before)
+							if !dsmlDetected {
+								contentSoFar += before
+								eventCh <- AgentEvent{Type: "text_delta", Content: before}
+							}
+						}
+						inThinkBlock = true
+						thinkBuf.Reset()
+						thinkBuf.WriteString(bufStr[idx+len("<think>"):])
+						bufStr = thinkBuf.String()
+					} else if strings.HasSuffix(bufStr, "<") || strings.Contains(bufStr, "<t") ||
+						strings.Contains(bufStr, "<th") || strings.Contains(bufStr, "<thi") ||
+						strings.Contains(bufStr, "<thin") || strings.Contains(bufStr, "<think") {
+						// 可能是跨 chunk 的 <think> 标签，暂存不输出
+						break
+					} else {
+						// 正常内容，直接输出
+						thinkBuf.Reset()
+						contentBuilder.WriteString(delta)
+						if !dsmlDetected {
+							if strings.Contains(contentBuilder.String(), "<｜DSML｜") || strings.Contains(contentBuilder.String(), "<|DSML|") {
+								dsmlDetected = true
+							}
+						}
+						if !dsmlDetected {
+							contentSoFar += delta
+							eventCh <- AgentEvent{Type: "text_delta", Content: delta}
+						}
+						break
+					}
+				}
+
+				// 处理 </think> 闭标签（在 think 块内）
+				if inThinkBlock {
+					if idx := strings.Index(bufStr, "</think>"); idx >= 0 {
+						inThinkBlock = false
+						thinkBuf.Reset()
+						remaining := bufStr[idx+len("</think>"):]
+						if remaining != "" {
+							thinkBuf.WriteString(remaining)
+						}
+						// </think> 之后的内容在下一次迭代处理
+					}
+					// 在 think 块内的内容被抑制（不输出到前端）
+				}
 
 			case "tool_call_delta":
 				for _, tc := range event.ToolCalls {
@@ -646,7 +834,7 @@ func (a *Agent) RunStream(ctx context.Context, adapter *ModelAdapter, sessionID 
 			}
 		}
 
-		content := contentBuilder.String()
+		content := stripModelArtifacts(contentBuilder.String())
 
 		// 如果没有工具调用，结束循环
 		if len(toolCalls) == 0 || finishReason == "stop" {
@@ -694,8 +882,23 @@ func (a *Agent) RunStream(ctx context.Context, adapter *ModelAdapter, sessionID 
 				RiskLevel:  riskLevel,
 			}
 
-			result := a.executeTool(ctx, llmName, toolArgs, userID, username)
+			result := a.executeTool(ctx, llmName, toolArgs, userID, username, pendingTools)
 			resultJSON, _ := json.Marshal(result)
+
+			// 如果工具返回了动态风险等级（如安全命令跳过确认时降为 low），覆盖静态风险等级
+			if effectiveRL, ok := result["effectiveRiskLevel"].(string); ok && effectiveRL != "" {
+				riskLevel = effectiveRL
+			}
+
+			// 管理 pending 状态
+			if status, _ := result["status"].(string); status == "pending_confirmation" {
+				pendingTools[llmName] = true
+				pendingTools[displayName] = true
+				forceTextOnly = true
+			} else {
+				delete(pendingTools, llmName)
+				delete(pendingTools, displayName)
+			}
 
 			hasError := false
 			if errMsg, ok := result["error"]; ok && errMsg != nil {
@@ -713,6 +916,7 @@ func (a *Agent) RunStream(ctx context.Context, adapter *ModelAdapter, sessionID 
 				Type:       "tool_call_result",
 				ToolName:   displayName,
 				ToolResult: string(resultJSON),
+				RiskLevel:  riskLevel,
 			}
 
 			messages = append(messages, ChatCompletionMessage{
@@ -742,7 +946,13 @@ func (a *Agent) saveAssistantMessage(sessionID uint, content string, toolCallRec
 }
 
 // executeTool 执行工具
-func (a *Agent) executeTool(ctx context.Context, name string, argsJSON string, userID uint, username string) map[string]any {
+// pendingTools 记录已返回 pending_confirmation 的工具名：
+//   - 启动时从 DB 会话历史加载（跨 RunStream 的合法确认）
+//   - 当前循环中工具返回 pending_confirmation 后由调用方追加
+//
+// 安全拦截：如果 LLM 对未经 pending_confirmation 的工具直接传 confirmed=true，
+// 则强制移除 confirmed 参数，确保工具会返回 pending_confirmation。
+func (a *Agent) executeTool(ctx context.Context, name string, argsJSON string, userID uint, username string, pendingTools map[string]bool) map[string]any {
 	skill, ok := a.registry.Get(name)
 	if !ok {
 		return map[string]any{"error": fmt.Sprintf("工具 %s 不存在", name)}
@@ -753,6 +963,16 @@ func (a *Agent) executeTool(ctx context.Context, name string, argsJSON string, u
 	if argsJSON != "" {
 		if err := json.Unmarshal([]byte(argsJSON), &params); err != nil {
 			return map[string]any{"error": fmt.Sprintf("参数解析失败: %v", err)}
+		}
+	}
+
+	// 安全拦截：如果 LLM 传了 confirmed=true，但该工具从未返回过 pending_confirmation，
+	// 则强制移除 confirmed 参数，防止 LLM 跳过确认步骤直接执行高风险操作。
+	riskLevel := skill.RiskLevel()
+	if riskLevel != "" && riskLevel != "low" && isParamConfirmed(params) {
+		if !pendingTools[name] {
+			log.Printf("[agent] 安全拦截: 用户 %d 对工具 %s 直接传 confirmed=true 但无前置 pending_confirmation，已移除 confirmed 参数", userID, name)
+			delete(params, "confirmed")
 		}
 	}
 
@@ -794,6 +1014,70 @@ func (a *Agent) executeTool(ctx context.Context, name string, argsJSON string, u
 	}
 
 	return resultMap
+}
+
+// isParamConfirmed 检查参数中是否包含 confirmed=true
+func isParamConfirmed(params map[string]any) bool {
+	if params == nil {
+		return false
+	}
+	if v, ok := params["confirmed"].(bool); ok && v {
+		return true
+	}
+	if v, ok := params["confirmed"].(string); ok && v == "true" {
+		return true
+	}
+	return false
+}
+
+// getSessionPendingTools 从会话历史的最近一条助手消息中提取 pending_confirmation 状态的工具名称。
+// 返回的 map 同时包含原始名称和 LLM 清洗后名称，用于跨 RunStream 调用的合法确认识别。
+func (a *Agent) getSessionPendingTools(sessionID uint) map[string]bool {
+	pendingTools := make(map[string]bool)
+
+	msgs, err := a.conversation.GetRecentMessages(sessionID, 5)
+	if err != nil || len(msgs) == 0 {
+		return pendingTools
+	}
+
+	for i := len(msgs) - 1; i >= 0; i-- {
+		msg := msgs[i]
+		if msg.Role != "assistant" || msg.ToolCalls == "" {
+			continue
+		}
+
+		var toolRecords []map[string]any
+		if err := json.Unmarshal([]byte(msg.ToolCalls), &toolRecords); err != nil {
+			break
+		}
+
+		// 仅当该工具的最后一条记录是 pending_confirmation 时才视为待确认
+		lastStatus := make(map[string]string)
+		for _, record := range toolRecords {
+			toolName, _ := record["toolName"].(string)
+			resultStr, _ := record["result"].(string)
+			if toolName == "" || resultStr == "" {
+				continue
+			}
+			var resultMap map[string]any
+			if err := json.Unmarshal([]byte(resultStr), &resultMap); err != nil {
+				continue
+			}
+			if status, _ := resultMap["status"].(string); status != "" {
+				lastStatus[toolName] = status
+			}
+		}
+
+		for toolName, status := range lastStatus {
+			if status == "pending_confirmation" {
+				pendingTools[toolName] = true
+				pendingTools[SanitizeToolName(toolName)] = true
+			}
+		}
+		break
+	}
+
+	return pendingTools
 }
 
 // aiOperationLog AI 操作审计日志模型（与 sys_operation_log 表对应）

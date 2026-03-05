@@ -124,6 +124,11 @@
                 <div class="tool-call-header" @click="tc._expanded = !tc._expanded">
                   <span class="tool-call-step">{{ idx + 1 }}</span>
                   <span class="tool-name">{{ tc.toolName }}</span>
+                  <el-tag v-if="tc.riskLevel === 'high' || tc.riskLevel === 'critical'" type="danger" size="small" effect="plain">
+                    {{ tc.riskLevel === 'critical' ? '危险' : '高风险' }}
+                  </el-tag>
+                  <el-tag v-else-if="tc.riskLevel === 'medium'" type="warning" size="small" effect="plain">中风险</el-tag>
+                  <el-tag v-else type="success" size="small" effect="plain">安全</el-tag>
                   <el-tag :type="tc.status === 'success' ? 'success' : 'danger'" size="small" class="status-tag">
                     {{ tc.status === 'success' ? '成功' : '失败' }}
                     {{ tc.duration ? `(${tc.duration}ms)` : '' }}
@@ -170,6 +175,8 @@
                   <el-tag v-if="tc.riskLevel === 'high' || tc.riskLevel === 'critical'" type="danger" size="small" effect="plain">
                     {{ tc.riskLevel === 'critical' ? '危险' : '高风险' }}
                   </el-tag>
+                  <el-tag v-else-if="tc.riskLevel === 'medium'" type="warning" size="small" effect="plain">中风险</el-tag>
+                  <el-tag v-else type="success" size="small" effect="plain">安全</el-tag>
                   <el-tag v-if="tc.status === 'running'" type="warning" size="small" class="status-tag">
                     <span class="running-dot"></span> 执行中...
                   </el-tag>
@@ -194,12 +201,12 @@
               </div>
             </div>
             <div class="message-body">
-              <span v-if="streamingContent" v-html="renderMarkdown(streamingContent)"></span>
-              <span v-else-if="currentToolCalls.length === 0" class="typing-indicator">
+              <div v-if="streamingContent" v-html="renderMarkdown(streamingContent)"></div>
+              <div v-else-if="currentToolCalls.length === 0" class="typing-indicator">
                 <span class="dot"></span>
                 <span class="dot"></span>
                 <span class="dot"></span>
-              </span>
+              </div>
             </div>
           </div>
         </div>
@@ -422,6 +429,11 @@ onMounted(async () => {
 })
 
 onBeforeUnmount(() => {
+  wsManualClose = true
+  if (wsReconnectTimer) {
+    clearTimeout(wsReconnectTimer)
+    wsReconnectTimer = null
+  }
   if (ws) {
     ws.close()
     ws = null
@@ -531,12 +543,23 @@ async function handleDeleteSession(id: number) {
   }
 }
 
-// WebSocket 连接
+// WebSocket 连接（支持自动重连）
+let wsReconnectTimer: ReturnType<typeof setTimeout> | null = null
+let wsReconnectDelay = 1000 // 初始重连间隔 1 秒
+const WS_MAX_RECONNECT_DELAY = 30000 // 最大重连间隔 30 秒
+let wsManualClose = false // 是否为主动关闭（组件卸载）
+
 function connectWebSocket() {
+  if (wsManualClose) return
   const token = localStorage.getItem('token') || ''
   const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
   const host = window.location.host
   ws = new WebSocket(`${protocol}//${host}/api/v1/plugins/ai/chat/ws?token=${token}`)
+
+  ws.onopen = () => {
+    // 连接成功，重置重连间隔
+    wsReconnectDelay = 1000
+  }
 
   ws.onmessage = (event) => {
     const data = JSON.parse(event.data)
@@ -544,12 +567,20 @@ function connectWebSocket() {
   }
 
   ws.onerror = () => {
-    // WebSocket 连接失败，回退到 HTTP 模式
+    // WebSocket 连接失败
     ws = null
   }
 
   ws.onclose = () => {
     ws = null
+    // 非主动关闭时自动重连
+    if (!wsManualClose) {
+      wsReconnectTimer = setTimeout(() => {
+        connectWebSocket()
+        // 指数退避，最大 30 秒
+        wsReconnectDelay = Math.min(wsReconnectDelay * 2, WS_MAX_RECONNECT_DELAY)
+      }, wsReconnectDelay)
+    }
   }
 }
 
@@ -617,6 +648,7 @@ function handleWSEvent(event: any) {
           bufTc.result = event.toolResult
           bufTc.status = event.toolResult?.includes('"error"') ? 'error' : 'success'
           bufTc.duration = Date.now() - (bufTc.startTime || Date.now())
+          if (event.riskLevel) bufTc.riskLevel = event.riskLevel
         }
       }
       if (isCurrentSession) {
@@ -627,6 +659,7 @@ function handleWSEvent(event: any) {
           tc.result = event.toolResult
           tc.status = event.toolResult?.includes('"error"') ? 'error' : 'success'
           tc.duration = Date.now() - (tc.startTime || Date.now())
+          if (event.riskLevel) tc.riskLevel = event.riskLevel
         }
         scrollToBottom()
       }
@@ -896,11 +929,28 @@ function scrollToBottom() {
   })
 }
 
-// Markdown 渲染（简单实现）
+// Markdown 渲染（带 HTML 转义和深度思考标签修复）
 function renderMarkdown(content: string): string {
   if (!content) return ''
   let html = content
-  // 代码块
+
+  // 1. HTML 转义（防止 XSS 并且修正代码块中的 <TAG> 渲染）
+  html = html.replace(/&/g, '&amp;')
+             .replace(/</g, '&lt;')
+             .replace(/>/g, '&gt;')
+
+  // 2. 处理深度思考标签 (<think> ... </think>)
+  html = html.replace(/&lt;think&gt;/g, '<div class="think-block"><div class="think-title">🤔 思考过程</div><div class="think-content">')
+  html = html.replace(/&lt;\/think&gt;/g, '</div></div>')
+  
+  // 处理流式输出过程中只有头没有尾的情况，自动闭合
+  const thinkOpen = (html.match(/<div class="think-block">/g) || []).length
+  const thinkClose = (html.match(/<\/div><\/div>/g) || []).length
+  if (thinkOpen > thinkClose) {
+    html += '</div></div>'
+  }
+
+  // 3. 代码块
   html = html.replace(/```(\w*)\n([\s\S]*?)```/g, '<pre class="code-block"><code class="language-$1">$2</code></pre>')
   // 行内代码
   html = html.replace(/`([^`]+)`/g, '<code class="inline-code">$1</code>')
@@ -950,6 +1000,34 @@ function formatJSON(data: any): string {
 </script>
 
 <style scoped>
+/* 思考过程块样式 */
+.think-block {
+  margin: 12px 0;
+  border-left: 3px solid #dcdfe6;
+  background-color: #f8f9fa;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.think-title {
+  padding: 8px 12px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #606266;
+  background-color: #ebeef5;
+  border-bottom: 1px solid #e4e7ed;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.think-content {
+  padding: 12px;
+  font-size: 13px;
+  color: #909399;
+  line-height: 1.6;
+}
+
 .ai-chat-container {
   display: flex;
   height: calc(100vh - 60px);
