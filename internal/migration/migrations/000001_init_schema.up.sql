@@ -987,9 +987,10 @@ VALUES
   (49, '执行记录',   '_task_execution-history',  2, 48, '/task/execution-history',  '', 'Notebook',     4, 1, 1, 'task', NOW(), NOW()),
 
   -- ========== AI 助手子菜单 (parent_id=59, plugin=ai) ==========
-  (60, 'AI 对话',    '_ai_chat',   2, 59, '/ai/chat',   '', 'Aibot',  1, 1, 1, 'ai', NOW(), NOW()),
+  (60, 'MOM Claw',   '_ai_chat',   2, 59, '/ai/chat',   '', 'Aibot',  1, 1, 1, 'ai', NOW(), NOW()),
   (61, 'Skill 管理', '_ai_skills', 2, 59, '/ai/skills', '', 'skills', 2, 1, 1, 'ai', NOW(), NOW()),
   (62, '模型配置',   '_ai_models', 2, 59, '/ai/models', '', 'Modle',  3, 1, 1, 'ai', NOW(), NOW()),
+  (64, '聊天渠道',   '_ai_channels', 2, 59, '/ai/channels', '', 'Connection', 4, 1, 1, 'ai', NOW(), NOW()),
 
   -- ========== 测试插件子菜单 (parent_id=27, plugin=test) ==========
   (28, '测试首页',   '_test_home', 2, 27, '/test/home', '', 'House', 1, 1, 1, 'test', NOW(), NOW());
@@ -1002,7 +1003,7 @@ VALUES
   (1, 21), (1, 22), (1, 23), (1, 24), (1, 25), (1, 27), (1, 28),
   (1, 30), (1, 31), (1, 32), (1, 33), (1, 34), (1, 35), (1, 36), (1, 37), (1, 38), (1, 39),
   (1, 40), (1, 41), (1, 42), (1, 43), (1, 44), (1, 45), (1, 46), (1, 47), (1, 48), (1, 49),
-  (1, 50), (1, 59), (1, 60), (1, 61), (1, 62), (1, 63);
+  (1, 50), (1, 59), (1, 60), (1, 61), (1, 62), (1, 63), (1, 64);
 
 -- 为普通用户角色分配基础菜单权限
 INSERT INTO `sys_role_menu` (`role_id`, `menu_id`)

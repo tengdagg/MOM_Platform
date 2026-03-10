@@ -39,7 +39,7 @@
       <!-- 顶部栏 -->
       <div class="chat-header">
         <div class="chat-title">
-          {{ currentSession?.title || 'AI 助手' }}
+          {{ currentSession?.title || 'MOM Claw' }}
         </div>
         <div class="chat-actions">
           <el-select
@@ -67,7 +67,7 @@
           <div class="welcome-icon">
             <el-icon :size="64" color="#409eff"><ChatDotRound /></el-icon>
           </div>
-          <h2>MOM AI 助手</h2>
+          <h2>MOM Claw</h2>
           <p>我可以帮你管理和分析平台中的运维资源</p>
 
           <!-- 对话模板 -->
@@ -615,8 +615,31 @@ function handleWSEvent(event: any) {
       streamingSessionId.value = event.session.id
       break
 
+    case 'external_user_message': {
+      if (isCurrentSession && event.content) {
+        messages.value.push({
+          id: Date.now(),
+          role: 'user',
+          content: event.content,
+        })
+        isLoading.value = true
+        streamingContent.value = ''
+        currentToolCalls.value = []
+        streamingSessionId.value = eventSessionId || 0
+        scrollToBottom()
+      }
+      loadSessions()
+      break
+    }
+
     case 'text_delta': {
       if (stoppedByUser.value) break
+      if (isCurrentSession && event.source === 'external_channel' && !isLoading.value) {
+        isLoading.value = true
+        streamingContent.value = ''
+        currentToolCalls.value = []
+        streamingSessionId.value = eventSessionId || 0
+      }
       // 无论是否当前会话，都写入缓冲
       if (eventSessionId) {
         getBuffer(eventSessionId).content += event.content
@@ -630,6 +653,12 @@ function handleWSEvent(event: any) {
 
     case 'tool_call_start': {
       if (stoppedByUser.value) break
+      if (isCurrentSession && event.source === 'external_channel' && !isLoading.value) {
+        isLoading.value = true
+        streamingContent.value = ''
+        currentToolCalls.value = []
+        streamingSessionId.value = eventSessionId || 0
+      }
       const tcItem = {
         toolName: event.toolName,
         params: event.toolParams,

@@ -11,10 +11,13 @@ import (
 
 // Handler AI API 处理器
 type Handler struct {
-	db       *gorm.DB
-	agent    *biz.Agent
-	registry *biz.ToolRegistry
-	convMgr  *biz.ConversationManager
+	db                 *gorm.DB
+	agent              *biz.Agent
+	registry           *biz.ToolRegistry
+	convMgr            *biz.ConversationManager
+	channelSvc         *biz.ChannelService
+	channelRuntime     *biz.ChannelRuntimeManager
+	channelTestTimeout time.Duration
 }
 
 // ListTemplates 获取对话模板

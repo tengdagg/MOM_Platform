@@ -164,6 +164,8 @@ func (h *Handler) ChatWebSocket(c *gin.Context) {
 		conn.SetReadDeadline(time.Now().Add(10 * time.Minute))
 		return nil
 	})
+	_, busCh, unsubscribe := biz.GlobalSessionStreamBus.Subscribe(uid)
+	defer unsubscribe()
 
 	// 写锁：WebSocket 不支持并发写
 	var writeMu sync.Mutex
@@ -335,6 +337,59 @@ func (h *Handler) ChatWebSocket(c *gin.Context) {
 				}
 			}
 
+		case payload, ok := <-busCh:
+			if !ok {
+				return
+			}
+			wrappedEvent := map[string]any{
+				"type":      payload.Type,
+				"sessionId": payload.SessionID,
+				"source":    payload.Source,
+			}
+			if payload.Type == "external_user_message" {
+				wrappedEvent["content"] = payload.Content
+			} else {
+				event := payload.Event
+				if event.Content != "" {
+					wrappedEvent["content"] = event.Content
+				}
+				if event.ToolName != "" {
+					wrappedEvent["toolName"] = event.ToolName
+				}
+				if event.ToolParams != "" {
+					wrappedEvent["toolParams"] = event.ToolParams
+				}
+				if event.ToolResult != "" {
+					wrappedEvent["toolResult"] = event.ToolResult
+				}
+				if event.ActionID != "" {
+					wrappedEvent["actionId"] = event.ActionID
+				}
+				if event.Description != "" {
+					wrappedEvent["description"] = event.Description
+				}
+				if event.RiskLevel != "" {
+					wrappedEvent["riskLevel"] = event.RiskLevel
+				}
+				if event.RiskMode != "" {
+					wrappedEvent["riskMode"] = event.RiskMode
+				}
+				if event.RiskHint != "" {
+					wrappedEvent["riskHint"] = event.RiskHint
+				}
+				if event.FinishReason != "" {
+					wrappedEvent["finishReason"] = event.FinishReason
+				}
+				if event.Error != "" {
+					wrappedEvent["error"] = event.Error
+				}
+				if event.Usage != nil {
+					wrappedEvent["usage"] = event.Usage
+				}
+			}
+			if err := safeWriteJSON(wrappedEvent); err != nil {
+				return
+			}
 		case <-doneCh:
 			return
 		}

@@ -1,6 +1,8 @@
 package ai
 
 import (
+	"context"
+
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 
@@ -11,8 +13,10 @@ import (
 
 // Plugin AI 助手插件实现
 type Plugin struct {
-	db   *gorm.DB
-	name string
+	db        *gorm.DB
+	name      string
+	ctx       context.Context
+	cancelCtx context.CancelFunc
 }
 
 // New 创建 AI 插件实例
@@ -52,6 +56,9 @@ func (p *Plugin) Enable(db *gorm.DB) error {
 		&biz.ChatSession{},
 		&biz.ChatMessage{},
 		&biz.SkillDefinition{},
+		&biz.AIChannelConfig{},
+		&biz.AIChannelBinding{},
+		&biz.AIChannelInboundMessage{},
 	}
 
 	for _, m := range models {
@@ -60,17 +67,22 @@ func (p *Plugin) Enable(db *gorm.DB) error {
 		}
 	}
 
+	p.ctx, p.cancelCtx = context.WithCancel(context.Background())
+
 	return nil
 }
 
 // Disable 禁用插件
 func (p *Plugin) Disable(db *gorm.DB) error {
+	if p.cancelCtx != nil {
+		p.cancelCtx()
+	}
 	return nil
 }
 
 // RegisterRoutes 注册路由
 func (p *Plugin) RegisterRoutes(router *gin.RouterGroup, db *gorm.DB) {
-	server.RegisterRoutes(router, db)
+	server.RegisterRoutes(router, db, p.ctx)
 }
 
 // GetMenus 获取插件菜单配置
@@ -84,7 +96,7 @@ func (p *Plugin) GetMenus() []plugin.MenuConfig {
 			Hidden: false,
 		},
 		{
-			Name:       "AI 对话",
+			Name:       "MOM Claw",
 			Path:       "/ai/chat",
 			Icon:       "ChatLineRound",
 			Sort:       1,
@@ -104,6 +116,14 @@ func (p *Plugin) GetMenus() []plugin.MenuConfig {
 			Path:       "/ai/models",
 			Icon:       "Setting",
 			Sort:       3,
+			Hidden:     false,
+			ParentPath: "/ai",
+		},
+		{
+			Name:       "聊天渠道",
+			Path:       "/ai/channels",
+			Icon:       "Connection",
+			Sort:       4,
 			Hidden:     false,
 			ParentPath: "/ai",
 		},

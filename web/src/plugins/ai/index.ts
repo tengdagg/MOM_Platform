@@ -32,7 +32,7 @@ class AIPlugin implements Plugin {
         parentPath: '',
       },
       {
-        name: 'AI 对话',
+        name: 'MOM Claw',
         path: '/ai/chat',
         icon: 'ChatLineRound',
         sort: 1,
@@ -55,6 +55,14 @@ class AIPlugin implements Plugin {
         hidden: false,
         parentPath: parentPath,
       },
+      {
+        name: '聊天渠道',
+        path: '/ai/channels',
+        icon: 'Connection',
+        sort: 4,
+        hidden: false,
+        parentPath: parentPath,
+      },
     ]
   }
 
@@ -64,7 +72,7 @@ class AIPlugin implements Plugin {
         path: '/ai/chat',
         name: 'AIChat',
         component: () => import('@/views/ai/AIChat.vue'),
-        meta: { title: 'AI 对话' },
+        meta: { title: 'MOM Claw' },
       },
       {
         path: '/ai/skills',
@@ -77,6 +85,18 @@ class AIPlugin implements Plugin {
         name: 'AIModelConfig',
         component: () => import('@/views/ai/AIModelConfig.vue'),
         meta: { title: '模型配置' },
+      },
+      {
+        path: '/ai/channels',
+        name: 'AIChannels',
+        component: () => import('@/views/ai/channels/Index.vue'),
+        meta: { title: '聊天渠道' },
+      },
+      {
+        path: '/ai/channels/feishu',
+        name: 'AIChannelsFeishuLegacy',
+        component: () => import('@/views/ai/channels/Index.vue'),
+        meta: { title: '聊天渠道', hidden: true, activeMenu: '/ai/channels' },
       },
     ]
   }

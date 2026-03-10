@@ -618,3 +618,85 @@ AI Skills & Agent 代码审阅修复（安全、稳定性、代码质量）
 | `plugins/ai/skills/task.ansible/SKILL.md` | 文档对齐 |
 | `web/src/views/ai/AIChat.vue` | 前端工具卡片增强 |
 | `web/src/views/ai/AISkills.vue` | Skill 管理页风险元数据展示 |
+
+
+### 20260310-2
+#### 聊天渠道与飞书应用接入（外部渠道对话能力）
+
+##### 1. 新增 AI 助手「聊天渠道」能力
+**新增**：
+- AI 助手菜单新增「聊天渠道」页面，作为外部聊天平台统一接入入口
+- 首版接入飞书应用机器人，后续预留企业微信、钉钉扩展能力
+- 前端改为单页 Tab 结构，不再通过下拉子菜单区分不同渠道
+
+**涉及文件**：`plugins/ai/plugin.go`、`plugins/ai/server/router.go`、`plugins/ai/server/handler.go`、`web/src/plugins/ai/index.ts`、`web/src/views/ai/channels/Index.vue`
+
+##### 2. 新增聊天渠道配置与运行时管理
+**新增**：
+- 新增 `AIChannelConfig` / `AIChannelBinding` 模型，支持保存外部渠道配置与外部身份到内部会话的绑定关系
+- 新增聊天渠道 CRUD / 启停 / 重连 / 测试 API
+- 新增 `ChannelRuntimeManager`，统一管理飞书等外部渠道长连接生命周期
+- 插件启用时自动迁移渠道相关表，并自动启动已启用的渠道
+
+**涉及文件**：`plugins/ai/biz/channel_models.go`、`plugins/ai/biz/channel_service.go`、`plugins/ai/biz/channel_adapter.go`、`plugins/ai/biz/channel_runtime.go`、`plugins/ai/server/channel_handler.go`
+
+##### 3. 飞书长连接打通 AI Agent 与 Web 会话
+**新增**：
+- 基于飞书官方 SDK 长连接模式接收应用机器人私聊消息
+- 外部飞书消息可直接桥接到现有 AI Agent，会话、模型、Skill 调用和高风险确认链路全部复用
+- 新增全局 `SessionStreamBus`，将外部渠道消息与流式事件同步广播到 Web 端，实现飞书消息在 MOM Claw 页面实时可见
+
+**涉及文件**：`plugins/ai/biz/feishu_channel.go`、`plugins/ai/biz/channel_agent_bridge.go`、`plugins/ai/biz/stream_bus.go`、`plugins/ai/server/chat_handler.go`、`web/src/views/ai/AIChat.vue`
+
+##### 4. 飞书回复升级为卡片消息
+**改进**：
+- 飞书回复由纯文本 / 富文本升级为 `interactive card`
+- 卡片支持展示 `Skill 调用`、执行状态、风险等级与 AI 回复正文
+- 处理中消息支持持续更新，尽量对齐 Web 端的流式体验
+- 不影响原有 Web 端 MOM Claw 页面渲染逻辑
+
+**涉及文件**：`plugins/ai/biz/feishu_channel.go`
+
+##### 5. 飞书渠道稳定性修复
+**修复**：
+- 修复飞书消息处理阻塞导致平台重试、重复回复的问题：消息接收后改为异步处理，先快速 ACK
+- 修复删除 Web 侧聊天历史后，飞书再次提问出现 `record not found` 的问题：若绑定会话已不存在，自动重建内部会话并更新绑定
+- 修复飞书回执事件导致的无效报错：增加 `message_read_v1` 空处理器
+- 修复外部渠道实时消息在 Web 端不展示 / 展示不完整的问题：统一通过流式总线推送到当前会话
+
+**涉及文件**：`plugins/ai/biz/feishu_channel.go`、`plugins/ai/biz/channel_service.go`、`plugins/ai/biz/channel_agent_bridge.go`、`plugins/ai/biz/stream_bus.go`、`web/src/views/ai/AIChat.vue`
+
+##### 6. 飞书入站消息幂等防重
+**修复**：
+- 新增 `AIChannelInboundMessage` 幂等表，按飞书 `message_id` 记录已处理消息
+- 接收飞书消息前先抢占幂等记录，防止长连接重连、平台重投或历史回放导致同一条消息被重复执行
+- 新增独立的后台清理任务，定期物理删除过期幂等记录，避免表长期积累和唯一键占用
+
+**涉及文件**：`plugins/ai/biz/channel_models.go`、`plugins/ai/biz/channel_service.go`、`plugins/ai/plugin.go`、`plugins/ai/biz/feishu_channel.go`、`plugins/ai/server/router.go`
+
+##### 7. 飞书会话管理增强：手动新对话 + 自动轮换
+**新增**：
+- 支持在飞书中发送以下口令立即切换到新的 MOM Claw 会话：
+  - `新对话`
+  - `重置上下文`
+  - `清空上下文`
+  - `开始新会话`
+- 支持自动轮换飞书会话，避免同一个外部会话长期积累过长上下文
+- 自动轮换支持以下维度：
+  - 单会话消息数阈值
+  - 空闲时长阈值
+  - 会话寿命阈值
+- 自动轮换触发后，会自动创建新的 `ChatSession` 并更新绑定关系，当前提问按新上下文继续处理
+
+**涉及文件**：`plugins/ai/biz/channel_service.go`、`plugins/ai/biz/feishu_channel.go`
+
+##### 8. 聊天渠道页面新增会话轮换配置项
+**新增**：
+- 飞书渠道配置页面新增可视化配置项：
+  - `消息数阈值`
+  - `空闲阈值`
+  - `会话寿命`
+- 配置统一保存到渠道 `config` JSON 中，兼容旧数据，不需要新增数据库字段
+- 页面同时展示手动新对话口令和当前自动轮换策略，便于使用者理解和维护
+
+**涉及文件**：`web/src/views/ai/channels/Feishu.vue`、`web/src/api/ai-channel.ts`、`plugins/ai/biz/channel_service.go`

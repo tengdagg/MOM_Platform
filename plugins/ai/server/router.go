@@ -1,6 +1,9 @@
 package server
 
 import (
+	"context"
+	"time"
+
 	"github.com/gin-gonic/gin"
 	"github.com/ydcloud-dy/mom/plugins/ai/biz"
 	"github.com/ydcloud-dy/mom/plugins/ai/skills"
@@ -8,7 +11,7 @@ import (
 )
 
 // RegisterRoutes 注册 AI 插件路由
-func RegisterRoutes(router *gin.RouterGroup, db *gorm.DB) {
+func RegisterRoutes(router *gin.RouterGroup, db *gorm.DB, rootCtx context.Context) {
 	registry := biz.NewToolRegistry()
 
 	// 从 SKILL.md 加载并注册所有内置 Skills
@@ -22,12 +25,19 @@ func RegisterRoutes(router *gin.RouterGroup, db *gorm.DB) {
 	convMgr := biz.NewConversationManager(db)
 	convMgr.EnsureSettingsTable()
 	convMgr.StartSessionCleanupScheduler()
+	channelSvc := biz.NewChannelService(db)
+	channelSvc.StartInboundMessageCleanupScheduler(rootCtx)
+	channelRuntime := biz.NewChannelRuntimeManager(rootCtx, db, agent, convMgr, channelSvc)
+	channelRuntime.StartEnabledChannels()
 
 	handler := &Handler{
-		db:       db,
-		agent:    agent,
-		registry: registry,
-		convMgr:  convMgr,
+		db:                 db,
+		agent:              agent,
+		registry:           registry,
+		convMgr:            convMgr,
+		channelSvc:         channelSvc,
+		channelRuntime:     channelRuntime,
+		channelTestTimeout: 8 * time.Second,
 	}
 
 	ai := router.Group("/ai")
@@ -55,6 +65,20 @@ func RegisterRoutes(router *gin.RouterGroup, db *gorm.DB) {
 			chat.GET("/settings/retention", handler.GetRetentionSettings)
 			chat.PUT("/settings/retention", handler.SetRetentionSettings)
 			chat.POST("/cleanup", handler.CleanupSessions)
+		}
+
+		// 聊天渠道
+		channels := ai.Group("/channels")
+		{
+			channels.GET("", handler.ListChannels)
+			channels.POST("", handler.CreateChannel)
+			channels.GET("/:id", handler.GetChannel)
+			channels.PUT("/:id", handler.UpdateChannel)
+			channels.DELETE("/:id", handler.DeleteChannel)
+			channels.POST("/:id/test", handler.TestChannel)
+			channels.POST("/:id/start", handler.StartChannel)
+			channels.POST("/:id/stop", handler.StopChannel)
+			channels.POST("/:id/reconnect", handler.ReconnectChannel)
 		}
 
 		// Skill 管理
