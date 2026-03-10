@@ -87,4 +87,5 @@ parameters:
 
 - 写操作（delete/scale/restart/cordon/drain）需要用户确认
 - 查询操作（get/describe/logs/events/top）直接执行
+- 实际返回会携带 `effectiveRiskLevel`，用于区分当前动作是真正的低风险查询还是高风险变更
 - 支持所有标准 Kubernetes 资源类型

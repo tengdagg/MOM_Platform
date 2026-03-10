@@ -513,3 +513,108 @@ AI Skills & Agent 代码审阅修复（安全、稳定性、代码质量）
 **修复**：提取为具名类型 `UsageStats`，与 `executeCapacityPlan` 复用同一类型。
 
 ---
+
+### 20260310
+
+#### AI Agent 确认机制重构与多轮工具调用修复（19 个文件，+1319/-284 行）
+
+##### 1. 高风险操作确认 — 同一轮 Skill 调用不再跳过确认（严重）
+**问题**：模型一次性产出多个 tool call 时（如查磁盘+执行分区+创建PV），只要第一个返回 `pending_confirmation`，代码仅打标记但不停止，后续 Skill 继续执行。导致用户看到"待确认"但实际已经跑完了后面的命令。
+
+**修复**（`plugins/ai/biz/agent.go` — `Run` 和 `RunStream`）：
+- 工具执行循环中，一旦某个 Skill 返回 `pending_confirmation`，立即 `break` 终止后续 Skill 执行
+- 同时标记 `forceTextOnly=true`，下一轮 ReAct 迭代不传工具定义，强制模型只生成确认提示文本
+
+##### 2. 确认回复直接执行原命令 — 不再让模型重新猜（严重）
+**问题**：用户回复"确认"/"执行"后，系统把决定权交回模型。模型可能：(1) 不执行原命令而是换一条新命令再问确认 (2) 在失败命令和修复命令之间来回循环 (3) 直接编故事假装执行了。
+
+**修复**（`plugins/ai/biz/agent.go` — 新增 `replayPendingAction` 机制）：
+- 新增 `PendingToolAction` 结构体，保存待确认操作的完整上下文（工具名、原始参数、风险等级、警告信息）
+- 新增 `getLastPendingAction(sessionID)` — 从 DB 最近助手消息的 `tool_calls` JSON 中提取最后一条 `pending_confirmation` 记录
+- 新增 `replayPendingAction()` — 用户确认时，直接复用原始参数 + 注入 `confirmed=true` 执行，不再走模型
+- 新增 `isAffirmativeConfirmation()` — 匹配"确认/执行/继续/好的/可以/ok/yes"等肯定词
+- 新增 `isNegativeConfirmation()` — 匹配"取消/不要/不用/停止/算了/no"等否定词
+- 新增 `injectConfirmedParam()` — 安全地向原始参数 JSON 注入 `confirmed=true`
+- 取消操作也由后端直接处理，不再让模型生成取消文本
+
+##### 3. 历史消息工具调用上下文还原（严重）
+**问题**：`buildMessages` 构建历史上下文时只传了 `role` 和 `content`，完全丢弃了 `ToolCalls` 和 `tool` 角色消息。模型在下一轮对话中看不到之前的工具调用记录，导致：(1) 不知道之前通过工具做了什么 (2) 多步骤操作时"编故事"假装执行了后续命令 (3) 失败命令下一轮重试时不知道上次失败的具体错误。
+
+**修复**（`plugins/ai/biz/agent.go` — `buildMessages`）：
+- 当助手消息包含 `tool_calls` JSON 时，解析为标准 `ToolCall` 对象，还原为 `assistant(tool_calls=...) + tool(result=...)` 消息对
+- 工具名自动通过 `SanitizeToolName` 清洗为 LLM 兼容格式
+- 每个工具结果作为独立的 `tool` 角色消息，携带正确的 `tool_call_id`
+- 模型现在能看到完整的工具调用历史链，多步骤操作不再丢失上下文
+
+##### 4. 工具调用记录状态持久化修正
+**问题**：`allToolCallRecords` 中的 `status` 字段原先用 `hasError` 布尔值简单映射为 "success"/"error"，`pending_confirmation` 状态被错误记录为 "success"。
+
+**修复**：
+- 统一使用 `resultStatus` 变量，优先取工具返回的 `status` 字段原始值
+- `pending_confirmation` 状态正确持久化到数据库，UI 和历史回溯都能准确识别
+
+##### 5. Skill 动作级风险推断 — `tool_call_start` 事件增强
+**改进**（`plugins/ai/biz/agent.go`）：
+- 新增 `inferToolRiskLevel(name, argsJSON, fallback)` — 根据工具参数动态推断风险等级（如 `lsblk` → low，`rm -rf` → critical）
+- 新增 `inferToolRiskMode(name)` — 返回 `static`（固定风险）或 `dynamic`（按参数变化）
+- 新增 `inferToolRiskHint(name, argsJSON, fallbackLevel)` — 生成人类可读的风险说明
+- `AgentEvent` 结构体新增 `RiskMode` 和 `RiskHint` 字段
+- `tool_call_start` 和 `tool_call_result` 事件均携带动态风险信息
+
+##### 6. DeepSeek DSML 标记过滤与泄漏工具调用恢复
+**改进**（`plugins/ai/biz/agent.go`）：
+- 新增 `dsmlPattern` / `dsmlInvokePattern` / `dsmlParamPattern` 正则，过滤 DeepSeek 内部 `<｜DSML｜>` 标记
+- 新增 `parseLeakedToolCalls()` — 恢复 `<tool_call>` 格式的泄漏调用
+- 新增 `parseLeakedDSMLToolCalls()` — 恢复 DSML 格式的泄漏调用
+- 新增 `parseAnyLeakedToolCalls()` — 统一入口，同时处理两种格式
+- 流式输出增加 `dsmlPendingBuf` 缓冲机制，防止 `<` 字符提前泄漏到前端
+- `forceTextOnly` 模式下如果模型输出纯 DSML（无有效文本），自动生成兜底确认提示
+- 新增 `<think>` 标签过滤，支持 DeepSeek R1 深度思考内容的正确显示
+
+##### 7. Skill 风险分类优化 — 低风险命令免确认
+**改进**（6 个 Skill 实现文件 + 9 个 SKILL.md）：
+
+| 文件 | 改动 |
+|------|------|
+| `host_skills.go` | `exec_command`: 扩展安全命令识别（`fdisk -l`、`parted print`、`docker ps/images/logs` 等）；`collect`: 移除确认，直接执行；`file_manage`: `download` 免确认；`manage`: `list_credentials`/`list_groups` 返回 `effectiveRiskLevel: low` |
+| `device_skills.go` | 新增 `isSafeDeviceReadCommand` 白名单（`show`/`display`/`ping`/`traceroute` 等）；`test_connection`: 移除确认直接执行；`manage`: 列表操作免确认 |
+| `task_skills.go` | `execute`: 安全命令免确认，返回动态风险等级；`ansible`: `list` 操作免确认 |
+| `k8s_kubectl_skill.go` | 新增 `applyRisk` 辅助函数，所有子操作统一返回 `effectiveRiskLevel` |
+| `k8s_skills.go` | `diagnose`/`log_query`: 返回 `effectiveRiskLevel: low`；`helm_manage`: `list`/`status` 免确认 |
+| `monitor_skills.go` | `alert_config`: `list` 返回 `effectiveRiskLevel: low` |
+| 9 个 SKILL.md | 更新风险说明、安全策略、参数定义，与后端逻辑对齐 |
+
+##### 8. AI Chat 前端工具卡片增强
+**改进**（`web/src/views/ai/AIChat.vue`）：
+- 工具卡片新增"动态风险"标签（`riskMode === 'dynamic'` 时显示）
+- 状态标签新增"待确认"样式（橙色闪烁边框）
+- `pending_confirmation` 状态的工具卡片自动展开，显示操作详情和风险说明
+- 新增 `parseToolResultStatus`、`getToolStatusType`、`getToolStatusLabel` 辅助函数
+
+##### 9. Skill 管理 API 风险元数据
+**改进**（`plugins/ai/server/skill_handler.go`）：
+- 新增 `buildSkillRiskMeta` — 根据 Skill 名称和参数模式判断 `riskMode`（static/dynamic）和 `riskHint`
+- `ListSkills` 接口返回值增加 `riskMode` 和 `riskHint` 字段
+
+##### 涉及文件清单
+| 文件 | 类型 |
+|------|------|
+| `plugins/ai/biz/agent.go` | 核心改动：确认机制重构、历史还原、风险推断、DSML 过滤 |
+| `plugins/ai/server/skill_handler.go` | Skill 列表 API 风险元数据 |
+| `plugins/ai/skills/host_skills.go` | 主机 Skill 风险分类 |
+| `plugins/ai/skills/device_skills.go` | 网络设备 Skill 风险分类 |
+| `plugins/ai/skills/task_skills.go` | 任务 Skill 风险分类 |
+| `plugins/ai/skills/k8s_kubectl_skill.go` | K8s kubectl Skill 风险分类 |
+| `plugins/ai/skills/k8s_skills.go` | K8s 诊断/日志/Helm Skill 风险分类 |
+| `plugins/ai/skills/monitor_skills.go` | 监控告警 Skill 风险分类 |
+| `plugins/ai/skills/host.exec_command/SKILL.md` | 文档对齐 |
+| `plugins/ai/skills/host.collect/SKILL.md` | 文档对齐 |
+| `plugins/ai/skills/host.file_manage/SKILL.md` | 文档对齐 |
+| `plugins/ai/skills/device.exec_command/SKILL.md` | 文档对齐 |
+| `plugins/ai/skills/device.test_connection/SKILL.md` | 文档对齐 |
+| `plugins/ai/skills/k8s.kubectl/SKILL.md` | 文档对齐 |
+| `plugins/ai/skills/k8s.helm_manage/SKILL.md` | 文档对齐 |
+| `plugins/ai/skills/task.execute/SKILL.md` | 文档对齐 |
+| `plugins/ai/skills/task.ansible/SKILL.md` | 文档对齐 |
+| `web/src/views/ai/AIChat.vue` | 前端工具卡片增强 |
+| `web/src/views/ai/AISkills.vue` | Skill 管理页风险元数据展示 |

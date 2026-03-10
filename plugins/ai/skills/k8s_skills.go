@@ -211,12 +211,13 @@ func executeK8sDiagnose(ctx biz.SkillContext) (any, error) {
 	}
 
 	return map[string]any{
-		"cluster":        clusterName,
-		"nodeName":       nodeName,
-		"conditions":     conditions,
-		"unschedulable":  node.Spec.Unschedulable,
-		"kubeletVersion": node.Status.NodeInfo.KubeletVersion,
-		"osImage":        node.Status.NodeInfo.OSImage,
+		"cluster":            clusterName,
+		"nodeName":           nodeName,
+		"conditions":         conditions,
+		"unschedulable":      node.Spec.Unschedulable,
+		"kubeletVersion":     node.Status.NodeInfo.KubeletVersion,
+		"osImage":            node.Status.NodeInfo.OSImage,
+		"effectiveRiskLevel": "low",
 	}, nil
 }
 
@@ -311,12 +312,13 @@ func executeK8sLogQuery(ctx biz.SkillContext) (any, error) {
 	}
 
 	return map[string]any{
-		"cluster":   clusterName,
-		"namespace": namespace,
-		"podName":   podName,
-		"container": container,
-		"tailLines": tailLines,
-		"logs":      logs,
+		"cluster":            clusterName,
+		"namespace":          namespace,
+		"podName":            podName,
+		"container":          container,
+		"tailLines":          tailLines,
+		"logs":               logs,
+		"effectiveRiskLevel": "low",
 	}, nil
 }
 
@@ -366,6 +368,7 @@ func executeK8sHelmManage(ctx biz.SkillContext) (any, error) {
 		result["releases"] = filteredReleases
 		result["total"] = len(filteredReleases)
 		result["message"] = fmt.Sprintf("查询到 %d 个 Helm Release", len(filteredReleases))
+		result["effectiveRiskLevel"] = "low"
 
 	case "install":
 		if chartName == "" || releaseName == "" {
@@ -462,6 +465,7 @@ func executeK8sHelmManage(ctx biz.SkillContext) (any, error) {
 		result["updated"] = release.Updated
 		result["chart"] = release.Chart
 		result["appVersion"] = release.AppVersion
+		result["effectiveRiskLevel"] = "low"
 		// 避免返回过多内容，截断 manifest
 		if len(release.Manifest) > 1000 {
 			release.Manifest = release.Manifest[:1000] + "...(truncated)"

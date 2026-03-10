@@ -66,9 +66,9 @@ parameters:
 - 确认时会展示待写入内容的预览（前 500 字符）
 - ⚠️ **会覆盖原文件内容**，强烈建议先执行 `backup` 操作
 
-### download — 下载文件（中风险，需确认）
+### download — 下载文件（低风险，无需确认）
 
-读取远程文件内容（限制 64KB），与 read 类似但需要确认。
+读取远程文件内容（限制 64KB），与 `read` 类似，直接执行即可。
 
 ## 配置文件修改最佳实践
 
@@ -123,5 +123,6 @@ parameters:
 
 - 需要主机 SSH 连接权限
 - read 和 list 操作为低风险，直接执行
-- backup、write、download 操作需要用户确认
+- download、read、list 操作会直接执行
+- backup、write 操作需要用户确认
 - write 操作会覆盖原文件，操作前请务必备份

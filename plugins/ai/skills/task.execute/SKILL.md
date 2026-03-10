@@ -1,6 +1,6 @@
 ---
 name: task.execute
-description: 【仅用于按分组批量执行】在指定主机分组的所有在线主机上批量执行 Ad-hoc 命令。必须通过 group_name 指定目标分组。如果用户只指定了 IP 或单台主机，请改用 host.exec_command 而不是此 Skill。高风险操作，执行前需用户确认。自动拒绝危险命令
+description: 【仅用于按分组批量执行】在指定主机分组的所有在线主机上批量执行 Ad-hoc 命令。必须通过 group_name 指定目标分组。如果用户只指定了 IP 或单台主机，请改用 host.exec_command 而不是此 Skill。查看类命令可直接执行，批量变更类命令需用户确认，并自动拒绝危险命令
 category: task
 riskLevel: critical
 scriptType: builtin
@@ -23,8 +23,8 @@ parameters:
       description: 目标主机 ID 列表
     timeout:
       type: integer
-      description: 执行超时时间（秒），默认 30，最大 300
-      default: 30
+      description: 执行超时时间（秒），默认 60，最大 600
+      default: 60
     confirmed:
       type: boolean
       description: 用户确认执行时设为 true，首次调用不传此参数
@@ -36,11 +36,12 @@ parameters:
 
 在一台或多台指定主机上执行 Ad-hoc Shell 命令。
 
-## ⚠️ 危险操作
+## 风险说明
 
-此 Skill 风险等级为 **critical**，需要两步确认：
-1. 首次调用返回待执行的主机列表和命令详情
-2. 用户确认后带 `confirmed=true` 再次调用真正执行
+此 Skill 是**混合型 Skill**：
+1. `df -h`、`systemctl status`、`cat`、`lsblk` 等查看类命令会直接执行
+2. 安装软件、修改配置、启停服务等批量变更命令需要两步确认
+3. 真正的破坏性命令会被安全检查直接拒绝
 
 ## 与 `host.exec_command` 的区别
 
@@ -80,9 +81,9 @@ group_name: "所有主机"
 
 ## 安全策略
 
-- 所有命令执行需要用户明确确认
+- 查看类命令直接执行；批量变更类命令需要用户明确确认
 - 自动拒绝危险命令：`rm -rf /`、`mkfs`、`dd if=`、`shutdown`、`reboot`、`init 0`、`init 6`、Fork 炸弹等
-- 执行超时限制：默认 30 秒，最大 300 秒
+- 执行超时限制：默认 60 秒，最大 600 秒
 - 操作会记录到审计日志
 - 最多同时在 50 台主机上执行
 - 输出超过 64KB 会被截断
@@ -90,6 +91,7 @@ group_name: "所有主机"
 ## 返回数据
 
 - `status`: 执行状态（pending_confirmation / success）
+- `effectiveRiskLevel`: 实际动作风险等级（如 `low` / `critical`）
 - `command`: 执行的命令
 - `timeout`: 使用的超时时间
 - `results`: 每台主机的执行结果数组

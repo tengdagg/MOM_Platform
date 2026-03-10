@@ -20,11 +20,432 @@ var dsmlPattern = regexp.MustCompile(`(?s)<[｜|]DSML[｜|].*`)
 // thinkPattern 匹配模型输出中的 <think>...</think> 深度思考标记
 var thinkPattern = regexp.MustCompile(`(?s)<think>.*?</think>\s*`)
 
-// stripModelArtifacts 过滤模型输出中的内部标记（如 DeepSeek DSML、<think> 标签等）
+// toolCallTextPattern 匹配模型以文本形式输出的 <tool_call>...</tool_call> 标记
+// DeepSeek 等模型在多轮对话后可能不走 function calling API，而是直接输出此格式
+var toolCallTextPattern = regexp.MustCompile(`(?s)<tool_call>.*?</tool_call>`)
+
+// toolCallTextUnclosedPattern 匹配未闭合的 <tool_call>（流式输出未结束时）
+var toolCallTextUnclosedPattern = regexp.MustCompile(`(?s)<tool_call>.*`)
+
+// dsmlInvokePattern / dsmlParamPattern 用于恢复 DeepSeek 以文本泄漏的函数调用
+var dsmlInvokePattern = regexp.MustCompile(`<[｜|]DSML[｜|]invoke name="([^"]+)">`)
+var dsmlParamPattern = regexp.MustCompile(`<[｜|]DSML[｜|]parameter name="([^"]+)"(?: [^>]*)?>(.*)`)
+
+// stripModelArtifacts 过滤模型输出中的内部标记（如 DeepSeek DSML、<think>、<tool_call> 标签等）
 func stripModelArtifacts(content string) string {
 	content = thinkPattern.ReplaceAllString(content, "")
 	content = dsmlPattern.ReplaceAllString(content, "")
-	return content
+	content = toolCallTextPattern.ReplaceAllString(content, "")
+	content = toolCallTextUnclosedPattern.ReplaceAllString(content, "")
+	return strings.TrimSpace(content)
+}
+
+// parseLeakedToolCalls 解析模型以文本形式泄漏的 <tool_call> 标记，转换为标准 ToolCall 切片
+// 支持的格式:
+//
+//	<tool_call>tool-name<arg_key>k1</arg_key><arg_value>v1</arg_value>...</tool_call>
+func parseLeakedToolCalls(content string) []ToolCall {
+	// 提取所有 <tool_call>...</tool_call> 块
+	re := regexp.MustCompile(`(?s)<tool_call>(.*?)</tool_call>`)
+	matches := re.FindAllStringSubmatch(content, -1)
+	if len(matches) == 0 {
+		// 尝试匹配未闭合的 <tool_call>
+		reUnclosed := regexp.MustCompile(`(?s)<tool_call>(.*)`)
+		matches = reUnclosed.FindAllStringSubmatch(content, -1)
+	}
+	if len(matches) == 0 {
+		return nil
+	}
+
+	var result []ToolCall
+	argKeyRe := regexp.MustCompile(`(?s)<arg_key>(.*?)</arg_key>\s*<arg_value>(.*?)</arg_value>`)
+
+	for idx, m := range matches {
+		body := strings.TrimSpace(m[1])
+		if body == "" {
+			continue
+		}
+
+		// 工具名：<tool_call> 和第一个 <arg_key> 之间的文本
+		toolName := body
+		if pos := strings.Index(body, "<arg_key>"); pos > 0 {
+			toolName = strings.TrimSpace(body[:pos])
+		}
+		toolName = strings.TrimSpace(toolName)
+		if toolName == "" {
+			continue
+		}
+
+		// 解析参数键值对
+		params := make(map[string]any)
+		argMatches := argKeyRe.FindAllStringSubmatch(body, -1)
+		for _, am := range argMatches {
+			key := strings.TrimSpace(am[1])
+			value := strings.TrimSpace(am[2])
+			if key != "" {
+				// 尝试将数值字符串转为数字
+				params[key] = value
+			}
+		}
+
+		argsJSON, _ := json.Marshal(params)
+
+		result = append(result, ToolCall{
+			ID:   fmt.Sprintf("leaked_call_%d", idx),
+			Type: "function",
+			Function: FunctionCall{
+				Name:      toolName,
+				Arguments: string(argsJSON),
+			},
+		})
+
+		log.Printf("[agent] 检测到泄漏的 <tool_call> 标记，已解析: tool=%s args=%s", toolName, string(argsJSON))
+	}
+
+	return result
+}
+
+// parseLeakedDSMLToolCalls 解析 DeepSeek 以 DSML 文本泄漏的函数调用，转换为标准 ToolCall 切片。
+// 支持的格式:
+//
+//	<｜DSML｜invoke name="host-exec_command">
+//	<｜DSML｜parameter name="ip" string="true">172.20.200.237
+//	<｜DSML｜parameter name="command" string="true">lsblk -o NAME,SIZE
+func parseLeakedDSMLToolCalls(content string) []ToolCall {
+	var result []ToolCall
+	currentName := ""
+	params := make(map[string]any)
+
+	flushCurrent := func() {
+		if strings.TrimSpace(currentName) == "" {
+			return
+		}
+		argsJSON, _ := json.Marshal(params)
+		result = append(result, ToolCall{
+			ID:   fmt.Sprintf("leaked_dsml_call_%d", len(result)),
+			Type: "function",
+			Function: FunctionCall{
+				Name:      strings.TrimSpace(currentName),
+				Arguments: string(argsJSON),
+			},
+		})
+		log.Printf("[agent] 检测到泄漏的 DSML 函数调用，已解析: tool=%s args=%s", currentName, string(argsJSON))
+		currentName = ""
+		params = make(map[string]any)
+	}
+
+	for _, rawLine := range strings.Split(content, "\n") {
+		line := strings.TrimSpace(rawLine)
+		if line == "" {
+			continue
+		}
+
+		if m := dsmlInvokePattern.FindStringSubmatch(line); len(m) > 1 {
+			flushCurrent()
+			currentName = strings.TrimSpace(m[1])
+			continue
+		}
+
+		if currentName == "" {
+			continue
+		}
+
+		if m := dsmlParamPattern.FindStringSubmatch(line); len(m) > 2 {
+			key := strings.TrimSpace(m[1])
+			value := strings.TrimSpace(m[2])
+			if key != "" {
+				params[key] = value
+			}
+		}
+	}
+
+	flushCurrent()
+	return result
+}
+
+// parseAnyLeakedToolCalls 同时尝试恢复 <tool_call> 和 DSML 文本形式的函数调用。
+func parseAnyLeakedToolCalls(content string) []ToolCall {
+	var result []ToolCall
+	if strings.Contains(content, "<tool_call>") {
+		result = append(result, parseLeakedToolCalls(content)...)
+	}
+	if strings.Contains(content, "<｜DSML｜") || strings.Contains(content, "<|DSML|") {
+		result = append(result, parseLeakedDSMLToolCalls(content)...)
+	}
+	if len(result) == 0 {
+		return nil
+	}
+	return result
+}
+
+// escapeHTMLForFrontend 将模型输出中的 HTML 特殊字符转义，防止前端 v-html 误解析
+func escapeHTMLForFrontend(s string) string {
+	s = strings.ReplaceAll(s, "&", "&amp;")
+	s = strings.ReplaceAll(s, "<", "&lt;")
+	s = strings.ReplaceAll(s, ">", "&gt;")
+	return s
+}
+
+// inferToolRiskLevel 根据工具参数推断动作级风险，避免混合 Skill 一律显示为高风险。
+func (a *Agent) inferToolRiskLevel(name string, argsJSON string, fallback string) string {
+	displayName := a.registry.ResolveName(name)
+	var params map[string]any
+	if argsJSON != "" {
+		_ = json.Unmarshal([]byte(argsJSON), &params)
+	}
+
+	getAction := func() string {
+		if params == nil {
+			return ""
+		}
+		if action, ok := params["action"].(string); ok {
+			return strings.ToLower(strings.TrimSpace(action))
+		}
+		return ""
+	}
+	getCommand := func() string {
+		if params == nil {
+			return ""
+		}
+		if command, ok := params["command"].(string); ok {
+			return strings.ToLower(strings.TrimSpace(command))
+		}
+		return ""
+	}
+	isLikelySafeHostCommand := func(command string) bool {
+		if command == "" {
+			return false
+		}
+		safePrefixes := []string{
+			"ls", "lsblk", "df", "du", "free", "uname", "uptime", "who", "w", "id", "pwd",
+			"cat ", "grep ", "egrep ", "rg ", "ps ", "top ", "vmstat", "iostat", "ss ", "netstat ",
+			"journalctl ", "tail ", "head ", "env", "printenv", "mount", "findmnt",
+			"fdisk -l", "fdisk --list", "parted ",
+			"pvs", "vgs", "lvs", "pvdisplay", "vgdisplay", "lvdisplay", "blkid",
+			"ip addr show", "ip route show", "ip link show",
+			"systemctl status ", "service ",
+			"docker ps", "docker images", "docker inspect", "docker logs", "docker stats",
+		}
+		for _, prefix := range safePrefixes {
+			if strings.HasPrefix(command, prefix) {
+				if prefix == "parted " && !strings.Contains(command, " print") {
+					continue
+				}
+				if prefix == "service " && !strings.HasSuffix(command, " status") {
+					continue
+				}
+				return true
+			}
+		}
+		return false
+	}
+	isLikelySafeDeviceCommand := func(command string) bool {
+		if command == "" {
+			return false
+		}
+		safePrefixes := []string{
+			"show ", "display ", "dis ", "ping ", "traceroute ", "tracert ",
+			"dir ", "more ", "terminal length ", "screen-length ",
+		}
+		for _, prefix := range safePrefixes {
+			if strings.HasPrefix(command, prefix) {
+				return true
+			}
+		}
+		return command == "show" || command == "display" || command == "dis"
+	}
+
+	switch displayName {
+	case "host.exec_command", "task.execute":
+		if isLikelySafeHostCommand(getCommand()) {
+			return "low"
+		}
+		return "critical"
+	case "device.exec_command":
+		if isLikelySafeDeviceCommand(getCommand()) {
+			return "low"
+		}
+		return "critical"
+	case "host.collect", "device.test_connection":
+		return "low"
+	case "task.ansible":
+		if getAction() == "list" {
+			return "low"
+		}
+		return "high"
+	case "host.file_manage":
+		switch getAction() {
+		case "list", "read", "download":
+			return "low"
+		case "backup":
+			return "medium"
+		case "write":
+			return "high"
+		}
+	case "host.manage", "device.manage":
+		switch getAction() {
+		case "list_credentials", "list_groups":
+			return "low"
+		case "create", "update":
+			return "high"
+		case "delete":
+			return "critical"
+		}
+	case "monitor.alert_config":
+		switch getAction() {
+		case "list":
+			return "low"
+		case "enable", "disable", "create", "delete":
+			return "medium"
+		}
+	case "k8s.kubectl":
+		switch getAction() {
+		case "get", "describe", "logs", "events", "top", "cluster_status":
+			return "low"
+		case "scale", "restart":
+			return "high"
+		case "delete", "cordon", "uncordon", "drain":
+			return "critical"
+		}
+	case "k8s.helm_manage":
+		switch getAction() {
+		case "list", "status":
+			return "low"
+		case "install", "upgrade", "uninstall":
+			return "high"
+		}
+	}
+
+	return fallback
+}
+
+func (a *Agent) inferToolRiskMode(name string) string {
+	switch a.registry.ResolveName(name) {
+	case "host.exec_command", "task.execute", "device.exec_command",
+		"host.collect", "device.test_connection",
+		"task.ansible", "host.file_manage", "host.manage", "device.manage",
+		"monitor.alert_config", "k8s.kubectl", "k8s.helm_manage":
+		return "dynamic"
+	default:
+		return "static"
+	}
+}
+
+func (a *Agent) inferToolRiskHint(name string, argsJSON string, fallbackLevel string) string {
+	displayName := a.registry.ResolveName(name)
+	level := a.inferToolRiskLevel(name, argsJSON, fallbackLevel)
+	switch displayName {
+	case "host.exec_command":
+		if level == "low" {
+			return "查看类主机命令，直接执行。"
+		}
+		return "主机变更类命令，需要人工确认后执行。"
+	case "task.execute":
+		if level == "low" {
+			return "分组批量查看类命令，直接执行。"
+		}
+		return "分组批量变更命令，需要人工确认后执行。"
+	case "device.exec_command":
+		if level == "low" {
+			return "网络设备只读查询命令，直接执行。"
+		}
+		return "网络设备未知或变更类命令，需要人工确认后执行。"
+	case "host.collect":
+		return "主机固定信息采集，属于低风险只读操作。"
+	case "device.test_connection":
+		return "网络设备连通性测试，属于探测/刷新类操作。"
+	case "task.ansible":
+		if level == "low" {
+			return "仅查询 Ansible 模板，直接执行。"
+		}
+		return "提交 Ansible Playbook 执行任务，需要人工确认。"
+	case "host.file_manage":
+		switch level {
+		case "low":
+			return "文件查看类操作，直接执行。"
+		case "medium":
+			return "文件备份操作，需要人工确认。"
+		default:
+			return "文件写入或覆盖操作，需要人工确认。"
+		}
+	case "host.manage", "device.manage":
+		if level == "low" {
+			return "凭证/分组查询操作，直接执行。"
+		}
+		return "资产创建、修改或删除操作，需要人工确认。"
+	case "monitor.alert_config":
+		if level == "low" {
+			return "告警规则查询操作，直接执行。"
+		}
+		return "告警规则变更操作，会修改规则状态或配置。"
+	case "k8s.kubectl":
+		if level == "low" {
+			return "Kubernetes 查询类操作，直接执行。"
+		}
+		return "Kubernetes 变更或节点维护操作，需要人工确认。"
+	case "k8s.helm_manage":
+		if level == "low" {
+			return "Helm 查询类操作，直接执行。"
+		}
+		return "Helm 安装、升级或卸载操作，需要人工确认。"
+	default:
+		return fmt.Sprintf("当前动作风险等级为 %s。", level)
+	}
+}
+
+type PendingToolAction struct {
+	ToolName   string
+	ParamsJSON string
+	RiskLevel  string
+	Warning    string
+}
+
+func isAffirmativeConfirmation(msg string) bool {
+	s := strings.ToLower(strings.TrimSpace(msg))
+	if s == "" {
+		return false
+	}
+	affirmatives := []string{
+		"确认", "确认执行", "执行", "继续", "继续执行", "好的", "可以", "ok", "okay", "yes", "y",
+		"请执行", "开始执行", "同意", "确认一下",
+	}
+	for _, candidate := range affirmatives {
+		if s == candidate {
+			return true
+		}
+	}
+	return false
+}
+
+func isNegativeConfirmation(msg string) bool {
+	s := strings.ToLower(strings.TrimSpace(msg))
+	if s == "" {
+		return false
+	}
+	negatives := []string{
+		"取消", "不要", "不用", "停止", "算了", "先不要", "不执行", "取消执行", "no", "n",
+	}
+	for _, candidate := range negatives {
+		if s == candidate {
+			return true
+		}
+	}
+	return false
+}
+
+func injectConfirmedParam(argsJSON string) string {
+	params := make(map[string]any)
+	if strings.TrimSpace(argsJSON) != "" {
+		if err := json.Unmarshal([]byte(argsJSON), &params); err != nil {
+			return argsJSON
+		}
+	}
+	params["confirmed"] = true
+	updated, err := json.Marshal(params)
+	if err != nil {
+		return argsJSON
+	}
+	return string(updated)
 }
 
 // SkillContext Skill 执行上下文
@@ -198,6 +619,8 @@ type AgentEvent struct {
 	ActionID     string `json:"actionId,omitempty"`
 	Description  string `json:"description,omitempty"`
 	RiskLevel    string `json:"riskLevel,omitempty"`
+	RiskMode     string `json:"riskMode,omitempty"`
+	RiskHint     string `json:"riskHint,omitempty"`
 	FinishReason string `json:"finishReason,omitempty"`
 	Error        string `json:"error,omitempty"`
 	Usage        *Usage `json:"usage,omitempty"`
@@ -344,8 +767,48 @@ func (a *Agent) buildMessages(sessionID uint, userID uint, username string, user
 		})
 	}
 
-	// 加载最近的历史消息
+	// 加载最近的历史消息（还原工具调用上下文）
 	for _, msg := range historyMsgs {
+		if msg.Role == "assistant" && msg.ToolCalls != "" {
+			var toolRecords []map[string]any
+			if err := json.Unmarshal([]byte(msg.ToolCalls), &toolRecords); err == nil && len(toolRecords) > 0 {
+				var tcs []ToolCall
+				for i, rec := range toolRecords {
+					toolName, _ := rec["toolName"].(string)
+					paramsJSON, _ := rec["params"].(string)
+					if toolName == "" {
+						continue
+					}
+					tcs = append(tcs, ToolCall{
+						ID:   fmt.Sprintf("hist_%d_%d", msg.ID, i),
+						Type: "function",
+						Function: FunctionCall{
+							Name:      SanitizeToolName(toolName),
+							Arguments: paramsJSON,
+						},
+					})
+				}
+				if len(tcs) > 0 {
+					messages = append(messages, ChatCompletionMessage{
+						Role:      "assistant",
+						Content:   msg.Content,
+						ToolCalls: tcs,
+					})
+					for i, rec := range toolRecords {
+						resultStr, _ := rec["result"].(string)
+						if resultStr == "" {
+							resultStr = `{"status":"unknown"}`
+						}
+						messages = append(messages, ChatCompletionMessage{
+							Role:       "tool",
+							Content:    resultStr,
+							ToolCallID: fmt.Sprintf("hist_%d_%d", msg.ID, i),
+						})
+					}
+					continue
+				}
+			}
+		}
 		messages = append(messages, ChatCompletionMessage{
 			Role:    msg.Role,
 			Content: msg.Content,
@@ -484,6 +947,17 @@ func (a *Agent) Run(ctx context.Context, adapter *ModelAdapter, sessionID uint, 
 	var allToolCallRecords []map[string]any
 	var contentSoFar string
 
+	if handled, stop, replayPending := a.replayPendingAction(ctx, sessionID, userID, username, a.getLastPendingAction(sessionID), pendingTools, &messages, &allToolCallRecords, eventCh); handled {
+		if replayPending {
+			forceTextOnly = true
+		}
+		if stop {
+			eventCh <- AgentEvent{Type: "message_end"}
+			messageSent = true
+			return
+		}
+	}
+
 	// ReAct 循环
 	maxIterations := maxToolCalls
 	if maxIterations <= 0 {
@@ -535,6 +1009,14 @@ func (a *Agent) Run(ctx context.Context, adapter *ModelAdapter, sessionID uint, 
 			}
 		}
 
+		// 非流式也检测泄漏的文本工具调用：模型没有通过 API 调用工具，而是直接输出了调用指令
+		if len(assistantMsg.ToolCalls) == 0 {
+			if parsed := parseAnyLeakedToolCalls(assistantMsg.Content); len(parsed) > 0 {
+				assistantMsg.ToolCalls = parsed
+				log.Printf("[agent] Run: 从文本中恢复了 %d 个泄漏的工具调用", len(parsed))
+			}
+		}
+
 		// 如果没有工具调用，结束循环
 		if len(assistantMsg.ToolCalls) == 0 {
 			a.saveAssistantMessage(sessionID, stripModelArtifacts(assistantMsg.Content), allToolCallRecords)
@@ -566,12 +1048,17 @@ func (a *Agent) Run(ctx context.Context, adapter *ModelAdapter, sessionID uint, 
 			if skill, ok := a.registry.Get(llmName); ok {
 				riskLevel = skill.RiskLevel()
 			}
+			riskLevel = a.inferToolRiskLevel(llmName, toolArgs, riskLevel)
+			riskMode := a.inferToolRiskMode(llmName)
+			riskHint := a.inferToolRiskHint(llmName, toolArgs, riskLevel)
 
 			eventCh <- AgentEvent{
 				Type:       "tool_call_start",
 				ToolName:   displayName,
 				ToolParams: toolArgs,
 				RiskLevel:  riskLevel,
+				RiskMode:   riskMode,
+				RiskHint:   riskHint,
 			}
 
 			result := a.executeTool(ctx, llmName, toolArgs, userID, username, pendingTools)
@@ -582,29 +1069,35 @@ func (a *Agent) Run(ctx context.Context, adapter *ModelAdapter, sessionID uint, 
 				riskLevel = effectiveRL
 			}
 
+			resultStatus := "success"
+			if status, _ := result["status"].(string); status != "" {
+				resultStatus = status
+			}
+			if errMsg, ok := result["error"]; ok && errMsg != nil {
+				resultStatus = "error"
+			}
+
 			// 管理 pending 状态
-			if status, _ := result["status"].(string); status == "pending_confirmation" {
+			if resultStatus == "pending_confirmation" {
 				// 记录 pending 状态并标记下一轮为纯文本模式
 				pendingTools[llmName] = true
 				pendingTools[displayName] = true
+				pendingTools[SanitizeToolName(displayName)] = true
 				forceTextOnly = true
 			} else {
 				// 非 pending 结果：消费掉 pending 状态（单次确认）
 				delete(pendingTools, llmName)
 				delete(pendingTools, displayName)
+				delete(pendingTools, SanitizeToolName(displayName))
 			}
 
 			// 记录工具调用
-			hasError := false
-			if errMsg, ok := result["error"]; ok && errMsg != nil {
-				hasError = true
-			}
 			allToolCallRecords = append(allToolCallRecords, map[string]any{
 				"toolName":  displayName,
 				"params":    toolArgs,
 				"result":    string(resultJSON),
 				"riskLevel": riskLevel,
-				"status":    map[bool]string{true: "error", false: "success"}[hasError],
+				"status":    resultStatus,
 			})
 
 			eventCh <- AgentEvent{
@@ -612,6 +1105,8 @@ func (a *Agent) Run(ctx context.Context, adapter *ModelAdapter, sessionID uint, 
 				ToolName:   displayName,
 				ToolResult: string(resultJSON),
 				RiskLevel:  riskLevel,
+				RiskMode:   riskMode,
+				RiskHint:   riskHint,
 			}
 
 			messages = append(messages, ChatCompletionMessage{
@@ -619,6 +1114,10 @@ func (a *Agent) Run(ctx context.Context, adapter *ModelAdapter, sessionID uint, 
 				Content:    string(resultJSON),
 				ToolCallID: tc.ID,
 			})
+
+			if resultStatus == "pending_confirmation" {
+				break
+			}
 		}
 	}
 
@@ -660,6 +1159,17 @@ func (a *Agent) RunStream(ctx context.Context, adapter *ModelAdapter, sessionID 
 	var allToolCallRecords []map[string]any
 	var contentSoFar string
 
+	if handled, stop, replayPending := a.replayPendingAction(ctx, sessionID, userID, username, a.getLastPendingAction(sessionID), pendingTools, &messages, &allToolCallRecords, eventCh); handled {
+		if replayPending {
+			forceTextOnly = true
+		}
+		if stop {
+			eventCh <- AgentEvent{Type: "message_end"}
+			messageSent = true
+			return
+		}
+	}
+
 	// ReAct 循环
 	maxIterations := maxToolCalls
 	if maxIterations <= 0 {
@@ -679,9 +1189,11 @@ func (a *Agent) RunStream(ctx context.Context, adapter *ModelAdapter, sessionID 
 
 		// 如果上一轮有工具返回 pending_confirmation，本轮不传 tools，强制 LLM 只生成文本
 		currentTools := tools
+		wasForceTextOnly := false
 		if forceTextOnly {
 			currentTools = nil
 			forceTextOnly = false
+			wasForceTextOnly = true
 		}
 
 		// 流式调用 LLM
@@ -704,12 +1216,12 @@ func (a *Agent) RunStream(ctx context.Context, adapter *ModelAdapter, sessionID 
 		var toolCalls []ToolCall
 		toolCallArgsBuilders := make(map[int]*strings.Builder)
 		var finishReason string
-		dsmlDetected := false // DeepSeek 模型内部标记检测
+		dsmlDetected := false  // DeepSeek 模型内部标记检测
+		var dsmlPendingBuf string // 缓冲尾部 '<'，防止 DSML 标记首字符泄漏到前端
 		reasoningStarted := false
 		reasoningEnded := false
 		// text_delta 中 <think> 标签过滤状态
-		inThinkBlock := false        // 是否在 <think>...</think> 块内（抑制输出）
-		var thinkBuf strings.Builder // 用于检测跨 chunk 的标签
+		inThinkBlock := false // 是否在 <think>...</think> 块内（抑制输出）
 
 		for event := range streamCh {
 			switch event.Type {
@@ -728,66 +1240,58 @@ func (a *Agent) RunStream(ctx context.Context, adapter *ModelAdapter, sessionID 
 			case "text_delta":
 				if reasoningStarted && !reasoningEnded {
 					reasoningEnded = true
-					// 结束输出思考过程
 					eventCh <- AgentEvent{Type: "text_delta", Content: "\n</think>\n\n"}
 					contentSoFar += "\n</think>\n\n"
 				}
 
-				// 过滤 text_delta 中内嵌的 <think>...</think> 标签
-				delta := event.Content
-				thinkBuf.WriteString(delta)
-				bufStr := thinkBuf.String()
+				contentBuilder.WriteString(event.Content)
 
-				// 处理 <think> 开标签
-				if !inThinkBlock {
-					if idx := strings.Index(bufStr, "<think>"); idx >= 0 {
-						// 发送 <think> 之前的内容
-						before := bufStr[:idx]
-						if before != "" {
-							contentBuilder.WriteString(before)
-							if !dsmlDetected {
-								contentSoFar += before
-								eventCh <- AgentEvent{Type: "text_delta", Content: before}
-							}
-						}
-						inThinkBlock = true
-						thinkBuf.Reset()
-						thinkBuf.WriteString(bufStr[idx+len("<think>"):])
-						bufStr = thinkBuf.String()
-					} else if strings.HasSuffix(bufStr, "<") || strings.Contains(bufStr, "<t") ||
-						strings.Contains(bufStr, "<th") || strings.Contains(bufStr, "<thi") ||
-						strings.Contains(bufStr, "<thin") || strings.Contains(bufStr, "<think") {
-						// 可能是跨 chunk 的 <think> 标签，暂存不输出
-						break
-					} else {
-						// 正常内容，直接输出
-						thinkBuf.Reset()
-						contentBuilder.WriteString(delta)
-						if !dsmlDetected {
-							if strings.Contains(contentBuilder.String(), "<｜DSML｜") || strings.Contains(contentBuilder.String(), "<|DSML|") {
-								dsmlDetected = true
-							}
-						}
-						if !dsmlDetected {
-							contentSoFar += delta
-							eventCh <- AgentEvent{Type: "text_delta", Content: delta}
-						}
+				// DSML / <tool_call> 检测：一旦出现模型内部标记，立即抑制所有后续输出
+				if !dsmlDetected {
+					fullContent := contentBuilder.String()
+					if strings.Contains(fullContent, "<｜DSML｜") || strings.Contains(fullContent, "<|DSML|") ||
+						strings.Contains(fullContent, "<tool_call>") {
+						dsmlDetected = true
+						dsmlPendingBuf = ""
 						break
 					}
 				}
+				if dsmlDetected {
+					break
+				}
 
-				// 处理 </think> 闭标签（在 think 块内）
-				if inThinkBlock {
-					if idx := strings.Index(bufStr, "</think>"); idx >= 0 {
-						inThinkBlock = false
-						thinkBuf.Reset()
-						remaining := bufStr[idx+len("</think>"):]
-						if remaining != "" {
-							thinkBuf.WriteString(remaining)
+				// <think> 标签过滤：收集可输出的文本片段
+				delta := event.Content
+				var textToSend string
+				if !inThinkBlock {
+					if idx := strings.Index(delta, "<think>"); idx >= 0 {
+						textToSend = delta[:idx]
+						inThinkBlock = true
+						after := delta[idx+len("<think>"):]
+						if ci := strings.Index(after, "</think>"); ci >= 0 {
+							inThinkBlock = false
+							textToSend += after[ci+len("</think>"):]
 						}
-						// </think> 之后的内容在下一次迭代处理
+					} else {
+						textToSend = delta
 					}
-					// 在 think 块内的内容被抑制（不输出到前端）
+				} else {
+					if idx := strings.Index(delta, "</think>"); idx >= 0 {
+						inThinkBlock = false
+						textToSend = delta[idx+len("</think>"):]
+					}
+				}
+
+				// DSML 前缀缓冲：将 '<' 暂存，防止 DSML 标记首字符泄漏到前端
+				combined := dsmlPendingBuf + textToSend
+				dsmlPendingBuf = ""
+				if strings.HasSuffix(combined, "<") {
+					dsmlPendingBuf = "<"
+					combined = combined[:len(combined)-1]
+				}
+				if combined != "" {
+					contentSoFar += combined
+					eventCh <- AgentEvent{Type: "text_delta", Content: escapeHTMLForFrontend(combined)}
 				}
 
 			case "tool_call_delta":
@@ -827,6 +1331,13 @@ func (a *Agent) RunStream(ctx context.Context, adapter *ModelAdapter, sessionID 
 			}
 		}
 
+		// 流式结束后：刷出 DSML 缓冲区中未匹配为 DSML 的残留文本
+		if dsmlPendingBuf != "" && !dsmlDetected {
+			contentSoFar += dsmlPendingBuf
+			eventCh <- AgentEvent{Type: "text_delta", Content: escapeHTMLForFrontend(dsmlPendingBuf)}
+			dsmlPendingBuf = ""
+		}
+
 		// 组装完整的工具调用参数
 		for idx, builder := range toolCallArgsBuilders {
 			if idx < len(toolCalls) {
@@ -834,7 +1345,25 @@ func (a *Agent) RunStream(ctx context.Context, adapter *ModelAdapter, sessionID 
 			}
 		}
 
-		content := stripModelArtifacts(contentBuilder.String())
+		fullRawContent := contentBuilder.String()
+		content := stripModelArtifacts(fullRawContent)
+
+		// forceTextOnly 下 LLM 输出了纯 DSML（无有效文本）→ 生成兜底确认提示
+		if wasForceTextOnly && dsmlDetected && strings.TrimSpace(content) == "" {
+			fallback := "请确认是否执行以上操作？回复 **确认** 继续执行，或回复 **取消** 终止操作。"
+			content = fallback
+			contentSoFar += fallback
+			eventCh <- AgentEvent{Type: "text_delta", Content: fallback}
+		}
+
+		// 如果模型没有通过 API 调用工具，但文本中泄漏了函数调用，尝试恢复为真正的工具调用
+		if len(toolCalls) == 0 {
+			if parsed := parseAnyLeakedToolCalls(fullRawContent); len(parsed) > 0 {
+				toolCalls = parsed
+				finishReason = "" // 清除 stop，允许进入工具执行流程
+				log.Printf("[agent] RunStream: 从文本中恢复了 %d 个泄漏的工具调用", len(parsed))
+			}
+		}
 
 		// 如果没有工具调用，结束循环
 		if len(toolCalls) == 0 || finishReason == "stop" {
@@ -874,12 +1403,17 @@ func (a *Agent) RunStream(ctx context.Context, adapter *ModelAdapter, sessionID 
 			if skill, ok := a.registry.Get(llmName); ok {
 				riskLevel = skill.RiskLevel()
 			}
+			riskLevel = a.inferToolRiskLevel(llmName, toolArgs, riskLevel)
+			riskMode := a.inferToolRiskMode(llmName)
+			riskHint := a.inferToolRiskHint(llmName, toolArgs, riskLevel)
 
 			eventCh <- AgentEvent{
 				Type:       "tool_call_start",
 				ToolName:   displayName,
 				ToolParams: toolArgs,
 				RiskLevel:  riskLevel,
+				RiskMode:   riskMode,
+				RiskHint:   riskHint,
 			}
 
 			result := a.executeTool(ctx, llmName, toolArgs, userID, username, pendingTools)
@@ -890,26 +1424,32 @@ func (a *Agent) RunStream(ctx context.Context, adapter *ModelAdapter, sessionID 
 				riskLevel = effectiveRL
 			}
 
+			resultStatus := "success"
+			if status, _ := result["status"].(string); status != "" {
+				resultStatus = status
+			}
+			if errMsg, ok := result["error"]; ok && errMsg != nil {
+				resultStatus = "error"
+			}
+
 			// 管理 pending 状态
-			if status, _ := result["status"].(string); status == "pending_confirmation" {
+			if resultStatus == "pending_confirmation" {
 				pendingTools[llmName] = true
 				pendingTools[displayName] = true
+				pendingTools[SanitizeToolName(displayName)] = true
 				forceTextOnly = true
 			} else {
 				delete(pendingTools, llmName)
 				delete(pendingTools, displayName)
+				delete(pendingTools, SanitizeToolName(displayName))
 			}
 
-			hasError := false
-			if errMsg, ok := result["error"]; ok && errMsg != nil {
-				hasError = true
-			}
 			allToolCallRecords = append(allToolCallRecords, map[string]any{
 				"toolName":  displayName,
 				"params":    toolArgs,
 				"result":    string(resultJSON),
 				"riskLevel": riskLevel,
-				"status":    map[bool]string{true: "error", false: "success"}[hasError],
+				"status":    resultStatus,
 			})
 
 			eventCh <- AgentEvent{
@@ -917,6 +1457,8 @@ func (a *Agent) RunStream(ctx context.Context, adapter *ModelAdapter, sessionID 
 				ToolName:   displayName,
 				ToolResult: string(resultJSON),
 				RiskLevel:  riskLevel,
+				RiskMode:   riskMode,
+				RiskHint:   riskHint,
 			}
 
 			messages = append(messages, ChatCompletionMessage{
@@ -924,6 +1466,10 @@ func (a *Agent) RunStream(ctx context.Context, adapter *ModelAdapter, sessionID 
 				Content:    string(resultJSON),
 				ToolCallID: tc.ID,
 			})
+
+			if resultStatus == "pending_confirmation" {
+				break
+			}
 		}
 	}
 
@@ -1006,11 +1552,16 @@ func (a *Agent) executeTool(ctx context.Context, name string, argsJSON string, u
 		resultMap = map[string]any{"result": v}
 	}
 
+	auditRiskLevel := skill.RiskLevel()
+	if effectiveRL, ok := resultMap["effectiveRiskLevel"].(string); ok && effectiveRL != "" {
+		auditRiskLevel = effectiveRL
+	}
+
 	// 记录操作审计（只记录非 pending_confirmation 的实际执行，以及查询操作）
 	status, _ := resultMap["status"].(string)
 	if status != "pending_confirmation" {
 		resultBrief := a.buildAuditDescription(displayName, params, resultMap)
-		a.writeAuditLog(userID, username, displayName, argsJSON, resultBrief, skill.RiskLevel(), costTime, true)
+		a.writeAuditLog(userID, username, displayName, argsJSON, resultBrief, auditRiskLevel, costTime, true)
 	}
 
 	return resultMap
@@ -1028,6 +1579,170 @@ func isParamConfirmed(params map[string]any) bool {
 		return true
 	}
 	return false
+}
+
+func (a *Agent) getLastPendingAction(sessionID uint) *PendingToolAction {
+	msgs, err := a.conversation.GetRecentMessages(sessionID, 5)
+	if err != nil || len(msgs) == 0 {
+		return nil
+	}
+
+	for i := len(msgs) - 1; i >= 0; i-- {
+		msg := msgs[i]
+		if msg.Role != "assistant" || msg.ToolCalls == "" {
+			continue
+		}
+
+		var toolRecords []map[string]any
+		if err := json.Unmarshal([]byte(msg.ToolCalls), &toolRecords); err != nil {
+			break
+		}
+
+		for j := len(toolRecords) - 1; j >= 0; j-- {
+			record := toolRecords[j]
+			toolName, _ := record["toolName"].(string)
+			paramsJSON, _ := record["params"].(string)
+			riskLevel, _ := record["riskLevel"].(string)
+			resultStr, _ := record["result"].(string)
+			if toolName == "" || paramsJSON == "" || resultStr == "" {
+				continue
+			}
+
+			var resultMap map[string]any
+			if err := json.Unmarshal([]byte(resultStr), &resultMap); err != nil {
+				continue
+			}
+			if status, _ := resultMap["status"].(string); status != "pending_confirmation" {
+				continue
+			}
+
+			warning, _ := resultMap["warning"].(string)
+			return &PendingToolAction{
+				ToolName:   toolName,
+				ParamsJSON: paramsJSON,
+				RiskLevel:  riskLevel,
+				Warning:    warning,
+			}
+		}
+		break
+	}
+
+	return nil
+}
+
+func (a *Agent) replayPendingAction(
+	ctx context.Context,
+	sessionID uint,
+	userID uint,
+	username string,
+	pendingAction *PendingToolAction,
+	pendingTools map[string]bool,
+	messages *[]ChatCompletionMessage,
+	allToolCallRecords *[]map[string]any,
+	eventCh chan<- AgentEvent,
+) (bool, bool, bool) {
+	if pendingAction == nil {
+		return false, false, false
+	}
+
+	if isNegativeConfirmation((*messages)[len(*messages)-1].Content) {
+		cancelText := "已取消上一步待确认操作。"
+		if pendingAction.Warning != "" {
+			cancelText = "已取消上一步待确认操作：" + pendingAction.Warning
+		}
+		a.saveAssistantMessage(sessionID, cancelText, *allToolCallRecords)
+		eventCh <- AgentEvent{Type: "text_delta", Content: cancelText}
+		return true, true, false
+	}
+
+	if !isAffirmativeConfirmation((*messages)[len(*messages)-1].Content) {
+		return false, false, false
+	}
+
+	llmName := pendingAction.ToolName
+	displayName := a.registry.ResolveName(llmName)
+	confirmedArgs := injectConfirmedParam(pendingAction.ParamsJSON)
+	riskLevel := pendingAction.RiskLevel
+	if riskLevel == "" {
+		if skill, ok := a.registry.Get(llmName); ok {
+			riskLevel = skill.RiskLevel()
+		}
+	}
+	riskLevel = a.inferToolRiskLevel(llmName, confirmedArgs, riskLevel)
+	riskMode := a.inferToolRiskMode(llmName)
+	riskHint := a.inferToolRiskHint(llmName, confirmedArgs, riskLevel)
+
+	eventCh <- AgentEvent{
+		Type:       "tool_call_start",
+		ToolName:   displayName,
+		ToolParams: confirmedArgs,
+		RiskLevel:  riskLevel,
+		RiskMode:   riskMode,
+		RiskHint:   riskHint,
+	}
+
+	result := a.executeTool(ctx, llmName, confirmedArgs, userID, username, pendingTools)
+	resultJSON, _ := json.Marshal(result)
+	if effectiveRL, ok := result["effectiveRiskLevel"].(string); ok && effectiveRL != "" {
+		riskLevel = effectiveRL
+	}
+
+	resultStatus := "success"
+	if status, _ := result["status"].(string); status != "" {
+		resultStatus = status
+	}
+	if errMsg, ok := result["error"]; ok && errMsg != nil {
+		resultStatus = "error"
+	}
+
+	*allToolCallRecords = append(*allToolCallRecords, map[string]any{
+		"toolName":  displayName,
+		"params":    confirmedArgs,
+		"result":    string(resultJSON),
+		"riskLevel": riskLevel,
+		"status":    resultStatus,
+	})
+
+	eventCh <- AgentEvent{
+		Type:       "tool_call_result",
+		ToolName:   displayName,
+		ToolResult: string(resultJSON),
+		RiskLevel:  riskLevel,
+		RiskMode:   riskMode,
+		RiskHint:   riskHint,
+	}
+
+	if resultStatus == "pending_confirmation" {
+		pendingTools[llmName] = true
+		pendingTools[displayName] = true
+		pendingTools[SanitizeToolName(displayName)] = true
+	} else {
+		delete(pendingTools, llmName)
+		delete(pendingTools, displayName)
+		delete(pendingTools, SanitizeToolName(displayName))
+	}
+
+	toolCallID := fmt.Sprintf("confirmed_pending_%d", time.Now().UnixNano())
+	*messages = append(*messages, ChatCompletionMessage{
+		Role: "assistant",
+		ToolCalls: []ToolCall{
+			{
+				ID:   toolCallID,
+				Type: "function",
+				Function: FunctionCall{
+					Name:      SanitizeToolName(displayName),
+					Arguments: confirmedArgs,
+				},
+			},
+		},
+	})
+	*messages = append(*messages, ChatCompletionMessage{
+		Role:       "tool",
+		Content:    string(resultJSON),
+		ToolCallID: toolCallID,
+	})
+
+	return true, false, resultStatus == "pending_confirmation"
 }
 
 // getSessionPendingTools 从会话历史的最近一条助手消息中提取 pending_confirmation 状态的工具名称。

@@ -18,9 +18,6 @@ parameters:
     ip:
       type: string
       description: 指定单台主机 IP 进行采集
-    confirmed:
-      type: boolean
-      description: 用户确认执行时设为 true，首次调用不传此参数
 ---
 
 # 主机信息采集
@@ -37,4 +34,5 @@ parameters:
 
 - 采集操作需要 SSH 连接目标主机
 - 采集过程可能需要几秒到几分钟
-- 会更新主机的 CPU、内存、磁盘、网络等信息
+- 执行的是固定系统信息采集命令，属于低风险操作，直接执行
+- 返回结果用于辅助分析，不会在本函数内修改主机配置

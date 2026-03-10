@@ -18,6 +18,21 @@ func shellQuote(s string) string {
 // 采用黑名单模式：只有匹配危险模式的命令才需要确认，其余命令默认直接执行
 func isDangerousHostCommand(command string) bool {
 	cmd := strings.TrimSpace(strings.ToLower(command))
+
+	// 常见只读查询命令应直接放行，避免误判为高风险。
+	if strings.HasPrefix(cmd, "fdisk -l") || strings.HasPrefix(cmd, "fdisk --list") {
+		return false
+	}
+	if strings.HasPrefix(cmd, "parted ") && strings.Contains(cmd, " print") {
+		return false
+	}
+	if strings.HasPrefix(cmd, "systemctl status ") {
+		return false
+	}
+	if strings.HasPrefix(cmd, "service ") && strings.HasSuffix(cmd, " status") {
+		return false
+	}
+
 	// 危险命令关键词/模式黑名单
 	dangerousPatterns := []string{
 		// 文件删除/移动（破坏性）
@@ -40,7 +55,7 @@ func isDangerousHostCommand(command string) bool {
 		"resize2fs ", "xfs_growfs ", "growpart ",
 		"lvextend ", "lvreduce ", "lvcreate ", "lvremove ",
 		"vgcreate ", "vgremove ", "vgextend ",
-		"pvcreate ", "pvremove ",
+		"pvcreate ", "pvremove ", "pvresize ",
 		// 网络配置修改
 		"ifdown ", "ifup ",
 		"nmcli con mod", "nmcli connection mod",
@@ -454,16 +469,7 @@ func executeHostCollect(ctx biz.SkillContext) (any, error) {
 		return nil, fmt.Errorf("未找到匹配的主机")
 	}
 
-	if !isConfirmed(ctx.Params) {
-		return map[string]any{
-			"hostCount": len(hosts),
-			"hosts":     hosts,
-			"status":    "pending_confirmation",
-			"warning":   fmt.Sprintf("⚠️ 将对 %d 台主机触发信息采集，请确认执行", len(hosts)),
-		}, nil
-	}
-
-	// 已确认 → 通过 SSH 采集基本信息
+	// 主机信息采集仅执行固定只读命令，直接执行即可。
 	type CollectResult struct {
 		Host  string `json:"host"`
 		IP    string `json:"ip"`
@@ -491,10 +497,11 @@ func executeHostCollect(ctx biz.SkillContext) (any, error) {
 	}
 
 	return map[string]any{
-		"status":       "success",
-		"message":      fmt.Sprintf("✅ 已完成 %d/%d 台主机的信息采集", successCount, len(hosts)),
-		"results":      results,
-		"successCount": successCount,
+		"status":             "success",
+		"effectiveRiskLevel": "low",
+		"message":            fmt.Sprintf("✅ 已完成 %d/%d 台主机的信息采集", successCount, len(hosts)),
+		"results":            results,
+		"successCount":       successCount,
 	}, nil
 }
 
@@ -505,15 +512,6 @@ func executeHostExecCommand(ctx biz.SkillContext) (any, error) {
 		return nil, fmt.Errorf("请指定要执行的命令")
 	}
 	ip, _ := ctx.Params["ip"].(string)
-
-	// 安全检查：拒绝危险命令（与 task.execute 统一黑名单）
-	dangerousPatterns := []string{"rm -rf /", "mkfs", "dd if=", ":(){ :|:& };:", "> /dev/sd", "chmod -R 777 /", "shutdown", "reboot", "init 0", "init 6"}
-	cmdLower := strings.ToLower(command)
-	for _, pattern := range dangerousPatterns {
-		if strings.Contains(cmdLower, pattern) {
-			return nil, fmt.Errorf("安全检查未通过：命令包含危险操作 [%s]，已被拒绝", pattern)
-		}
-	}
 
 	// 超时时间：默认 60 秒，最大 600 秒（安装软件等耗时操作可调大）
 	timeoutSec := 60
@@ -717,10 +715,11 @@ func executeHostFileManage(ctx biz.SkillContext) (any, error) {
 			return nil, fmt.Errorf("列出目录失败: %v", err)
 		}
 		return map[string]any{
-			"status":  "success",
-			"host":    hostInfo.IP,
-			"path":    filePath,
-			"listing": output,
+			"status":             "success",
+			"effectiveRiskLevel": "low",
+			"host":               hostInfo.IP,
+			"path":               filePath,
+			"listing":            output,
 		}, nil
 	}
 
@@ -736,10 +735,11 @@ func executeHostFileManage(ctx biz.SkillContext) (any, error) {
 			return nil, fmt.Errorf("读取文件失败: %v", err)
 		}
 		return map[string]any{
-			"status":  "success",
-			"host":    hostInfo.IP,
-			"path":    filePath,
-			"content": output,
+			"status":             "success",
+			"effectiveRiskLevel": "low",
+			"host":               hostInfo.IP,
+			"path":               filePath,
+			"content":            output,
 		}, nil
 	}
 
@@ -747,11 +747,12 @@ func executeHostFileManage(ctx biz.SkillContext) (any, error) {
 	if action == "backup" {
 		if !isConfirmed(ctx.Params) {
 			return map[string]any{
-				"action":  "backup",
-				"path":    filePath,
-				"hostID":  hostID,
-				"status":  "pending_confirmation",
-				"warning": fmt.Sprintf("⚠️ 将备份文件: %s → %s.bak.时间戳，请确认", filePath, filePath),
+				"action":             "backup",
+				"path":               filePath,
+				"hostID":             hostID,
+				"status":             "pending_confirmation",
+				"effectiveRiskLevel": "medium",
+				"warning":            fmt.Sprintf("⚠️ 将备份文件: %s → %s.bak.时间戳，请确认", filePath, filePath),
 			}, nil
 		}
 		client, hostInfo, err := CreateSSHClient(ctx.DB, hostID)
@@ -766,12 +767,13 @@ func executeHostFileManage(ctx biz.SkillContext) (any, error) {
 			return nil, fmt.Errorf("备份文件失败: %v", err)
 		}
 		return map[string]any{
-			"status":     "success",
-			"message":    fmt.Sprintf("✅ 已备份文件: %s → %s", filePath, backupPath),
-			"host":       hostInfo.IP,
-			"sourcePath": filePath,
-			"backupPath": backupPath,
-			"output":     output,
+			"status":             "success",
+			"effectiveRiskLevel": "medium",
+			"message":            fmt.Sprintf("✅ 已备份文件: %s → %s", filePath, backupPath),
+			"host":               hostInfo.IP,
+			"sourcePath":         filePath,
+			"backupPath":         backupPath,
+			"output":             output,
 		}, nil
 	}
 
@@ -789,13 +791,14 @@ func executeHostFileManage(ctx biz.SkillContext) (any, error) {
 				preview = preview[:500] + "\n... [内容已截断]"
 			}
 			return map[string]any{
-				"action":        "write",
-				"path":          filePath,
-				"hostID":        hostID,
-				"contentLength": len(content),
-				"preview":       preview,
-				"status":        "pending_confirmation",
-				"warning":       fmt.Sprintf("⚠️ 将写入 %d 字节到文件 %s，请确认（建议先使用 backup 操作备份原文件）", len(content), filePath),
+				"action":             "write",
+				"path":               filePath,
+				"hostID":             hostID,
+				"contentLength":      len(content),
+				"preview":            preview,
+				"status":             "pending_confirmation",
+				"effectiveRiskLevel": "high",
+				"warning":            fmt.Sprintf("⚠️ 将写入 %d 字节到文件 %s，请确认（建议先使用 backup 操作备份原文件）", len(content), filePath),
 			}, nil
 		}
 
@@ -815,26 +818,18 @@ func executeHostFileManage(ctx biz.SkillContext) (any, error) {
 			return nil, fmt.Errorf("写入文件失败: %v", err)
 		}
 		return map[string]any{
-			"status":  "success",
-			"message": fmt.Sprintf("✅ 已成功写入 %d 字节到 %s", len(content), filePath),
-			"host":    hostInfo.IP,
-			"path":    filePath,
-			"output":  output,
+			"status":             "success",
+			"effectiveRiskLevel": "high",
+			"message":            fmt.Sprintf("✅ 已成功写入 %d 字节到 %s", len(content), filePath),
+			"host":               hostInfo.IP,
+			"path":               filePath,
+			"output":             output,
 		}, nil
 	}
 
-	// download 需要确认
+	// download 为只读读取，与 read 一样直接执行。
 	if action == "download" {
-		if !isConfirmed(ctx.Params) {
-			return map[string]any{
-				"action":  action,
-				"path":    filePath,
-				"hostID":  hostID,
-				"status":  "pending_confirmation",
-				"warning": fmt.Sprintf("⚠️ 将读取文件内容: %s，请确认执行", filePath),
-			}, nil
-		}
-		client, _, err := CreateSSHClient(ctx.DB, hostID)
+		client, hostInfo, err := CreateSSHClient(ctx.DB, hostID)
 		if err != nil {
 			return nil, err
 		}
@@ -844,9 +839,12 @@ func executeHostFileManage(ctx biz.SkillContext) (any, error) {
 			return nil, fmt.Errorf("读取文件失败: %v", err)
 		}
 		return map[string]any{
-			"status":  "success",
-			"message": fmt.Sprintf("✅ 已读取文件 %s 的内容", filePath),
-			"content": output,
+			"status":             "success",
+			"effectiveRiskLevel": "low",
+			"message":            fmt.Sprintf("✅ 已读取文件 %s 的内容", filePath),
+			"host":               hostInfo.IP,
+			"path":               filePath,
+			"content":            output,
 		}, nil
 	}
 
@@ -872,9 +870,10 @@ func executeHostManage(ctx biz.SkillContext) (any, error) {
 		var creds []CredInfo
 		ctx.DB.Table("credentials").Select("id, name, type, category, username").Where("deleted_at IS NULL AND (category = 'all' OR category = 'host')").Find(&creds)
 		return map[string]any{
-			"credentials": creds,
-			"total":       len(creds),
-			"hint":        "创建主机时可以使用以上凭证的 ID",
+			"credentials":        creds,
+			"total":              len(creds),
+			"hint":               "创建主机时可以使用以上凭证的 ID",
+			"effectiveRiskLevel": "low",
 		}, nil
 
 	case "list_groups":
@@ -885,9 +884,10 @@ func executeHostManage(ctx biz.SkillContext) (any, error) {
 		var groups []GroupInfo
 		ctx.DB.Table("asset_group").Select("id, name").Where("deleted_at IS NULL").Order("name").Find(&groups)
 		return map[string]any{
-			"groups": groups,
-			"total":  len(groups),
-			"hint":   "创建主机时可以使用以上分组的 ID",
+			"groups":             groups,
+			"total":              len(groups),
+			"hint":               "创建主机时可以使用以上分组的 ID",
+			"effectiveRiskLevel": "low",
 		}, nil
 
 	case "create":

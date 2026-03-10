@@ -20,9 +20,29 @@ func executeK8sKubectl(ctx biz.SkillContext) (any, error) {
 		return nil, fmt.Errorf("请指定 action（操作类型）")
 	}
 
+	applyRisk := func(result any) any {
+		m, ok := result.(map[string]any)
+		if !ok {
+			return result
+		}
+		switch action {
+		case "get", "describe", "logs", "events", "top", "cluster_status":
+			m["effectiveRiskLevel"] = "low"
+		case "scale", "restart":
+			m["effectiveRiskLevel"] = "high"
+		case "delete", "cordon", "uncordon", "drain":
+			m["effectiveRiskLevel"] = "critical"
+		}
+		return m
+	}
+
 	// cluster_status 不需要连接 K8s API，直接查数据库
 	if action == "cluster_status" {
-		return k8sClusterStatus(ctx)
+		result, err := k8sClusterStatus(ctx)
+		if err != nil {
+			return nil, err
+		}
+		return applyRisk(result), nil
 	}
 
 	if resourceType == "" {
@@ -50,32 +70,80 @@ func executeK8sKubectl(ctx biz.SkillContext) (any, error) {
 	switch action {
 	case "get":
 		if rt == "all" {
-			return k8sGetAll(clientset, clusterName, namespace, labels, fieldSelector)
+			result, err := k8sGetAll(clientset, clusterName, namespace, labels, fieldSelector)
+			if err != nil {
+				return nil, err
+			}
+			return applyRisk(result), nil
 		}
-		return k8sGet(clientset, clusterName, rt, namespace, resourceName, labels, fieldSelector)
+		result, err := k8sGet(clientset, clusterName, rt, namespace, resourceName, labels, fieldSelector)
+		if err != nil {
+			return nil, err
+		}
+		return applyRisk(result), nil
 	case "describe":
 		if resourceName == "" {
 			return nil, fmt.Errorf("describe 操作需要指定 resource_name")
 		}
-		return k8sDescribe(clientset, clusterName, rt, namespace, resourceName)
+		result, err := k8sDescribe(clientset, clusterName, rt, namespace, resourceName)
+		if err != nil {
+			return nil, err
+		}
+		return applyRisk(result), nil
 	case "logs":
-		return k8sLogs(ctx, clientset, clusterName, namespace, resourceName)
+		result, err := k8sLogs(ctx, clientset, clusterName, namespace, resourceName)
+		if err != nil {
+			return nil, err
+		}
+		return applyRisk(result), nil
 	case "events":
-		return k8sEvents(clientset, clusterName, namespace, resourceName)
+		result, err := k8sEvents(clientset, clusterName, namespace, resourceName)
+		if err != nil {
+			return nil, err
+		}
+		return applyRisk(result), nil
 	case "scale":
-		return k8sScaleGeneric(ctx, clientset, clusterName, rt, namespace, resourceName)
+		result, err := k8sScaleGeneric(ctx, clientset, clusterName, rt, namespace, resourceName)
+		if err != nil {
+			return nil, err
+		}
+		return applyRisk(result), nil
 	case "restart":
-		return k8sRestartGeneric(ctx, clientset, clusterName, rt, namespace, resourceName)
+		result, err := k8sRestartGeneric(ctx, clientset, clusterName, rt, namespace, resourceName)
+		if err != nil {
+			return nil, err
+		}
+		return applyRisk(result), nil
 	case "delete":
-		return k8sDeleteGeneric(ctx, clientset, clusterName, rt, namespace, resourceName)
+		result, err := k8sDeleteGeneric(ctx, clientset, clusterName, rt, namespace, resourceName)
+		if err != nil {
+			return nil, err
+		}
+		return applyRisk(result), nil
 	case "cordon":
-		return k8sCordonGeneric(ctx, clientset, clusterName, resourceName, true)
+		result, err := k8sCordonGeneric(ctx, clientset, clusterName, resourceName, true)
+		if err != nil {
+			return nil, err
+		}
+		return applyRisk(result), nil
 	case "uncordon":
-		return k8sCordonGeneric(ctx, clientset, clusterName, resourceName, false)
+		result, err := k8sCordonGeneric(ctx, clientset, clusterName, resourceName, false)
+		if err != nil {
+			return nil, err
+		}
+		return applyRisk(result), nil
 	case "drain":
-		return k8sDrainGeneric(ctx, clientset, clusterName, resourceName)
+		result, err := k8sDrainGeneric(ctx, clientset, clusterName, resourceName)
+		if err != nil {
+			return nil, err
+		}
+		return applyRisk(result), nil
 	case "top":
-		return k8sTop(clientset, clusterName, rt, namespace)
+		result, err := k8sTop(clientset, clusterName, rt, namespace)
+		if err != nil {
+			return nil, err
+		}
+		return applyRisk(result), nil
 	default:
 		return nil, fmt.Errorf("不支持的操作: %s，支持: get/describe/logs/events/scale/restart/delete/cordon/uncordon/drain/top", action)
 	}

@@ -20,8 +20,8 @@ parameters:
       description: 要执行的 Shell 命令
     timeout:
       type: integer
-      description: 执行超时时间（秒），默认 30，最大 300
-      default: 30
+      description: 执行超时时间（秒），默认 60，最大 600
+      default: 60
     confirmed:
       type: boolean
       description: 用户确认执行时设为 true，首次调用不传此参数
@@ -33,11 +33,12 @@ parameters:
 
 在指定主机上远程执行 Shell 命令。支持单台或多台主机批量执行。
 
-## ⚠️ 危险操作
+## 风险说明
 
-此 Skill 风险等级为 **critical**，需要两步确认：
-1. 首次调用返回待执行的主机列表和命令详情
-2. 用户确认后带 `confirmed=true` 再次调用真正执行
+此 Skill 是**混合型 Skill**：
+1. `df -h`、`lsblk`、`fdisk -l`、`parted ... print free`、`systemctl status`、`cat` 等常见查看类命令会直接执行
+2. 安装软件、修改配置、启停服务、磁盘扩容、Docker 变更等高风险命令仍需要两步确认
+3. 真正的破坏性命令会被安全检查直接拒绝
 
 ## 使用场景
 
@@ -105,6 +106,7 @@ parameters:
 ## 返回数据
 
 - `status`: 执行状态（pending_confirmation / success）
+- `effectiveRiskLevel`: 实际动作风险等级（如 `low` / `critical`）
 - `command`: 执行的命令
 - `results`: 每台主机的执行结果数组
   - `host`: 主机名称
@@ -125,6 +127,7 @@ parameters:
 
 ## 注意事项
 
+- 查看类命令会直接执行；变更类命令需要用户确认
 - 每次调用只执行一条命令，不支持管道或多命令组合（除非用 && 连接）
 - 批量执行时按顺序逐台执行，不是并行
 - 输出内容超过 64KB 时会被截断

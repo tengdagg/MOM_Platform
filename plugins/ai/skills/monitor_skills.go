@@ -190,8 +190,9 @@ func executeMonitorAlertConfig(ctx biz.SkillContext) (any, error) {
 		var rules []AlertRuleInfo
 		ctx.DB.Table("alert_configs").Find(&rules)
 		return map[string]any{
-			"rules": rules,
-			"total": len(rules),
+			"rules":              rules,
+			"total":              len(rules),
+			"effectiveRiskLevel": "low",
 		}, nil
 
 	case "create":
@@ -230,8 +231,9 @@ func executeMonitorAlertConfig(ctx biz.SkillContext) (any, error) {
 		}
 
 		return map[string]any{
-			"status":  "success",
-			"message": fmt.Sprintf("✅ 已成功创建告警规则 [%s]", name),
+			"status":             "success",
+			"effectiveRiskLevel": "medium",
+			"message":            fmt.Sprintf("✅ 已成功创建告警规则 [%s]", name),
 		}, nil
 
 	case "enable", "disable":
@@ -257,8 +259,9 @@ func executeMonitorAlertConfig(ctx biz.SkillContext) (any, error) {
 			statusText = "禁用"
 		}
 		return map[string]any{
-			"status":  "success",
-			"message": fmt.Sprintf("✅ 告警规则已%s", statusText),
+			"status":             "success",
+			"effectiveRiskLevel": "medium",
+			"message":            fmt.Sprintf("✅ 告警规则已%s", statusText),
 		}, nil
 
 	case "delete":
@@ -281,8 +284,9 @@ func executeMonitorAlertConfig(ctx biz.SkillContext) (any, error) {
 		}
 
 		return map[string]any{
-			"status":  "success",
-			"message": fmt.Sprintf("✅ 告警规则 ID=%d 已删除", int(ruleID)),
+			"status":             "success",
+			"effectiveRiskLevel": "medium",
+			"message":            fmt.Sprintf("✅ 告警规则 ID=%d 已删除", int(ruleID)),
 		}, nil
 
 	default:

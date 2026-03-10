@@ -17,6 +17,72 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+func buildSkillRiskMeta(skillName string, riskLevel string) map[string]any {
+	meta := map[string]any{
+		"riskMode": "static",
+	}
+
+	switch skillName {
+	case "host.exec_command":
+		meta["riskMode"] = "dynamic"
+		meta["riskHint"] = "查看类主机命令会直接执行，配置修改、启停服务、磁盘/LVM/Docker 变更等操作需要确认。"
+	case "task.execute":
+		meta["riskMode"] = "dynamic"
+		meta["riskHint"] = "分组批量查看类命令会直接执行，批量变更命令需要确认。"
+	case "device.exec_command":
+		meta["riskMode"] = "dynamic"
+		meta["riskHint"] = "show/display/ping 等只读设备命令会直接执行，未知或变更类命令需要确认。"
+	case "host.file_manage":
+		meta["riskMode"] = "dynamic"
+		meta["riskHint"] = "list/read/download 为低风险直接执行，backup/write 需要确认。"
+	case "host.manage", "device.manage":
+		meta["riskMode"] = "dynamic"
+		meta["riskHint"] = "list_credentials/list_groups 为低风险直接执行，create/update/delete 需要确认。"
+	case "host.collect", "device.test_connection":
+		meta["riskMode"] = "dynamic"
+		meta["riskHint"] = "该操作属于只读采集或探测刷新，默认直接执行。"
+	case "task.ansible":
+		meta["riskMode"] = "dynamic"
+		meta["riskHint"] = "action=list 为低风险直接执行，提交 Playbook 执行为高风险操作。"
+	case "k8s.kubectl":
+		meta["riskMode"] = "dynamic"
+		meta["riskHint"] = "get/describe/logs/events/top 等查询动作直接执行，scale/restart/delete/node 维护动作需要确认。"
+	case "k8s.helm_manage":
+		meta["riskMode"] = "dynamic"
+		meta["riskHint"] = "list/status 为低风险直接执行，install/upgrade/uninstall 需要确认。"
+	case "monitor.alert_config":
+		meta["riskMode"] = "dynamic"
+		meta["riskHint"] = "list 为低风险直接执行；enable/disable/create/delete 会修改告警状态或规则。"
+	default:
+		meta["riskHint"] = fmt.Sprintf("当前 Skill 默认风险等级为 %s。", riskLevel)
+	}
+
+	return meta
+}
+
+func buildSkillResponse(skillDef biz.SkillDefinition) map[string]any {
+	resp := map[string]any{
+		"id":          skillDef.ID,
+		"name":        skillDef.Name,
+		"displayName": skillDef.DisplayName,
+		"description": skillDef.Description,
+		"category":    skillDef.Category,
+		"parameters":  skillDef.Parameters,
+		"isBuiltin":   skillDef.IsBuiltin,
+		"scriptType":  skillDef.ScriptType,
+		"scriptBody":  skillDef.ScriptBody,
+		"markdown":    skillDef.Markdown,
+		"isEnabled":   skillDef.IsEnabled,
+		"riskLevel":   skillDef.RiskLevel,
+		"createdAt":   skillDef.CreatedAt,
+		"updatedAt":   skillDef.UpdatedAt,
+	}
+	for k, v := range buildSkillRiskMeta(skillDef.Name, skillDef.RiskLevel) {
+		resp[k] = v
+	}
+	return resp
+}
+
 // ListSkills 获取 Skill 列表
 func (h *Handler) ListSkills(c *gin.Context) {
 	category := c.Query("category")
@@ -67,7 +133,12 @@ func (h *Handler) ListSkills(c *gin.Context) {
 		dbSkills = append(dbSkills, skillDef)
 	}
 
-	response.Success(c, dbSkills)
+	result := make([]map[string]any, 0, len(dbSkills))
+	for _, skill := range dbSkills {
+		result = append(result, buildSkillResponse(skill))
+	}
+
+	response.Success(c, result)
 }
 
 // ToggleSkill 启用/禁用 Skill（支持 ID 和内置 Skill 名称）

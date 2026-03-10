@@ -97,6 +97,9 @@
               <el-tag :type="getRiskColor(skill.riskLevel)" size="small" effect="light">
                 {{ getRiskLabel(skill.riskLevel) }}
               </el-tag>
+              <el-tag v-if="skill.riskMode === 'dynamic'" type="warning" size="small" effect="plain">
+                动态风险
+              </el-tag>
               <el-tag size="small" effect="plain">{{ getCategoryLabel(skill.category) }}</el-tag>
               <el-tag v-if="skill.isBuiltin" type="info" size="small" effect="plain">内置</el-tag>
               <el-tag v-if="skill.markdown" type="success" size="small" effect="plain">SKILL.md</el-tag>
@@ -111,6 +114,7 @@
           </el-tooltip>
         </div>
         <div class="skill-desc">{{ skill.description }}</div>
+        <div v-if="skill.riskHint" class="skill-risk-hint">{{ skill.riskHint }}</div>
         <div class="skill-footer">
           <span class="script-type">
             <el-icon v-if="skill.scriptType === 'builtin'"><Setting /></el-icon>
@@ -162,12 +166,23 @@
               <el-tag :type="getRiskColor(detailSkill.riskLevel)" size="small">
                 {{ getRiskLabel(detailSkill.riskLevel) }}
               </el-tag>
+              <el-tag v-if="detailSkill.riskMode === 'dynamic'" type="warning" size="small" style="margin-left: 8px">
+                动态风险
+              </el-tag>
             </el-descriptions-item>
             <el-descriptions-item label="类型">
               {{ getScriptLabel(detailSkill.scriptType) }}
             </el-descriptions-item>
           </el-descriptions>
         </div>
+        <el-alert
+          v-if="detailSkill.riskHint"
+          :title="detailSkill.riskHint"
+          type="info"
+          :closable="false"
+          show-icon
+          class="detail-risk-alert"
+        />
         <div class="detail-desc">
           <h4>描述</h4>
           <p>{{ detailSkill.description }}</p>
@@ -599,6 +614,16 @@ function getScriptLabel(t: string): string {
   overflow: hidden;
 }
 
+.skill-risk-hint {
+  margin-bottom: 10px;
+  padding: 8px 10px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: #606266;
+  background: #f4f4f5;
+  border-left: 3px solid #e6a23c;
+}
+
 .skill-footer {
   display: flex;
   justify-content: space-between;
@@ -631,6 +656,10 @@ function getScriptLabel(t: string): string {
 }
 
 .skill-detail .detail-desc {
+  margin-bottom: 16px;
+}
+
+.detail-risk-alert {
   margin-bottom: 16px;
 }
 

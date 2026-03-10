@@ -129,15 +129,19 @@
                   </el-tag>
                   <el-tag v-else-if="tc.riskLevel === 'medium'" type="warning" size="small" effect="plain">中风险</el-tag>
                   <el-tag v-else type="success" size="small" effect="plain">安全</el-tag>
-                  <el-tag :type="tc.status === 'success' ? 'success' : 'danger'" size="small" class="status-tag">
-                    {{ tc.status === 'success' ? '成功' : '失败' }}
-                    {{ tc.duration ? `(${tc.duration}ms)` : '' }}
+                  <el-tag v-if="tc.riskMode === 'dynamic'" type="warning" size="small" effect="plain">动态风险</el-tag>
+                  <el-tag :type="getToolStatusType(tc.status)" size="small" class="status-tag">
+                    {{ getToolStatusLabel(tc.status) }}
+                    {{ tc.duration && tc.status !== 'running' ? `(${tc.duration}ms)` : '' }}
                   </el-tag>
                   <el-icon class="expand-icon">
                     <ArrowDown v-if="!tc._expanded" /><ArrowUp v-else />
                   </el-icon>
                 </div>
                 <div v-if="tc._expanded" class="tool-call-body">
+                  <div v-if="tc.riskHint" class="tool-risk-hint">
+                    {{ tc.riskHint }}
+                  </div>
                   <div class="tool-section">
                     <div class="tool-section-title">📥 调用参数</div>
                     <pre>{{ formatJSON(tc.params) }}</pre>
@@ -177,8 +181,12 @@
                   </el-tag>
                   <el-tag v-else-if="tc.riskLevel === 'medium'" type="warning" size="small" effect="plain">中风险</el-tag>
                   <el-tag v-else type="success" size="small" effect="plain">安全</el-tag>
+                  <el-tag v-if="tc.riskMode === 'dynamic'" type="warning" size="small" effect="plain">动态风险</el-tag>
                   <el-tag v-if="tc.status === 'running'" type="warning" size="small" class="status-tag">
                     <span class="running-dot"></span> 执行中...
+                  </el-tag>
+                  <el-tag v-else-if="tc.status === 'pending_confirmation'" type="warning" size="small" class="status-tag">
+                    待确认
                   </el-tag>
                   <el-tag v-else-if="tc.status === 'success'" type="success" size="small" class="status-tag">
                     完成 {{ tc.duration ? `(${tc.duration}ms)` : '' }}
@@ -188,7 +196,10 @@
                     <ArrowDown v-if="!tc._expanded" /><ArrowUp v-else />
                   </el-icon>
                 </div>
-                <div v-if="tc._expanded || tc.status === 'running'" class="tool-call-body">
+                <div v-if="tc._expanded || tc.status === 'running' || tc.status === 'pending_confirmation'" class="tool-call-body">
+                  <div v-if="tc.riskHint" class="tool-risk-hint">
+                    {{ tc.riskHint }}
+                  </div>
                   <div class="tool-section" v-if="tc.params">
                     <div class="tool-section-title">📥 调用参数</div>
                     <pre>{{ formatJSON(tc.params) }}</pre>
@@ -623,6 +634,8 @@ function handleWSEvent(event: any) {
         toolName: event.toolName,
         params: event.toolParams,
         riskLevel: event.riskLevel || 'low',
+        riskMode: event.riskMode || 'static',
+        riskHint: event.riskHint || '',
         status: 'running',
         startTime: Date.now(),
       }
@@ -646,9 +659,11 @@ function handleWSEvent(event: any) {
         ) || buf.toolCalls[buf.toolCalls.length - 1]
         if (bufTc) {
           bufTc.result = event.toolResult
-          bufTc.status = event.toolResult?.includes('"error"') ? 'error' : 'success'
+          bufTc.status = parseToolResultStatus(event.toolResult)
           bufTc.duration = Date.now() - (bufTc.startTime || Date.now())
           if (event.riskLevel) bufTc.riskLevel = event.riskLevel
+          if (event.riskMode) bufTc.riskMode = event.riskMode
+          if (event.riskHint) bufTc.riskHint = event.riskHint
         }
       }
       if (isCurrentSession) {
@@ -657,9 +672,11 @@ function handleWSEvent(event: any) {
         ) || currentToolCalls.value[currentToolCalls.value.length - 1]
         if (tc) {
           tc.result = event.toolResult
-          tc.status = event.toolResult?.includes('"error"') ? 'error' : 'success'
+          tc.status = parseToolResultStatus(event.toolResult)
           tc.duration = Date.now() - (tc.startTime || Date.now())
           if (event.riskLevel) tc.riskLevel = event.riskLevel
+          if (event.riskMode) tc.riskMode = event.riskMode
+          if (event.riskHint) tc.riskHint = event.riskHint
         }
         scrollToBottom()
       }
@@ -996,6 +1013,36 @@ function formatJSON(data: any): string {
     }
   }
   return JSON.stringify(data, null, 2)
+}
+
+function parseToolResultStatus(result: any): 'success' | 'error' | 'pending_confirmation' {
+  const raw = typeof result === 'string' ? result : JSON.stringify(result || {})
+  try {
+    const parsed = typeof result === 'string' ? JSON.parse(result) : result
+    if (parsed?.status === 'pending_confirmation') return 'pending_confirmation'
+    if (parsed?.error) return 'error'
+  } catch {
+    // ignore JSON parse errors
+  }
+  if (raw.includes('"status":"pending_confirmation"') || raw.includes('"status": "pending_confirmation"')) {
+    return 'pending_confirmation'
+  }
+  if (raw.includes('"error"')) return 'error'
+  return 'success'
+}
+
+function getToolStatusType(status: string) {
+  if (status === 'success') return 'success'
+  if (status === 'pending_confirmation') return 'warning'
+  if (status === 'running') return 'warning'
+  return 'danger'
+}
+
+function getToolStatusLabel(status: string) {
+  if (status === 'success') return '成功'
+  if (status === 'pending_confirmation') return '待确认'
+  if (status === 'running') return '执行中'
+  return '失败'
 }
 </script>
 
@@ -1394,6 +1441,11 @@ function formatJSON(data: any): string {
   border-color: #67c23a;
 }
 
+.tool-call-card.status-pending_confirmation {
+  border-color: #e6a23c;
+  box-shadow: 0 0 0 1px rgba(230, 162, 60, 0.12);
+}
+
 .tool-call-card.status-error {
   border-color: #f56c6c;
 }
@@ -1430,6 +1482,10 @@ function formatJSON(data: any): string {
   background: #67c23a;
 }
 
+.tool-call-card.status-pending_confirmation .tool-call-step {
+  background: #e6a23c;
+}
+
 .tool-call-card.status-error .tool-call-step {
   background: #f56c6c;
 }
@@ -1447,6 +1503,17 @@ function formatJSON(data: any): string {
 
 .status-tag {
   font-size: 11px !important;
+}
+
+.tool-risk-hint {
+  margin-bottom: 10px;
+  padding: 8px 10px;
+  background: #fdf6ec;
+  border-left: 3px solid #e6a23c;
+  color: #606266;
+  font-size: 12px;
+  line-height: 1.5;
+  border-radius: 4px;
 }
 
 .running-dot {

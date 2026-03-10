@@ -18,9 +18,6 @@ parameters:
     group_name:
       type: string
       description: 按分组名称测试，测试该分组下所有设备
-    confirmed:
-      type: boolean
-      description: 用户确认执行时设为 true，首次调用不传此参数
 ---
 
 # 网络设备连接测试
@@ -38,3 +35,4 @@ parameters:
 - 测试操作会尝试建立 SSH/Telnet 连接，可能触发设备日志
 - 批量测试时按顺序逐台测试，较多设备可能耗时较长
 - 测试完成后会自动更新设备的在线/离线状态
+- 该操作属于探测/刷新类操作，默认直接执行，无需人工确认

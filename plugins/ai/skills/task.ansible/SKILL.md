@@ -1,6 +1,6 @@
 ---
 name: task.ansible
-description: 执行 Ansible Playbook 任务，支持指定主机清单、额外变量和标签
+description: 执行 Ansible Playbook 任务，支持列出模板、按分组提交 Playbook 执行，并支持指定主机清单、额外变量和标签
 category: task
 riskLevel: high
 scriptType: builtin
@@ -48,6 +48,12 @@ parameters:
 - 配置管理（如修改配置文件、安装软件包）
 - 系统初始化（如服务器初始化配置）
 - 执行特定标签的任务（如只执行部署任务，跳过配置任务）
+- 查询现有的 Ansible 任务模板
+
+## 动作说明
+
+- `action=list`：列出已有的 Ansible 模板，低风险，直接执行
+- 默认 `action=run`：提交 Playbook 执行任务，高风险，需要确认
 
 ## 参数说明
 

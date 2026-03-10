@@ -72,7 +72,7 @@ func isDangerousDeviceCommand(command string) bool {
 	// 危险命令关键词/模式黑名单（网络设备）
 	dangerousPatterns := []string{
 		// 进入配置模式
-		"configure terminal", "conf t", "system-view", "sys",
+		"configure terminal", "conf t", "system-view",
 		// 破坏性操作
 		"write erase", "erase startup-config", "format ",
 		"delete /force", "reset saved-configuration", "restore factory",
@@ -98,6 +98,37 @@ func isDangerousDeviceCommand(command string) bool {
 		}
 	}
 	return false
+}
+
+// isSafeDeviceReadCommand 判断网络设备命令是否为常见只读查询命令。
+// 网络设备配置命令语义相对固定，优先只放行 show/display/ping 等查看类命令，
+// 其余未识别命令即便未命中危险黑名单，也应要求人工确认。
+func isSafeDeviceReadCommand(command string) bool {
+	cmd := strings.TrimSpace(strings.ToLower(command))
+	if cmd == "" {
+		return false
+	}
+
+	safePrefixes := []string{
+		"show ", "display ", "dis ", "ping ", "traceroute ", "tracert ",
+		"dir ", "pwd", "more ", "terminal length ", "screen-length ",
+	}
+	for _, prefix := range safePrefixes {
+		if strings.HasPrefix(cmd, prefix) {
+			return true
+		}
+	}
+
+	safeExact := map[string]bool{
+		"show":              true,
+		"display":           true,
+		"dis":               true,
+		"show version":      true,
+		"display version":   true,
+		"show running-config": true,
+		"display current-configuration": true,
+	}
+	return safeExact[cmd]
 }
 
 // RegisterDeviceSkills 注册网络设备管理 Skills
@@ -327,16 +358,7 @@ func executeDeviceTestConnection(ctx biz.SkillContext) (any, error) {
 		return nil, fmt.Errorf("未找到匹配的网络设备")
 	}
 
-	if !isConfirmed(ctx.Params) {
-		return map[string]any{
-			"deviceCount": len(devices),
-			"devices":     devices,
-			"status":      "pending_confirmation",
-			"warning":     fmt.Sprintf("⚠️ 将对 %d 台网络设备进行连接测试，请确认执行", len(devices)),
-		}, nil
-	}
-
-	// 已确认 → 执行连接测试
+	// 连接测试属于探测/刷新类操作，直接执行即可。
 	type TestResult struct {
 		Device   string `json:"device"`
 		IP       string `json:"ip"`
@@ -389,11 +411,12 @@ func executeDeviceTestConnection(ctx biz.SkillContext) (any, error) {
 	}
 
 	return map[string]any{
-		"status":       "success",
-		"message":      fmt.Sprintf("✅ 连接测试完成 %d/%d 台设备连接正常", successCount, len(devices)),
-		"results":      results,
-		"successCount": successCount,
-		"totalCount":   len(devices),
+		"status":             "success",
+		"effectiveRiskLevel": "low",
+		"message":            fmt.Sprintf("✅ 连接测试完成 %d/%d 台设备连接正常", successCount, len(devices)),
+		"results":            results,
+		"successCount":       successCount,
+		"totalCount":         len(devices),
 	}, nil
 }
 
@@ -449,8 +472,8 @@ func executeDeviceExecCommand(ctx biz.SkillContext) (any, error) {
 		return nil, fmt.Errorf("未找到目标网络设备，请指定设备 IP 或 ID 列表")
 	}
 
-	// 非危险命令 → 直接执行，跳过确认
-	if !isDangerousDeviceCommand(command) {
+	// 常见只读查询命令 → 直接执行，跳过确认
+	if !isDangerousDeviceCommand(command) && isSafeDeviceReadCommand(command) {
 		type ExecResult struct {
 			Device string `json:"device"`
 			IP     string `json:"ip"`
@@ -609,9 +632,10 @@ func executeDeviceManage(ctx biz.SkillContext) (any, error) {
 		var creds []CredInfo
 		ctx.DB.Table("credentials").Select("id, name, type, category, username").Where("deleted_at IS NULL AND (category = 'all' OR category = 'network')").Find(&creds)
 		return map[string]any{
-			"credentials": creds,
-			"total":       len(creds),
-			"hint":        "创建设备时可以使用以上凭证的 ID",
+			"credentials":        creds,
+			"total":              len(creds),
+			"hint":               "创建设备时可以使用以上凭证的 ID",
+			"effectiveRiskLevel": "low",
 		}, nil
 
 	case "list_groups":
@@ -622,9 +646,10 @@ func executeDeviceManage(ctx biz.SkillContext) (any, error) {
 		var groups []GroupInfo
 		ctx.DB.Table("asset_group").Select("id, name").Where("deleted_at IS NULL").Order("name").Find(&groups)
 		return map[string]any{
-			"groups": groups,
-			"total":  len(groups),
-			"hint":   "创建设备时可以使用以上分组的 ID",
+			"groups":             groups,
+			"total":              len(groups),
+			"hint":               "创建设备时可以使用以上分组的 ID",
+			"effectiveRiskLevel": "low",
 		}, nil
 
 	case "create":

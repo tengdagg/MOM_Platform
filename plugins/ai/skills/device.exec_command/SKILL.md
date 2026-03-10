@@ -36,9 +36,9 @@ parameters:
 - 用户说"检查所有路由器的接口状态"
 - 用户说"查看防火墙的 ACL 规则"
 
-## 安全警告
+## 风险说明
 
-- 这是 **危险操作**，执行前必须确认命令内容
-- 禁止执行 write erase、format、delete 等破坏性命令
-- 会对命令进行安全检查，拒绝高危配置变更命令
-- 建议只执行 show / display 类查看命令
+- `show` / `display` / `dis` / `ping` / `traceroute` 等常见查看命令会直接执行
+- 未识别为只读查询的命令会进入确认流程
+- `write erase`、`format`、`delete /force` 等破坏性命令会被直接拒绝
+- 建议优先使用 `show` / `display` 类查看命令

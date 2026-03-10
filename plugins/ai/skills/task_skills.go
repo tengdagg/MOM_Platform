@@ -2,7 +2,6 @@ package skills
 
 import (
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/ydcloud-dy/mom/plugins/ai/biz"
@@ -102,21 +101,12 @@ func executeTaskExecute(ctx biz.SkillContext) (any, error) {
 	hostIP, _ := ctx.Params["host_ip"].(string)
 	groupName, _ := ctx.Params["group_name"].(string)
 
-	// 安全检查：拒绝危险命令
-	dangerousPatterns := []string{"rm -rf /", "mkfs", "dd if=", ":(){ :|:& };:", "> /dev/sd", "chmod -R 777 /", "shutdown", "reboot", "init 0", "init 6"}
-	cmdLower := strings.ToLower(command)
-	for _, pattern := range dangerousPatterns {
-		if strings.Contains(cmdLower, pattern) {
-			return nil, fmt.Errorf("安全检查未通过：命令包含危险操作 [%s]，已被拒绝", pattern)
-		}
-	}
-
-	// 超时时间：默认 30 秒，最大 300 秒
-	timeoutSec := 30
+	// 超时时间：默认 60 秒，最大 600 秒（与 host.exec_command 统一）
+	timeoutSec := 60
 	if t, ok := ctx.Params["timeout"].(float64); ok && t > 0 {
 		timeoutSec = int(t)
-		if timeoutSec > 300 {
-			timeoutSec = 300
+		if timeoutSec > 600 {
+			timeoutSec = 600
 		}
 	}
 
@@ -151,16 +141,64 @@ func executeTaskExecute(ctx biz.SkillContext) (any, error) {
 		return nil, fmt.Errorf("未找到目标主机，请指定主机 IP、分组名称或 ID 列表")
 	}
 
-	// 未确认 → 返回待确认信息
+	// 非危险命令（只读操作） → 直接执行，跳过确认
+	if !isDangerousHostCommand(command) {
+		type ExecResult struct {
+			Host      string `json:"host"`
+			IP        string `json:"ip"`
+			Output    string `json:"output"`
+			Truncated bool   `json:"truncated,omitempty"`
+			Error     string `json:"error,omitempty"`
+		}
+		var results []ExecResult
+		successCount := 0
+
+		for _, h := range hosts {
+			client, _, err := CreateSSHClient(ctx.DB, h.ID)
+			if err != nil {
+				results = append(results, ExecResult{Host: h.Name, IP: h.IP, Error: err.Error()})
+				continue
+			}
+			output, err := client.ExecuteWithTimeout(command, time.Duration(timeoutSec)*time.Second)
+			client.Close()
+
+			truncated := false
+			if len(output) > 65536 {
+				output = output[:65536] + "\n... [输出已截断，超过 64KB]"
+				truncated = true
+			}
+
+			if err != nil {
+				results = append(results, ExecResult{Host: h.Name, IP: h.IP, Output: output, Truncated: truncated, Error: err.Error()})
+			} else {
+				results = append(results, ExecResult{Host: h.Name, IP: h.IP, Output: output, Truncated: truncated})
+				successCount++
+			}
+		}
+
+		return map[string]any{
+			"status":             "success",
+			"effectiveRiskLevel": "low",
+			"message":            fmt.Sprintf("✅ 命令已在 %d/%d 台主机上执行完成（安全命令，已跳过确认）", successCount, len(hosts)),
+			"command":            command,
+			"timeout":            timeoutSec,
+			"results":            results,
+			"successCount":       successCount,
+			"totalCount":         len(hosts),
+		}, nil
+	}
+
+	// 危险命令（非只读操作） → 未确认时要求人工确认
 	if !isConfirmed(ctx.Params) {
 		return map[string]any{
-			"message":   fmt.Sprintf("命令 [%s] 将在 %d 台主机上执行（超时: %ds）", command, len(hosts), timeoutSec),
-			"command":   command,
-			"timeout":   timeoutSec,
-			"hostCount": len(hosts),
-			"hosts":     hosts,
-			"status":    "pending_confirmation",
-			"warning":   "⚠️ 远程命令执行是高风险操作，请确认命令内容和目标主机无误后再执行",
+			"message":            fmt.Sprintf("命令 [%s] 将在 %d 台主机上执行（超时: %ds）", command, len(hosts), timeoutSec),
+			"command":            command,
+			"timeout":            timeoutSec,
+			"hostCount":          len(hosts),
+			"hosts":              hosts,
+			"status":             "pending_confirmation",
+			"effectiveRiskLevel": "critical",
+			"warning":            "⚠️ 远程命令执行是高风险操作，请确认命令内容和目标主机无误后再执行",
 		}, nil
 	}
 
@@ -200,13 +238,14 @@ func executeTaskExecute(ctx biz.SkillContext) (any, error) {
 	}
 
 	return map[string]any{
-		"status":       "success",
-		"message":      fmt.Sprintf("✅ 命令已在 %d/%d 台主机上执行完成", successCount, len(hosts)),
-		"command":      command,
-		"timeout":      timeoutSec,
-		"results":      results,
-		"successCount": successCount,
-		"totalCount":   len(hosts),
+		"status":             "success",
+		"effectiveRiskLevel": "critical",
+		"message":            fmt.Sprintf("✅ 命令已在 %d/%d 台主机上执行完成", successCount, len(hosts)),
+		"command":            command,
+		"timeout":            timeoutSec,
+		"results":            results,
+		"successCount":       successCount,
+		"totalCount":         len(hosts),
 	}, nil
 }
 
@@ -234,9 +273,10 @@ func executeTaskAnsible(ctx biz.SkillContext) (any, error) {
 		query.Order("created_at DESC").Limit(20).Find(&templates)
 
 		return map[string]any{
-			"templates": templates,
-			"total":     len(templates),
-			"message":   fmt.Sprintf("找到 %d 个 Ansible 任务模板", len(templates)),
+			"templates":          templates,
+			"total":              len(templates),
+			"message":            fmt.Sprintf("找到 %d 个 Ansible 任务模板", len(templates)),
+			"effectiveRiskLevel": "low",
 		}, nil
 	}
 
@@ -263,14 +303,15 @@ func executeTaskAnsible(ctx biz.SkillContext) (any, error) {
 
 	if !isConfirmed(ctx.Params) {
 		return map[string]any{
-			"action":       "ansible_execute",
-			"taskName":     taskName,
-			"playbookName": playbookName,
-			"groupName":    groupName,
-			"tags":         tags,
-			"templates":    templates,
-			"status":       "pending_confirmation",
-			"warning":      fmt.Sprintf("⚠️ 高风险操作: 将执行 Ansible Playbook [%s]，目标分组: %s，请确认", playbookName, groupName),
+			"action":             "ansible_execute",
+			"taskName":           taskName,
+			"playbookName":       playbookName,
+			"groupName":          groupName,
+			"tags":               tags,
+			"templates":          templates,
+			"status":             "pending_confirmation",
+			"effectiveRiskLevel": "high",
+			"warning":            fmt.Sprintf("⚠️ 高风险操作: 将执行 Ansible Playbook [%s]，目标分组: %s，请确认", playbookName, groupName),
 		}, nil
 	}
 
@@ -281,11 +322,12 @@ func executeTaskAnsible(ctx biz.SkillContext) (any, error) {
 			taskName, ctx.UserID)
 
 		return map[string]any{
-			"status":           "success",
-			"message":          fmt.Sprintf("✅ Ansible Playbook [%s] 执行任务已提交到任务队列", playbookName),
-			"taskName":         taskName,
-			"playbookName":     playbookName,
-			"matchedTemplates": templates,
+			"status":             "success",
+			"effectiveRiskLevel": "high",
+			"message":            fmt.Sprintf("✅ Ansible Playbook [%s] 执行任务已提交到任务队列", playbookName),
+			"taskName":           taskName,
+			"playbookName":       playbookName,
+			"matchedTemplates":   templates,
 		}, nil
 	}
 
