@@ -198,6 +198,38 @@ externalRedis:
   password: ""
   db: 0
 
+# ==================== Guacd / RDP 配置 ====================
+guacd:
+  # 是否在 backend Pod 内启用 guacd sidecar
+  # 启用后用于 Windows RDP 远程桌面代理，backend 将通过 127.0.0.1:4822 连接 guacd
+  enabled: true
+
+  image:
+    repository: registry.cn-hangzhou.aliyuncs.com/registry_dat/guacd
+    tag: latest
+    pullPolicy: IfNotPresent
+
+  # guacd 监听端口
+  port: 4822
+
+  # 当 enabled=false 时，使用外部 guacd 地址
+  externalHost: ""
+  externalPort: 4822
+
+  # RDP 文件传输目录，需与 backend 共享
+  drive:
+    enabled: true
+    path: /tmp/guacd-drive
+    sizeLimit: 512Mi
+
+  resources:
+    requests:
+      memory: "64Mi"
+      cpu: "50m"
+    limits:
+      memory: "256Mi"
+      cpu: "300m"
+
 # ==================== 服务器配置 ====================
 server:
   # 运行模式: debug / release

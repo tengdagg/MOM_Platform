@@ -44,6 +44,20 @@ spec:
                 sleep 2
               done
               echo "Redis is ready!"
+        {{- if and (not .Values.guacd.enabled) .Values.guacd.externalHost }}
+        # 等待外部 guacd 就绪
+        - name: wait-for-guacd
+          image: "{{ .Values.global.busybox.repository }}:{{ .Values.global.busybox.tag }}"
+          command:
+            - sh
+            - -c
+            - |
+              until nc -z {{ .Values.guacd.externalHost }} {{ .Values.guacd.externalPort }}; do
+                echo "Waiting for external guacd..."
+                sleep 2
+              done
+              echo "External guacd is ready!"
+        {{- end }}
       containers:
         - name: backend
           image: "{{ .Values.backend.image.repository }}:{{ .Values.backend.image.tag }}"
@@ -96,8 +110,25 @@ spec:
               {{- else }}
               value: {{ .Values.externalRedis.db | quote }}
               {{- end }}
+            - name: mom_GUACD_HOST
+              {{- if .Values.guacd.enabled }}
+              value: "127.0.0.1"
+              {{- else }}
+              value: {{ .Values.guacd.externalHost | quote }}
+              {{- end }}
+            - name: mom_GUACD_PORT
+              {{- if .Values.guacd.enabled }}
+              value: {{ .Values.guacd.port | quote }}
+              {{- else }}
+              value: {{ .Values.guacd.externalPort | quote }}
+              {{- end }}
           resources:
             {{- toYaml .Values.backend.resources | nindent 12 }}
+          {{- if and .Values.guacd.enabled .Values.guacd.drive.enabled }}
+          volumeMounts:
+            - name: guacd-drive
+              mountPath: {{ .Values.guacd.drive.path }}
+          {{- end }}
           {{- if .Values.backend.livenessProbe.enabled }}
           livenessProbe:
             httpGet:
@@ -116,6 +147,28 @@ spec:
             periodSeconds: {{ .Values.backend.readinessProbe.periodSeconds }}
             timeoutSeconds: {{ .Values.backend.readinessProbe.timeoutSeconds }}
           {{- end }}
+        {{- if .Values.guacd.enabled }}
+        - name: guacd
+          image: "{{ .Values.guacd.image.repository }}:{{ .Values.guacd.image.tag }}"
+          imagePullPolicy: {{ .Values.guacd.image.pullPolicy | default .Values.global.imagePullPolicy }}
+          ports:
+            - name: guacd
+              containerPort: {{ .Values.guacd.port }}
+              protocol: TCP
+          resources:
+            {{- toYaml .Values.guacd.resources | nindent 12 }}
+          {{- if .Values.guacd.drive.enabled }}
+          volumeMounts:
+            - name: guacd-drive
+              mountPath: {{ .Values.guacd.drive.path }}
+          {{- end }}
+        {{- end }}
+      {{- if and .Values.guacd.enabled .Values.guacd.drive.enabled }}
+      volumes:
+        - name: guacd-drive
+          emptyDir:
+            sizeLimit: {{ .Values.guacd.drive.sizeLimit }}
+      {{- end }}
       {{- with .Values.backend.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}

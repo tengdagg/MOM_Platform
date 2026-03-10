@@ -121,6 +121,22 @@ kubectl delete namespace mom
 | `externalRedis.port` | 端口 | `6379` |
 | `externalRedis.password` | 密码 | `""` |
 
+### Guacd / RDP 配置
+
+用于 Windows RDP 远程桌面代理。默认以 `guacd` sidecar 方式跟随 backend 一起部署，backend 通过 `127.0.0.1:4822` 访问。
+
+| 参数 | 描述 | 默认值 |
+|------|------|--------|
+| `guacd.enabled` | 是否启用内置 guacd sidecar | `true` |
+| `guacd.image.repository` | guacd 镜像仓库 | `registry.cn-hangzhou.aliyuncs.com/registry_dat/guacd` |
+| `guacd.image.tag` | guacd 镜像标签 | `latest` |
+| `guacd.port` | sidecar guacd 监听端口 | `4822` |
+| `guacd.externalHost` | 外部 guacd 地址（当 `guacd.enabled=false` 时使用） | `""` |
+| `guacd.externalPort` | 外部 guacd 端口 | `4822` |
+| `guacd.drive.enabled` | 是否启用共享 RDP 文件传输目录 | `true` |
+| `guacd.drive.path` | backend 与 guacd 共享目录挂载路径 | `/tmp/guacd-drive` |
+| `guacd.drive.sizeLimit` | 共享目录大小限制 | `512Mi` |
+
 ### 服务器配置
 
 | 参数 | 描述 | 默认值 |
@@ -193,6 +209,29 @@ mysql:
 
 server:
   jwtSecret: "your-very-long-random-secret-key"
+```
+
+### 使用内置 guacd 支持 RDP
+
+默认配置即支持，无需额外设置。安装后 backend Pod 中会自动包含一个 `guacd` sidecar，并与 backend 共享 `/tmp/guacd-drive`，满足远程桌面代理和文件传输目录需求。
+
+```yaml
+guacd:
+  enabled: true
+  drive:
+    enabled: true
+    sizeLimit: 1Gi
+```
+
+### 使用外部 guacd
+
+如果你已经有独立部署的 `guacd` 服务，可关闭 sidecar，改为连接外部地址：
+
+```yaml
+guacd:
+  enabled: false
+  externalHost: guacd.default.svc.cluster.local
+  externalPort: 4822
 ```
 
 ## 升级
