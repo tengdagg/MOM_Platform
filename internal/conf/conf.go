@@ -33,6 +33,7 @@ type Config struct {
 	Redis    RedisConfig    `mapstructure:"redis"`
 	Log      LogConfig      `mapstructure:"log"`
 	Guacd    GuacdConfig    `mapstructure:"guacd"`
+	Security SecurityConfig `mapstructure:"security"`
 }
 
 // ServerConfig 服务器配置
@@ -83,6 +84,12 @@ type LogConfig struct {
 type GuacdConfig struct {
 	Host string `mapstructure:"host"`
 	Port int    `mapstructure:"port"`
+}
+
+// SecurityConfig 安全配置
+type SecurityConfig struct {
+	CredentialEncryptionKey string `mapstructure:"credential_encryption_key"`
+	K8sEncryptionKey        string `mapstructure:"k8s_encryption_key"`
 }
 
 // GetGuacdAddr 获取Guacd地址
@@ -137,6 +144,8 @@ func Load(configPath string) (*Config, error) {
 	v.SetDefault("redis.min_idle_conn", 5)
 	v.SetDefault("guacd.host", "127.0.0.1")
 	v.SetDefault("guacd.port", 4822)
+	v.SetDefault("security.credential_encryption_key", "")
+	v.SetDefault("security.k8s_encryption_key", "")
 	v.SetDefault("log.level", "info")
 	v.SetDefault("log.filename", "logs/app.log")
 	v.SetDefault("log.max_size", 100)

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/google/uuid"
@@ -28,6 +29,14 @@ type feishuToolState struct {
 	RiskLevel string
 }
 
+type feishuTimelineBlock struct {
+	Type      string
+	Content   string
+	ToolName  string
+	Status    string
+	RiskLevel string
+}
+
 type FeishuChannelAdapter struct {
 	db         *gorm.DB
 	agent      *Agent
@@ -36,6 +45,8 @@ type FeishuChannelAdapter struct {
 	bridge     *ChannelAgentBridge
 	channel    *AIChannelConfig
 	apiClient  *lark.Client
+	lockMu     sync.Mutex
+	chatLocks  map[string]*sync.Mutex
 }
 
 type feishuIncomingMessage struct {
@@ -46,13 +57,6 @@ type feishuIncomingMessage struct {
 	ExternalUserID  string
 	ExternalOpenID  string
 	ExternalUnionID string
-}
-
-var feishuNewSessionCommands = map[string]struct{}{
-	"新对话":   {},
-	"重置上下文": {},
-	"清空上下文": {},
-	"开始新会话": {},
 }
 
 func NewFeishuChannelAdapter(
@@ -74,6 +78,7 @@ func NewFeishuChannelAdapter(
 			channel.AppSecret,
 			lark.WithLogLevel(larkcore.LogLevelInfo),
 		),
+		chatLocks: make(map[string]*sync.Mutex),
 	}
 }
 
@@ -176,6 +181,8 @@ func (a *FeishuChannelAdapter) handleMessage(ctx context.Context, event *larkim.
 func (a *FeishuChannelAdapter) processIncomingMessage(req feishuIncomingMessage) {
 	runCtx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 	defer cancel()
+	unlock := a.lockChatConversation(req)
+	defer unlock()
 
 	identity := ChannelExternalIdentity{
 		ExternalChatID:  req.ExternalChatID,
@@ -184,29 +191,58 @@ func (a *FeishuChannelAdapter) processIncomingMessage(req feishuIncomingMessage)
 		ExternalUnionID: req.ExternalUnionID,
 	}
 
-	forceNewSession := isFeishuNewSessionCommand(req.Content)
-	resolution, err := a.channelSvc.ResolveBindingSession(a.channel, identity, forceNewSession)
+	decision, err := a.channelSvc.ResolveInboundSession(a.channel, identity, req.Content)
 	if err != nil {
 		_ = a.sendTextByChatID(runCtx, req.ChatID, "创建 AI 会话失败: "+err.Error())
 		return
 	}
+	resolution := decision.Resolution
 	session := resolution.Session
 
-	if forceNewSession {
-		notice := resolution.NoticeMessage
-		if notice == "" {
-			notice = "已为你开启新的 MOM Claw 会话，请直接发送新的问题。"
-		}
-		if _, createErr := a.createCardMessage(runCtx, req.ChatID, notice, nil, false); createErr != nil {
+	if decision.Action == ChannelSessionControlNewSession {
+		notice := BuildChannelNewSessionNotice(resolution)
+		if _, createErr := a.createCardMessage(runCtx, req.ChatID, replaceFeishuTimelineWithText("", notice), nil, false); createErr != nil {
 			_ = a.sendTextByChatID(runCtx, req.ChatID, notice)
 		}
 		return
 	}
 
+	switch decision.Action {
+	case ChannelSessionControlStatus:
+		statusText := a.channelSvc.BuildSessionStatusText(a.channel, session)
+		if _, createErr := a.createCardMessage(runCtx, req.ChatID, replaceFeishuTimelineWithText("", statusText), nil, false); createErr != nil {
+			_ = a.sendTextByChatID(runCtx, req.ChatID, statusText)
+		}
+		return
+	case ChannelSessionControlCompact:
+		compacted, compactErr := a.agent.CompactSession(session.ID)
+		reply := "当前会话的历史消息较少，暂时不需要压缩上下文。"
+		if compactErr != nil {
+			reply = "压缩上下文失败: " + compactErr.Error()
+		} else if compacted {
+			reply = "已压缩当前上下文，后续对话会优先参考摘要与最近消息继续进行。"
+		}
+		if _, createErr := a.createCardMessage(runCtx, req.ChatID, replaceFeishuTimelineWithText("", reply), nil, false); createErr != nil {
+			_ = a.sendTextByChatID(runCtx, req.ChatID, reply)
+		}
+		return
+	case ChannelSessionControlStop:
+		reply := "当前没有正在运行的生成任务。"
+		if a.bridge.StopSession(session.ID) {
+			reply = "已停止当前会话的生成任务。"
+		}
+		if _, createErr := a.createCardMessage(runCtx, req.ChatID, replaceFeishuTimelineWithText("", reply), nil, false); createErr != nil {
+			_ = a.sendTextByChatID(runCtx, req.ChatID, reply)
+		}
+		return
+	}
+
 	sessionNotice := strings.TrimSpace(resolution.NoticeMessage)
+	runID := uuid.NewString()
 
 	GlobalSessionStreamBus.Publish(session.UserID, SessionStreamPayload{
 		SessionID: session.ID,
+		RunID:     runID,
 		Type:      "external_user_message",
 		Content:   req.Content,
 		Source:    "external_channel",
@@ -217,7 +253,11 @@ func (a *FeishuChannelAdapter) processIncomingMessage(req feishuIncomingMessage)
 		placeholderText = sessionNotice + "\n\n" + placeholderText
 	}
 	var toolStates []feishuToolState
-	messageID, err := a.createCardMessage(runCtx, req.ChatID, placeholderText, toolStates, true)
+	var timelineBlocks []feishuTimelineBlock
+	if sessionNotice != "" {
+		timelineBlocks = appendFeishuTimelineText(timelineBlocks, sessionNotice)
+	}
+	messageID, err := a.createCardMessage(runCtx, req.ChatID, timelineBlocks, toolStates, true)
 	if err != nil {
 		messageID = ""
 	}
@@ -229,6 +269,7 @@ func (a *FeishuChannelAdapter) processIncomingMessage(req feishuIncomingMessage)
 	replyText, events, err := a.bridge.StreamChannelMessage(runCtx, a.channel, session.ID, req.Content, func(event AgentEvent) {
 		GlobalSessionStreamBus.Publish(session.UserID, SessionStreamPayload{
 			SessionID: session.ID,
+			RunID:     runID,
 			Type:      event.Type,
 			Event:     event,
 			Source:    "external_channel",
@@ -241,12 +282,15 @@ func (a *FeishuChannelAdapter) processIncomingMessage(req feishuIncomingMessage)
 				Status:    "running",
 				RiskLevel: event.RiskLevel,
 			})
+			timelineBlocks = appendFeishuTimelineTool(timelineBlocks, event.ToolName, "running", event.RiskLevel)
 		case "tool_call_result":
 			toolStates = updateFeishuToolState(toolStates, event.ToolName, parseFeishuToolResultStatus(event.ToolResult), event.RiskLevel)
+			timelineBlocks = updateFeishuTimelineTool(timelineBlocks, event.ToolName, parseFeishuToolResultStatus(event.ToolResult), event.RiskLevel)
 		}
 
 		if event.Type == "text_delta" && event.Content != "" {
 			streamedText.WriteString(event.Content)
+			timelineBlocks = appendFeishuTimelineText(timelineBlocks, event.Content)
 		}
 
 		if messageID == "" {
@@ -256,6 +300,7 @@ func (a *FeishuChannelAdapter) processIncomingMessage(req feishuIncomingMessage)
 		nextText := strings.TrimSpace(streamedText.String())
 		if event.Type == "error" && event.Error != "" {
 			nextText = "AI 处理失败: " + event.Error
+			timelineBlocks = replaceFeishuTimelineWithText(sessionNotice, nextText)
 		}
 		if nextText == "" {
 			nextText = placeholderText
@@ -269,12 +314,12 @@ func (a *FeishuChannelAdapter) processIncomingMessage(req feishuIncomingMessage)
 			event.Type == "tool_call_result" ||
 			time.Since(lastPushAt) >= 700*time.Millisecond
 		if shouldFlush && nextText != lastPushedText {
-			if updateErr := a.updateCardMessage(runCtx, messageID, nextText, toolStates, event.Type != "message_end" && event.Type != "error"); updateErr == nil {
+			if updateErr := a.updateCardMessage(runCtx, messageID, timelineBlocks, toolStates, event.Type != "message_end" && event.Type != "error"); updateErr == nil {
 				lastPushAt = time.Now()
 				lastPushedText = nextText
 			}
 		} else if shouldFlush && nextText == lastPushedText {
-			if updateErr := a.updateCardMessage(runCtx, messageID, nextText, toolStates, event.Type != "message_end" && event.Type != "error"); updateErr == nil {
+			if updateErr := a.updateCardMessage(runCtx, messageID, timelineBlocks, toolStates, event.Type != "message_end" && event.Type != "error"); updateErr == nil {
 				lastPushAt = time.Now()
 			}
 		}
@@ -282,7 +327,7 @@ func (a *FeishuChannelAdapter) processIncomingMessage(req feishuIncomingMessage)
 	if err != nil && err != context.Canceled && err != context.DeadlineExceeded {
 		finalErrText := "AI 处理失败: " + err.Error()
 		if messageID != "" {
-			_ = a.updateCardMessage(runCtx, messageID, finalErrText, toolStates, false)
+			_ = a.updateCardMessage(runCtx, messageID, replaceFeishuTimelineWithText(sessionNotice, finalErrText), toolStates, false)
 		} else {
 			_ = a.sendTextByChatID(runCtx, req.ChatID, finalErrText)
 		}
@@ -300,23 +345,42 @@ func (a *FeishuChannelAdapter) processIncomingMessage(req feishuIncomingMessage)
 	}
 
 	if messageID != "" {
+		finalTimeline := timelineBlocks
+		if len(finalTimeline) == 0 {
+			finalTimeline = replaceFeishuTimelineWithText(sessionNotice, replyText)
+		}
 		if strings.TrimSpace(replyText) != strings.TrimSpace(lastPushedText) {
-			_ = a.updateCardMessage(runCtx, messageID, replyText, toolStates, false)
+			_ = a.updateCardMessage(runCtx, messageID, finalTimeline, toolStates, false)
 		} else {
-			_ = a.updateCardMessage(runCtx, messageID, replyText, toolStates, false)
+			_ = a.updateCardMessage(runCtx, messageID, finalTimeline, toolStates, false)
 		}
 		return
 	}
 	_ = a.sendTextByChatID(runCtx, req.ChatID, replyText)
 }
 
-func isFeishuNewSessionCommand(content string) bool {
-	normalized := strings.TrimSpace(content)
-	normalized = strings.ReplaceAll(normalized, " ", "")
-	normalized = strings.ReplaceAll(normalized, "　", "")
-	normalized = strings.Trim(normalized, "。.!！?？")
-	_, ok := feishuNewSessionCommands[normalized]
-	return ok
+func (a *FeishuChannelAdapter) lockChatConversation(req feishuIncomingMessage) func() {
+	key := strings.TrimSpace(req.ExternalChatID)
+	if key == "" {
+		key = strings.TrimSpace(req.ChatID)
+	}
+	if key == "" {
+		key = strings.TrimSpace(req.ExternalOpenID)
+	}
+	if key == "" {
+		return func() {}
+	}
+
+	a.lockMu.Lock()
+	mu := a.chatLocks[key]
+	if mu == nil {
+		mu = &sync.Mutex{}
+		a.chatLocks[key] = mu
+	}
+	a.lockMu.Unlock()
+
+	mu.Lock()
+	return mu.Unlock
 }
 
 func (a *FeishuChannelAdapter) sendTextByChatID(ctx context.Context, chatID string, text string) error {
@@ -379,11 +443,11 @@ func (a *FeishuChannelAdapter) updateTextMessage(ctx context.Context, messageID 
 	return nil
 }
 
-func (a *FeishuChannelAdapter) createCardMessage(ctx context.Context, chatID string, text string, toolStates []feishuToolState, processing bool) (string, error) {
+func (a *FeishuChannelAdapter) createCardMessage(ctx context.Context, chatID string, timelineBlocks []feishuTimelineBlock, toolStates []feishuToolState, processing bool) (string, error) {
 	if chatID == "" {
 		return "", fmt.Errorf("缺少 chat_id")
 	}
-	contentBytes, err := buildFeishuCardPayload(text, toolStates, processing)
+	contentBytes, err := buildFeishuCardPayload(timelineBlocks, toolStates, processing)
 	if err != nil {
 		return "", err
 	}
@@ -412,11 +476,11 @@ func (a *FeishuChannelAdapter) createCardMessage(ctx context.Context, chatID str
 	return safeString(resp.Data.MessageId), nil
 }
 
-func (a *FeishuChannelAdapter) updateCardMessage(ctx context.Context, messageID string, text string, toolStates []feishuToolState, processing bool) error {
+func (a *FeishuChannelAdapter) updateCardMessage(ctx context.Context, messageID string, timelineBlocks []feishuTimelineBlock, toolStates []feishuToolState, processing bool) error {
 	if messageID == "" {
 		return fmt.Errorf("缺少 message_id")
 	}
-	contentBytes, err := buildFeishuCardPayload(text, toolStates, processing)
+	contentBytes, err := buildFeishuCardPayload(timelineBlocks, toolStates, processing)
 	if err != nil {
 		return err
 	}
@@ -463,7 +527,7 @@ func buildFeishuFallbackReply(events []AgentEvent) string {
 	return ""
 }
 
-func buildFeishuCardPayload(text string, toolStates []feishuToolState, processing bool) ([]byte, error) {
+func buildFeishuCardPayload(timelineBlocks []feishuTimelineBlock, toolStates []feishuToolState, processing bool) ([]byte, error) {
 	title := "MOM Claw"
 	template := "green"
 	statusText := "已完成"
@@ -473,22 +537,17 @@ func buildFeishuCardPayload(text string, toolStates []feishuToolState, processin
 		statusText = "生成中"
 	}
 
-	normalized := normalizeFeishuReplyText(text)
-	if normalized == "" {
-		normalized = "正在处理中..."
-	}
-	if len(normalized) > 6000 {
-		normalized = normalized[:6000] + "\n\n...... 内容较长，剩余部分请到 MOM Claw 查看"
+	elements := []map[string]any{
+		{
+			"tag": "note",
+			"elements": []map[string]any{
+				{"tag": "plain_text", "content": "多元运维平台外部渠道机器人"},
+				{"tag": "plain_text", "content": statusText},
+			},
+		},
 	}
 
-	skillMarkdown := "暂未调用 Skill"
-	if len(toolStates) > 0 {
-		lines := make([]string, 0, len(toolStates))
-		for idx, tool := range toolStates {
-			lines = append(lines, fmt.Sprintf("%d. `%s` %s%s", idx+1, tool.Name, formatFeishuToolStatus(tool.Status), formatFeishuToolRisk(tool.RiskLevel)))
-		}
-		skillMarkdown = strings.Join(lines, "\n")
-	}
+	elements = append(elements, buildFeishuTimelineElements(timelineBlocks, toolStates, processing)...)
 
 	card := map[string]any{
 		"config": map[string]any{
@@ -502,29 +561,94 @@ func buildFeishuCardPayload(text string, toolStates []feishuToolState, processin
 			},
 			"template": template,
 		},
-		"elements": []map[string]any{
-			{
-				"tag": "note",
-				"elements": []map[string]any{
-					{"tag": "plain_text", "content": "多元运维平台外部渠道机器人"},
-					{"tag": "plain_text", "content": statusText},
-				},
-			},
-			{
-				"tag":     "markdown",
-				"content": "**Skill 调用**\n" + skillMarkdown,
-			},
-			{
-				"tag": "hr",
-			},
-			{
-				"tag":     "markdown",
-				"content": "**回复内容**\n" + normalized,
-			},
-		},
+		"elements": elements,
 	}
 
 	return json.Marshal(card)
+}
+
+func buildFeishuTimelineElements(timelineBlocks []feishuTimelineBlock, toolStates []feishuToolState, processing bool) []map[string]any {
+	blocks := trimFeishuTimelineBlocks(timelineBlocks)
+	if len(blocks) == 0 {
+		if len(toolStates) == 0 {
+			return []map[string]any{
+				{
+					"tag":     "markdown",
+					"content": "正在处理中...",
+				},
+			}
+		}
+		lines := make([]string, 0, len(toolStates))
+		for idx, tool := range toolStates {
+			lines = append(lines, fmt.Sprintf("%d. `%s` %s%s", idx+1, tool.Name, formatFeishuToolStatus(tool.Status), formatFeishuToolRisk(tool.RiskLevel)))
+		}
+		return []map[string]any{
+			{
+				"tag":     "markdown",
+				"content": strings.Join(lines, "\n"),
+			},
+		}
+	}
+
+	elements := make([]map[string]any, 0, len(blocks)*2)
+	for idx, block := range blocks {
+		content := renderFeishuTimelineBlock(block, idx)
+		if strings.TrimSpace(content) == "" {
+			continue
+		}
+		elements = append(elements, map[string]any{
+			"tag":     "markdown",
+			"content": content,
+		})
+	}
+	if len(elements) == 0 && processing {
+		elements = append(elements, map[string]any{
+			"tag":     "markdown",
+			"content": "正在处理中...",
+		})
+	}
+	return elements
+}
+
+func renderFeishuTimelineBlock(block feishuTimelineBlock, idx int) string {
+	switch block.Type {
+	case "tool":
+		return fmt.Sprintf("`%d` `%s` %s%s", idx+1, block.ToolName, formatFeishuToolStatus(block.Status), formatFeishuToolRisk(block.RiskLevel))
+	default:
+		text := normalizeFeishuReplyText(block.Content)
+		return text
+	}
+}
+
+func trimFeishuTimelineBlocks(blocks []feishuTimelineBlock) []feishuTimelineBlock {
+	if len(blocks) == 0 {
+		return nil
+	}
+	const maxChars = 5500
+	trimmed := make([]feishuTimelineBlock, 0, len(blocks))
+	used := 0
+	for _, block := range blocks {
+		rendered := renderFeishuTimelineBlock(block, len(trimmed))
+		if strings.TrimSpace(rendered) == "" {
+			continue
+		}
+		if used+len(rendered) > maxChars {
+			remaining := maxChars - used
+			if remaining > 40 {
+				if block.Type == "text" {
+					short := rendered[:remaining]
+					trimmed = append(trimmed, feishuTimelineBlock{
+						Type:    "text",
+						Content: short + "\n\n...... 内容较长，剩余部分请到 MOM Claw 查看",
+					})
+				}
+			}
+			break
+		}
+		trimmed = append(trimmed, block)
+		used += len(rendered)
+	}
+	return trimmed
 }
 
 func normalizeFeishuReplyText(text string) string {
@@ -556,6 +680,53 @@ func normalizeFeishuReplyText(text string) string {
 	return strings.TrimSpace(strings.Join(normalized, "\n"))
 }
 
+func appendFeishuTimelineText(blocks []feishuTimelineBlock, content string) []feishuTimelineBlock {
+	if strings.TrimSpace(content) == "" {
+		return blocks
+	}
+	if len(blocks) > 0 && blocks[len(blocks)-1].Type == "text" {
+		blocks[len(blocks)-1].Content += content
+		return blocks
+	}
+	return append(blocks, feishuTimelineBlock{
+		Type:    "text",
+		Content: content,
+	})
+}
+
+func appendFeishuTimelineTool(blocks []feishuTimelineBlock, toolName string, status string, riskLevel string) []feishuTimelineBlock {
+	if strings.TrimSpace(toolName) == "" {
+		return blocks
+	}
+	return append(blocks, feishuTimelineBlock{
+		Type:      "tool",
+		ToolName:  toolName,
+		Status:    status,
+		RiskLevel: riskLevel,
+	})
+}
+
+func updateFeishuTimelineTool(blocks []feishuTimelineBlock, toolName string, status string, riskLevel string) []feishuTimelineBlock {
+	for i := len(blocks) - 1; i >= 0; i-- {
+		if blocks[i].Type == "tool" && blocks[i].ToolName == toolName && blocks[i].Status == "running" {
+			blocks[i].Status = status
+			if riskLevel != "" {
+				blocks[i].RiskLevel = riskLevel
+			}
+			return blocks
+		}
+	}
+	return appendFeishuTimelineTool(blocks, toolName, status, riskLevel)
+}
+
+func replaceFeishuTimelineWithText(prefix string, content string) []feishuTimelineBlock {
+	var blocks []feishuTimelineBlock
+	if strings.TrimSpace(prefix) != "" {
+		blocks = appendFeishuTimelineText(blocks, prefix)
+	}
+	return appendFeishuTimelineText(blocks, content)
+}
+
 func updateFeishuToolState(toolStates []feishuToolState, toolName string, status string, riskLevel string) []feishuToolState {
 	for i := len(toolStates) - 1; i >= 0; i-- {
 		if toolStates[i].Name == toolName && toolStates[i].Status == "running" {
@@ -573,11 +744,27 @@ func updateFeishuToolState(toolStates []feishuToolState, toolName string, status
 }
 
 func parseFeishuToolResultStatus(toolResult string) string {
+	raw := strings.TrimSpace(toolResult)
 	var payload struct {
 		Status string `json:"status"`
+		Error  any    `json:"error"`
 	}
-	if err := json.Unmarshal([]byte(toolResult), &payload); err == nil && payload.Status != "" {
-		return payload.Status
+	if err := json.Unmarshal([]byte(raw), &payload); err == nil {
+		if payload.Status == "pending_confirmation" {
+			return "pending_confirmation"
+		}
+		if payload.Error != nil {
+			return "error"
+		}
+		if payload.Status != "" {
+			return payload.Status
+		}
+	}
+	if strings.Contains(raw, `"status":"pending_confirmation"`) || strings.Contains(raw, `"status": "pending_confirmation"`) {
+		return "pending_confirmation"
+	}
+	if strings.Contains(raw, `"error"`) {
+		return "error"
 	}
 	return "success"
 }

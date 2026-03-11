@@ -700,3 +700,129 @@ AI Skills & Agent 代码审阅修复（安全、稳定性、代码质量）
 - 页面同时展示手动新对话口令和当前自动轮换策略，便于使用者理解和维护
 
 **涉及文件**：`web/src/views/ai/channels/Feishu.vue`、`web/src/api/ai-channel.ts`、`plugins/ai/biz/channel_service.go`
+
+### 20260311
+#### 加密密钥配置统一收口与历史兼容默认值补齐
+
+##### 1. 资产凭据 / K8s kubeconfig 加密密钥改为统一读取
+**改进**：
+- 新增统一密钥读取入口，收口资产凭据与 Kubernetes kubeconfig 的加解密密钥读取逻辑
+- 支持优先从环境变量读取密钥，其次从 `config.yaml` 的 `security` 配置读取
+- 保留启动期 32 字节校验，密钥未配置或长度不合法时直接报错，避免运行期出现不可预期解密失败
+
+**涉及文件**：`pkg/security/encryption.go`、`internal/conf/conf.go`
+
+##### 2. 业务模块全面切换到统一密钥入口
+**改进**：
+- 资产管理凭据仓库改为通过统一入口读取资产加密密钥
+- AI Skills 解密主机凭据与 K8s kubeconfig 时统一复用同一套密钥读取逻辑
+- 任务中心解密资产凭据逻辑改为复用统一密钥入口
+- Kubernetes 插件中 kubeconfig 的加密与解密逻辑统一改为读取 K8s 专用密钥
+
+**涉及文件**：`internal/data/asset/host.go`、`plugins/ai/skills/service_helper.go`、`plugins/task/server/handler.go`、`plugins/kubernetes/biz/cluster.go`、`plugins/kubernetes/data/repository/cluster_repository.go`
+
+##### 3. 本地开发 / Docker Compose / Helm 配置入口补齐
+**新增**：
+- `config/config.yaml` 新增 `security.credential_encryption_key` 与 `security.k8s_encryption_key`
+- `docker-compose.yml` 新增 `MOM_CREDENTIAL_ENCRYPTION_KEY` 与 `MOM_K8S_ENCRYPTION_KEY`
+- Helm Chart 新增 `security.credentialEncryptionKey` 与 `security.k8sEncryptionKey` 配置项，并注入 backend 容器环境变量
+- Helm Secret 模板新增对应密钥字段，后端部署时可直接从 Secret 注入
+
+**涉及文件**：`config/config.yaml`、`docker-compose.yml`、`charts/mom_platform/values.yaml`、`charts/mom_platform/templates/backend.yaml`、`charts/mom_platform/templates/secret.yaml`
+
+##### 4. 保留历史兼容默认值
+**改进**：
+- 资产凭据加密密钥默认兼容历史值：`mom-encrypt-key-32bytes-long!!@@`
+- Kubernetes kubeconfig 加密密钥默认兼容历史值：`mom-k8s-encrypt-key-32byte!!@@!!`
+- 本地 `config.yaml`、`docker-compose.yml`、`.env.example`、Helm `values.yaml` 与部署文档全部对齐到这两把历史兼容值
+- 未显式配置时，Docker Compose 与 Helm 默认即可沿用旧数据完成解密，降低升级切换成本
+
+**涉及文件**：`config/config.yaml`、`docker-compose.yml`、`.env.example`、`charts/mom_platform/values.yaml`、`charts/mom_platform/README.md`、`docs/deployment.md`
+
+##### 5. 文档与示例补全
+**新增 / 调整**：
+- 新增项目根目录 `.env.example`，补充两把加密密钥示例
+- README 中补充 Docker Compose 启动前复制 `.env.example` 的说明
+- 部署文档补充 `.env` 与 `config/config.yaml` 的配置示例
+- Helm README 增加安全配置说明，并修正 Chart 安装路径为 `./charts/mom_platform`
+
+**涉及文件**：`README.md`、`.env.example`、`docs/deployment.md`、`charts/mom_platform/README.md`
+
+### 20260311-2
+#### IM 对接能力复用改造与聊天渠道控制增强
+
+##### 1. 聊天渠道会话控制层抽象为可复用公共能力
+**改进**：
+- 将飞书渠道中的“新会话 / 状态 / 压缩上下文 / 停止执行”等控制逻辑从适配器内抽离，沉淀为渠道无关的公共会话控制层
+- 新增统一的渠道入站会话决策结构，支持先识别控制命令，再决定是复用会话、强制新建会话，还是直接执行会话控制动作
+- 为后续企业微信、钉钉等 IM 渠道接入预留统一复用边界，避免继续在各适配器中重复实现同类逻辑
+
+**涉及文件**：`plugins/ai/biz/channel_session_control.go`、`plugins/ai/biz/channel_service.go`、`plugins/ai/biz/channel_adapter.go`
+
+##### 2. 飞书适配器改为复用公共渠道控制层
+**改进**：
+- 飞书消息处理流程改为统一走渠道公共会话控制层，不再在飞书适配器中硬编码新会话命令解析
+- 外部消息进入 AI Agent 前，先完成控制命令识别、会话解析与策略判断，再执行后续桥接
+- 适配器职责收敛为“平台身份提取 + 消息发送 + 卡片渲染 + 调用桥接”，渠道业务逻辑进一步收口
+
+**涉及文件**：`plugins/ai/biz/feishu_channel.go`、`plugins/ai/biz/channel_service.go`、`plugins/ai/biz/channel_session_control.go`
+
+##### 3. 新增渠道通用控制命令：状态 / 压缩上下文 / 停止
+**新增**：
+- 聊天渠道除“新对话”外，新增三类公共控制命令：
+  - `状态`：返回当前绑定会话状态、消息数量、最近活跃时间等摘要信息
+  - `压缩上下文`：触发当前会话摘要压缩，减少长会话上下文累积
+  - `停止`：中止当前渠道会话正在执行的 AI Agent 任务
+- 会话桥接层新增运行中会话取消能力，支持外部渠道直接停止当前执行
+- 控制命令执行结果统一通过飞书卡片消息回显，便于外部使用者理解当前会话状态
+
+**涉及文件**：`plugins/ai/biz/channel_agent_bridge.go`、`plugins/ai/biz/agent.go`、`plugins/ai/biz/channel_service.go`、`plugins/ai/biz/feishu_channel.go`
+
+##### 4. 聊天渠道控制命令改为配置化
+**改进**：
+- 将“新会话 / 状态 / 压缩上下文 / 停止”四类控制命令全部改为配置项，不再固定死在代码中
+- 渠道策略配置支持为每一类命令维护自定义别名列表，并在解析时统一做归一化比较
+- 保留默认命令词，同时允许各渠道根据使用习惯扩展自己的口令集合
+
+**涉及文件**：`plugins/ai/biz/channel_service.go`、`plugins/ai/biz/channel_session_control.go`、`web/src/api/ai-channel.ts`
+
+##### 5. 飞书渠道配置页与卡片展示增强
+**改进**：
+- 飞书渠道配置页面新增四类控制命令的可视化配置输入：
+  - `新会话命令`
+  - `状态命令`
+  - `压缩命令`
+  - `停止命令`
+- 飞书渠道卡片新增“控制命令”摘要展示，直接显示当前渠道已配置的命令集合，便于运维人员核对
+- 聊天渠道父页面头部样式与“模型配置”“Skill 管理”等页面对齐，统一为白底卡片 + 深色图标风格
+
+**涉及文件**：`web/src/views/ai/channels/Feishu.vue`、`web/src/views/ai/channels/Index.vue`、`web/src/api/ai-channel.ts`
+
+##### 6. IM 渠道会话策略继续增强
+**改进**：
+- 聊天渠道配置中的自动轮换策略与控制命令统一沉淀到渠道 `config` JSON 中，避免额外增加数据库字段
+- 入站消息幂等清理、会话轮换判断、控制命令解析、状态构建等逻辑全部集中到渠道服务层，便于多渠道共享
+- 渠道运行时改为接收根上下文，便于插件生命周期内统一启停、停止后台任务和回收长连接
+
+**涉及文件**：`plugins/ai/biz/channel_service.go`、`plugins/ai/biz/channel_runtime.go`、`plugins/ai/server/router.go`、`plugins/ai/server/handler.go`
+
+### 20260311-3
+#### MOM Claw Skill 调用展示改为嵌入式时间线
+
+##### 1. Web 对话区 Skill 调用改为按回复过程嵌入展示
+**改进**：
+- 原来的 AI 回复展示方式为“上方一整段回复正文 + 下方一整组 Skill 调用卡片”，阅读时无法直观看出每个 Skill 是在回复的哪一段上下文中触发的
+- 现改为嵌入式时间线结构：模型先输出一段文本，就先显示该文本块；一旦触发 Skill，就立即在对应文本块下方插入该条 Skill 调用卡片；后续文本和 Skill 继续按真实执行顺序交替展示
+- 流式输出过程中不再等整轮完成后再整体归并，而是边生成边插入时间线节点，Web 端阅读顺序与实际推理 / 调用顺序保持一致
+- 历史消息增加时间线兼容逻辑：新生成消息持久化保存“文本片段 + Skill 调用”的顺序；旧历史消息若没有时间线数据，则自动降级为兼容展示，不影响查看
+
+**涉及文件**：`web/src/views/ai/AIChat.vue`、`plugins/ai/biz/agent.go`、`plugins/ai/biz/conversation.go`
+
+##### 2. 飞书卡片消息同步升级为嵌入式时间线展示
+**改进**：
+- 飞书原先仍使用“Skill 调用汇总 + 回复内容整段文本”的旧卡片结构，与 Web 端显示顺序不一致
+- 现统一改为按事件流生成卡片内容：文本片段与 Skill 调用按实际发生顺序交替输出，飞书侧阅读体验与 MOM Claw Web 端保持一致
+- 飞书卡片在处理中持续更新时，也按时间线逐步追加，而不是只刷新底部整段正文
+- `新会话`、`状态`、`压缩上下文`、`停止` 等聊天渠道控制命令，也统一切换到新的卡片构造逻辑，避免控制消息继续走旧渲染分支
+
+**涉及文件**：`plugins/ai/biz/feishu_channel.go`

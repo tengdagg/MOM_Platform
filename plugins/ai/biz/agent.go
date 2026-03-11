@@ -400,6 +400,97 @@ type PendingToolAction struct {
 	Warning    string
 }
 
+func buildPendingConfirmationReply(result map[string]any) string {
+	message, _ := result["message"].(string)
+	warning, _ := result["warning"].(string)
+	message = strings.TrimSpace(message)
+	warning = strings.TrimSpace(warning)
+
+	parts := make([]string, 0, 2)
+	if message != "" {
+		parts = append(parts, message)
+	}
+	if warning != "" && warning != message {
+		parts = append(parts, warning)
+	}
+
+	reply := strings.TrimSpace(strings.Join(parts, "\n\n"))
+	if reply == "" {
+		reply = "检测到该操作需要人工确认后才能继续执行。"
+	}
+	if !strings.Contains(reply, "确认") {
+		reply += "\n\n确认执行吗？"
+	}
+	return reply
+}
+
+func mergePendingConfirmationReply(existing string, result map[string]any) string {
+	existing = strings.TrimSpace(existing)
+	pendingReply := buildPendingConfirmationReply(result)
+	if existing == "" {
+		return pendingReply
+	}
+	if strings.Contains(existing, "确认执行吗") || strings.Contains(existing, "请确认") {
+		return existing
+	}
+	if strings.Contains(existing, pendingReply) {
+		return existing
+	}
+	return strings.TrimSpace(existing + "\n\n" + pendingReply)
+}
+
+func appendTimelineText(timeline *[]map[string]any, content string) int {
+	content = strings.TrimSpace(content)
+	if content == "" {
+		return -1
+	}
+	if len(*timeline) > 0 {
+		last := (*timeline)[len(*timeline)-1]
+		if blockType, _ := last["type"].(string); blockType == "text" {
+			lastContent, _ := last["content"].(string)
+			last["content"] = strings.TrimSpace(lastContent + "\n\n" + content)
+			(*timeline)[len(*timeline)-1] = last
+			return len(*timeline) - 1
+		}
+	}
+	*timeline = append(*timeline, map[string]any{
+		"type":    "text",
+		"content": content,
+	})
+	return len(*timeline) - 1
+}
+
+func updateTimelineText(timeline *[]map[string]any, idx int, content string) {
+	content = strings.TrimSpace(content)
+	if idx < 0 || idx >= len(*timeline) || content == "" {
+		appendTimelineText(timeline, content)
+		return
+	}
+	block := (*timeline)[idx]
+	if blockType, _ := block["type"].(string); blockType != "text" {
+		appendTimelineText(timeline, content)
+		return
+	}
+	block["content"] = content
+	(*timeline)[idx] = block
+}
+
+func appendTimelineTool(timeline *[]map[string]any, toolName string, params string, result string, riskLevel string, riskMode string, riskHint string, status string) {
+	if strings.TrimSpace(toolName) == "" {
+		return
+	}
+	*timeline = append(*timeline, map[string]any{
+		"type":      "tool",
+		"toolName":  toolName,
+		"params":    params,
+		"result":    result,
+		"riskLevel": riskLevel,
+		"riskMode":  riskMode,
+		"riskHint":  riskHint,
+		"status":    status,
+	})
+}
+
 func isAffirmativeConfirmation(msg string) bool {
 	s := strings.ToLower(strings.TrimSpace(msg))
 	if s == "" {
@@ -915,6 +1006,75 @@ func (a *Agent) triggerSummaryIfNeeded(sessionID uint) {
 	}()
 }
 
+// CompactSession 手动压缩指定会话的旧上下文为摘要，保留最近消息继续参与后续对话。
+func (a *Agent) CompactSession(sessionID uint) (bool, error) {
+	totalMsgs := a.conversation.CountMessages(sessionID)
+	if totalMsgs < 12 {
+		return false, nil
+	}
+
+	session, err := a.conversation.GetSessionByID(sessionID)
+	if err != nil {
+		return false, err
+	}
+
+	oldMsgs, err := a.conversation.GetOldMessages(sessionID, session.SummaryUpToID, 8)
+	if err != nil {
+		return false, err
+	}
+	if len(oldMsgs) == 0 {
+		return false, nil
+	}
+
+	var textBuilder strings.Builder
+	if session.Summary != "" {
+		textBuilder.WriteString("【已有摘要】\n")
+		textBuilder.WriteString(session.Summary)
+		textBuilder.WriteString("\n\n【新增对话】\n")
+	}
+	for _, msg := range oldMsgs {
+		if msg.Role != "user" && msg.Role != "assistant" {
+			continue
+		}
+		roleLabel := "用户"
+		if msg.Role == "assistant" {
+			roleLabel = "助手"
+		}
+		content := msg.Content
+		if len([]rune(content)) > 500 {
+			content = string([]rune(content)[:500]) + "..."
+		}
+		textBuilder.WriteString(fmt.Sprintf("%s: %s\n", roleLabel, content))
+	}
+
+	var model AIModelConfig
+	if err := a.db.Where("is_default = ? AND status = 1", true).First(&model).Error; err != nil {
+		if err := a.db.Where("status = 1").First(&model).Error; err != nil {
+			return false, fmt.Errorf("无可用模型用于压缩上下文")
+		}
+	}
+
+	adapter := NewModelAdapter(&model)
+	summaryMessages := []ChatCompletionMessage{
+		{Role: "system", Content: summaryPrompt},
+		{Role: "user", Content: textBuilder.String()},
+	}
+	resp, err := adapter.ChatCompletion(context.Background(), summaryMessages, nil)
+	if err != nil {
+		return false, err
+	}
+	if len(resp.Choices) == 0 || strings.TrimSpace(resp.Choices[0].Message.Content) == "" {
+		return false, fmt.Errorf("模型未返回有效摘要")
+	}
+
+	newSummary := strings.TrimSpace(resp.Choices[0].Message.Content)
+	lastMsgID := oldMsgs[len(oldMsgs)-1].ID
+	if err := a.conversation.UpdateSummary(sessionID, newSummary, lastMsgID); err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
 // Run 执行 Agent（非流式，简单的 ReAct 循环）
 func (a *Agent) Run(ctx context.Context, adapter *ModelAdapter, sessionID uint, userMessage string, userID uint, username string, maxToolCalls int, eventCh chan<- AgentEvent) {
 	messageSent := false
@@ -945,9 +1105,10 @@ func (a *Agent) Run(ctx context.Context, adapter *ModelAdapter, sessionID uint, 
 
 	// 收集所有工具调用记录（用于持久化）
 	var allToolCallRecords []map[string]any
+	var timelineRecords []map[string]any
 	var contentSoFar string
 
-	if handled, stop, replayPending := a.replayPendingAction(ctx, sessionID, userID, username, a.getLastPendingAction(sessionID), pendingTools, &messages, &allToolCallRecords, eventCh); handled {
+	if handled, stop, replayPending := a.replayPendingAction(ctx, sessionID, userID, username, a.getLastPendingAction(sessionID), pendingTools, &messages, &allToolCallRecords, &timelineRecords, eventCh); handled {
 		if replayPending {
 			forceTextOnly = true
 		}
@@ -967,7 +1128,7 @@ func (a *Agent) Run(ctx context.Context, adapter *ModelAdapter, sessionID uint, 
 		// 检查是否已被取消
 		select {
 		case <-ctx.Done():
-			a.saveAssistantMessage(sessionID, contentSoFar+"\n\n[已停止]", allToolCallRecords)
+			a.saveAssistantMessage(sessionID, contentSoFar+"\n\n[已停止]", allToolCallRecords, timelineRecords)
 			eventCh <- AgentEvent{Type: "text_delta", Content: "\n\n[已停止]"}
 			return
 		default:
@@ -984,7 +1145,7 @@ func (a *Agent) Run(ctx context.Context, adapter *ModelAdapter, sessionID uint, 
 		resp, err := adapter.ChatCompletion(ctx, messages, currentTools)
 		if err != nil {
 			if ctx.Err() != nil {
-				a.saveAssistantMessage(sessionID, contentSoFar+"\n\n[已停止]", allToolCallRecords)
+				a.saveAssistantMessage(sessionID, contentSoFar+"\n\n[已停止]", allToolCallRecords, timelineRecords)
 				eventCh <- AgentEvent{Type: "text_delta", Content: "\n\n[已停止]"}
 				return
 			}
@@ -1019,7 +1180,9 @@ func (a *Agent) Run(ctx context.Context, adapter *ModelAdapter, sessionID uint, 
 
 		// 如果没有工具调用，结束循环
 		if len(assistantMsg.ToolCalls) == 0 {
-			a.saveAssistantMessage(sessionID, stripModelArtifacts(assistantMsg.Content), allToolCallRecords)
+			finalContent := stripModelArtifacts(assistantMsg.Content)
+			appendTimelineText(&timelineRecords, finalContent)
+			a.saveAssistantMessage(sessionID, finalContent, allToolCallRecords, timelineRecords)
 			eventCh <- AgentEvent{
 				Type: "message_end",
 				Usage: &Usage{
@@ -1038,6 +1201,7 @@ func (a *Agent) Run(ctx context.Context, adapter *ModelAdapter, sessionID uint, 
 			ReasoningContent: assistantMsg.ReasoningContent, // DeepSeek R1 推理内容回传
 			ToolCalls:        assistantMsg.ToolCalls,
 		})
+		textBlockIdx := appendTimelineText(&timelineRecords, stripModelArtifacts(assistantMsg.Content))
 
 		for _, tc := range assistantMsg.ToolCalls {
 			llmName := tc.Function.Name
@@ -1099,6 +1263,7 @@ func (a *Agent) Run(ctx context.Context, adapter *ModelAdapter, sessionID uint, 
 				"riskLevel": riskLevel,
 				"status":    resultStatus,
 			})
+			appendTimelineTool(&timelineRecords, displayName, toolArgs, string(resultJSON), riskLevel, riskMode, riskHint, resultStatus)
 
 			eventCh <- AgentEvent{
 				Type:       "tool_call_result",
@@ -1116,13 +1281,27 @@ func (a *Agent) Run(ctx context.Context, adapter *ModelAdapter, sessionID uint, 
 			})
 
 			if resultStatus == "pending_confirmation" {
-				break
+				pendingReply := buildPendingConfirmationReply(result)
+				replyText := mergePendingConfirmationReply(contentSoFar, result)
+				if strings.TrimSpace(replyText) != strings.TrimSpace(contentSoFar) {
+					delta := pendingReply
+					if strings.TrimSpace(contentSoFar) != "" {
+						delta = "\n\n" + pendingReply
+					}
+					eventCh <- AgentEvent{Type: "text_delta", Content: delta}
+				}
+				updateTimelineText(&timelineRecords, textBlockIdx, replyText)
+				a.saveAssistantMessage(sessionID, replyText, allToolCallRecords, timelineRecords)
+				eventCh <- AgentEvent{Type: "message_end"}
+				messageSent = true
+				return
 			}
 		}
 	}
 
 	// 超过最大迭代次数
-	a.saveAssistantMessage(sessionID, "\n\n[已达到最大工具调用次数，结束处理]", allToolCallRecords)
+	appendTimelineText(&timelineRecords, "[已达到最大工具调用次数，结束处理]")
+	a.saveAssistantMessage(sessionID, "\n\n[已达到最大工具调用次数，结束处理]", allToolCallRecords, timelineRecords)
 	eventCh <- AgentEvent{Type: "text_delta", Content: "\n\n[已达到最大工具调用次数，结束处理]"}
 }
 
@@ -1157,9 +1336,10 @@ func (a *Agent) RunStream(ctx context.Context, adapter *ModelAdapter, sessionID 
 
 	// 收集所有工具调用记录（用于持久化）
 	var allToolCallRecords []map[string]any
+	var timelineRecords []map[string]any
 	var contentSoFar string
 
-	if handled, stop, replayPending := a.replayPendingAction(ctx, sessionID, userID, username, a.getLastPendingAction(sessionID), pendingTools, &messages, &allToolCallRecords, eventCh); handled {
+	if handled, stop, replayPending := a.replayPendingAction(ctx, sessionID, userID, username, a.getLastPendingAction(sessionID), pendingTools, &messages, &allToolCallRecords, &timelineRecords, eventCh); handled {
 		if replayPending {
 			forceTextOnly = true
 		}
@@ -1179,7 +1359,7 @@ func (a *Agent) RunStream(ctx context.Context, adapter *ModelAdapter, sessionID 
 		// 检查是否已被取消
 		select {
 		case <-ctx.Done():
-			a.saveAssistantMessage(sessionID, contentSoFar+"\n\n[已停止]", allToolCallRecords)
+			a.saveAssistantMessage(sessionID, contentSoFar+"\n\n[已停止]", allToolCallRecords, timelineRecords)
 			eventCh <- AgentEvent{Type: "text_delta", Content: "\n\n[已停止]"}
 			eventCh <- AgentEvent{Type: "message_end"}
 			messageSent = true
@@ -1200,7 +1380,7 @@ func (a *Agent) RunStream(ctx context.Context, adapter *ModelAdapter, sessionID 
 		streamCh, err := adapter.ChatCompletionStream(ctx, messages, currentTools)
 		if err != nil {
 			if ctx.Err() != nil {
-				a.saveAssistantMessage(sessionID, contentSoFar+"\n\n[已停止]", allToolCallRecords)
+				a.saveAssistantMessage(sessionID, contentSoFar+"\n\n[已停止]", allToolCallRecords, timelineRecords)
 				eventCh <- AgentEvent{Type: "text_delta", Content: "\n\n[已停止]"}
 				eventCh <- AgentEvent{Type: "message_end"}
 				messageSent = true
@@ -1216,7 +1396,7 @@ func (a *Agent) RunStream(ctx context.Context, adapter *ModelAdapter, sessionID 
 		var toolCalls []ToolCall
 		toolCallArgsBuilders := make(map[int]*strings.Builder)
 		var finishReason string
-		dsmlDetected := false  // DeepSeek 模型内部标记检测
+		dsmlDetected := false     // DeepSeek 模型内部标记检测
 		var dsmlPendingBuf string // 缓冲尾部 '<'，防止 DSML 标记首字符泄漏到前端
 		reasoningStarted := false
 		reasoningEnded := false
@@ -1367,7 +1547,8 @@ func (a *Agent) RunStream(ctx context.Context, adapter *ModelAdapter, sessionID 
 
 		// 如果没有工具调用，结束循环
 		if len(toolCalls) == 0 || finishReason == "stop" {
-			a.saveAssistantMessage(sessionID, content, allToolCallRecords)
+			appendTimelineText(&timelineRecords, content)
+			a.saveAssistantMessage(sessionID, content, allToolCallRecords, timelineRecords)
 			eventCh <- AgentEvent{Type: "message_end"}
 			messageSent = true
 			return
@@ -1384,11 +1565,12 @@ func (a *Agent) RunStream(ctx context.Context, adapter *ModelAdapter, sessionID 
 			assistantMessage.ReasoningContent = &rc
 		}
 		messages = append(messages, assistantMessage)
+		textBlockIdx := appendTimelineText(&timelineRecords, content)
 
 		for _, tc := range toolCalls {
 			// 工具执行前检查是否已被取消
 			if ctx.Err() != nil {
-				a.saveAssistantMessage(sessionID, contentSoFar+"\n\n[已停止]", allToolCallRecords)
+				a.saveAssistantMessage(sessionID, contentSoFar+"\n\n[已停止]", allToolCallRecords, timelineRecords)
 				eventCh <- AgentEvent{Type: "text_delta", Content: "\n\n[已停止]"}
 				eventCh <- AgentEvent{Type: "message_end"}
 				messageSent = true
@@ -1451,6 +1633,7 @@ func (a *Agent) RunStream(ctx context.Context, adapter *ModelAdapter, sessionID 
 				"riskLevel": riskLevel,
 				"status":    resultStatus,
 			})
+			appendTimelineTool(&timelineRecords, displayName, toolArgs, string(resultJSON), riskLevel, riskMode, riskHint, resultStatus)
 
 			eventCh <- AgentEvent{
 				Type:       "tool_call_result",
@@ -1468,22 +1651,38 @@ func (a *Agent) RunStream(ctx context.Context, adapter *ModelAdapter, sessionID 
 			})
 
 			if resultStatus == "pending_confirmation" {
-				break
+				pendingReply := buildPendingConfirmationReply(result)
+				replyText := mergePendingConfirmationReply(content, result)
+				if strings.TrimSpace(replyText) != strings.TrimSpace(content) {
+					additional := pendingReply
+					if strings.TrimSpace(content) != "" {
+						additional = "\n\n" + pendingReply
+					}
+					contentSoFar += additional
+					eventCh <- AgentEvent{Type: "text_delta", Content: additional}
+				}
+				updateTimelineText(&timelineRecords, textBlockIdx, replyText)
+				a.saveAssistantMessage(sessionID, replyText, allToolCallRecords, timelineRecords)
+				eventCh <- AgentEvent{Type: "message_end"}
+				messageSent = true
+				return
 			}
 		}
 	}
 
-	a.saveAssistantMessage(sessionID, "\n\n[已达到最大工具调用次数]", allToolCallRecords)
+	appendTimelineText(&timelineRecords, "[已达到最大工具调用次数]")
+	a.saveAssistantMessage(sessionID, "\n\n[已达到最大工具调用次数]", allToolCallRecords, timelineRecords)
 	eventCh <- AgentEvent{Type: "text_delta", Content: "\n\n[已达到最大工具调用次数]"}
 	eventCh <- AgentEvent{Type: "message_end"}
 	messageSent = true
 }
 
 // saveAssistantMessage 保存助手消息（附带工具调用记录）并异步触发摘要
-func (a *Agent) saveAssistantMessage(sessionID uint, content string, toolCallRecords []map[string]any) {
+func (a *Agent) saveAssistantMessage(sessionID uint, content string, toolCallRecords []map[string]any, timelineRecords []map[string]any) {
 	if len(toolCallRecords) > 0 {
 		toolCallsJSON, _ := json.Marshal(toolCallRecords)
-		a.conversation.AddMessageWithTools(sessionID, "assistant", content, string(toolCallsJSON))
+		timelineJSON, _ := json.Marshal(timelineRecords)
+		a.conversation.AddMessageWithTools(sessionID, "assistant", content, string(toolCallsJSON), string(timelineJSON))
 	} else {
 		a.conversation.AddMessage(sessionID, "assistant", content)
 	}
@@ -1639,6 +1838,7 @@ func (a *Agent) replayPendingAction(
 	pendingTools map[string]bool,
 	messages *[]ChatCompletionMessage,
 	allToolCallRecords *[]map[string]any,
+	timelineRecords *[]map[string]any,
 	eventCh chan<- AgentEvent,
 ) (bool, bool, bool) {
 	if pendingAction == nil {
@@ -1650,7 +1850,8 @@ func (a *Agent) replayPendingAction(
 		if pendingAction.Warning != "" {
 			cancelText = "已取消上一步待确认操作：" + pendingAction.Warning
 		}
-		a.saveAssistantMessage(sessionID, cancelText, *allToolCallRecords)
+		appendTimelineText(timelineRecords, cancelText)
+		a.saveAssistantMessage(sessionID, cancelText, *allToolCallRecords, *timelineRecords)
 		eventCh <- AgentEvent{Type: "text_delta", Content: cancelText}
 		return true, true, false
 	}
@@ -1702,6 +1903,7 @@ func (a *Agent) replayPendingAction(
 		"riskLevel": riskLevel,
 		"status":    resultStatus,
 	})
+	appendTimelineTool(timelineRecords, displayName, confirmedArgs, string(resultJSON), riskLevel, riskMode, riskHint, resultStatus)
 
 	eventCh <- AgentEvent{
 		Type:       "tool_call_result",

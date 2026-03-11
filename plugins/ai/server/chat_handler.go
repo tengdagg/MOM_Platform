@@ -346,6 +346,9 @@ func (h *Handler) ChatWebSocket(c *gin.Context) {
 				"sessionId": payload.SessionID,
 				"source":    payload.Source,
 			}
+			if payload.RunID != "" {
+				wrappedEvent["runId"] = payload.RunID
+			}
 			if payload.Type == "external_user_message" {
 				wrappedEvent["content"] = payload.Content
 			} else {

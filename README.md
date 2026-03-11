@@ -417,12 +417,22 @@ my-skill/
 git clone https://github.com/tengdagg/MOM_Platform.git
 cd mom
 
+# 复制环境变量模板并按需修改
+cp .env.example .env
+
 # 启动服务（数据库迁移随后端容器启动自动完成）
-docker-compose up -d
+docker compose up -d
 
 # 访问系统
-# 前端：http://localhost:5173
+# 前端：http://localhost:8080
 # 后端：http://localhost:9876
+```
+
+`.env` 中必须填写以下两个 32 字节密钥，否则后端无法启动：
+
+```env
+MOM_CREDENTIAL_ENCRYPTION_KEY=0123456789abcdef0123456789abcdef
+MOM_K8S_ENCRYPTION_KEY=fedcba9876543210fedcba9876543210
 ```
 
 ---

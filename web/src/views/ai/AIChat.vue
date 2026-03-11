@@ -114,12 +114,53 @@
           </div>
           <div class="message-content">
             <div class="message-role">{{ msg.role === 'user' ? '你' : 'AI 助手' }}</div>
-            <!-- 工具调用卡片（显示在文字上方） -->
-            <div v-if="msg.toolCalls && msg.toolCalls.length > 0" class="tool-calls">
-              <div class="tool-calls-title">
-                <el-icon><Operation /></el-icon>
-                <span>调用了 {{ msg.toolCalls.length }} 个 Skill</span>
+            <div v-if="msg.role === 'assistant' && msg.timelineBlocks?.length" class="assistant-timeline">
+              <div
+                v-for="(block, idx) in msg.timelineBlocks"
+                :key="`${msg.id}-${idx}-${block.type}`"
+                class="timeline-block"
+                :class="`timeline-block-${block.type}`"
+              >
+                <div v-if="block.type === 'text'" class="message-body assistant-text-block" v-html="renderMarkdown(block.content)"></div>
+                <div v-else class="timeline-tool-row">
+                  <div class="timeline-rail"></div>
+                  <div class="tool-call-card embedded-tool-card" :class="'status-' + block.status">
+                    <div class="tool-call-header" @click="block._expanded = !block._expanded">
+                      <span class="tool-call-step">{{ block.step }}</span>
+                      <span class="tool-name">{{ block.toolName }}</span>
+                      <el-tag v-if="block.riskLevel === 'high' || block.riskLevel === 'critical'" type="danger" size="small" effect="plain">
+                        {{ block.riskLevel === 'critical' ? '危险' : '高风险' }}
+                      </el-tag>
+                      <el-tag v-else-if="block.riskLevel === 'medium'" type="warning" size="small" effect="plain">中风险</el-tag>
+                      <el-tag v-else type="success" size="small" effect="plain">安全</el-tag>
+                      <el-tag v-if="block.riskMode === 'dynamic'" type="warning" size="small" effect="plain">动态风险</el-tag>
+                      <el-tag :type="getToolStatusType(block.status)" size="small" class="status-tag">
+                        {{ getToolStatusLabel(block.status) }}
+                        {{ block.duration && block.status !== 'running' ? `(${block.duration}ms)` : '' }}
+                      </el-tag>
+                      <el-icon class="expand-icon" v-if="block.params || block.result">
+                        <ArrowDown v-if="!block._expanded" /><ArrowUp v-else />
+                      </el-icon>
+                    </div>
+                    <div v-if="block._expanded" class="tool-call-body">
+                      <div v-if="block.riskHint" class="tool-risk-hint">
+                        {{ block.riskHint }}
+                      </div>
+                      <div class="tool-section">
+                        <div class="tool-section-title">📥 调用参数</div>
+                        <pre>{{ formatJSON(block.params) }}</pre>
+                      </div>
+                      <div class="tool-section" v-if="block.result">
+                        <div class="tool-section-title">📤 返回结果</div>
+                        <pre>{{ formatJSON(block.result) }}</pre>
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </div>
+            </div>
+            <div v-else class="message-body" v-html="renderMarkdown(msg.content)"></div>
+            <div v-if="msg.role === 'assistant' && !msg.timelineBlocks?.length && msg.toolCalls && msg.toolCalls.length > 0" class="tool-calls tool-calls-compact">
               <div v-for="(tc, idx) in msg.toolCalls" :key="idx" class="tool-call-card" :class="'status-' + tc.status">
                 <div class="tool-call-header" @click="tc._expanded = !tc._expanded">
                   <span class="tool-call-step">{{ idx + 1 }}</span>
@@ -153,7 +194,6 @@
                 </div>
               </div>
             </div>
-            <div class="message-body" v-html="renderMarkdown(msg.content)"></div>
           </div>
         </div>
 
@@ -166,54 +206,59 @@
           </div>
           <div class="message-content">
             <div class="message-role">AI 助手</div>
-            <!-- 流式工具调用（显示在文字上方） -->
-            <div v-if="currentToolCalls.length > 0" class="tool-calls streaming-tools">
-              <div class="tool-calls-title">
-                <el-icon><Operation /></el-icon>
-                <span>Skill 调用过程</span>
-              </div>
-              <div v-for="(tc, idx) in currentToolCalls" :key="idx" class="tool-call-card" :class="'status-' + tc.status">
-                <div class="tool-call-header" @click="tc._expanded = !tc._expanded">
-                  <span class="tool-call-step">{{ idx + 1 }}</span>
-                  <span class="tool-name">{{ tc.toolName }}</span>
-                  <el-tag v-if="tc.riskLevel === 'high' || tc.riskLevel === 'critical'" type="danger" size="small" effect="plain">
-                    {{ tc.riskLevel === 'critical' ? '危险' : '高风险' }}
-                  </el-tag>
-                  <el-tag v-else-if="tc.riskLevel === 'medium'" type="warning" size="small" effect="plain">中风险</el-tag>
-                  <el-tag v-else type="success" size="small" effect="plain">安全</el-tag>
-                  <el-tag v-if="tc.riskMode === 'dynamic'" type="warning" size="small" effect="plain">动态风险</el-tag>
-                  <el-tag v-if="tc.status === 'running'" type="warning" size="small" class="status-tag">
-                    <span class="running-dot"></span> 执行中...
-                  </el-tag>
-                  <el-tag v-else-if="tc.status === 'pending_confirmation'" type="warning" size="small" class="status-tag">
-                    待确认
-                  </el-tag>
-                  <el-tag v-else-if="tc.status === 'success'" type="success" size="small" class="status-tag">
-                    完成 {{ tc.duration ? `(${tc.duration}ms)` : '' }}
-                  </el-tag>
-                  <el-tag v-else-if="tc.status === 'error'" type="danger" size="small" class="status-tag">失败</el-tag>
-                  <el-icon class="expand-icon" v-if="tc.params || tc.result">
-                    <ArrowDown v-if="!tc._expanded" /><ArrowUp v-else />
-                  </el-icon>
-                </div>
-                <div v-if="tc._expanded || tc.status === 'running' || tc.status === 'pending_confirmation'" class="tool-call-body">
-                  <div v-if="tc.riskHint" class="tool-risk-hint">
-                    {{ tc.riskHint }}
-                  </div>
-                  <div class="tool-section" v-if="tc.params">
-                    <div class="tool-section-title">📥 调用参数</div>
-                    <pre>{{ formatJSON(tc.params) }}</pre>
-                  </div>
-                  <div class="tool-section" v-if="tc.result">
-                    <div class="tool-section-title">📤 返回结果</div>
-                    <pre>{{ formatJSON(tc.result) }}</pre>
+            <div v-if="currentTimelineBlocks.length > 0" class="assistant-timeline streaming-timeline">
+              <div
+                v-for="(block, idx) in currentTimelineBlocks"
+                :key="`stream-${idx}-${block.type}`"
+                class="timeline-block"
+                :class="`timeline-block-${block.type}`"
+              >
+                <div v-if="block.type === 'text'" class="message-body assistant-text-block" v-html="renderMarkdown(block.content)"></div>
+                <div v-else class="timeline-tool-row">
+                  <div class="timeline-rail"></div>
+                  <div class="tool-call-card embedded-tool-card" :class="'status-' + block.status">
+                    <div class="tool-call-header" @click="block._expanded = !block._expanded">
+                      <span class="tool-call-step">{{ block.step }}</span>
+                      <span class="tool-name">{{ block.toolName }}</span>
+                      <el-tag v-if="block.riskLevel === 'high' || block.riskLevel === 'critical'" type="danger" size="small" effect="plain">
+                        {{ block.riskLevel === 'critical' ? '危险' : '高风险' }}
+                      </el-tag>
+                      <el-tag v-else-if="block.riskLevel === 'medium'" type="warning" size="small" effect="plain">中风险</el-tag>
+                      <el-tag v-else type="success" size="small" effect="plain">安全</el-tag>
+                      <el-tag v-if="block.riskMode === 'dynamic'" type="warning" size="small" effect="plain">动态风险</el-tag>
+                      <el-tag v-if="block.status === 'running'" type="warning" size="small" class="status-tag">
+                        <span class="running-dot"></span> 执行中...
+                      </el-tag>
+                      <el-tag v-else-if="block.status === 'pending_confirmation'" type="warning" size="small" class="status-tag">
+                        待确认
+                      </el-tag>
+                      <el-tag v-else-if="block.status === 'success'" type="success" size="small" class="status-tag">
+                        完成 {{ block.duration ? `(${block.duration}ms)` : '' }}
+                      </el-tag>
+                      <el-tag v-else-if="block.status === 'error'" type="danger" size="small" class="status-tag">失败</el-tag>
+                      <el-icon class="expand-icon" v-if="block.params || block.result">
+                        <ArrowDown v-if="!block._expanded" /><ArrowUp v-else />
+                      </el-icon>
+                    </div>
+                    <div v-if="block._expanded || block.status === 'running' || block.status === 'pending_confirmation'" class="tool-call-body">
+                      <div v-if="block.riskHint" class="tool-risk-hint">
+                        {{ block.riskHint }}
+                      </div>
+                      <div class="tool-section" v-if="block.params">
+                        <div class="tool-section-title">📥 调用参数</div>
+                        <pre>{{ formatJSON(block.params) }}</pre>
+                      </div>
+                      <div class="tool-section" v-if="block.result">
+                        <div class="tool-section-title">📤 返回结果</div>
+                        <pre>{{ formatJSON(block.result) }}</pre>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
             </div>
-            <div class="message-body">
-              <div v-if="streamingContent" v-html="renderMarkdown(streamingContent)"></div>
-              <div v-else-if="currentToolCalls.length === 0" class="typing-indicator">
+            <div v-else class="message-body">
+              <div class="typing-indicator">
                 <span class="dot"></span>
                 <span class="dot"></span>
                 <span class="dot"></span>
@@ -319,7 +364,7 @@ import { ref, computed, nextTick, onMounted, onBeforeUnmount, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   Plus, Delete, User, MagicStick, ChatLineRound, ChatDotRound,
-  Promotion, Operation, ArrowDown, ArrowUp, Timer, VideoPause
+  Promotion, ArrowDown, ArrowUp, Timer, VideoPause
 } from '@element-plus/icons-vue'
 import {
   getSessions, createSession, deleteSession, getSessionMessages,
@@ -338,10 +383,12 @@ const inputMessage = ref('')
 const isLoading = ref(false)
 const streamingContent = ref('')
 const currentToolCalls = ref<any[]>([])
+const currentTimelineBlocks = ref<any[]>([])
 const streamingSessionId = ref<number>(0) // 正在流式输出的会话 ID
+const streamingRunId = ref('') // 正在流式输出的运行 ID（外部渠道用）
 const stoppedByUser = ref(false) // 用户是否主动停止了生成
 // 按会话缓冲流式内容，切换回来时可恢复
-const streamingBuffers = new Map<number, { content: string; toolCalls: any[] }>()
+const streamingBuffers = new Map<number, { runId: string; content: string; toolCalls: any[]; timelineBlocks: any[] }>()
 const messagesContainer = ref<HTMLElement>()
 const templates = ref<any[]>([])
 const retentionDays = ref(30)
@@ -430,6 +477,115 @@ const filteredQuickCommands = computed(() => {
   return quickCommands.filter(c => c.command.toLowerCase().includes(search) || c.description.includes(search))
 })
 
+function parseToolCalls(raw: any): any[] {
+  if (!raw) return []
+  try {
+    const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw
+    return Array.isArray(parsed) ? parsed : []
+  } catch {
+    return []
+  }
+}
+
+function cloneTimelineBlocks(blocks: any[]): any[] {
+  return (blocks || []).map((block: any) => ({ ...block }))
+}
+
+function normalizeTimelineBlocks(blocks: any[], fallbackContent = '', fallbackToolCalls: any[] = []) {
+  const normalized: any[] = []
+  let step = 1
+  const sourceBlocks = Array.isArray(blocks) && blocks.length > 0
+    ? blocks
+    : [
+        ...(fallbackContent?.trim() ? [{ type: 'text', content: fallbackContent }] : []),
+        ...(fallbackToolCalls || []).map((tc: any) => ({ type: 'tool', ...tc })),
+      ]
+
+  for (const rawBlock of sourceBlocks) {
+    if (!rawBlock || typeof rawBlock !== 'object') continue
+    if (rawBlock.type === 'tool' || rawBlock.toolName) {
+      normalized.push({
+        type: 'tool',
+        step,
+        toolName: rawBlock.toolName || '',
+        params: rawBlock.params || '',
+        result: rawBlock.result || '',
+        riskLevel: rawBlock.riskLevel || 'low',
+        riskMode: rawBlock.riskMode || 'static',
+        riskHint: rawBlock.riskHint || '',
+        status: rawBlock.status || parseToolResultStatus(rawBlock.result),
+        duration: rawBlock.duration,
+        startTime: rawBlock.startTime,
+        _expanded: !!rawBlock._expanded,
+      })
+      step += 1
+      continue
+    }
+    const text = typeof rawBlock.content === 'string' ? rawBlock.content.trim() : ''
+    if (text) {
+      normalized.push({
+        type: 'text',
+        content: text,
+      })
+    }
+  }
+  return normalized
+}
+
+function parseTimelineBlocks(raw: any, fallbackContent = '', fallbackToolCalls: any[] = []) {
+  if (!raw) {
+    return normalizeTimelineBlocks([], fallbackContent, fallbackToolCalls)
+  }
+  try {
+    const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw
+    return normalizeTimelineBlocks(Array.isArray(parsed) ? parsed : [], fallbackContent, fallbackToolCalls)
+  } catch {
+    return normalizeTimelineBlocks([], fallbackContent, fallbackToolCalls)
+  }
+}
+
+function appendTextToTimeline(blocks: any[], delta: string) {
+  if (!delta) return
+  const text = String(delta)
+  const last = blocks[blocks.length - 1]
+  if (last?.type === 'text') {
+    last.content += text
+  } else {
+    blocks.push({ type: 'text', content: text })
+  }
+}
+
+function pushToolToTimeline(blocks: any[], tool: any) {
+  const step = blocks.filter((item: any) => item.type === 'tool').length + 1
+  blocks.push({
+    type: 'tool',
+    step,
+    toolName: tool.toolName,
+    params: tool.params || '',
+    result: tool.result || '',
+    riskLevel: tool.riskLevel || 'low',
+    riskMode: tool.riskMode || 'static',
+    riskHint: tool.riskHint || '',
+    status: tool.status || 'running',
+    startTime: tool.startTime,
+    duration: tool.duration,
+    _expanded: !!tool._expanded,
+  })
+}
+
+function updateToolInTimeline(blocks: any[], event: any) {
+  const block = [...blocks].reverse().find(
+    (item: any) => item.type === 'tool' && item.toolName === event.toolName && item.status === 'running'
+  ) || [...blocks].reverse().find((item: any) => item.type === 'tool' && item.toolName === event.toolName)
+  if (!block) return
+  block.result = event.toolResult
+  block.status = parseToolResultStatus(event.toolResult)
+  block.duration = Date.now() - (block.startTime || Date.now())
+  if (event.riskLevel) block.riskLevel = event.riskLevel
+  if (event.riskMode) block.riskMode = event.riskMode
+  if (event.riskHint) block.riskHint = event.riskHint
+}
+
 // 初始化
 onMounted(async () => {
   await loadModels()
@@ -487,6 +643,7 @@ async function createNewSession() {
       sessions.value.unshift(session)
       currentSessionId.value = session.id
       messages.value = []
+      currentTimelineBlocks.value = []
     }
   } catch (e) {
     ElMessage.error('创建会话失败')
@@ -497,6 +654,8 @@ async function createNewSession() {
 async function switchSession(id: number) {
   streamingContent.value = ''
   currentToolCalls.value = []
+  currentTimelineBlocks.value = []
+  streamingRunId.value = ''
 
   const isTargetStreaming = streamingSessionId.value === id && streamingSessionId.value !== 0
   isLoading.value = isTargetStreaming
@@ -508,8 +667,10 @@ async function switchSession(id: number) {
   if (isTargetStreaming) {
     const buf = streamingBuffers.get(id)
     if (buf) {
+      streamingRunId.value = buf.runId || ''
       streamingContent.value = buf.content
       currentToolCalls.value = buf.toolCalls.map(tc => ({ ...tc }))
+      currentTimelineBlocks.value = cloneTimelineBlocks(buf.timelineBlocks || [])
       scrollToBottom()
     }
   }
@@ -521,15 +682,9 @@ async function loadMessages(sessionId: number) {
     const data = await getSessionMessages(sessionId)
     const msgList = Array.isArray(data) ? data : []
     messages.value = msgList.map((m: any) => {
-      let toolCalls: any[] = []
-      if (m.toolCalls) {
-        try {
-          toolCalls = typeof m.toolCalls === 'string' ? JSON.parse(m.toolCalls) : m.toolCalls
-        } catch { toolCalls = [] }
-      }
-      // 给每个 tool call 添加 _expanded 属性
-      toolCalls = (toolCalls || []).map((tc: any) => ({ ...tc, _expanded: false }))
-      return { ...m, toolCalls }
+      const toolCalls = parseToolCalls(m.toolCalls).map((tc: any) => ({ ...tc, _expanded: false }))
+      const timelineBlocks = parseTimelineBlocks(m.toolResult, m.content, toolCalls)
+      return { ...m, toolCalls, timelineBlocks }
     })
     scrollToBottom()
   } catch (e) {
@@ -598,14 +753,41 @@ function connectWebSocket() {
 // 获取或创建会话的流式缓冲
 function getBuffer(sid: number) {
   if (!streamingBuffers.has(sid)) {
-    streamingBuffers.set(sid, { content: '', toolCalls: [] })
+    streamingBuffers.set(sid, { runId: '', content: '', toolCalls: [], timelineBlocks: [] })
   }
   return streamingBuffers.get(sid)!
+}
+
+function resetBuffer(sid: number, runId = '') {
+  const buf = { runId, content: '', toolCalls: [] as any[], timelineBlocks: [] as any[] }
+  streamingBuffers.set(sid, buf)
+  return buf
+}
+
+function getBufferForRun(sid: number, runId = '') {
+  const buf = getBuffer(sid)
+  if (runId && buf.runId && buf.runId !== runId) {
+    return null
+  }
+  if (runId && !buf.runId) {
+    buf.runId = runId
+  }
+  return buf
+}
+
+function startStreamingRun(sessionId: number, runId = '') {
+  isLoading.value = true
+  streamingContent.value = ''
+  currentToolCalls.value = []
+  currentTimelineBlocks.value = []
+  streamingSessionId.value = sessionId
+  streamingRunId.value = runId
 }
 
 // 处理 WebSocket 事件
 function handleWSEvent(event: any) {
   const eventSessionId = event.sessionId as number
+  const eventRunId = typeof event.runId === 'string' ? event.runId : ''
   const isCurrentSession = !eventSessionId || eventSessionId === currentSessionId.value
 
   switch (event.type) {
@@ -616,16 +798,16 @@ function handleWSEvent(event: any) {
       break
 
     case 'external_user_message': {
+      if (eventSessionId) {
+        resetBuffer(eventSessionId, eventRunId)
+      }
       if (isCurrentSession && event.content) {
         messages.value.push({
           id: Date.now(),
           role: 'user',
           content: event.content,
         })
-        isLoading.value = true
-        streamingContent.value = ''
-        currentToolCalls.value = []
-        streamingSessionId.value = eventSessionId || 0
+        startStreamingRun(eventSessionId || 0, eventRunId)
         scrollToBottom()
       }
       loadSessions()
@@ -634,18 +816,31 @@ function handleWSEvent(event: any) {
 
     case 'text_delta': {
       if (stoppedByUser.value) break
-      if (isCurrentSession && event.source === 'external_channel' && !isLoading.value) {
-        isLoading.value = true
-        streamingContent.value = ''
-        currentToolCalls.value = []
-        streamingSessionId.value = eventSessionId || 0
-      }
-      // 无论是否当前会话，都写入缓冲
-      if (eventSessionId) {
-        getBuffer(eventSessionId).content += event.content
+      if (event.source === 'external_channel') {
+        if (!eventSessionId) break
+        const buf = getBufferForRun(eventSessionId, eventRunId)
+        if (!buf) break
+        const shouldStartRun = isCurrentSession && (
+          !isLoading.value ||
+          streamingSessionId.value !== eventSessionId ||
+          (!!eventRunId && !!streamingRunId.value && streamingRunId.value !== eventRunId)
+        )
+        if (shouldStartRun) {
+          startStreamingRun(eventSessionId, eventRunId)
+        }
+        buf.content += event.content
+        appendTextToTimeline(buf.timelineBlocks, event.content)
+        if (isCurrentSession && streamingSessionId.value === eventSessionId &&
+          (!eventRunId || !streamingRunId.value || streamingRunId.value === eventRunId)) {
+          streamingContent.value += event.content
+          appendTextToTimeline(currentTimelineBlocks.value, event.content)
+          scrollToBottom()
+        }
+        break
       }
       if (isCurrentSession) {
         streamingContent.value += event.content
+        appendTextToTimeline(currentTimelineBlocks.value, event.content)
         scrollToBottom()
       }
       break
@@ -653,12 +848,6 @@ function handleWSEvent(event: any) {
 
     case 'tool_call_start': {
       if (stoppedByUser.value) break
-      if (isCurrentSession && event.source === 'external_channel' && !isLoading.value) {
-        isLoading.value = true
-        streamingContent.value = ''
-        currentToolCalls.value = []
-        streamingSessionId.value = eventSessionId || 0
-      }
       const tcItem = {
         toolName: event.toolName,
         params: event.toolParams,
@@ -668,11 +857,31 @@ function handleWSEvent(event: any) {
         status: 'running',
         startTime: Date.now(),
       }
-      if (eventSessionId) {
-        getBuffer(eventSessionId).toolCalls.push({ ...tcItem })
+      if (event.source === 'external_channel') {
+        if (!eventSessionId) break
+        const buf = getBufferForRun(eventSessionId, eventRunId)
+        if (!buf) break
+        const shouldStartRun = isCurrentSession && (
+          !isLoading.value ||
+          streamingSessionId.value !== eventSessionId ||
+          (!!eventRunId && !!streamingRunId.value && streamingRunId.value !== eventRunId)
+        )
+        if (shouldStartRun) {
+          startStreamingRun(eventSessionId, eventRunId)
+        }
+        buf.toolCalls.push({ ...tcItem })
+        pushToolToTimeline(buf.timelineBlocks, tcItem)
+        if (isCurrentSession && streamingSessionId.value === eventSessionId &&
+          (!eventRunId || !streamingRunId.value || streamingRunId.value === eventRunId)) {
+          currentToolCalls.value.push(tcItem)
+          pushToolToTimeline(currentTimelineBlocks.value, tcItem)
+          scrollToBottom()
+        }
+        break
       }
       if (isCurrentSession) {
         currentToolCalls.value.push(tcItem)
+        pushToolToTimeline(currentTimelineBlocks.value, tcItem)
         scrollToBottom()
       }
       break
@@ -682,7 +891,10 @@ function handleWSEvent(event: any) {
       if (stoppedByUser.value) break
       // 更新缓冲中的 tool call 状态
       if (eventSessionId) {
-        const buf = getBuffer(eventSessionId)
+        const buf = event.source === 'external_channel'
+          ? getBufferForRun(eventSessionId, eventRunId)
+          : getBuffer(eventSessionId)
+        if (!buf) break
         const bufTc = [...buf.toolCalls].reverse().find(
           t => t.toolName === event.toolName && t.status === 'running'
         ) || buf.toolCalls[buf.toolCalls.length - 1]
@@ -694,8 +906,9 @@ function handleWSEvent(event: any) {
           if (event.riskMode) bufTc.riskMode = event.riskMode
           if (event.riskHint) bufTc.riskHint = event.riskHint
         }
+        updateToolInTimeline(buf.timelineBlocks, event)
       }
-      if (isCurrentSession) {
+      if (isCurrentSession && (!eventRunId || !streamingRunId.value || streamingRunId.value === eventRunId)) {
         const tc = [...currentToolCalls.value].reverse().find(
           t => t.toolName === event.toolName && t.status === 'running'
         ) || currentToolCalls.value[currentToolCalls.value.length - 1]
@@ -707,33 +920,42 @@ function handleWSEvent(event: any) {
           if (event.riskMode) tc.riskMode = event.riskMode
           if (event.riskHint) tc.riskHint = event.riskHint
         }
+        updateToolInTimeline(currentTimelineBlocks.value, event)
         scrollToBottom()
       }
       break
     }
 
     case 'message_end': {
-      const buf = eventSessionId ? streamingBuffers.get(eventSessionId) : null
-      if (!stoppedByUser.value && isCurrentSession && streamingContent.value) {
+      const buf = eventSessionId
+        ? (event.source === 'external_channel'
+          ? getBufferForRun(eventSessionId, eventRunId)
+          : streamingBuffers.get(eventSessionId) || null)
+        : null
+      const isMatchingRun = !eventRunId || !streamingRunId.value || streamingRunId.value === eventRunId
+      if (!stoppedByUser.value && isCurrentSession && isMatchingRun && (streamingContent.value || currentToolCalls.value.length > 0 || currentTimelineBlocks.value.length > 0)) {
         messages.value.push({
           id: Date.now(),
           role: 'assistant',
           content: streamingContent.value,
           toolCalls: currentToolCalls.value.map(tc => ({ ...tc, _expanded: false })),
+          timelineBlocks: cloneTimelineBlocks(currentTimelineBlocks.value),
         })
-      } else if (!stoppedByUser.value && !isCurrentSession && buf && buf.content) {
+      } else if (!stoppedByUser.value && !isCurrentSession && buf && (buf.content || buf.timelineBlocks.length > 0)) {
         // 非当前会话完成：内容已保存到后端数据库，清理缓冲即可
         // 用户切回时 loadMessages 会从后端拉取完整消息
       }
-      streamingContent.value = ''
-      currentToolCalls.value = []
-      if (eventSessionId) {
-        streamingBuffers.delete(eventSessionId)
-      }
-      streamingSessionId.value = 0
-      stoppedByUser.value = false
-      if (isCurrentSession) {
+      if (isCurrentSession && isMatchingRun) {
+        streamingContent.value = ''
+        currentToolCalls.value = []
+        currentTimelineBlocks.value = []
+        streamingSessionId.value = 0
+        streamingRunId.value = ''
+        stoppedByUser.value = false
         isLoading.value = false
+      }
+      if (eventSessionId && buf) {
+        streamingBuffers.delete(eventSessionId)
       }
       scrollToBottom()
       loadSessions()
@@ -744,16 +966,23 @@ function handleWSEvent(event: any) {
       if (isCurrentSession && !stoppedByUser.value) {
         ElMessage.error(event.error || '请求处理失败')
       }
-      if (isCurrentSession) {
+      if (isCurrentSession && (!eventRunId || !streamingRunId.value || streamingRunId.value === eventRunId)) {
         isLoading.value = false
+        streamingContent.value = ''
+        currentToolCalls.value = []
+        currentTimelineBlocks.value = []
+        streamingSessionId.value = 0
+        streamingRunId.value = ''
+        stoppedByUser.value = false
       }
-      streamingContent.value = ''
-      currentToolCalls.value = []
       if (eventSessionId) {
-        streamingBuffers.delete(eventSessionId)
+        const buf = event.source === 'external_channel'
+          ? getBufferForRun(eventSessionId, eventRunId)
+          : getBuffer(eventSessionId)
+        if (buf) {
+          streamingBuffers.delete(eventSessionId)
+        }
       }
-      streamingSessionId.value = 0
-      stoppedByUser.value = false
       break
   }
 }
@@ -778,6 +1007,8 @@ async function sendMessage() {
   inputMessage.value = ''
   isLoading.value = true
   streamingContent.value = ''
+  currentTimelineBlocks.value = []
+  streamingRunId.value = ''
   streamingSessionId.value = currentSessionId.value
   stoppedByUser.value = false
   scrollToBottom()
@@ -803,6 +1034,7 @@ async function sendMessage() {
         role: 'assistant',
         content: data?.content || '',
         toolCalls: [],
+        timelineBlocks: normalizeTimelineBlocks([], data?.content || '', []),
       })
     } catch (e: any) {
       ElMessage.error(e?.message || '请求失败')
@@ -820,16 +1052,21 @@ function stopGeneration() {
     ws.send(JSON.stringify({ type: 'stop' }))
   }
   // 立即将已有的流式内容保存为消息，不等后端 message_end
-  if (streamingContent.value) {
+  if (streamingContent.value || currentTimelineBlocks.value.length > 0) {
+    const stoppedTimeline = cloneTimelineBlocks(currentTimelineBlocks.value)
+    appendTextToTimeline(stoppedTimeline, '\n\n[已停止]')
     messages.value.push({
       id: Date.now(),
       role: 'assistant',
       content: streamingContent.value + '\n\n[已停止]',
       toolCalls: currentToolCalls.value.map(tc => ({ ...tc, _expanded: false })),
+      timelineBlocks: stoppedTimeline,
     })
   }
   streamingContent.value = ''
   currentToolCalls.value = []
+  currentTimelineBlocks.value = []
+  streamingRunId.value = ''
   if (streamingSessionId.value) {
     streamingBuffers.delete(streamingSessionId.value)
   }
@@ -1369,16 +1606,57 @@ function getToolStatusLabel(status: string) {
 
 .message-body {
   background: #fff;
-  padding: 12px 15px;
+  padding: 10px 13px;
   border-radius: 12px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
-  line-height: 1.6;
+  line-height: 1.55;
   word-break: break-word;
+  font-size: 13px;
 }
 
 .message-wrapper.user .message-body {
   background: #409eff;
   color: #fff;
+}
+
+.assistant-timeline {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.timeline-block {
+  width: 100%;
+}
+
+.assistant-text-block {
+  display: inline-block;
+  max-width: 100%;
+}
+
+.timeline-tool-row {
+  display: flex;
+  align-items: stretch;
+  gap: 8px;
+  margin-left: 8px;
+}
+
+.timeline-rail {
+  flex: 0 0 2px;
+  width: 2px;
+  border-radius: 999px;
+  background: linear-gradient(180deg, rgba(103, 194, 58, 0.18), rgba(64, 158, 255, 0.28));
+}
+
+.embedded-tool-card {
+  width: fit-content;
+  min-width: 300px;
+  max-width: 100%;
+  margin-bottom: 0;
+}
+
+.streaming-timeline .timeline-rail {
+  background: linear-gradient(180deg, rgba(230, 162, 60, 0.22), rgba(64, 158, 255, 0.24));
 }
 
 .message-body :deep(pre.code-block) {
@@ -1429,30 +1707,36 @@ function getToolStatusLabel(status: string) {
 
 /* 工具调用卡片 */
 .tool-calls {
-  margin-top: 12px;
+  margin-top: 8px;
   background: #f8f9fb;
   border: 1px solid #e8ecf0;
-  border-radius: 10px;
-  padding: 12px;
+  border-radius: 9px;
+  padding: 8px;
+}
+
+.tool-calls-compact {
+  width: fit-content;
+  min-width: 320px;
+  max-width: 100%;
 }
 
 .tool-calls-title {
   display: flex;
   align-items: center;
-  gap: 6px;
-  font-size: 12px;
+  gap: 5px;
+  font-size: 11px;
   font-weight: 600;
   color: #606266;
-  margin-bottom: 8px;
-  padding-bottom: 8px;
+  margin-bottom: 6px;
+  padding-bottom: 6px;
   border-bottom: 1px solid #e8ecf0;
 }
 
 .tool-call-card {
   background: #ffffff;
   border: 1px solid #e4e7ed;
-  border-radius: 8px;
-  margin-bottom: 6px;
+  border-radius: 7px;
+  margin-bottom: 5px;
   overflow: hidden;
   transition: all 0.2s ease;
 }
@@ -1482,10 +1766,10 @@ function getToolStatusLabel(status: string) {
 .tool-call-header {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 10px 12px;
+  gap: 6px;
+  padding: 7px 9px;
   cursor: pointer;
-  font-size: 13px;
+  font-size: 12px;
   transition: background 0.2s;
 }
 
@@ -1494,12 +1778,12 @@ function getToolStatusLabel(status: string) {
 }
 
 .tool-call-step {
-  width: 22px;
-  height: 22px;
+  width: 18px;
+  height: 18px;
   border-radius: 50%;
   background: #409eff;
   color: #fff;
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 600;
   display: flex;
   align-items: center;
@@ -1528,20 +1812,23 @@ function getToolStatusLabel(status: string) {
   flex: 1;
   font-family: 'Monaco', 'Menlo', monospace;
   color: #303133;
+  font-size: 12px;
 }
 
 .status-tag {
-  font-size: 11px !important;
+  font-size: 10px !important;
+  height: 20px;
+  padding: 0 6px;
 }
 
 .tool-risk-hint {
-  margin-bottom: 10px;
-  padding: 8px 10px;
+  margin-bottom: 8px;
+  padding: 6px 8px;
   background: #fdf6ec;
   border-left: 3px solid #e6a23c;
   color: #606266;
-  font-size: 12px;
-  line-height: 1.5;
+  font-size: 11px;
+  line-height: 1.45;
   border-radius: 4px;
 }
 
@@ -1566,16 +1853,16 @@ function getToolStatusLabel(status: string) {
 }
 
 .tool-call-body {
-  padding: 0 12px 12px;
+  padding: 0 9px 9px;
   border-top: 1px solid #f0f0f0;
 }
 
 .tool-section {
-  margin-top: 8px;
+  margin-top: 6px;
 }
 
 .tool-section-title {
-  font-size: 12px;
+  font-size: 11px;
   color: #606266;
   font-weight: 500;
   margin-bottom: 4px;
@@ -1584,13 +1871,13 @@ function getToolStatusLabel(status: string) {
 .tool-section pre {
   background: #1e1e1e;
   color: #d4d4d4;
-  padding: 10px 12px;
-  border-radius: 6px;
-  font-size: 12px;
+  padding: 8px 10px;
+  border-radius: 5px;
+  font-size: 11px;
   overflow-x: auto;
-  max-height: 200px;
+  max-height: 180px;
   overflow-y: auto;
-  line-height: 1.5;
+  line-height: 1.45;
   margin: 0;
 }
 

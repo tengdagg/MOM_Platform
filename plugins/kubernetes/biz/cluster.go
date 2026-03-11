@@ -33,6 +33,7 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
 
+	"github.com/ydcloud-dy/mom/pkg/security"
 	"github.com/ydcloud-dy/mom/plugins/kubernetes/data/models"
 	"github.com/ydcloud-dy/mom/plugins/kubernetes/data/repository"
 )
@@ -252,12 +253,9 @@ func (b *ClusterBiz) GetClusterClientset(ctx context.Context, id uint) (*kuberne
 	return clientset, nil
 }
 
-// 加密密钥（实际生产环境应该从配置中心获取）
-const encryptionKey = "mom-k8s-encrypt-key-32byte!!@@!!"
-
 // encryptKubeConfig 加密 kubeconfig
 func encryptKubeConfig(plainText string) (string, error) {
-	key := []byte(encryptionKey)
+	key := security.MustK8sEncryptionKey()
 	plaintext := []byte(plainText)
 
 	block, err := aes.NewCipher(key)
@@ -278,7 +276,7 @@ func encryptKubeConfig(plainText string) (string, error) {
 
 // DecryptKubeConfig 解密 kubeconfig（导出供其他包使用）
 func DecryptKubeConfig(cipherText string) (string, error) {
-	key := []byte(encryptionKey)
+	key := security.MustK8sEncryptionKey()
 	ciphertext, err := base64.StdEncoding.DecodeString(cipherText)
 	if err != nil {
 		return "", err

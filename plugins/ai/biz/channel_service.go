@@ -44,15 +44,23 @@ type ChannelSessionResolution struct {
 }
 
 type ChannelConversationPolicy struct {
-	MaxMessages int
-	IdleHours   int
-	MaxAgeDays  int
+	MaxMessages     int
+	IdleHours       int
+	MaxAgeDays      int
+	ResetCommands   []string
+	StatusCommands  []string
+	CompactCommands []string
+	StopCommands    []string
 }
 
 type channelConversationPolicyConfig struct {
-	SessionMaxMessages *int `json:"sessionMaxMessages,omitempty"`
-	SessionIdleHours   *int `json:"sessionIdleHours,omitempty"`
-	SessionMaxAgeDays  *int `json:"sessionMaxAgeDays,omitempty"`
+	SessionMaxMessages     *int     `json:"sessionMaxMessages,omitempty"`
+	SessionIdleHours       *int     `json:"sessionIdleHours,omitempty"`
+	SessionMaxAgeDays      *int     `json:"sessionMaxAgeDays,omitempty"`
+	SessionResetCommands   []string `json:"sessionResetCommands,omitempty"`
+	SessionStatusCommands  []string `json:"sessionStatusCommands,omitempty"`
+	SessionCompactCommands []string `json:"sessionCompactCommands,omitempty"`
+	SessionStopCommands    []string `json:"sessionStopCommands,omitempty"`
 }
 
 func NewChannelService(db *gorm.DB) *ChannelService {
@@ -289,6 +297,46 @@ func (s *ChannelService) ResolveModel(channel *AIChannelConfig) (*AIModelConfig,
 	return nil, errors.New("未配置可用 AI 模型")
 }
 
+func (s *ChannelService) BuildSessionStatusText(channel *AIChannelConfig, session *ChatSession) string {
+	if session == nil {
+		return "当前还没有可用会话，请先直接发送一个问题开始对话。"
+	}
+
+	policy := s.getChannelConversationPolicy(channel)
+	messageCount := s.convMgr.CountMessages(session.ID)
+	summaryState := "未生成"
+	if strings.TrimSpace(session.Summary) != "" {
+		summaryState = "已生成"
+	}
+
+	var lines []string
+	lines = append(lines, "当前 MOM Claw 会话状态")
+	lines = append(lines, fmt.Sprintf("会话标题：%s", session.Title))
+	lines = append(lines, fmt.Sprintf("会话 ID：%d", session.ID))
+	lines = append(lines, fmt.Sprintf("消息数：%d", messageCount))
+	lines = append(lines, fmt.Sprintf("创建时间：%s", session.CreatedAt.Format("2006-01-02 15:04:05")))
+	lines = append(lines, fmt.Sprintf("最近活跃：%s", session.UpdatedAt.Format("2006-01-02 15:04:05")))
+	lines = append(lines, fmt.Sprintf("摘要状态：%s", summaryState))
+
+	var policyParts []string
+	if policy.MaxMessages > 0 {
+		policyParts = append(policyParts, fmt.Sprintf("%d 条消息", policy.MaxMessages))
+	}
+	if policy.IdleHours > 0 {
+		policyParts = append(policyParts, fmt.Sprintf("%d 小时空闲", policy.IdleHours))
+	}
+	if policy.MaxAgeDays > 0 {
+		policyParts = append(policyParts, fmt.Sprintf("%d 天寿命", policy.MaxAgeDays))
+	}
+	if len(policyParts) == 0 {
+		lines = append(lines, "自动轮换：已关闭")
+	} else {
+		lines = append(lines, "自动轮换："+strings.Join(policyParts, " / "))
+	}
+
+	return strings.Join(lines, "\n")
+}
+
 func (s *ChannelService) FindOrCreateBindingSession(channel *AIChannelConfig, identity ChannelExternalIdentity) (*AIChannelBinding, *ChatSession, error) {
 	resolution, err := s.ResolveBindingSession(channel, identity, false)
 	if err != nil {
@@ -423,9 +471,13 @@ func (s *ChannelService) evaluateSessionRotation(channel *AIChannelConfig, sessi
 
 func (s *ChannelService) getChannelConversationPolicy(channel *AIChannelConfig) ChannelConversationPolicy {
 	policy := ChannelConversationPolicy{
-		MaxMessages: channelSessionMaxMessages,
-		IdleHours:   int(channelSessionIdleThreshold / time.Hour),
-		MaxAgeDays:  int(channelSessionMaxAge / (24 * time.Hour)),
+		MaxMessages:     channelSessionMaxMessages,
+		IdleHours:       int(channelSessionIdleThreshold / time.Hour),
+		MaxAgeDays:      int(channelSessionMaxAge / (24 * time.Hour)),
+		ResetCommands:   append([]string{}, defaultChannelNewSessionCommands...),
+		StatusCommands:  append([]string{}, defaultChannelStatusCommands...),
+		CompactCommands: append([]string{}, defaultChannelCompactCommands...),
+		StopCommands:    append([]string{}, defaultChannelStopCommands...),
 	}
 	if channel == nil || len(channel.ConfigJSON) == 0 {
 		return policy
@@ -445,6 +497,18 @@ func (s *ChannelService) getChannelConversationPolicy(channel *AIChannelConfig) 
 	if cfg.SessionMaxAgeDays != nil {
 		policy.MaxAgeDays = normalizeChannelPolicyNumber(*cfg.SessionMaxAgeDays)
 	}
+	if len(cfg.SessionResetCommands) > 0 {
+		policy.ResetCommands = sanitizeChannelCommands(cfg.SessionResetCommands)
+	}
+	if len(cfg.SessionStatusCommands) > 0 {
+		policy.StatusCommands = sanitizeChannelCommands(cfg.SessionStatusCommands)
+	}
+	if len(cfg.SessionCompactCommands) > 0 {
+		policy.CompactCommands = sanitizeChannelCommands(cfg.SessionCompactCommands)
+	}
+	if len(cfg.SessionStopCommands) > 0 {
+		policy.StopCommands = sanitizeChannelCommands(cfg.SessionStopCommands)
+	}
 	return policy
 }
 
@@ -453,6 +517,23 @@ func normalizeChannelPolicyNumber(value int) int {
 		return 0
 	}
 	return value
+}
+
+func sanitizeChannelCommands(commands []string) []string {
+	result := make([]string, 0, len(commands))
+	seen := make(map[string]struct{}, len(commands))
+	for _, cmd := range commands {
+		normalized := normalizeChannelCommandText(cmd)
+		if normalized == "" {
+			continue
+		}
+		if _, ok := seen[normalized]; ok {
+			continue
+		}
+		seen[normalized] = struct{}{}
+		result = append(result, strings.TrimSpace(cmd))
+	}
+	return result
 }
 
 func (s *ChannelService) recreateBindingSession(

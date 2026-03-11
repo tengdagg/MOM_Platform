@@ -5,7 +5,8 @@
         <h3>飞书渠道</h3>
         <p>配置飞书应用 `App ID/App Secret`，复用现有 AI 会话、模型和高风险确认链路。</p>
         <div class="toolbar-tips">
-          <span>手动新对话口令：`新对话` / `重置上下文` / `清空上下文` / `开始新会话`</span>
+          <span>会话控制口令：`新对话` / `重置上下文` / `清空上下文` / `开始新会话`</span>
+          <span>辅助命令：`状态` 查看当前会话、`压缩上下文` 手动生成摘要、`停止` 中断当前生成任务。</span>
           <span>自动轮换规则可在下方渠道配置中调整，达到阈值后会自动切换到新会话。</span>
         </div>
       </div>
@@ -70,6 +71,10 @@
           <div class="info-item">
             <span class="label">自动轮换</span>
             <span class="value">{{ formatConversationPolicy(channel.config) }}</span>
+          </div>
+          <div class="info-item info-item-column">
+            <span class="label">控制命令</span>
+            <span class="value command-summary">{{ formatCommandSummary(channel.config) }}</span>
           </div>
         </div>
 
@@ -145,12 +150,57 @@
             <span class="policy-tip">同一飞书会话连续使用多少天后自动轮换，`0` 表示关闭</span>
           </div>
         </el-form-item>
+        <el-divider content-position="left">会话控制命令</el-divider>
+        <el-form-item label="新会话命令">
+          <div class="command-row">
+            <el-input
+              v-model="commandText.reset"
+              type="textarea"
+              :rows="2"
+              placeholder="每行一个命令，例如：新对话"
+            />
+            <span class="policy-tip">补充手动开启新会话的命令，默认命令仍然保留。</span>
+          </div>
+        </el-form-item>
+        <el-form-item label="状态命令">
+          <div class="command-row">
+            <el-input
+              v-model="commandText.status"
+              type="textarea"
+              :rows="2"
+              placeholder="每行一个命令，例如：状态"
+            />
+            <span class="policy-tip">触发查看当前会话状态的命令，默认命令仍然保留。</span>
+          </div>
+        </el-form-item>
+        <el-form-item label="压缩命令">
+          <div class="command-row">
+            <el-input
+              v-model="commandText.compact"
+              type="textarea"
+              :rows="2"
+              placeholder="每行一个命令，例如：压缩上下文"
+            />
+            <span class="policy-tip">触发手动摘要压缩的命令，默认命令仍然保留。</span>
+          </div>
+        </el-form-item>
+        <el-form-item label="停止命令">
+          <div class="command-row">
+            <el-input
+              v-model="commandText.stop"
+              type="textarea"
+              :rows="2"
+              placeholder="每行一个命令，例如：停止"
+            />
+            <span class="policy-tip">触发停止当前生成任务的命令，默认命令仍然保留。</span>
+          </div>
+        </el-form-item>
         <el-alert
           class="policy-alert"
           type="info"
           :closable="false"
           show-icon
-          title="飞书中发送“新对话 / 重置上下文 / 清空上下文 / 开始新会话”可立即切换到新的 MOM Claw 会话。"
+          title="飞书支持会话控制命令：新对话 / 重置上下文 / 清空上下文 / 开始新会话；同时支持 状态 / 压缩上下文 / 停止。"
         />
         <el-form-item label="扩展配置">
           <el-input
@@ -213,6 +263,12 @@ const defaultConversationPolicy = {
 }
 const conversationPolicy = ref({
   ...defaultConversationPolicy,
+})
+const commandText = ref({
+  reset: '',
+  status: '',
+  compact: '',
+  stop: '',
 })
 
 const form = ref<AIChannelConfig>({
@@ -288,6 +344,12 @@ function openCreateDialog() {
     config: {},
   }
   conversationPolicy.value = { ...defaultConversationPolicy }
+  commandText.value = {
+    reset: '',
+    status: '',
+    compact: '',
+    stop: '',
+  }
   configText.value = '{}'
   dialogVisible.value = true
 }
@@ -302,6 +364,7 @@ function editChannel(channel: AIChannelConfig) {
     config: channel.config || {},
   }
   conversationPolicy.value = normalizeConversationPolicy(channel.config)
+  commandText.value = normalizeCommandText(channel.config)
   configText.value = JSON.stringify(extractExtraConfig(channel.config), null, 2)
   dialogVisible.value = true
 }
@@ -325,6 +388,10 @@ async function submitForm() {
       sessionMaxMessages: normalizePolicyValue(conversationPolicy.value.sessionMaxMessages),
       sessionIdleHours: normalizePolicyValue(conversationPolicy.value.sessionIdleHours),
       sessionMaxAgeDays: normalizePolicyValue(conversationPolicy.value.sessionMaxAgeDays),
+      sessionResetCommands: parseCommandText(commandText.value.reset),
+      sessionStatusCommands: parseCommandText(commandText.value.status),
+      sessionCompactCommands: parseCommandText(commandText.value.compact),
+      sessionStopCommands: parseCommandText(commandText.value.stop),
     }
     const payload: AIChannelConfig = {
       ...form.value,
@@ -429,11 +496,24 @@ function normalizeConversationPolicy(config?: AIChannelExtraConfig) {
   }
 }
 
+function normalizeCommandText(config?: AIChannelExtraConfig) {
+  return {
+    reset: joinCommands(config?.sessionResetCommands),
+    status: joinCommands(config?.sessionStatusCommands),
+    compact: joinCommands(config?.sessionCompactCommands),
+    stop: joinCommands(config?.sessionStopCommands),
+  }
+}
+
 function extractExtraConfig(config?: AIChannelExtraConfig) {
   const extraConfig: AIChannelExtraConfig = { ...(config || {}) }
   delete extraConfig.sessionMaxMessages
   delete extraConfig.sessionIdleHours
   delete extraConfig.sessionMaxAgeDays
+  delete extraConfig.sessionResetCommands
+  delete extraConfig.sessionStatusCommands
+  delete extraConfig.sessionCompactCommands
+  delete extraConfig.sessionStopCommands
   return extraConfig
 }
 
@@ -450,6 +530,26 @@ function formatConversationPolicy(config?: AIChannelExtraConfig) {
   if (policy.sessionIdleHours > 0) parts.push(`${policy.sessionIdleHours} 小时空闲`)
   if (policy.sessionMaxAgeDays > 0) parts.push(`${policy.sessionMaxAgeDays} 天寿命`)
   return parts.length > 0 ? parts.join(' / ') : '已关闭'
+}
+
+function formatCommandSummary(config?: AIChannelExtraConfig) {
+  const parts: string[] = []
+  if ((config?.sessionResetCommands || []).length > 0) parts.push(`新会话 ${config?.sessionResetCommands?.length} 条`)
+  if ((config?.sessionStatusCommands || []).length > 0) parts.push(`状态 ${config?.sessionStatusCommands?.length} 条`)
+  if ((config?.sessionCompactCommands || []).length > 0) parts.push(`压缩 ${config?.sessionCompactCommands?.length} 条`)
+  if ((config?.sessionStopCommands || []).length > 0) parts.push(`停止 ${config?.sessionStopCommands?.length} 条`)
+  return parts.length > 0 ? parts.join(' / ') : '使用默认命令'
+}
+
+function parseCommandText(value: string) {
+  return value
+    .split('\n')
+    .map(item => item.trim())
+    .filter(Boolean)
+}
+
+function joinCommands(list?: string[]) {
+  return Array.isArray(list) ? list.join('\n') : ''
 }
 </script>
 
@@ -537,6 +637,10 @@ function formatConversationPolicy(config?: AIChannelExtraConfig) {
   font-size: 14px;
 }
 
+.info-item-column {
+  align-items: flex-start;
+}
+
 .info-item .label {
   color: #6b7280;
 }
@@ -544,6 +648,11 @@ function formatConversationPolicy(config?: AIChannelExtraConfig) {
 .info-item .value {
   color: #111827;
   text-align: right;
+}
+
+.command-summary {
+  white-space: normal;
+  line-height: 1.5;
 }
 
 .error-alert {
@@ -561,6 +670,13 @@ function formatConversationPolicy(config?: AIChannelExtraConfig) {
   display: flex;
   align-items: center;
   gap: 10px;
+  width: 100%;
+}
+
+.command-row {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
   width: 100%;
 }
 

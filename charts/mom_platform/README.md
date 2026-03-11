@@ -20,12 +20,12 @@ git clone https://github.com/ydcloud-dy/mom.git
 cd mom
 
 # 使用默认配置安装
-helm install mom ./charts/mom \
+helm install mom ./charts/mom_platform \
   --namespace mom \
   --create-namespace
 
 # 使用自定义配置安装
-helm install mom ./charts/mom \
+helm install mom ./charts/mom_platform \
   --namespace mom \
   --create-namespace \
   -f my-values.yaml
@@ -34,12 +34,14 @@ helm install mom ./charts/mom \
 ### 方式二：指定参数安装
 
 ```bash
-helm install mom ./charts/mom \
+helm install mom ./charts/mom_platform \
   --namespace mom \
   --create-namespace \
   --set ingress.hosts[0].host=mom.mycompany.com \
   --set mysql.auth.rootPassword=MySecurePassword \
-  --set server.jwtSecret=my-jwt-secret-key
+  --set server.jwtSecret=my-jwt-secret-key \
+  --set security.credentialEncryptionKey=0123456789abcdef0123456789abcdef \
+  --set security.k8sEncryptionKey=fedcba9876543210fedcba9876543210
 ```
 
 ## 卸载
@@ -146,6 +148,13 @@ kubectl delete namespace mom
 | `server.jwtSecret` | JWT 密钥 | `mom-jwt-secret-...` |
 | `server.jwtExpire` | JWT 过期时间 | `24h` |
 
+### 安全配置
+
+| 参数 | 描述 | 默认值 |
+|------|------|--------|
+| `security.credentialEncryptionKey` | 资产凭据/任务模块加解密密钥，必须为 32 字节；默认使用历史兼容值 | `mom-encrypt-key-32bytes-long!!@@` |
+| `security.k8sEncryptionKey` | Kubernetes kubeconfig 加解密密钥，必须为 32 字节；默认使用历史兼容值 | `mom-k8s-encrypt-key-32byte!!@@!!` |
+
 ### Ingress 配置
 
 | 参数 | 描述 | 默认值 |
@@ -209,6 +218,10 @@ mysql:
 
 server:
   jwtSecret: "your-very-long-random-secret-key"
+
+security:
+  credentialEncryptionKey: "0123456789abcdef0123456789abcdef"
+  k8sEncryptionKey: "fedcba9876543210fedcba9876543210"
 ```
 
 ### 使用内置 guacd 支持 RDP
@@ -237,7 +250,7 @@ guacd:
 ## 升级
 
 ```bash
-helm upgrade mom ./charts/mom -n mom -f values.yaml
+helm upgrade mom ./charts/mom_platform -n mom -f values.yaml
 ```
 
 ## 故障排查

@@ -4,6 +4,7 @@ import "sync"
 
 type SessionStreamPayload struct {
 	SessionID uint
+	RunID     string
 	Type      string
 	Content   string
 	Event     AgentEvent

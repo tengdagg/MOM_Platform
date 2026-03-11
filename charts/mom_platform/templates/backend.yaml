@@ -76,6 +76,16 @@ spec:
                 secretKeyRef:
                   name: {{ include "mom.fullname" . }}-secrets
                   key: jwt-secret
+            - name: MOM_CREDENTIAL_ENCRYPTION_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "mom.fullname" . }}-secrets
+                  key: credential-encryption-key
+            - name: MOM_K8S_ENCRYPTION_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "mom.fullname" . }}-secrets
+                  key: k8s-encryption-key
             - name: mom_SERVER_JWT_EXPIRE
               value: {{ .Values.server.jwtExpire | quote }}
             - name: mom_DATABASE_HOST

@@ -4,6 +4,10 @@ export interface AIChannelConversationPolicy {
   sessionMaxMessages?: number
   sessionIdleHours?: number
   sessionMaxAgeDays?: number
+  sessionResetCommands?: string[]
+  sessionStatusCommands?: string[]
+  sessionCompactCommands?: string[]
+  sessionStopCommands?: string[]
 }
 
 export interface AIChannelExtraConfig extends AIChannelConversationPolicy {

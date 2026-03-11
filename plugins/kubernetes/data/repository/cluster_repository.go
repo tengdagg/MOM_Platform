@@ -25,6 +25,7 @@ import (
 	"encoding/base64"
 	"errors"
 
+	"github.com/ydcloud-dy/mom/pkg/security"
 	"gorm.io/gorm"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
@@ -173,12 +174,9 @@ func (r *ClusterRepository) GetClientset(cluster *models.Cluster) (*kubernetes.C
 	return clientset, config, nil
 }
 
-// 加密密钥（必须与 biz 包中的密钥相同）
-const encryptionKey = "mom-k8s-encrypt-key-32byte!!@@!!"
-
 // decryptKubeConfig 解密 kubeconfig（内部使用）
 func decryptKubeConfig(cipherText string) (string, error) {
-	key := []byte(encryptionKey)
+	key := security.MustK8sEncryptionKey()
 	ciphertext, err := base64.StdEncoding.DecodeString(cipherText)
 	if err != nil {
 		return "", err

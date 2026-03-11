@@ -587,6 +587,23 @@ npm run build
 | `mom_REDIS_PORT` | Redis 端口 | `6379` |
 | `mom_REDIS_PASSWORD` | Redis 密码 | - |
 | `mom_REDIS_DB` | Redis 数据库 | `0` |
+| `MOM_CREDENTIAL_ENCRYPTION_KEY` | 资产凭据/任务模块解密密钥，必须为 32 字节；兼容 `mom_CREDENTIAL_ENCRYPTION_KEY` | - |
+| `MOM_K8S_ENCRYPTION_KEY` | Kubernetes kubeconfig 加解密密钥，必须为 32 字节；兼容 `mom_K8S_ENCRYPTION_KEY` | - |
+
+推荐在 Docker Compose 场景下通过项目根目录 `.env` 文件提供，例如：
+
+```env
+MOM_CREDENTIAL_ENCRYPTION_KEY=mom-encrypt-key-32bytes-long!!@@
+MOM_K8S_ENCRYPTION_KEY=mom-k8s-encrypt-key-32byte!!@@!!
+```
+
+本地源码开发也可直接写入 `config/config.yaml`：
+
+```yaml
+security:
+  credential_encryption_key: "mom-encrypt-key-32bytes-long!!@@"
+  k8s_encryption_key: "mom-k8s-encrypt-key-32byte!!@@!!"
+```
 
 ---
 

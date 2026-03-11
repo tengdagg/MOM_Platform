@@ -97,12 +97,13 @@ func (m *ConversationManager) AddMessage(sessionID uint, role string, content st
 }
 
 // AddMessageWithTools 添加带工具调用记录的消息
-func (m *ConversationManager) AddMessageWithTools(sessionID uint, role string, content string, toolCallsJSON string) (*ChatMessage, error) {
+func (m *ConversationManager) AddMessageWithTools(sessionID uint, role string, content string, toolCallsJSON string, toolResultJSON string) (*ChatMessage, error) {
 	msg := &ChatMessage{
-		SessionID: sessionID,
-		Role:      role,
-		Content:   content,
-		ToolCalls: toolCallsJSON,
+		SessionID:  sessionID,
+		Role:       role,
+		Content:    content,
+		ToolCalls:  toolCallsJSON,
+		ToolResult: toolResultJSON,
 	}
 	if err := m.db.Create(msg).Error; err != nil {
 		return nil, fmt.Errorf("保存消息失败: %w", err)

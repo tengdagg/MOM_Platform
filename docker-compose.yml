@@ -52,6 +52,10 @@ services:
       MOM_SERVER_MODE: ${MOM_SERVER_MODE:-release}
       MOM_SERVER_HTTP_PORT: 9876
       MOM_SERVER_JWT_SECRET: ${MOM_SERVER_JWT_SECRET:-your-secret-key-change-in-production}
+      # 资产凭据加解密密钥，必须为 32 字节；未填写时默认使用历史兼容值
+      MOM_CREDENTIAL_ENCRYPTION_KEY: ${MOM_CREDENTIAL_ENCRYPTION_KEY:-mom-encrypt-key-32bytes-long!!@@}
+      # Kubernetes kubeconfig 加解密密钥，必须为 32 字节；未填写时默认使用历史兼容值
+      MOM_K8S_ENCRYPTION_KEY: ${MOM_K8S_ENCRYPTION_KEY:-mom-k8s-encrypt-key-32byte!!@@!!}
       MOM_DATABASE_HOST: mysql
       MOM_DATABASE_PORT: 3306
       MOM_DATABASE_DATABASE: ${MYSQL_DATABASE:-mom}

@@ -17,12 +17,9 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
 
+	"github.com/ydcloud-dy/mom/pkg/security"
 	sshclient "github.com/ydcloud-dy/mom/pkg/ssh"
 )
-
-// 加密密钥
-var credentialEncryptionKey = []byte("mom-encrypt-key-32bytes-long!!@@") // 凭证仓库
-var k8sEncryptionKey = []byte("mom-k8s-encrypt-key-32byte!!@@!!")      // K8s kubeconfig
 
 // decryptWithKey 使用指定密钥解密 AES-GCM 加密的字符串
 func decryptWithKey(ciphertext string, key []byte) (string, error) {
@@ -55,12 +52,12 @@ func decryptWithKey(ciphertext string, key []byte) (string, error) {
 
 // decryptCredential 解密凭证字段
 func decryptCredential(ciphertext string) (string, error) {
-	return decryptWithKey(ciphertext, credentialEncryptionKey)
+	return decryptWithKey(ciphertext, security.MustCredentialEncryptionKey())
 }
 
 // decryptKubeConfig 解密 K8s kubeconfig
 func decryptKubeConfig(ciphertext string) (string, error) {
-	return decryptWithKey(ciphertext, k8sEncryptionKey)
+	return decryptWithKey(ciphertext, security.MustK8sEncryptionKey())
 }
 
 // ---------- K8s Helper ----------
