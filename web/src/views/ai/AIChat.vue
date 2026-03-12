@@ -1217,6 +1217,13 @@ function renderMarkdown(content: string): string {
   if (!content) return ''
   let html = content
 
+  // 0. 先将已被实体化过一次的常见字符还原，避免再次转义后显示成 &amp;&amp;
+  html = html.replace(/&amp;/g, '&')
+             .replace(/&lt;/g, '<')
+             .replace(/&gt;/g, '>')
+             .replace(/&quot;/g, '"')
+             .replace(/&#39;/g, "'")
+
   // 1. HTML 转义（防止 XSS 并且修正代码块中的 <TAG> 渲染）
   html = html.replace(/&/g, '&amp;')
              .replace(/</g, '&lt;')

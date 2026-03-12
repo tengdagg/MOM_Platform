@@ -403,11 +403,31 @@ type PendingToolAction struct {
 func buildPendingConfirmationReply(result map[string]any) string {
 	message, _ := result["message"].(string)
 	warning, _ := result["warning"].(string)
+	command, _ := result["command"].(string)
 	message = strings.TrimSpace(message)
 	warning = strings.TrimSpace(warning)
+	command = strings.TrimSpace(command)
 
-	parts := make([]string, 0, 2)
-	if message != "" {
+	parts := make([]string, 0, 4)
+	if command != "" {
+		timeoutText := ""
+		if timeoutVal, ok := result["timeout"].(float64); ok && timeoutVal > 0 {
+			timeoutText = fmt.Sprintf("（超时: %ds）", int(timeoutVal))
+		}
+		switch {
+		case readCountField(result, "hostCount") > 0:
+			parts = append(parts, fmt.Sprintf("即将在 %d 台主机上执行以下命令%s：", readCountField(result, "hostCount"), timeoutText))
+		case readCountField(result, "deviceCount") > 0:
+			parts = append(parts, fmt.Sprintf("即将在 %d 台网络设备上执行以下命令%s：", readCountField(result, "deviceCount"), timeoutText))
+		default:
+			if message != "" {
+				parts = append(parts, sanitizePendingMessage(message))
+			} else {
+				parts = append(parts, "即将执行以下命令：")
+			}
+		}
+		parts = append(parts, "```bash\n"+sanitizeCommandForMarkdown(command)+"\n```")
+	} else if message != "" {
 		parts = append(parts, message)
 	}
 	if warning != "" && warning != message {
@@ -422,6 +442,35 @@ func buildPendingConfirmationReply(result map[string]any) string {
 		reply += "\n\n确认执行吗？"
 	}
 	return reply
+}
+
+func readCountField(result map[string]any, key string) int {
+	if v, ok := result[key].(float64); ok && v > 0 {
+		return int(v)
+	}
+	if v, ok := result[key].(int); ok && v > 0 {
+		return v
+	}
+	return 0
+}
+
+func sanitizePendingMessage(message string) string {
+	message = strings.TrimSpace(message)
+	if message == "" {
+		return ""
+	}
+	if strings.HasPrefix(message, "命令 [") && strings.Contains(message, "] 将在 ") {
+		if idx := strings.LastIndex(message, "] 将在 "); idx > 0 {
+			return "即将" + message[idx+2:]
+		}
+	}
+	return message
+}
+
+func sanitizeCommandForMarkdown(command string) string {
+	command = strings.TrimSpace(command)
+	command = strings.ReplaceAll(command, "```", "'''")
+	return command
 }
 
 func mergePendingConfirmationReply(existing string, result map[string]any) string {
