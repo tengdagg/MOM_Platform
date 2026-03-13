@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"reflect"
 	"regexp"
 	"strings"
 	"sync"
@@ -408,38 +409,39 @@ func buildPendingConfirmationReply(result map[string]any) string {
 	warning = strings.TrimSpace(warning)
 	command = strings.TrimSpace(command)
 
-	parts := make([]string, 0, 4)
-	if command != "" {
-		timeoutText := ""
-		if timeoutVal, ok := result["timeout"].(float64); ok && timeoutVal > 0 {
-			timeoutText = fmt.Sprintf("（超时: %ds）", int(timeoutVal))
-		}
-		switch {
-		case readCountField(result, "hostCount") > 0:
-			parts = append(parts, fmt.Sprintf("即将在 %d 台主机上执行以下命令%s：", readCountField(result, "hostCount"), timeoutText))
-		case readCountField(result, "deviceCount") > 0:
-			parts = append(parts, fmt.Sprintf("即将在 %d 台网络设备上执行以下命令%s：", readCountField(result, "deviceCount"), timeoutText))
-		default:
-			if message != "" {
-				parts = append(parts, sanitizePendingMessage(message))
-			} else {
-				parts = append(parts, "即将执行以下命令：")
-			}
-		}
-		parts = append(parts, "```bash\n"+sanitizeCommandForMarkdown(command)+"\n```")
-	} else if message != "" {
-		parts = append(parts, message)
+	parts := make([]string, 0, 6)
+	parts = append(parts, "### 待确认操作")
+
+	targetSummary := buildPendingTargetSummary(result)
+	if targetSummary == "" && message != "" && command == "" {
+		targetSummary = sanitizePendingMessage(message)
 	}
-	if warning != "" && warning != message {
-		parts = append(parts, warning)
+	if targetSummary != "" {
+		parts = append(parts, "**目标主机**\n"+targetSummary)
+	}
+
+	timeoutSummary := buildPendingTimeoutSummary(result)
+	if timeoutSummary != "" {
+		parts = append(parts, "**超时设置**\n- "+timeoutSummary)
+	}
+
+	riskSummary := buildPendingRiskSummary(result, warning)
+	if riskSummary != "" {
+		parts = append(parts, "**风险说明**\n"+riskSummary)
+	}
+
+	if command != "" {
+		parts = append(parts, "**执行命令**\n```bash\n"+sanitizeCommandForMarkdown(command)+"\n```")
+	} else if message != "" {
+		parts = append(parts, "**操作说明**\n"+sanitizePendingMessage(message))
 	}
 
 	reply := strings.TrimSpace(strings.Join(parts, "\n\n"))
 	if reply == "" {
-		reply = "检测到该操作需要人工确认后才能继续执行。"
+		reply = "### 待确认操作\n检测到该操作需要人工确认后才能继续执行。"
 	}
-	if !strings.Contains(reply, "确认") {
-		reply += "\n\n确认执行吗？"
+	if !containsExplicitConfirmationInstruction(reply) {
+		reply += "\n\n请回复“确认”继续执行，或回复“取消”终止本次操作。"
 	}
 	return reply
 }
@@ -470,7 +472,149 @@ func sanitizePendingMessage(message string) string {
 func sanitizeCommandForMarkdown(command string) string {
 	command = strings.TrimSpace(command)
 	command = strings.ReplaceAll(command, "```", "'''")
+	command = strings.ReplaceAll(command, " && ", " && \\\n")
+	command = strings.ReplaceAll(command, " || ", " || \\\n")
 	return command
+}
+
+func buildPendingTargetSummary(result map[string]any) string {
+	if count := readCountField(result, "hostCount"); count > 0 {
+		lines := []string{fmt.Sprintf("- 目标类型：主机（共 %d 台）", count)}
+		lines = append(lines, buildTargetLinesFromSlice(result["hosts"], count)...)
+		return strings.Join(lines, "\n")
+	}
+	if count := readCountField(result, "deviceCount"); count > 0 {
+		lines := []string{fmt.Sprintf("- 目标类型：网络设备（共 %d 台）", count)}
+		lines = append(lines, buildTargetLinesFromSlice(result["devices"], count)...)
+		return strings.Join(lines, "\n")
+	}
+	if host, _ := result["host"].(string); strings.TrimSpace(host) != "" {
+		return "- " + strings.TrimSpace(host)
+	}
+	return ""
+}
+
+func buildTargetLinesFromSlice(items any, total int) []string {
+	v := reflect.ValueOf(items)
+	if !v.IsValid() || v.Kind() != reflect.Slice || v.Len() == 0 {
+		return nil
+	}
+	limit := v.Len()
+	if limit > 3 {
+		limit = 3
+	}
+	lines := make([]string, 0, limit+1)
+	for i := 0; i < limit; i++ {
+		item := v.Index(i)
+		if item.Kind() == reflect.Pointer && !item.IsNil() {
+			item = item.Elem()
+		}
+		name := extractFieldString(item, "Name")
+		ip := extractFieldString(item, "IP")
+		switch {
+		case name != "" && ip != "":
+			lines = append(lines, fmt.Sprintf("- %s (%s)", name, ip))
+		case ip != "":
+			lines = append(lines, "- "+ip)
+		case name != "":
+			lines = append(lines, "- "+name)
+		}
+	}
+	if total > limit {
+		lines = append(lines, fmt.Sprintf("- 其余 %d 台已省略", total-limit))
+	}
+	return lines
+}
+
+func extractFieldString(v reflect.Value, fieldName string) string {
+	if !v.IsValid() {
+		return ""
+	}
+	if v.Kind() == reflect.Interface && !v.IsNil() {
+		v = v.Elem()
+	}
+	if v.Kind() == reflect.Map {
+		mv := v.MapIndex(reflect.ValueOf(strings.ToLower(fieldName)))
+		if value := reflectValueToString(mv); value != "" {
+			return value
+		}
+		mv = v.MapIndex(reflect.ValueOf(fieldName))
+		if value := reflectValueToString(mv); value != "" {
+			return value
+		}
+		return ""
+	}
+	if v.Kind() != reflect.Struct {
+		return ""
+	}
+	f := v.FieldByName(fieldName)
+	if !f.IsValid() || f.Kind() != reflect.String {
+		return ""
+	}
+	return strings.TrimSpace(f.String())
+}
+
+func reflectValueToString(v reflect.Value) string {
+	if !v.IsValid() {
+		return ""
+	}
+	if v.Kind() == reflect.Interface && !v.IsNil() {
+		v = v.Elem()
+	}
+	if v.Kind() == reflect.String {
+		return strings.TrimSpace(v.String())
+	}
+	return ""
+}
+
+func buildPendingTimeoutSummary(result map[string]any) string {
+	if timeoutVal, ok := result["timeout"].(float64); ok && timeoutVal > 0 {
+		return fmt.Sprintf("%ds", int(timeoutVal))
+	}
+	if timeoutVal, ok := result["timeout"].(int); ok && timeoutVal > 0 {
+		return fmt.Sprintf("%ds", timeoutVal)
+	}
+	return ""
+}
+
+func buildPendingRiskSummary(result map[string]any, warning string) string {
+	lines := make([]string, 0, 2)
+	if riskLevel, _ := result["effectiveRiskLevel"].(string); strings.TrimSpace(riskLevel) != "" {
+		lines = append(lines, "- 风险等级："+formatPendingRiskLevel(riskLevel))
+	}
+	warning = strings.TrimSpace(warning)
+	if warning != "" {
+		warning = strings.TrimPrefix(warning, "⚠️ ")
+		lines = append(lines, "- "+warning)
+	}
+	return strings.Join(lines, "\n")
+}
+
+func formatPendingRiskLevel(risk string) string {
+	switch strings.ToLower(strings.TrimSpace(risk)) {
+	case "critical":
+		return "危险"
+	case "high":
+		return "高风险"
+	case "medium":
+		return "中风险"
+	case "low":
+		return "低风险"
+	default:
+		return risk
+	}
+}
+
+func containsExplicitConfirmationInstruction(text string) bool {
+	text = strings.TrimSpace(text)
+	if text == "" {
+		return false
+	}
+	return strings.Contains(text, "请回复“确认”继续执行") ||
+		strings.Contains(text, `请回复"确认"继续执行`) ||
+		strings.Contains(text, "请回复“确认”或“取消”") ||
+		strings.Contains(text, "请回复确认或取消") ||
+		strings.Contains(text, "确认执行吗")
 }
 
 func mergePendingConfirmationReply(existing string, result map[string]any) string {
@@ -479,7 +623,7 @@ func mergePendingConfirmationReply(existing string, result map[string]any) strin
 	if existing == "" {
 		return pendingReply
 	}
-	if strings.Contains(existing, "确认执行吗") || strings.Contains(existing, "请确认") {
+	if containsExplicitConfirmationInstruction(existing) {
 		return existing
 	}
 	if strings.Contains(existing, pendingReply) {

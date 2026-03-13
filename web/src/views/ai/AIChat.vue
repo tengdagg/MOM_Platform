@@ -1212,9 +1212,99 @@ function scrollToBottom() {
   })
 }
 
+function escapeHtml(text: string): string {
+  return String(text || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+}
+
+function parsePendingConfirmationSections(content: string) {
+  const normalized = content.replace(/\r\n/g, '\n').trim()
+  if (!normalized.startsWith('### 待确认操作')) return null
+
+  const actionMatch = normalized.match(/\n\n(请回复[\s\S]+)$/)
+  const actionText = actionMatch ? actionMatch[1].trim() : ''
+  const body = actionMatch ? normalized.slice(0, actionMatch.index).trim() : normalized
+  const withoutTitle = body.replace(/^### 待确认操作\s*/, '').trim()
+
+  const sections: Array<{ title: string; body: string }> = []
+  const sectionRegex = /\*\*(.+?)\*\*\n([\s\S]*?)(?=(?:\n\n\*\*)|$)/g
+  let match: RegExpExecArray | null
+  while ((match = sectionRegex.exec(withoutTitle)) !== null) {
+    sections.push({
+      title: match[1].trim(),
+      body: match[2].trim(),
+    })
+  }
+
+  if (sections.length === 0) return null
+  return { sections, actionText }
+}
+
+function renderPendingSectionBody(title: string, body: string): string {
+  if (title === '执行命令') {
+    const commandMatch = body.match(/```(?:\w+)?\n([\s\S]*?)```/)
+    const command = commandMatch ? commandMatch[1].trim() : body.trim()
+    return `<pre class="confirm-sheet-command">${escapeHtml(command)}</pre>`
+  }
+
+  const lines = body.split('\n').map(line => line.trim()).filter(Boolean)
+  if (title === '风险说明') {
+    return lines.map(line => {
+      const clean = line.replace(/^-\s*/, '').trim()
+      if (clean.startsWith('风险等级：')) {
+        const level = clean.replace('风险等级：', '').trim()
+        const levelClass =
+          level.includes('危险') ? 'critical' :
+          level.includes('高风险') ? 'high' :
+          level.includes('中风险') ? 'medium' : 'low'
+        return `<div class="confirm-risk-row"><span class="confirm-risk-label">风险等级</span><span class="confirm-risk-tag ${levelClass}">${escapeHtml(level)}</span></div>`
+      }
+      return `<div class="confirm-risk-note">${escapeHtml(clean)}</div>`
+    }).join('')
+  }
+
+  if (lines.every(line => line.startsWith('- '))) {
+    return `<ul class="confirm-sheet-list">${lines.map(line => `<li>${escapeHtml(line.slice(2).trim())}</li>`).join('')}</ul>`
+  }
+
+  return lines.map(line => `<div class="confirm-sheet-text">${escapeHtml(line.replace(/^-\s*/, ''))}</div>`).join('')
+}
+
+function renderPendingConfirmationSheet(content: string): string | null {
+  const parsed = parsePendingConfirmationSections(content)
+  if (!parsed) return null
+
+  const sectionsHtml = parsed.sections.map(section => {
+    const sectionClass = section.title === '风险说明' ? ' confirm-sheet-section-risk' : ''
+    return `<div class="confirm-sheet-section${sectionClass}">
+      <div class="confirm-sheet-section-title">${escapeHtml(section.title)}</div>
+      <div class="confirm-sheet-section-body">${renderPendingSectionBody(section.title, section.body)}</div>
+    </div>`
+  }).join('')
+
+  const actionHtml = parsed.actionText
+    ? `<div class="confirm-sheet-action">${escapeHtml(parsed.actionText)}</div>`
+    : ''
+
+  return `<div class="confirm-sheet">
+    <div class="confirm-sheet-header">
+      <span class="confirm-sheet-icon">!</span>
+      <span class="confirm-sheet-title">待确认操作</span>
+    </div>
+    ${sectionsHtml}
+    ${actionHtml}
+  </div>`
+}
+
 // Markdown 渲染（带 HTML 转义和深度思考标签修复）
 function renderMarkdown(content: string): string {
   if (!content) return ''
+  const confirmationHtml = renderPendingConfirmationSheet(content)
+  if (confirmationHtml) return confirmationHtml
   let html = content
 
   // 0. 先将已被实体化过一次的常见字符还原，避免再次转义后显示成 &amp;&amp;
@@ -1624,6 +1714,160 @@ function getToolStatusLabel(status: string) {
 .message-wrapper.user .message-body {
   background: #409eff;
   color: #fff;
+}
+
+.message-body :deep(.confirm-sheet) {
+  background: linear-gradient(180deg, #fffaf2 0%, #fff 100%);
+  border: 1px solid #f3d19e;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 6px 18px rgba(230, 162, 60, 0.08);
+}
+
+.message-body :deep(.confirm-sheet-header) {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  background: #fdf6ec;
+  border-bottom: 1px solid #f3e2bf;
+}
+
+.message-body :deep(.confirm-sheet-icon) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #e6a23c;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.message-body :deep(.confirm-sheet-title) {
+  font-size: 13px;
+  font-weight: 700;
+  color: #8a5300;
+}
+
+.message-body :deep(.confirm-sheet-section) {
+  padding: 10px 12px;
+  border-top: 1px solid #f7ead1;
+}
+
+.message-body :deep(.confirm-sheet-section:first-of-type) {
+  border-top: none;
+}
+
+.message-body :deep(.confirm-sheet-section-title) {
+  font-size: 11px;
+  font-weight: 700;
+  color: #909399;
+  letter-spacing: 0.02em;
+  margin-bottom: 7px;
+}
+
+.message-body :deep(.confirm-sheet-section-body) {
+  color: #303133;
+  font-size: 13px;
+}
+
+.message-body :deep(.confirm-sheet-list) {
+  margin: 0;
+  padding-left: 18px;
+}
+
+.message-body :deep(.confirm-sheet-list li) {
+  margin-bottom: 4px;
+  line-height: 1.5;
+}
+
+.message-body :deep(.confirm-sheet-text) {
+  line-height: 1.6;
+  margin-bottom: 4px;
+}
+
+.message-body :deep(.confirm-risk-row) {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.message-body :deep(.confirm-risk-label) {
+  font-size: 12px;
+  color: #606266;
+  font-weight: 600;
+}
+
+.message-body :deep(.confirm-risk-tag) {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  border: 1px solid transparent;
+}
+
+.message-body :deep(.confirm-risk-tag.critical) {
+  background: #fef0f0;
+  color: #f56c6c;
+  border-color: #fbc4c4;
+}
+
+.message-body :deep(.confirm-risk-tag.high) {
+  background: #fdf6ec;
+  color: #e6a23c;
+  border-color: #f5dab1;
+}
+
+.message-body :deep(.confirm-risk-tag.medium) {
+  background: #f4f4f5;
+  color: #606266;
+  border-color: #dcdfe6;
+}
+
+.message-body :deep(.confirm-risk-tag.low) {
+  background: #f0f9eb;
+  color: #67c23a;
+  border-color: #c2e7b0;
+}
+
+.message-body :deep(.confirm-risk-note) {
+  background: #fff7e6;
+  border-left: 3px solid #e6a23c;
+  border-radius: 6px;
+  padding: 8px 10px;
+  color: #8a5300;
+  line-height: 1.55;
+}
+
+.message-body :deep(.confirm-sheet-command) {
+  margin: 0;
+  background: #1f2329;
+  color: #e6edf3;
+  padding: 11px 12px;
+  border-radius: 8px;
+  overflow-x: auto;
+  font-size: 12px;
+  line-height: 1.55;
+  border: 1px solid #30363d;
+}
+
+.message-body :deep(.confirm-sheet-action) {
+  margin: 0 12px 12px;
+  padding: 10px 12px;
+  background: #ecf5ff;
+  border: 1px solid #b3d8ff;
+  border-radius: 8px;
+  color: #1d4f91;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.5;
 }
 
 .assistant-timeline {

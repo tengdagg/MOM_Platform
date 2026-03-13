@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"html"
 	"regexp"
 	"strings"
 	"sync"
@@ -30,11 +31,12 @@ type feishuToolState struct {
 }
 
 type feishuTimelineBlock struct {
-	Type      string
-	Content   string
-	ToolName  string
-	Status    string
-	RiskLevel string
+	Type           string
+	Content        string
+	ToolName       string
+	Status         string
+	RiskLevel      string
+	IsConfirmation bool
 }
 
 type FeishuChannelAdapter struct {
@@ -265,6 +267,7 @@ func (a *FeishuChannelAdapter) processIncomingMessage(req feishuIncomingMessage)
 	lastPushedText := placeholderText
 	lastPushAt := time.Now()
 	var streamedText strings.Builder
+	nextTextIsConfirmation := false
 
 	replyText, events, err := a.bridge.StreamChannelMessage(runCtx, a.channel, session.ID, req.Content, func(event AgentEvent) {
 		GlobalSessionStreamBus.Publish(session.UserID, SessionStreamPayload{
@@ -286,11 +289,20 @@ func (a *FeishuChannelAdapter) processIncomingMessage(req feishuIncomingMessage)
 		case "tool_call_result":
 			toolStates = updateFeishuToolState(toolStates, event.ToolName, parseFeishuToolResultStatus(event.ToolResult), event.RiskLevel)
 			timelineBlocks = updateFeishuTimelineTool(timelineBlocks, event.ToolName, parseFeishuToolResultStatus(event.ToolResult), event.RiskLevel)
+			if parseFeishuToolResultStatus(event.ToolResult) == "pending_confirmation" {
+				nextTextIsConfirmation = true
+			}
 		}
 
 		if event.Type == "text_delta" && event.Content != "" {
-			streamedText.WriteString(event.Content)
-			timelineBlocks = appendFeishuTimelineText(timelineBlocks, event.Content)
+			decodedContent := html.UnescapeString(event.Content)
+			streamedText.WriteString(decodedContent)
+			if nextTextIsConfirmation {
+				timelineBlocks = appendFeishuConfirmationText(timelineBlocks, decodedContent)
+				nextTextIsConfirmation = false
+			} else {
+				timelineBlocks = appendFeishuTimelineText(timelineBlocks, decodedContent)
+			}
 		}
 
 		if messageID == "" {
@@ -591,8 +603,27 @@ func buildFeishuTimelineElements(timelineBlocks []feishuTimelineBlock, toolState
 	}
 
 	elements := make([]map[string]any, 0, len(blocks)*2)
-	for idx, block := range blocks {
-		content := renderFeishuTimelineBlock(block, idx)
+	toolIdx := 0
+	for _, block := range blocks {
+		if block.Type == "text" {
+			if pendingElements, ok := buildFeishuPendingConfirmationElements(block.Content); ok {
+				elements = append(elements, pendingElements...)
+				continue
+			}
+			if block.IsConfirmation {
+				elements = append(elements, splitFeishuConfirmationFallback(block.Content)...)
+				continue
+			}
+			if strings.Contains(block.Content, "### 待确认操作") {
+				elements = append(elements, splitFeishuConfirmationFallback(block.Content)...)
+				continue
+			}
+		}
+		currentToolIdx := toolIdx
+		if block.Type == "tool" {
+			currentToolIdx++
+		}
+		content := renderFeishuTimelineBlock(block, currentToolIdx)
 		if strings.TrimSpace(content) == "" {
 			continue
 		}
@@ -600,6 +631,9 @@ func buildFeishuTimelineElements(timelineBlocks []feishuTimelineBlock, toolState
 			"tag":     "markdown",
 			"content": content,
 		})
+		if block.Type == "tool" {
+			toolIdx = currentToolIdx
+		}
 	}
 	if len(elements) == 0 && processing {
 		elements = append(elements, map[string]any{
@@ -610,10 +644,212 @@ func buildFeishuTimelineElements(timelineBlocks []feishuTimelineBlock, toolState
 	return elements
 }
 
-func renderFeishuTimelineBlock(block feishuTimelineBlock, idx int) string {
+func splitFeishuConfirmationFallback(content string) []map[string]any {
+	normalized := normalizeFeishuPendingContent(content)
+	titleLoc := regexp.MustCompile(`###\s*待确认操作`).FindStringIndex(normalized)
+	if titleLoc == nil {
+		return []map[string]any{
+			{"tag": "markdown", "content": normalizeFeishuReplyText(content)},
+		}
+	}
+
+	var elements []map[string]any
+
+	prefix := strings.TrimSpace(normalized[:titleLoc[0]])
+	if prefix != "" {
+		elements = append(elements, map[string]any{
+			"tag":     "markdown",
+			"content": normalizeFeishuReplyText(prefix),
+		})
+	}
+
+	confirmationPart := strings.TrimSpace(normalized[titleLoc[0]:])
+	if elems, ok := buildFeishuPendingConfirmationElements(confirmationPart); ok {
+		elements = append(elements, elems...)
+	} else {
+		elements = append(elements, map[string]any{
+			"tag":     "markdown",
+			"content": confirmationPart,
+		})
+	}
+
+	return elements
+}
+
+func buildFeishuPendingConfirmationElements(content string) ([]map[string]any, bool) {
+	prefixText, sections, actionText, ok := parseFeishuPendingConfirmationSections(content)
+	if !ok {
+		return nil, false
+	}
+	elements := make([]map[string]any, 0, len(sections)+3)
+	if strings.TrimSpace(prefixText) != "" {
+		elements = append(elements, map[string]any{
+			"tag":     "markdown",
+			"content": normalizeFeishuReplyText(prefixText),
+		})
+	}
+	elements = append(elements, map[string]any{
+		"tag":     "markdown",
+		"content": "⚠️ **待确认操作**",
+	})
+	for _, section := range sections {
+		body := strings.TrimSpace(section.Body)
+		if body == "" {
+			continue
+		}
+		if section.Title == "执行命令" {
+			body = extractFeishuCommandBlock(body)
+			elements = append(elements, map[string]any{
+				"tag":     "markdown",
+				"content": fmt.Sprintf("**%s**\n```\n%s\n```", section.Title, body),
+			})
+			continue
+		}
+		elements = append(elements, map[string]any{
+			"tag":     "markdown",
+			"content": fmt.Sprintf("**%s**\n%s", section.Title, normalizeFeishuSectionBody(body)),
+		})
+	}
+	if actionText != "" {
+		elements = append(elements, map[string]any{
+			"tag": "note",
+			"elements": []map[string]any{
+				{"tag": "plain_text", "content": actionText},
+			},
+		})
+	}
+	return elements, true
+}
+
+type feishuPendingSection struct {
+	Title string
+	Body  string
+}
+
+func parseFeishuPendingConfirmationSections(content string) (string, []feishuPendingSection, string, bool) {
+	normalized := normalizeFeishuPendingContent(content)
+	titleLoc := regexp.MustCompile(`###\s*待确认操作`).FindStringIndex(normalized)
+	if titleLoc == nil {
+		return "", nil, "", false
+	}
+
+	prefixText := strings.TrimSpace(normalized[:titleLoc[0]])
+	body := strings.TrimSpace(normalized[titleLoc[1]:])
+	if body == "" {
+		return prefixText, nil, "", false
+	}
+
+	lines := strings.Split(body, "\n")
+	sectionTitleRe := regexp.MustCompile(`^\*\*(.+?)\*\*$`)
+	sections := make([]feishuPendingSection, 0, 4)
+	actionText := ""
+	currentTitle := ""
+	currentBody := make([]string, 0, 6)
+	flushSection := func() {
+		if strings.TrimSpace(currentTitle) == "" {
+			currentBody = currentBody[:0]
+			return
+		}
+		sections = append(sections, feishuPendingSection{
+			Title: strings.TrimSpace(currentTitle),
+			Body:  strings.TrimSpace(strings.Join(currentBody, "\n")),
+		})
+		currentTitle = ""
+		currentBody = currentBody[:0]
+	}
+
+	for idx, rawLine := range lines {
+		line := strings.TrimSpace(rawLine)
+		if line == "" {
+			if currentTitle != "" && len(currentBody) > 0 && currentBody[len(currentBody)-1] != "" {
+				currentBody = append(currentBody, "")
+			}
+			continue
+		}
+
+		if strings.HasPrefix(line, "请回复") {
+			flushSection()
+			actionText = strings.TrimSpace(strings.Join(lines[idx:], "\n"))
+			break
+		}
+
+		titleMatch := sectionTitleRe.FindStringSubmatch(line)
+		if len(titleMatch) == 2 {
+			flushSection()
+			currentTitle = titleMatch[1]
+			continue
+		}
+
+		if currentTitle == "" {
+			continue
+		}
+		currentBody = append(currentBody, line)
+	}
+	flushSection()
+
+	if len(sections) == 0 {
+		return prefixText, nil, actionText, false
+	}
+	return prefixText, sections, actionText, true
+}
+
+func normalizeFeishuPendingContent(content string) string {
+	normalized := strings.ReplaceAll(content, "\r\n", "\n")
+	normalized = strings.ReplaceAll(normalized, "\r", "\n")
+
+	replacements := []struct {
+		pattern string
+		target  string
+	}{
+		{`(?s)\s*###\s*待确认操作\s*`, "\n### 待确认操作\n"},
+		{`(?s)\s*\*\*目标主机\*\*\s*`, "\n**目标主机**\n"},
+		{`(?s)\s*\*\*超时设置\*\*\s*`, "\n**超时设置**\n"},
+		{`(?s)\s*\*\*风险说明\*\*\s*`, "\n**风险说明**\n"},
+		{`(?s)\s*\*\*执行命令\*\*\s*`, "\n**执行命令**\n"},
+		{`(?s)\s*\*\*操作说明\*\*\s*`, "\n**操作说明**\n"},
+		{`(?m)\s*请回复`, "\n请回复"},
+	}
+	for _, item := range replacements {
+		normalized = regexp.MustCompile(item.pattern).ReplaceAllString(normalized, item.target)
+	}
+
+	normalized = regexp.MustCompile(`\n{3,}`).ReplaceAllString(normalized, "\n\n")
+	return strings.TrimSpace(normalized)
+}
+
+func extractFeishuCommandBlock(body string) string {
+	body = strings.TrimSpace(body)
+	body = html.UnescapeString(body)
+
+	re := regexp.MustCompile("(?s)```(?:\\w+)?\\n(.*?)```")
+	matches := re.FindStringSubmatch(body)
+	if len(matches) >= 2 {
+		return strings.TrimSpace(matches[1])
+	}
+
+	body = regexp.MustCompile("^```(?:bash|sh|shell|zsh)?").ReplaceAllString(body, "")
+	body = strings.TrimPrefix(body, "\n")
+	body = strings.TrimSuffix(body, "```")
+	return strings.TrimSpace(body)
+}
+
+func normalizeFeishuSectionBody(body string) string {
+	lines := strings.Split(strings.ReplaceAll(body, "\r", "\n"), "\n")
+	normalized := make([]string, 0, len(lines))
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+		normalized = append(normalized, line)
+	}
+	return strings.Join(normalized, "\n")
+}
+
+func renderFeishuTimelineBlock(block feishuTimelineBlock, toolIdx int) string {
 	switch block.Type {
 	case "tool":
-		return fmt.Sprintf("`%d` `%s` %s%s", idx+1, block.ToolName, formatFeishuToolStatus(block.Status), formatFeishuToolRisk(block.RiskLevel))
+		return fmt.Sprintf("`%d` `%s` %s%s", toolIdx, block.ToolName, formatFeishuToolStatus(block.Status), formatFeishuToolRisk(block.RiskLevel))
 	default:
 		text := normalizeFeishuReplyText(block.Content)
 		return text
@@ -627,12 +863,21 @@ func trimFeishuTimelineBlocks(blocks []feishuTimelineBlock) []feishuTimelineBloc
 	const maxChars = 5500
 	trimmed := make([]feishuTimelineBlock, 0, len(blocks))
 	used := 0
+	toolIdx := 0
 	for _, block := range blocks {
-		rendered := renderFeishuTimelineBlock(block, len(trimmed))
+		currentToolIdx := toolIdx
+		if block.Type == "tool" {
+			currentToolIdx++
+		}
+		rendered := renderFeishuTimelineBlock(block, currentToolIdx)
 		if strings.TrimSpace(rendered) == "" {
 			continue
 		}
 		if used+len(rendered) > maxChars {
+			if block.IsConfirmation || strings.Contains(block.Content, "### 待确认操作") {
+				trimmed = append(trimmed, block)
+				break
+			}
 			remaining := maxChars - used
 			if remaining > 40 {
 				if block.Type == "text" {
@@ -647,6 +892,9 @@ func trimFeishuTimelineBlocks(blocks []feishuTimelineBlock) []feishuTimelineBloc
 		}
 		trimmed = append(trimmed, block)
 		used += len(rendered)
+		if block.Type == "tool" {
+			toolIdx = currentToolIdx
+		}
 	}
 	return trimmed
 }
@@ -684,13 +932,24 @@ func appendFeishuTimelineText(blocks []feishuTimelineBlock, content string) []fe
 	if strings.TrimSpace(content) == "" {
 		return blocks
 	}
-	if len(blocks) > 0 && blocks[len(blocks)-1].Type == "text" {
+	if len(blocks) > 0 && blocks[len(blocks)-1].Type == "text" && !blocks[len(blocks)-1].IsConfirmation {
 		blocks[len(blocks)-1].Content += content
 		return blocks
 	}
 	return append(blocks, feishuTimelineBlock{
 		Type:    "text",
 		Content: content,
+	})
+}
+
+func appendFeishuConfirmationText(blocks []feishuTimelineBlock, content string) []feishuTimelineBlock {
+	if strings.TrimSpace(content) == "" {
+		return blocks
+	}
+	return append(blocks, feishuTimelineBlock{
+		Type:           "text",
+		Content:        content,
+		IsConfirmation: true,
 	})
 }
 

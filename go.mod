@@ -11,7 +11,10 @@ require (
 	github.com/go-ldap/ldap/v3 v3.4.12
 	github.com/go-sql-driver/mysql v1.8.1
 	github.com/golang-jwt/jwt/v5 v5.3.0
+	github.com/golang-migrate/migrate/v4 v4.19.1
+	github.com/google/uuid v1.6.0
 	github.com/gorilla/websocket v1.5.4-0.20250319132907-e064f32e3674
+	github.com/larksuite/oapi-sdk-go/v3 v3.5.3
 	github.com/mojocn/base64Captcha v1.3.8
 	github.com/pkg/sftp v1.13.10
 	github.com/redis/go-redis/v9 v9.17.2
@@ -29,6 +32,7 @@ require (
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1
 	gopkg.in/yaml.v2 v2.4.0
 	gopkg.in/yaml.v3 v3.0.1
+	gorm.io/datatypes v1.2.7
 	gorm.io/driver/mysql v1.6.0
 	gorm.io/gorm v1.31.1
 	k8s.io/api v0.35.0
@@ -108,12 +112,10 @@ require (
 	github.com/goccy/go-json v0.10.5 // indirect
 	github.com/goccy/go-yaml v1.19.1 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
-	github.com/golang-migrate/migrate/v4 v4.19.1 // indirect
 	github.com/golang/freetype v0.0.0-20170609003504-e2365dfdc4a0 // indirect
 	github.com/google/btree v1.1.3 // indirect
 	github.com/google/gnostic-models v0.7.0 // indirect
 	github.com/google/go-cmp v0.7.0 // indirect
-	github.com/google/uuid v1.6.0 // indirect
 	github.com/gosuri/uitable v0.0.4 // indirect
 	github.com/gregjones/httpcache v0.0.0-20190611155906-901d90724c79 // indirect
 	github.com/hashicorp/errwrap v1.1.0 // indirect
@@ -131,7 +133,6 @@ require (
 	github.com/kr/fs v0.1.0 // indirect
 	github.com/lann/builder v0.0.0-20180802200727-47ae307949d0 // indirect
 	github.com/lann/ps v0.0.0-20150810152359-62de8c46ede0 // indirect
-	github.com/larksuite/oapi-sdk-go/v3 v3.5.3 // indirect
 	github.com/leodido/go-urn v1.4.0 // indirect
 	github.com/lib/pq v1.10.9 // indirect
 	github.com/liggitt/tabwriter v0.0.0-20181228230101-89fcab3d43de // indirect
@@ -199,7 +200,6 @@ require (
 	gopkg.in/evanphx/json-patch.v4 v4.13.0 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	gopkg.in/ini.v1 v1.67.0 // indirect
-	gorm.io/datatypes v1.2.7 // indirect
 	helm.sh/helm/v3 v3.20.0 // indirect
 	k8s.io/apiextensions-apiserver v0.35.0 // indirect
 	k8s.io/apiserver v0.35.0 // indirect
