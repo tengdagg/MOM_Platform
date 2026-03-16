@@ -735,6 +735,7 @@ func injectConfirmedParam(argsJSON string) string {
 // SkillContext Skill 执行上下文
 type SkillContext struct {
 	Ctx      context.Context
+	SessionID uint
 	UserID   uint
 	Username string
 	Params   map[string]any
@@ -990,6 +991,8 @@ const systemPrompt = `你是 MOM 运维管理平台的 AI 助手。你可以帮�
 - 新设备接入：device-manage(list_credentials) → device-manage(list_groups) → device-manage(create) → device-test_connection（验证连通性）
 - 配置查看：device-list/detail（查设备 ID）→ device-exec_command(command="show running-config" 或 "display current-configuration")
 - 远程命令：只执行 show/display 等查看类命令；配置变更类命令应提醒用户高风险
+- 连续配置：同一对话内对同一网络设备重复调用 device-exec_command 时，会尽量复用交互式 shell 上下文；如果已进入配置模式，后续命令默认仍在当前模式中执行，必要时请显式执行 end/exit 返回上级模式
+- 会话管理：可用 device-session_status 查看当前对话中的网络设备会话状态，必要时用 device-close_session 主动结束当前设备会话或全部设备会话
 
 📌 Kubernetes 集群：
 - 资源查询：k8s-kubectl(action="get", resource="deployments/pods/services/..." ) 查看资源列表或详情
@@ -1418,7 +1421,7 @@ func (a *Agent) Run(ctx context.Context, adapter *ModelAdapter, sessionID uint, 
 				RiskHint:   riskHint,
 			}
 
-			result := a.executeTool(ctx, llmName, toolArgs, userID, username, pendingTools)
+			result := a.executeTool(ctx, sessionID, llmName, toolArgs, userID, username, pendingTools)
 			resultJSON, _ := json.Marshal(result)
 
 			// 如果工具返回了动态风险等级（如安全命令跳过确认时降为 low），覆盖静态风险等级
@@ -1791,7 +1794,7 @@ func (a *Agent) RunStream(ctx context.Context, adapter *ModelAdapter, sessionID 
 				RiskHint:   riskHint,
 			}
 
-			result := a.executeTool(ctx, llmName, toolArgs, userID, username, pendingTools)
+			result := a.executeTool(ctx, sessionID, llmName, toolArgs, userID, username, pendingTools)
 			resultJSON, _ := json.Marshal(result)
 
 			// 如果工具返回了动态风险等级（如安全命令跳过确认时降为 low），覆盖静态风险等级
@@ -1890,7 +1893,7 @@ func (a *Agent) saveAssistantMessage(sessionID uint, content string, toolCallRec
 //
 // 安全拦截：如果 LLM 对未经 pending_confirmation 的工具直接传 confirmed=true，
 // 则强制移除 confirmed 参数，确保工具会返回 pending_confirmation。
-func (a *Agent) executeTool(ctx context.Context, name string, argsJSON string, userID uint, username string, pendingTools map[string]bool) map[string]any {
+func (a *Agent) executeTool(ctx context.Context, sessionID uint, name string, argsJSON string, userID uint, username string, pendingTools map[string]bool) map[string]any {
 	skill, ok := a.registry.Get(name)
 	if !ok {
 		return map[string]any{"error": fmt.Sprintf("工具 %s 不存在", name)}
@@ -1919,6 +1922,7 @@ func (a *Agent) executeTool(ctx context.Context, name string, argsJSON string, u
 	// 执行
 	result, err := skill.Execute(SkillContext{
 		Ctx:      ctx,
+		SessionID: sessionID,
 		UserID:   userID,
 		Username: username,
 		Params:   params,
@@ -2075,7 +2079,7 @@ func (a *Agent) replayPendingAction(
 		RiskHint:   riskHint,
 	}
 
-	result := a.executeTool(ctx, llmName, confirmedArgs, userID, username, pendingTools)
+	result := a.executeTool(ctx, sessionID, llmName, confirmedArgs, userID, username, pendingTools)
 	resultJSON, _ := json.Marshal(result)
 	if effectiveRL, ok := result["effectiveRiskLevel"].(string); ok && effectiveRL != "" {
 		riskLevel = effectiveRL

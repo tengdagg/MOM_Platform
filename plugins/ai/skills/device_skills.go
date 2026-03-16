@@ -108,10 +108,14 @@ func isSafeDeviceReadCommand(command string) bool {
 	if cmd == "" {
 		return false
 	}
+	if strings.Contains(cmd, "?") {
+		return true
+	}
 
 	safePrefixes := []string{
 		"show ", "display ", "dis ", "ping ", "traceroute ", "tracert ",
 		"dir ", "pwd", "more ", "terminal length ", "screen-length ",
+		"do show ", "do display ", "do dis ",
 	}
 	for _, prefix := range safePrefixes {
 		if strings.HasPrefix(cmd, prefix) {
@@ -120,13 +124,15 @@ func isSafeDeviceReadCommand(command string) bool {
 	}
 
 	safeExact := map[string]bool{
-		"show":              true,
-		"display":           true,
-		"dis":               true,
-		"show version":      true,
-		"display version":   true,
-		"show running-config": true,
+		"show":                          true,
+		"display":                       true,
+		"dis":                           true,
+		"show version":                  true,
+		"display version":               true,
+		"show running-config":           true,
 		"display current-configuration": true,
+		"clock":                         true,
+		"ntp":                           true,
 	}
 	return safeExact[cmd]
 }
@@ -137,6 +143,8 @@ func RegisterDeviceSkills(registry *biz.ToolRegistry) {
 	registry.Register(MustLoadBuiltinSkill("device.detail", executeDeviceDetail))
 	registry.Register(MustLoadBuiltinSkill("device.test_connection", executeDeviceTestConnection))
 	registry.Register(MustLoadBuiltinSkill("device.exec_command", executeDeviceExecCommand))
+	registry.Register(MustLoadBuiltinSkill("device.session_status", executeDeviceSessionStatus))
+	registry.Register(MustLoadBuiltinSkill("device.close_session", executeDeviceCloseSession))
 	registry.Register(MustLoadBuiltinSkill("device.manage", executeDeviceManage))
 }
 
@@ -427,101 +435,52 @@ func executeDeviceExecCommand(ctx biz.SkillContext) (any, error) {
 		return nil, fmt.Errorf("请指定要执行的命令")
 	}
 	ip, _ := ctx.Params["ip"].(string)
-
-	// 安全检查：拒绝危险的网络设备配置命令
-	dangerousPatterns := []string{
-		"write erase", "erase startup", "format", "delete /force",
-		"reset saved-configuration", "restore factory",
-		"no service password", "shutdown",
+	devices, err := resolveDeviceTargets(ctx, ip, false)
+	if err != nil {
+		return nil, err
 	}
-	cmdLower := strings.ToLower(command)
-	for _, pattern := range dangerousPatterns {
-		if strings.Contains(cmdLower, pattern) {
-			return nil, fmt.Errorf("安全检查未通过：命令包含危险操作 [%s]，已被拒绝", pattern)
-		}
-	}
-
-	// 查找目标设备
-	type SimpleDevice struct {
-		ID       uint   `json:"id"`
-		Name     string `json:"name"`
-		IP       string `json:"ip"`
-		Protocol string `json:"protocol"`
-		Port     int    `json:"port"`
-	}
-	var devices []SimpleDevice
-
-	if ip != "" {
-		ctx.DB.Table("network_devices").Select("id, name, ip, protocol, port").
-			Where("ip = ? AND deleted_at IS NULL", ip).Find(&devices)
-	}
-	if deviceIDs, ok := ctx.Params["device_ids"].([]any); ok && len(deviceIDs) > 0 {
-		ids := make([]uint, 0, len(deviceIDs))
-		for _, id := range deviceIDs {
-			if v, ok := id.(float64); ok {
-				ids = append(ids, uint(v))
-			}
-		}
-		var idDevices []SimpleDevice
-		ctx.DB.Table("network_devices").Select("id, name, ip, protocol, port").
-			Where("id IN ? AND deleted_at IS NULL", ids).Find(&idDevices)
-		devices = append(devices, idDevices...)
-	}
-
 	if len(devices) == 0 {
 		return nil, fmt.Errorf("未找到目标网络设备，请指定设备 IP 或 ID 列表")
 	}
 
 	// 常见只读查询命令 → 直接执行，跳过确认
-	if !isDangerousDeviceCommand(command) && isSafeDeviceReadCommand(command) {
+	if isSafeDeviceReadCommand(command) {
 		type ExecResult struct {
-			Device string `json:"device"`
-			IP     string `json:"ip"`
-			Output string `json:"output"`
-			Error  string `json:"error,omitempty"`
+			Device        string `json:"device"`
+			IP            string `json:"ip"`
+			Output        string `json:"output"`
+			Error         string `json:"error,omitempty"`
+			SessionMode   string `json:"sessionMode,omitempty"`
+			SessionReused bool   `json:"sessionReused,omitempty"`
 		}
 		var results []ExecResult
 		successCount := 0
 
 		for _, d := range devices {
-			if d.Protocol == "telnet" {
-				results = append(results, ExecResult{
-					Device: d.Name, IP: d.IP,
-					Error: "Telnet 设备暂不支持 AI 远程命令执行，请使用终端手动操作",
-				})
-				continue
-			}
-
 			username, password, credErr := getDeviceCredential(ctx.DB, d.ID)
 			if credErr != nil {
 				results = append(results, ExecResult{Device: d.Name, IP: d.IP, Error: credErr.Error()})
 				continue
 			}
 
-			addr := fmt.Sprintf("%s:%d", d.IP, d.Port)
-			config := buildDeviceSSHConfig(username, password)
-
-			client, err := ssh.Dial("tcp", addr, config)
+			output, reused, err := aiDeviceShellSessions.ExecuteCommand(ctx.SessionID, d, username, password, command)
 			if err != nil {
-				results = append(results, ExecResult{Device: d.Name, IP: d.IP, Error: fmt.Sprintf("SSH连接失败: %v", err)})
-				continue
-			}
-
-			session, err := client.NewSession()
-			if err != nil {
-				client.Close()
-				results = append(results, ExecResult{Device: d.Name, IP: d.IP, Error: fmt.Sprintf("创建会话失败: %v", err)})
-				continue
-			}
-
-			output, err := session.CombinedOutput(command)
-			session.Close()
-			client.Close()
-
-			if err != nil {
-				results = append(results, ExecResult{Device: d.Name, IP: d.IP, Output: string(output), Error: err.Error()})
+				results = append(results, ExecResult{
+					Device:        d.Name,
+					IP:            d.IP,
+					Output:        output,
+					Error:         err.Error(),
+					SessionMode:   "interactive",
+					SessionReused: reused,
+				})
 			} else {
-				results = append(results, ExecResult{Device: d.Name, IP: d.IP, Output: string(output)})
+				results = append(results, ExecResult{
+					Device:        d.Name,
+					IP:            d.IP,
+					Output:        output,
+					SessionMode:   "interactive",
+					SessionReused: reused,
+				})
 				successCount++
 			}
 		}
@@ -551,66 +510,161 @@ func executeDeviceExecCommand(ctx biz.SkillContext) (any, error) {
 
 	// 已确认 → 通过 SSH 执行命令
 	type ExecResult struct {
-		Device string `json:"device"`
-		IP     string `json:"ip"`
-		Output string `json:"output"`
-		Error  string `json:"error,omitempty"`
+		Device        string `json:"device"`
+		IP            string `json:"ip"`
+		Output        string `json:"output"`
+		Error         string `json:"error,omitempty"`
+		SessionMode   string `json:"sessionMode,omitempty"`
+		SessionReused bool   `json:"sessionReused,omitempty"`
 	}
 	var results []ExecResult
 	successCount := 0
+	interactiveSessionCount := 0
 
 	for _, d := range devices {
-		if d.Protocol == "telnet" {
-			results = append(results, ExecResult{
-				Device: d.Name, IP: d.IP,
-				Error: "Telnet 设备暂不支持 AI 远程命令执行，请使用终端手动操作",
-			})
-			continue
-		}
-
-		// SSH 执行：获取凭证（解密）
 		username, password, credErr := getDeviceCredential(ctx.DB, d.ID)
 		if credErr != nil {
 			results = append(results, ExecResult{Device: d.Name, IP: d.IP, Error: credErr.Error()})
 			continue
 		}
 
-		addr := fmt.Sprintf("%s:%d", d.IP, d.Port)
-		config := buildDeviceSSHConfig(username, password)
-
-		client, err := ssh.Dial("tcp", addr, config)
+		output, reused, err := aiDeviceShellSessions.ExecuteCommand(ctx.SessionID, d, username, password, command)
 		if err != nil {
-			results = append(results, ExecResult{Device: d.Name, IP: d.IP, Error: fmt.Sprintf("SSH连接失败: %v", err)})
+			results = append(results, ExecResult{
+				Device:        d.Name,
+				IP:            d.IP,
+				Output:        output,
+				Error:         err.Error(),
+				SessionMode:   "interactive",
+				SessionReused: reused,
+			})
 			continue
 		}
 
-		session, err := client.NewSession()
-		if err != nil {
-			client.Close()
-			results = append(results, ExecResult{Device: d.Name, IP: d.IP, Error: fmt.Sprintf("创建会话失败: %v", err)})
-			continue
-		}
-
-		output, err := session.CombinedOutput(command)
-		session.Close()
-		client.Close()
-
-		if err != nil {
-			results = append(results, ExecResult{Device: d.Name, IP: d.IP, Output: string(output), Error: err.Error()})
-		} else {
-			results = append(results, ExecResult{Device: d.Name, IP: d.IP, Output: string(output)})
-			successCount++
-		}
+		results = append(results, ExecResult{
+			Device:        d.Name,
+			IP:            d.IP,
+			Output:        output,
+			SessionMode:   "interactive",
+			SessionReused: reused,
+		})
+		successCount++
+		interactiveSessionCount++
 	}
 
 	return map[string]any{
-		"status":       "success",
-		"message":      fmt.Sprintf("✅ 命令已在 %d/%d 台网络设备上执行完成", successCount, len(devices)),
-		"command":      command,
-		"results":      results,
-		"successCount": successCount,
-		"totalCount":   len(devices),
+		"status":                    "success",
+		"message":                   fmt.Sprintf("✅ 命令已在 %d/%d 台网络设备上执行完成", successCount, len(devices)),
+		"command":                   command,
+		"results":                   results,
+		"successCount":              successCount,
+		"totalCount":                len(devices),
+		"interactiveSessionCount":   interactiveSessionCount,
+		"sessionIdleTimeoutSeconds": int(aiDeviceSessionIdleTimeout.Seconds()),
 	}, nil
+}
+
+func executeDeviceSessionStatus(ctx biz.SkillContext) (any, error) {
+	if ctx.SessionID == 0 {
+		return nil, fmt.Errorf("缺少 AI 会话上下文，无法查询设备会话状态")
+	}
+
+	ip, _ := ctx.Params["ip"].(string)
+	devices, err := resolveDeviceTargets(ctx, ip, true)
+	if err != nil {
+		return nil, err
+	}
+
+	deviceIDSet := make(map[uint]bool, len(devices))
+	for _, device := range devices {
+		deviceIDSet[device.ID] = true
+	}
+
+	sessions := aiDeviceShellSessions.ListSessions(ctx.SessionID, deviceIDSet)
+	return map[string]any{
+		"sessions":                  sessions,
+		"activeCount":               len(sessions),
+		"sessionIdleTimeoutSeconds": int(aiDeviceSessionIdleTimeout.Seconds()),
+		"effectiveRiskLevel":        "low",
+		"message":                   fmt.Sprintf("当前对话中有 %d 个网络设备交互会话处于活动状态", len(sessions)),
+	}, nil
+}
+
+func executeDeviceCloseSession(ctx biz.SkillContext) (any, error) {
+	if ctx.SessionID == 0 {
+		return nil, fmt.Errorf("缺少 AI 会话上下文，无法关闭设备会话")
+	}
+
+	closeAll, _ := ctx.Params["all"].(bool)
+	deviceIDSet := map[uint]bool{}
+	if !closeAll {
+		ip, _ := ctx.Params["ip"].(string)
+		devices, err := resolveDeviceTargets(ctx, ip, false)
+		if err != nil {
+			return nil, err
+		}
+		for _, device := range devices {
+			deviceIDSet[device.ID] = true
+		}
+		if len(deviceIDSet) == 0 {
+			return nil, fmt.Errorf("未找到要关闭会话的目标网络设备")
+		}
+	}
+
+	closedCount := aiDeviceShellSessions.CloseSessions(ctx.SessionID, deviceIDSet)
+	targetText := "当前对话中的所有网络设备会话"
+	if !closeAll {
+		targetText = fmt.Sprintf("%d 台目标网络设备的交互会话", len(deviceIDSet))
+	}
+
+	return map[string]any{
+		"closedCount":         closedCount,
+		"effectiveRiskLevel":  "low",
+		"message":             fmt.Sprintf("已关闭 %s，共 %d 条。", targetText, closedCount),
+		"sessionIdleTimeoutSeconds": int(aiDeviceSessionIdleTimeout.Seconds()),
+	}, nil
+}
+
+func resolveDeviceTargets(ctx biz.SkillContext, ip string, allowEmpty bool) ([]aiDeviceTarget, error) {
+	var devices []aiDeviceTarget
+
+	if ip != "" {
+		ctx.DB.Table("network_devices").Select("id, name, ip, protocol, port").
+			Where("ip = ? AND deleted_at IS NULL", ip).Find(&devices)
+	}
+	if deviceIDs, ok := ctx.Params["device_ids"].([]any); ok && len(deviceIDs) > 0 {
+		ids := make([]uint, 0, len(deviceIDs))
+		for _, id := range deviceIDs {
+			if v, ok := id.(float64); ok {
+				ids = append(ids, uint(v))
+			}
+		}
+		var idDevices []aiDeviceTarget
+		ctx.DB.Table("network_devices").Select("id, name, ip, protocol, port").
+			Where("id IN ? AND deleted_at IS NULL", ids).Find(&idDevices)
+		devices = append(devices, idDevices...)
+	}
+
+	if len(devices) == 0 && ip == "" && !allowEmpty {
+		return nil, fmt.Errorf("未找到目标网络设备，请指定设备 IP 或 ID 列表")
+	}
+	return dedupeDeviceTargets(devices), nil
+}
+
+func dedupeDeviceTargets(devices []aiDeviceTarget) []aiDeviceTarget {
+	if len(devices) <= 1 {
+		return devices
+	}
+	result := make([]aiDeviceTarget, 0, len(devices))
+	seen := make(map[uint]bool, len(devices))
+	for _, device := range devices {
+		if seen[device.ID] {
+			continue
+		}
+		seen[device.ID] = true
+		result = append(result, device)
+	}
+	return result
 }
 
 // executeDeviceManage 网络设备管理（创建/修改/删除/查凭证/查分组）

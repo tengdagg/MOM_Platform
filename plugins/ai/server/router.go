@@ -16,6 +16,9 @@ func RegisterRoutes(router *gin.RouterGroup, db *gorm.DB, rootCtx context.Contex
 
 	// 从 SKILL.md 加载并注册所有内置 Skills
 	skills.RegisterAllBuiltinSkills(registry)
+	if err := skills.SyncBuiltinSkillDefinitions(db, registry); err != nil {
+		panic("同步内置 Skills 失败: " + err.Error())
+	}
 
 	// 加载自定义 Skills（从数据库）
 	skillEngine := biz.NewSkillEngine(db, registry)

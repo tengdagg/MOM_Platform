@@ -1,6 +1,6 @@
 ---
 name: device.exec_command
-description: 在指定网络设备上远程执行命令（如 show running-config、display version 等），支持 SSH 和 Telnet
+description: 在指定网络设备上远程执行命令，支持 SSH 和 Telnet；同一 AI 对话内会优先复用交互式 shell 会话
 category: device
 riskLevel: critical
 scriptType: builtin
@@ -35,10 +35,12 @@ parameters:
 - 用户说"在 172.20.8.90 上执行 show version"
 - 用户说"检查所有路由器的接口状态"
 - 用户说"查看防火墙的 ACL 规则"
+- 用户说"进入配置模式后继续配置 NTP / VLAN / 路由"
 
 ## 风险说明
 
-- `show` / `display` / `dis` / `ping` / `traceroute` 等常见查看命令会直接执行
-- 未识别为只读查询的命令会进入确认流程
-- `write erase`、`format`、`delete /force` 等破坏性命令会被直接拒绝
-- 建议优先使用 `show` / `display` 类查看命令
+- 只读查询类命令会直接执行，例如 `show` / `display` / `dis` / `ping` / `traceroute` / `?` 帮助查询
+- 非只读命令会进入人工确认流程
+- 同一 AI 对话内，对同一设备重复调用时会优先复用交互式 shell 上下文
+- 如果已经进入配置模式，后续命令默认仍在当前模式执行；需要返回上级模式时请显式执行 `end` / `exit`
+- 会话空闲约 10 分钟后会自动关闭，也可以使用 `device.close_session` 主动结束
