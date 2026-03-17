@@ -39,7 +39,9 @@ MOM Platform 是一个功能强大的**插件化运维管理平台**，采用前
 
 - 内置 **Agent + Skills** 架构，通过自然语言对话管理运维资源
 - 支持多模型接入：OpenAI、DeepSeek、通义千问、豆包、Google Gemini
-- **36 个内置 Skills**，覆盖主机、网络设备、K8s、任务、监控、审计、云账号、综合分析 8 大类
+- **43 个内置 Skills**，覆盖主机、网络设备、K8s、任务、监控、审计、云账号、综合分析 8 大类
+- 支持主机 / 网络设备 / Pod 的会话型执行能力：需要上下文时自动复用 shell session，不需要时保持单次执行
+- Kubernetes 场景支持双通道分流：资源对象操作使用 `k8s.kubectl`，容器内部排障使用 `k8s.exec_command`
 - 支持自定义 Skill 上传扩展，可替代或增强内置 Skill
 - 高风险操作两步确认机制，安全可控
 - AI 操作全程审计，可按模块筛选查看
@@ -188,10 +190,12 @@ MOM Platform 是一个功能强大的**插件化运维管理平台**，采用前
 | 多模型支持 | OpenAI、DeepSeek、通义千问、豆包、Google Gemini，支持自定义 API 端点 |
 | 对话管理 | 多会话管理、历史记录、流式输出 |
 | Agent + Skills | ReAct 循环架构，AI 自主决策调用合适的 Skill 完成任务 |
-| 36 个内置 Skill | 覆盖主机、网络设备、K8s、任务、监控、审计、云账号、综合分析 8 大领域 |
+| 43 个内置 Skill | 覆盖主机、网络设备、K8s、任务、监控、审计、云账号、综合分析 8 大领域 |
 | 自定义 Skill | 支持上传 SKILL.md 包扩展能力，可覆盖内置 Skill |
 | Skills 管理 | 启用/禁用/统计、按分类筛选、实时数量统计 |
 | 工具调用可视化 | 对话中实时展示 Skill 调用状态与结果 |
+| 会话型执行 | `host.exec_command`、`device.exec_command`、`k8s.exec_command` 会在需要时自动复用当前对话中的交互上下文 |
+| K8s 智能分流 | 资源对象查询/变更优先 `k8s.kubectl`，容器内部文件/进程/环境排查优先 `k8s.exec_command` |
 | 高风险确认 | 扩缩容、执行命令、节点管理等高风险操作需用户二次确认后执行 |
 | AI 操作审计 | 所有 Skill 执行记录入操作日志，按模块分类，支持筛选 |
 
@@ -199,14 +203,21 @@ MOM Platform 是一个功能强大的**插件化运维管理平台**，采用前
 
 | 分类 | Skills | 描述 |
 |:-----|:-------|:-----|
-| 主机管理 | `host.list` `host.detail` `host.analyze` `host.collect` `host.exec_command` `host.file_manage` `host.manage` | 查询/分析主机、远程执行命令、文件管理、主机 CRUD |
-| 网络设备 | `device.list` `device.detail` `device.manage` `device.test_connection` `device.exec_command` | 设备查询/详情、CRUD 管理、连接测试、远程命令执行 |
-| Kubernetes | `k8s.kubectl` `k8s.scale` `k8s.restart` `k8s.diagnose` `k8s.node_manage` `k8s.log_query` `k8s.helm_manage` | 全资源操作、扩缩容、重启、诊断、节点管理 |
+| 主机管理 | `host.list` `host.detail` `host.analyze` `host.collect` `host.exec_command` `host.session_status` `host.close_session` `host.file_manage` `host.manage` | 查询/分析主机、远程执行命令、主机会话管理、文件管理、主机 CRUD |
+| 网络设备 | `device.list` `device.detail` `device.manage` `device.test_connection` `device.exec_command` `device.session_status` `device.close_session` | 设备查询/详情、CRUD 管理、连接测试、远程命令执行、设备会话管理 |
+| Kubernetes | `k8s.kubectl` `k8s.exec_command` `k8s.session_status` `k8s.close_session` `k8s.scale` `k8s.restart` `k8s.diagnose` `k8s.node_manage` `k8s.log_query` `k8s.helm_manage` | 资源对象操作、容器内部命令执行、Pod 会话管理、扩缩容、重启、诊断、节点管理 |
 | 任务中心 | `task.execute` `task.ansible` `task.history` | Ad-hoc 任务执行、Ansible Playbook、历史查询 |
 | 监控告警 | `monitor.domain_status` `monitor.domain_manage` `monitor.alert_summary` `monitor.alert_config` | 域名监控/管理、告警分析、告警规则配置 |
 | 审计分析 | `audit.operation_summary` `audit.login_analysis` `audit.data_changes` `audit.session_summary` | 操作统计、登录行为分析、数据变更追踪 |
 | 云账号 | `cloud.list_accounts` `cloud.list_instances` `cloud.import_hosts` | 云账号查询、实例查询、主机导入 |
 | 综合分析 | `analysis.infra_report` `analysis.security_audit` `analysis.capacity_plan` | 基础设施周报、安全态势分析、容量规划 |
+
+**Kubernetes Skill 选择规则：**
+
+- 查看 Pod / Deployment / Service / Node / PVC 等资源对象状态、事件、标准日志：优先使用 `k8s.kubectl`
+- 进入容器内部查看文件、进程、环境变量、目录，或需要 `cd` / `export` / `source` / `bash` 上下文：优先使用 `k8s.exec_command`
+- 查看 Pod 标准日志（stdout/stderr）：优先 `k8s.kubectl(action="logs")`
+- 查看容器文件系统中的某个日志文件：使用 `k8s.exec_command`
 
 #### Windows RDP 远程桌面
 
@@ -474,7 +485,7 @@ mom/
 │   └── ai/                # AI 智能助手插件
 │       ├── biz/           #   Agent 核心（ReAct 循环、对话管理）
 │       ├── server/        #   API Handler（聊天、模型、Skill 管理）
-│       └── skills/        #   36 个内置 Skill 实现 + SKILL.md 定义
+│       └── skills/        #   43 个内置 Skill 实现 + SKILL.md 定义
 ├── pkg/                    # 公共包
 │   ├── ssh/               # SSH 客户端
 │   └── util/              # 工具函数
