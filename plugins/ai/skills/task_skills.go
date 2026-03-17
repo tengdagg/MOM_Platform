@@ -93,9 +93,10 @@ func executeTaskHistory(ctx biz.SkillContext) (any, error) {
 
 // executeTaskExecute 执行 Ad-hoc 任务（在指定主机上执行命令）
 func executeTaskExecute(ctx biz.SkillContext) (any, error) {
-	command, _ := ctx.Params["command"].(string)
-	if command == "" {
-		return nil, fmt.Errorf("请指定要执行的命令")
+	rawCommand, _ := ctx.Params["command"].(string)
+	command, err := normalizeExecCommand(rawCommand, "请指定要执行的命令，空白命令不会执行")
+	if err != nil {
+		return nil, err
 	}
 
 	hostIP, _ := ctx.Params["host_ip"].(string)

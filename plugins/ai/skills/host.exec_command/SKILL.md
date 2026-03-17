@@ -1,6 +1,6 @@
 ---
 name: host.exec_command
-description: 在指定主机上远程执行 Shell 命令，支持单台或多台主机批量执行
+description: 在指定主机上执行 Shell 命令；普通命令默认单次 SSH 执行，依赖上下文的命令会复用当前对话中的交互式 shell 会话
 category: host
 riskLevel: critical
 scriptType: builtin
@@ -39,6 +39,7 @@ parameters:
 1. `df -h`、`lsblk`、`fdisk -l`、`parted ... print free`、`systemctl status`、`cat` 等常见查看类命令会直接执行
 2. 安装软件、修改配置、启停服务、磁盘扩容、Docker 变更等高风险命令仍需要两步确认
 3. 真正的破坏性命令会被安全检查直接拒绝
+4. 普通单条命令默认新建一次 SSH 会话执行；当命令依赖当前目录、环境变量或 shell 状态时，会自动切换到当前对话内的交互式 shell 会话
 
 ## 使用场景
 
@@ -128,7 +129,11 @@ parameters:
 ## 注意事项
 
 - 查看类命令会直接执行；变更类命令需要用户确认
-- 每次调用只执行一条命令，不支持管道或多命令组合（除非用 && 连接）
+- 普通命令默认走单次 SSH 执行，适合 `df -h`、`systemctl status`、`cat`、`grep` 等一次性命令
+- 对于 `cd`、`export`、`source`、单独 `bash/sh` 等依赖 shell 上下文的命令，会自动复用当前对话中的主机交互会话
+- 可用 `host.session_status` 查看当前对话的主机会话状态，必要时用 `host.close_session` 主动结束会话
+- 不适合执行 `top`、`htop`、`less`、`vi`、`nano`、`tail -f`、`watch`、嵌套 `ssh/telnet/mysql/psql` 等持续交互命令
+- 支持使用 `&&`、`;`、`||` 组合成一条可一次性完成的命令
 - 批量执行时按顺序逐台执行，不是并行
 - 输出内容超过 64KB 时会被截断
 - 安装软件等操作建议增大 timeout 参数（默认 30s 可能不够）

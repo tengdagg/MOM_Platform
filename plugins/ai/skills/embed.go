@@ -14,9 +14,10 @@ import "embed"
 //
 //go:embed host.list/SKILL.md host.detail/SKILL.md host.analyze/SKILL.md
 //go:embed host.collect/SKILL.md host.exec_command/SKILL.md host.file_manage/SKILL.md
+//go:embed host.session_status/SKILL.md host.close_session/SKILL.md
 //go:embed k8s.scale/SKILL.md k8s.restart/SKILL.md k8s.diagnose/SKILL.md
 //go:embed k8s.node_manage/SKILL.md k8s.log_query/SKILL.md k8s.helm_manage/SKILL.md
-//go:embed k8s.kubectl/SKILL.md
+//go:embed k8s.kubectl/SKILL.md k8s.exec_command/SKILL.md k8s.session_status/SKILL.md k8s.close_session/SKILL.md
 //go:embed audit.operation_summary/SKILL.md audit.login_analysis/SKILL.md audit.session_summary/SKILL.md
 //go:embed audit.data_changes/SKILL.md
 //go:embed task.history/SKILL.md task.execute/SKILL.md task.ansible/SKILL.md

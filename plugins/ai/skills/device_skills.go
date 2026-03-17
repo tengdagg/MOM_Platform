@@ -430,9 +430,10 @@ func executeDeviceTestConnection(ctx biz.SkillContext) (any, error) {
 
 // executeDeviceExecCommand 在网络设备上远程执行命令
 func executeDeviceExecCommand(ctx biz.SkillContext) (any, error) {
-	command, _ := ctx.Params["command"].(string)
-	if command == "" {
-		return nil, fmt.Errorf("请指定要执行的命令")
+	rawCommand, _ := ctx.Params["command"].(string)
+	command, err := normalizeExecCommand(rawCommand, "请指定要执行的命令，空白命令不会作为翻页输入执行")
+	if err != nil {
+		return nil, err
 	}
 	ip, _ := ctx.Params["ip"].(string)
 	devices, err := resolveDeviceTargets(ctx, ip, false)
@@ -452,6 +453,7 @@ func executeDeviceExecCommand(ctx biz.SkillContext) (any, error) {
 			Error         string `json:"error,omitempty"`
 			SessionMode   string `json:"sessionMode,omitempty"`
 			SessionReused bool   `json:"sessionReused,omitempty"`
+			ExecutionMode string `json:"executionMode,omitempty"`
 		}
 		var results []ExecResult
 		successCount := 0
@@ -472,6 +474,7 @@ func executeDeviceExecCommand(ctx biz.SkillContext) (any, error) {
 					Error:         err.Error(),
 					SessionMode:   "interactive",
 					SessionReused: reused,
+					ExecutionMode: buildExecutionModeLabel("interactive", reused),
 				})
 			} else {
 				results = append(results, ExecResult{
@@ -480,6 +483,7 @@ func executeDeviceExecCommand(ctx biz.SkillContext) (any, error) {
 					Output:        output,
 					SessionMode:   "interactive",
 					SessionReused: reused,
+					ExecutionMode: buildExecutionModeLabel("interactive", reused),
 				})
 				successCount++
 			}
@@ -516,6 +520,7 @@ func executeDeviceExecCommand(ctx biz.SkillContext) (any, error) {
 		Error         string `json:"error,omitempty"`
 		SessionMode   string `json:"sessionMode,omitempty"`
 		SessionReused bool   `json:"sessionReused,omitempty"`
+		ExecutionMode string `json:"executionMode,omitempty"`
 	}
 	var results []ExecResult
 	successCount := 0
@@ -537,6 +542,7 @@ func executeDeviceExecCommand(ctx biz.SkillContext) (any, error) {
 				Error:         err.Error(),
 				SessionMode:   "interactive",
 				SessionReused: reused,
+				ExecutionMode: buildExecutionModeLabel("interactive", reused),
 			})
 			continue
 		}
@@ -547,6 +553,7 @@ func executeDeviceExecCommand(ctx biz.SkillContext) (any, error) {
 			Output:        output,
 			SessionMode:   "interactive",
 			SessionReused: reused,
+			ExecutionMode: buildExecutionModeLabel("interactive", reused),
 		})
 		successCount++
 		interactiveSessionCount++

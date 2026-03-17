@@ -1,6 +1,6 @@
 ---
 name: k8s.kubectl
-description: 通用 Kubernetes 资源操作，支持查询、描述、创建、更新、删除任意 K8s 资源（Pod/Deployment/Service/ConfigMap/Ingress/Node/PV/PVC/Secret/Job/CronJob/DaemonSet/StatefulSet 等所有资源类型）
+description: 通用 Kubernetes 资源操作，面向 Pod/Deployment/Service/Node/PVC 等资源对象本身；适用于 get/describe/logs/events/scale/restart/delete，不用于进入容器内部执行 Linux/Shell 命令
 category: k8s
 riskLevel: high
 scriptType: builtin
@@ -67,6 +67,22 @@ parameters:
   > ⚠️ 注意：`get all` 只包含 Pod, Service, Deployment, ReplicaSet, StatefulSet, DaemonSet, Job, CronJob。
   > ❗ 不会包含：ConfigMap, Secret, PVC, Ingress, ServiceAccount, CRD 资源。
 
+## 选择规则
+
+遇到以下需求，优先选择 `k8s.kubectl`：
+
+- 查看 Kubernetes 资源对象列表、状态、详情、事件
+- 查看 Pod 标准日志（stdout/stderr）
+- 查看 Deployment / StatefulSet / Service / Node / PVC / Ingress 等资源信息
+- 扩缩容、重启、删除、cordon、uncordon、drain 等集群层变更
+
+以下场景不要优先选它，应改用 `k8s.exec_command`：
+
+- 进入 Pod 或容器内部执行命令
+- 查看容器内文件、目录、环境变量、进程、挂载点
+- 需要 `cd /app` 之后继续执行多条依赖上下文的命令
+- 明确要排查容器文件系统内部问题，而不是资源对象状态
+
 ## 支持的操作
 
 | 操作 | 说明 | 风险等级 |
@@ -89,3 +105,4 @@ parameters:
 - 查询操作（get/describe/logs/events/top）直接执行
 - 实际返回会携带 `effectiveRiskLevel`，用于区分当前动作是真正的低风险查询还是高风险变更
 - 支持所有标准 Kubernetes 资源类型
+- 如果用户说的是"进入 Pod 看文件/进程/环境变量"，不要用本 Skill，应切换为 `k8s.exec_command`

@@ -14,6 +14,102 @@ func shellQuote(s string) string {
 	return "'" + strings.ReplaceAll(s, "'", "'\"'\"'") + "'"
 }
 
+// detectUnsupportedHostCommand 检测不适合 AI 主机命令执行的持续交互/嵌套会话型命令。
+func detectUnsupportedHostCommand(command string) string {
+	cmd := strings.TrimSpace(strings.ToLower(command))
+	if cmd == "" {
+		return ""
+	}
+
+	exactInteractive := map[string]string{
+		"top":    "交互式终端程序",
+		"htop":   "交互式终端程序",
+		"less":   "交互式分页程序",
+		"more":   "交互式分页程序",
+		"vi":     "交互式编辑器",
+		"vim":    "交互式编辑器",
+		"nano":   "交互式编辑器",
+		"screen": "终端复用会话",
+		"tmux":   "终端复用会话",
+	}
+	if reason, ok := exactInteractive[cmd]; ok {
+		return reason
+	}
+
+	prefixReasons := []struct {
+		prefix string
+		reason string
+	}{
+		{"vi ", "交互式编辑器"},
+		{"vim ", "交互式编辑器"},
+		{"nano ", "交互式编辑器"},
+		{"less ", "交互式分页程序"},
+		{"more ", "交互式分页程序"},
+		{"top ", "交互式终端程序"},
+		{"htop ", "交互式终端程序"},
+		{"watch ", "持续刷新型交互命令"},
+		{"tail -f", "持续跟随型命令"},
+		{"journalctl -f", "持续跟随型命令"},
+		{"docker logs -f", "持续跟随型命令"},
+		{"docker attach", "交互式容器附着"},
+		{"ssh ", "嵌套远程登录"},
+		{"sftp ", "交互式文件会话"},
+		{"ftp ", "交互式文件会话"},
+		{"telnet ", "交互式远程会话"},
+		{"mysql ", "交互式数据库会话"},
+		{"psql ", "交互式数据库会话"},
+		{"redis-cli", "交互式数据库会话"},
+		{"su ", "用户切换会话"},
+	}
+	for _, item := range prefixReasons {
+		if strings.HasPrefix(cmd, item.prefix) {
+			return item.reason
+		}
+	}
+
+	return ""
+}
+
+// requiresHostShellSession 检测命令是否依赖同一 shell 上下文，适合复用主机交互式会话。
+func requiresHostShellSession(command string) bool {
+	cmd := strings.TrimSpace(strings.ToLower(command))
+	if cmd == "" {
+		return false
+	}
+
+	exactSessionCommands := map[string]bool{
+		"bash": true,
+		"sh":   true,
+		"zsh":  true,
+		"fish": true,
+		"ksh":  true,
+		"csh":  true,
+		"tcsh": true,
+	}
+	if exactSessionCommands[cmd] {
+		return true
+	}
+
+	prefixes := []string{
+		"cd ",
+		"export ",
+		"unset ",
+		"alias ",
+		"unalias ",
+		"source ",
+		". ",
+		"sudo -i",
+		"sudo su",
+	}
+	for _, prefix := range prefixes {
+		if strings.HasPrefix(cmd, prefix) {
+			return true
+		}
+	}
+
+	return false
+}
+
 // isDangerousHostCommand 判断命令是否为危险的变更/破坏类命令（需要人工确认）
 // 采用黑名单模式：只有匹配危险模式的命令才需要确认，其余命令默认直接执行
 func isDangerousHostCommand(command string) bool {
@@ -128,6 +224,8 @@ func RegisterHostSkills(registry *biz.ToolRegistry) {
 	registry.Register(MustLoadBuiltinSkill("host.analyze", executeHostAnalyze))
 	registry.Register(MustLoadBuiltinSkill("host.collect", executeHostCollect))
 	registry.Register(MustLoadBuiltinSkill("host.exec_command", executeHostExecCommand))
+	registry.Register(MustLoadBuiltinSkill("host.session_status", executeHostSessionStatus))
+	registry.Register(MustLoadBuiltinSkill("host.close_session", executeHostCloseSession))
 	registry.Register(MustLoadBuiltinSkill("host.file_manage", executeHostFileManage))
 	registry.Register(MustLoadBuiltinSkill("host.manage", executeHostManage))
 }
@@ -507,9 +605,13 @@ func executeHostCollect(ctx biz.SkillContext) (any, error) {
 
 // executeHostExecCommand 远程执行命令
 func executeHostExecCommand(ctx biz.SkillContext) (any, error) {
-	command, _ := ctx.Params["command"].(string)
-	if command == "" {
-		return nil, fmt.Errorf("请指定要执行的命令")
+	rawCommand, _ := ctx.Params["command"].(string)
+	command, err := normalizeExecCommand(rawCommand, "请指定要执行的命令，空白命令不会执行")
+	if err != nil {
+		return nil, err
+	}
+	if reason := detectUnsupportedHostCommand(command); reason != "" {
+		return nil, fmt.Errorf("当前命令不适合通过 AI 主机命令执行：%s。请改为单条可完成的主机命令，或使用平台终端进行持续交互。", reason)
 	}
 	ip, _ := ctx.Params["ip"].(string)
 
@@ -522,29 +624,10 @@ func executeHostExecCommand(ctx biz.SkillContext) (any, error) {
 		}
 	}
 
-	// 查找目标主机
-	type SimpleHost struct {
-		ID   uint   `json:"id"`
-		Name string `json:"name"`
-		IP   string `json:"ip"`
+	hosts, err := resolveHostTargets(ctx, ip, false)
+	if err != nil {
+		return nil, err
 	}
-	var hosts []SimpleHost
-
-	if ip != "" {
-		ctx.DB.Table("hosts").Select("id, name, ip").Where("ip = ? AND deleted_at IS NULL", ip).Find(&hosts)
-	}
-	if hostIDs, ok := ctx.Params["host_ids"].([]any); ok && len(hostIDs) > 0 {
-		ids := make([]uint, 0, len(hostIDs))
-		for _, id := range hostIDs {
-			if v, ok := id.(float64); ok {
-				ids = append(ids, uint(v))
-			}
-		}
-		var idHosts []SimpleHost
-		ctx.DB.Table("hosts").Select("id, name, ip").Where("id IN ? AND deleted_at IS NULL", ids).Find(&idHosts)
-		hosts = append(hosts, idHosts...)
-	}
-
 	if len(hosts) == 0 {
 		return nil, fmt.Errorf("未找到目标主机，请指定主机 IP 或 ID 列表")
 	}
@@ -552,16 +635,35 @@ func executeHostExecCommand(ctx biz.SkillContext) (any, error) {
 	// 非危险命令 → 直接执行，跳过确认
 	if !isDangerousHostCommand(command) {
 		type ExecResult struct {
-			Host      string `json:"host"`
-			IP        string `json:"ip"`
-			Output    string `json:"output"`
-			Truncated bool   `json:"truncated,omitempty"`
-			Error     string `json:"error,omitempty"`
+			Host          string `json:"host"`
+			IP            string `json:"ip"`
+			Output        string `json:"output"`
+			Truncated     bool   `json:"truncated,omitempty"`
+			Error         string `json:"error,omitempty"`
+			SessionMode   string `json:"sessionMode,omitempty"`
+			SessionReused bool   `json:"sessionReused,omitempty"`
+			ExecutionMode string `json:"executionMode,omitempty"`
 		}
 		var results []ExecResult
 		successCount := 0
 
 		for _, h := range hosts {
+			if requiresHostShellSession(command) || aiHostShellSessions.HasActiveSession(ctx.SessionID, h.ID) {
+				password, privateKey, passphrase, credErr := getHostCredentialMaterial(ctx.DB, h.CredentialID)
+				if credErr != nil {
+					results = append(results, ExecResult{Host: h.Name, IP: h.IP, Error: credErr.Error()})
+					continue
+				}
+				output, reused, execErr := aiHostShellSessions.ExecuteCommand(ctx.SessionID, h, password, privateKey, passphrase, command)
+				if execErr != nil {
+					results = append(results, ExecResult{Host: h.Name, IP: h.IP, Output: output, Error: execErr.Error(), SessionMode: "interactive", SessionReused: reused, ExecutionMode: buildExecutionModeLabel("interactive", reused)})
+				} else {
+					results = append(results, ExecResult{Host: h.Name, IP: h.IP, Output: output, SessionMode: "interactive", SessionReused: reused, ExecutionMode: buildExecutionModeLabel("interactive", reused)})
+					successCount++
+				}
+				continue
+			}
+
 			client, _, err := CreateSSHClient(ctx.DB, h.ID)
 			if err != nil {
 				results = append(results, ExecResult{Host: h.Name, IP: h.IP, Error: err.Error()})
@@ -577,9 +679,9 @@ func executeHostExecCommand(ctx biz.SkillContext) (any, error) {
 			}
 
 			if err != nil {
-				results = append(results, ExecResult{Host: h.Name, IP: h.IP, Output: output, Truncated: truncated, Error: err.Error()})
+				results = append(results, ExecResult{Host: h.Name, IP: h.IP, Output: output, Truncated: truncated, Error: err.Error(), SessionMode: "oneshot", ExecutionMode: buildExecutionModeLabel("oneshot", false)})
 			} else {
-				results = append(results, ExecResult{Host: h.Name, IP: h.IP, Output: output, Truncated: truncated})
+				results = append(results, ExecResult{Host: h.Name, IP: h.IP, Output: output, Truncated: truncated, SessionMode: "oneshot", ExecutionMode: buildExecutionModeLabel("oneshot", false)})
 				successCount++
 			}
 		}
@@ -611,16 +713,37 @@ func executeHostExecCommand(ctx biz.SkillContext) (any, error) {
 
 	// 已确认 → 真正执行
 	type ExecResult struct {
-		Host      string `json:"host"`
-		IP        string `json:"ip"`
-		Output    string `json:"output"`
-		Truncated bool   `json:"truncated,omitempty"`
-		Error     string `json:"error,omitempty"`
+		Host          string `json:"host"`
+		IP            string `json:"ip"`
+		Output        string `json:"output"`
+		Truncated     bool   `json:"truncated,omitempty"`
+		Error         string `json:"error,omitempty"`
+		SessionMode   string `json:"sessionMode,omitempty"`
+		SessionReused bool   `json:"sessionReused,omitempty"`
+		ExecutionMode string `json:"executionMode,omitempty"`
 	}
 	var results []ExecResult
 	successCount := 0
+	interactiveSessionCount := 0
 
 	for _, h := range hosts {
+		if requiresHostShellSession(command) || aiHostShellSessions.HasActiveSession(ctx.SessionID, h.ID) {
+			password, privateKey, passphrase, credErr := getHostCredentialMaterial(ctx.DB, h.CredentialID)
+			if credErr != nil {
+				results = append(results, ExecResult{Host: h.Name, IP: h.IP, Error: credErr.Error()})
+				continue
+			}
+			output, reused, execErr := aiHostShellSessions.ExecuteCommand(ctx.SessionID, h, password, privateKey, passphrase, command)
+			if execErr != nil {
+				results = append(results, ExecResult{Host: h.Name, IP: h.IP, Output: output, Error: execErr.Error(), SessionMode: "interactive", SessionReused: reused, ExecutionMode: buildExecutionModeLabel("interactive", reused)})
+			} else {
+				results = append(results, ExecResult{Host: h.Name, IP: h.IP, Output: output, SessionMode: "interactive", SessionReused: reused, ExecutionMode: buildExecutionModeLabel("interactive", reused)})
+				successCount++
+				interactiveSessionCount++
+			}
+			continue
+		}
+
 		client, _, err := CreateSSHClient(ctx.DB, h.ID)
 		if err != nil {
 			results = append(results, ExecResult{Host: h.Name, IP: h.IP, Error: err.Error()})
@@ -637,22 +760,123 @@ func executeHostExecCommand(ctx biz.SkillContext) (any, error) {
 		}
 
 		if err != nil {
-			results = append(results, ExecResult{Host: h.Name, IP: h.IP, Output: output, Truncated: truncated, Error: err.Error()})
+			results = append(results, ExecResult{Host: h.Name, IP: h.IP, Output: output, Truncated: truncated, Error: err.Error(), SessionMode: "oneshot", ExecutionMode: buildExecutionModeLabel("oneshot", false)})
 		} else {
-			results = append(results, ExecResult{Host: h.Name, IP: h.IP, Output: output, Truncated: truncated})
+			results = append(results, ExecResult{Host: h.Name, IP: h.IP, Output: output, Truncated: truncated, SessionMode: "oneshot", ExecutionMode: buildExecutionModeLabel("oneshot", false)})
 			successCount++
 		}
 	}
 
 	return map[string]any{
-		"status":       "success",
-		"message":      fmt.Sprintf("✅ 命令已在 %d/%d 台主机上执行完成", successCount, len(hosts)),
-		"command":      command,
-		"timeout":      timeoutSec,
-		"results":      results,
-		"successCount": successCount,
-		"totalCount":   len(hosts),
+		"status":                    "success",
+		"message":                   fmt.Sprintf("✅ 命令已在 %d/%d 台主机上执行完成", successCount, len(hosts)),
+		"command":                   command,
+		"timeout":                   timeoutSec,
+		"results":                   results,
+		"successCount":              successCount,
+		"totalCount":                len(hosts),
+		"interactiveSessionCount":   interactiveSessionCount,
+		"sessionIdleTimeoutSeconds": int(aiHostSessionIdleTimeout.Seconds()),
 	}, nil
+}
+
+func executeHostSessionStatus(ctx biz.SkillContext) (any, error) {
+	if ctx.SessionID == 0 {
+		return nil, fmt.Errorf("缺少 AI 会话上下文，无法查询主机会话状态")
+	}
+
+	ip, _ := ctx.Params["ip"].(string)
+	hosts, err := resolveHostTargets(ctx, ip, true)
+	if err != nil {
+		return nil, err
+	}
+	hostIDSet := make(map[uint]bool, len(hosts))
+	for _, host := range hosts {
+		hostIDSet[host.ID] = true
+	}
+	sessions := aiHostShellSessions.ListSessions(ctx.SessionID, hostIDSet)
+	return map[string]any{
+		"sessions":                  sessions,
+		"activeCount":               len(sessions),
+		"sessionIdleTimeoutSeconds": int(aiHostSessionIdleTimeout.Seconds()),
+		"effectiveRiskLevel":        "low",
+		"message":                   fmt.Sprintf("当前对话中有 %d 个主机交互会话处于活动状态", len(sessions)),
+	}, nil
+}
+
+func executeHostCloseSession(ctx biz.SkillContext) (any, error) {
+	if ctx.SessionID == 0 {
+		return nil, fmt.Errorf("缺少 AI 会话上下文，无法关闭主机会话")
+	}
+
+	closeAll, _ := ctx.Params["all"].(bool)
+	hostIDSet := map[uint]bool{}
+	if !closeAll {
+		ip, _ := ctx.Params["ip"].(string)
+		hosts, err := resolveHostTargets(ctx, ip, false)
+		if err != nil {
+			return nil, err
+		}
+		for _, host := range hosts {
+			hostIDSet[host.ID] = true
+		}
+		if len(hostIDSet) == 0 {
+			return nil, fmt.Errorf("未找到要关闭会话的目标主机")
+		}
+	}
+
+	closedCount := aiHostShellSessions.CloseSessions(ctx.SessionID, hostIDSet)
+	targetText := "当前对话中的所有主机会话"
+	if !closeAll {
+		targetText = fmt.Sprintf("%d 台目标主机的交互会话", len(hostIDSet))
+	}
+
+	return map[string]any{
+		"closedCount":               closedCount,
+		"effectiveRiskLevel":        "low",
+		"message":                   fmt.Sprintf("已关闭 %s，共 %d 条。", targetText, closedCount),
+		"sessionIdleTimeoutSeconds": int(aiHostSessionIdleTimeout.Seconds()),
+	}, nil
+}
+
+func resolveHostTargets(ctx biz.SkillContext, ip string, allowEmpty bool) ([]aiHostTarget, error) {
+	var hosts []aiHostTarget
+
+	if ip != "" {
+		ctx.DB.Table("hosts").Select("id, name, ip, port, ssh_user, credential_id").Where("ip = ? AND deleted_at IS NULL", ip).Find(&hosts)
+	}
+	if hostIDs, ok := ctx.Params["host_ids"].([]any); ok && len(hostIDs) > 0 {
+		ids := make([]uint, 0, len(hostIDs))
+		for _, id := range hostIDs {
+			if v, ok := id.(float64); ok {
+				ids = append(ids, uint(v))
+			}
+		}
+		var idHosts []aiHostTarget
+		ctx.DB.Table("hosts").Select("id, name, ip, port, ssh_user, credential_id").Where("id IN ? AND deleted_at IS NULL", ids).Find(&idHosts)
+		hosts = append(hosts, idHosts...)
+	}
+
+	if len(hosts) == 0 && ip == "" && !allowEmpty {
+		return nil, fmt.Errorf("未找到目标主机，请指定主机 IP 或 ID 列表")
+	}
+	return dedupeHostTargets(hosts), nil
+}
+
+func dedupeHostTargets(hosts []aiHostTarget) []aiHostTarget {
+	if len(hosts) <= 1 {
+		return hosts
+	}
+	result := make([]aiHostTarget, 0, len(hosts))
+	seen := make(map[uint]bool, len(hosts))
+	for _, host := range hosts {
+		if seen[host.ID] {
+			continue
+		}
+		seen[host.ID] = true
+		result = append(result, host)
+	}
+	return result
 }
 
 // isUnsafePath 检查是否为不安全的系统路径

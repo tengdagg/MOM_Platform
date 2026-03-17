@@ -699,6 +699,9 @@ func buildFeishuPendingConfirmationElements(content string) ([]map[string]any, b
 		}
 		if section.Title == "执行命令" {
 			body = extractFeishuCommandBlock(body)
+			if body == "" {
+				continue
+			}
 			elements = append(elements, map[string]any{
 				"tag":     "markdown",
 				"content": fmt.Sprintf("**%s**\n```\n%s\n```", section.Title, body),

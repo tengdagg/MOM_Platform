@@ -7,7 +7,7 @@
 ```go
 type Agent struct {
     db             *gorm.DB           // 数据库连接
-    registry       *ToolRegistry      // 工具注册中心（36 个内置 + N 个自定义 Skills）
+    registry       *ToolRegistry      // 工具注册中心（43 个内置 + N 个自定义 Skills）
     conversation   *ConversationManager // 对话管理（历史消息、会话持久化）
     contextBuilder *ContextBuilder    // 上下文构建（注入用户/角色/平台信息到 SystemPrompt）
 }
@@ -43,7 +43,7 @@ Agent 是整个 AI 助手的核心引擎，负责：
 │  └─────────────────┘    │                                              │  │
 │                          │  ┌────────────┐  ┌──────────────────────┐   │  │
 │                          │  │ Context    │  │    ToolRegistry      │   │  │
-│                          │  │ Builder    │  │  36 内置 + N 自定义   │   │  │
+│                          │  │ Builder    │  │  43 内置 + N 自定义   │   │  │
 │                          │  └────────────┘  └──────────┬───────────┘   │  │
 │                          │                             │               │  │
 │                          │  ┌───────────────┐  ┌───────▼───────────┐   │  │
@@ -214,7 +214,7 @@ Agent 发起 LLM 调用
     │   {
     │     model: "qwen-plus",
     │     messages: [...],    ← 系统提示 + 历史 + 用户消息
-    │     tools: [            ← 36 个内置 Skill 定义
+    │     tools: [            ← 43 个内置 Skill 定义
     │       {
     │         type: "function",
     │         function: {
@@ -223,7 +223,7 @@ Agent 发起 LLM 调用
     │           parameters: { type: "object", properties: { metric: {...}, threshold: {...} } }
     │         }
     │       },
-    │       ... (共 36 个)
+    │       ... (共 43 个)
     │     ],
     │     stream: true
     │   }
@@ -414,9 +414,9 @@ AI: "✅ 已成功将 order-service 的副本数调整为 5"
 
 ---
 
-## 内置 Skills 清单（36 个）
+## 内置 Skills 清单（43 个）
 
-### 主机管理 (7)
+### 主机管理 (9)
 
 | Skill | 风险 | 说明 |
 |-------|------|------|
@@ -424,11 +424,13 @@ AI: "✅ 已成功将 order-service 的副本数调整为 5"
 | `host.detail` | low | 查询单台主机详情（资源/系统/云平台信息） |
 | `host.analyze` | low | 分析主机健康状态（按指标/分组/阈值） |
 | `host.collect` | medium | SSH 采集主机系统信息 |
-| `host.exec_command` | critical | SSH 远程执行命令（安全黑名单 + 两步确认） |
+| `host.exec_command` | critical | SSH 远程执行命令；普通命令默认单次执行，`cd/source/export/bash` 等上下文命令会复用当前对话中的主机 shell session |
+| `host.session_status` | low | 查看当前对话中的主机交互会话状态（空闲时长 / 自动超时） |
+| `host.close_session` | low | 主动关闭当前对话中的主机交互会话 |
 | `host.file_manage` | high | 远程文件列表/读取/管理 |
 | `host.manage` | high | 主机 CRUD 管理（创建/修改/删除 + 查凭证/分组） |
 
-### 网络设备管理 (5)
+### 网络设备管理 (7)
 
 | Skill | 风险 | 说明 |
 |-------|------|------|
@@ -436,13 +438,18 @@ AI: "✅ 已成功将 order-service 的副本数调整为 5"
 | `device.detail` | low | 查询单台网络设备详情（品牌型号/连接协议/凭证等） |
 | `device.manage` | high | 网络设备 CRUD 管理（创建/修改/删除 + 查凭证/分组） |
 | `device.test_connection` | high | 测试网络设备 SSH/Telnet 连接（单台或批量） |
-| `device.exec_command` | critical | 在网络设备上远程执行命令（show/display 等，安全黑名单 + 两步确认） |
+| `device.exec_command` | critical | 在网络设备上远程执行命令；优先复用当前对话中的 SSH/Telnet 交互会话，适合连续巡检和多步配置 |
+| `device.session_status` | low | 查看当前对话中的网络设备交互会话状态 |
+| `device.close_session` | low | 主动关闭当前对话中的网络设备交互会话 |
 
-### Kubernetes (7)
+### Kubernetes (10)
 
 | Skill | 风险 | 说明 |
 |-------|------|------|
-| `k8s.kubectl` | medium | 通用 K8s 操作（get/describe/logs/scale/delete/events 等 20+ 资源类型） |
+| `k8s.kubectl` | medium | 面向 K8s 资源对象本身的通用操作（get/describe/logs/scale/delete/events 等 20+ 资源类型），不进入容器内部 |
+| `k8s.exec_command` | critical | 在 Pod 容器内部执行 Linux/Shell 命令；普通命令默认一次性 exec，`cd/export/source/bash` 等上下文命令会复用当前对话中的 Pod shell session |
+| `k8s.session_status` | low | 查看当前对话中的 Pod 交互会话状态 |
+| `k8s.close_session` | low | 主动关闭当前对话中的 Pod 交互会话 |
 | `k8s.scale` | high | 扩缩容 Deployment/StatefulSet |
 | `k8s.restart` | high | 滚动重启工作负载 |
 | `k8s.diagnose` | low | 诊断 Pod/Node 问题 |
@@ -494,6 +501,36 @@ AI: "✅ 已成功将 order-service 的副本数调整为 5"
 
 ---
 
+## 会话型 Skills 说明
+
+目前以下内置 Skill 支持在同一 AI 对话内复用交互上下文：
+
+- `host.exec_command`：普通单条命令默认一次性 SSH 执行；`cd`、`source`、`export`、单独 `bash/sh` 等依赖 shell 状态的命令会复用主机 shell session
+- `device.exec_command`：面向 SSH/Telnet 网络设备 CLI，适合连续巡检、进入配置模式后的后续命令和多步配置
+- `k8s.exec_command`：进入 Pod 容器内部执行命令；普通命令默认一次性 `pods/exec`，依赖上下文时切换到 Pod shell session
+
+这些会话默认空闲约 10 分钟后自动关闭，也都支持使用对应的 `*.session_status` 和 `*.close_session` 主动管理。
+
+---
+
+## Kubernetes Skill 选择规则
+
+K8s 相关问题会在两类 Skill 之间分流：
+
+- `k8s.kubectl`：面向 Kubernetes 资源对象本身
+  - 适用：查看 Pod/Deployment/Service/Node/PVC 状态、事件、资源详情、标准日志，以及扩缩容/重启/删除/cordon/drain 等集群层操作
+- `k8s.exec_command`：面向容器内部 Linux/Shell 环境
+  - 适用：进入 Pod、查看容器内文件、进程、环境变量、目录、挂载点、网络状态，以及需要 `cd` / `export` / `source` / `bash` 的连续排障
+
+简化判断：
+
+- 问的是"资源对象本身" → `k8s.kubectl`
+- 问的是"容器内部" → `k8s.exec_command`
+- 查看 Pod 标准日志（stdout/stderr） → 优先 `k8s.kubectl(action="logs")`
+- 查看容器文件系统中的某个日志文件 → 使用 `k8s.exec_command`
+
+---
+
 ## Skill 的两种来源
 
 ```
@@ -541,4 +578,7 @@ Agent 通过 `eventCh` 向前端 WebSocket 推送以下事件类型：
 6. **两步确认**: 高风险操作 → pending_confirmation → 用户确认 → confirmed=true → 真正执行
 7. **审计全覆盖**: 每次 Skill 执行后异步写入 `sys_operation_log`，标记为 AI 操作
 8. **Skills 可控**: 用户可在 Skills 管理页面禁用/启用任意内置 Skill，Agent 运行时自动过滤
-9. **可扩展**: 支持上传自定义 JS/Python Skill，同名可覆盖内置 Skill
+9. **会话型执行能力**: `host.exec_command`、`device.exec_command`、`k8s.exec_command` 都支持在需要时复用当前对话中的 shell/session 上下文，并提供 `session_status` / `close_session` 配套技能
+10. **动态风险分级**: 对混合型 Skill 按本次动作动态推断风险等级，例如只读查询命令直接降为 `low`，变更类命令进入确认流程
+11. **K8s 双通道分流**: 资源对象查询/变更优先使用 `k8s.kubectl`，容器内部排障和上下文相关命令优先使用 `k8s.exec_command`
+12. **可扩展**: 支持上传自定义 JS/Python Skill，同名可覆盖内置 Skill

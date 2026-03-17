@@ -14,6 +14,9 @@ import (
 func RegisterK8sSkills(registry *biz.ToolRegistry) {
 	// k8s.kubectl 是万能 K8s 操作 Skill，覆盖 get/describe/logs/scale/restart/delete/cordon/drain 等
 	registry.Register(MustLoadBuiltinSkill("k8s.kubectl", executeK8sKubectl))
+	registry.Register(MustLoadBuiltinSkill("k8s.exec_command", executeK8sExecCommand))
+	registry.Register(MustLoadBuiltinSkill("k8s.session_status", executeK8sSessionStatus))
+	registry.Register(MustLoadBuiltinSkill("k8s.close_session", executeK8sCloseSession))
 	// 以下是特定场景的 Skill，参数定义更精确，帮助 LLM 更准确地选择
 	registry.Register(MustLoadBuiltinSkill("k8s.scale", executeK8sScale))
 	registry.Register(MustLoadBuiltinSkill("k8s.restart", executeK8sRestart))

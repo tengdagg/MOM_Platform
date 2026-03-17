@@ -255,6 +255,36 @@ func (a *Agent) inferToolRiskLevel(name string, argsJSON string, fallback string
 		}
 		return command == "show" || command == "display" || command == "dis"
 	}
+	isLikelySafeK8sExecCommand := func(command string) bool {
+		if command == "" {
+			return false
+		}
+		if strings.Contains(command, " > ") || strings.Contains(command, "rm ") || strings.Contains(command, "chmod ") ||
+			strings.Contains(command, "chown ") || strings.Contains(command, "kill ") || strings.Contains(command, "apt install") ||
+			strings.Contains(command, "apt-get install") || strings.Contains(command, "apk add") || strings.Contains(command, "yum install") {
+			return false
+		}
+		safePrefixes := []string{
+			"ls", "pwd", "id", "whoami", "ps ", "cat ", "grep ", "egrep ", "rg ",
+			"head ", "tail ", "env", "printenv", "df", "du", "free", "uname", "uptime",
+			"mount", "findmnt", "ss ", "netstat ", "ip addr show", "ip route show",
+			"hostname", "date", "echo ", "which ", "type ", "cd ", "export ", "unset ",
+			"alias ", "unalias ", "source ", ". ",
+		}
+		for _, prefix := range safePrefixes {
+			if command == prefix || strings.HasPrefix(command, prefix+" ") || strings.HasPrefix(command, prefix+"\t") {
+				return true
+			}
+			if strings.HasPrefix(command, prefix) && (prefix == "ls" || prefix == "df" || prefix == "du") {
+				return true
+			}
+		}
+		switch command {
+		case "bash", "sh", "ash", "dash", "zsh", "ksh":
+			return true
+		}
+		return false
+	}
 
 	switch displayName {
 	case "host.exec_command", "task.execute":
@@ -264,6 +294,11 @@ func (a *Agent) inferToolRiskLevel(name string, argsJSON string, fallback string
 		return "critical"
 	case "device.exec_command":
 		if isLikelySafeDeviceCommand(getCommand()) {
+			return "low"
+		}
+		return "critical"
+	case "k8s.exec_command":
+		if isLikelySafeK8sExecCommand(getCommand()) {
 			return "low"
 		}
 		return "critical"
@@ -325,7 +360,7 @@ func (a *Agent) inferToolRiskMode(name string) string {
 	case "host.exec_command", "task.execute", "device.exec_command",
 		"host.collect", "device.test_connection",
 		"task.ansible", "host.file_manage", "host.manage", "device.manage",
-		"monitor.alert_config", "k8s.kubectl", "k8s.helm_manage":
+		"monitor.alert_config", "k8s.kubectl", "k8s.exec_command", "k8s.helm_manage":
 		return "dynamic"
 	default:
 		return "static"
@@ -351,6 +386,11 @@ func (a *Agent) inferToolRiskHint(name string, argsJSON string, fallbackLevel st
 			return "网络设备只读查询命令，直接执行。"
 		}
 		return "网络设备未知或变更类命令，需要人工确认后执行。"
+	case "k8s.exec_command":
+		if level == "low" {
+			return "Pod 内查看类命令或上下文准备命令，直接执行。"
+		}
+		return "Pod 内变更类命令，需要人工确认后执行。"
 	case "host.collect":
 		return "主机固定信息采集，属于低风险只读操作。"
 	case "device.test_connection":
@@ -983,6 +1023,7 @@ const systemPrompt = `你是 MOM 运维管理平台的 AI 助手。你可以帮�
 - 新主机接入：host-manage(list_credentials)（查凭证 ID）→ host-manage(list_groups)（查分组 ID）→ host-manage(create)（创建）→ host-collect（采集信息）
 - 健康巡检：host-analyze（找出异常主机）→ host-detail（查看异常主机详情）→ host-exec_command（深入排查）
 - 磁盘清理：host-exec_command(df -h) → host-exec_command(du -sh) 找大目录 → host-file_manage(backup) → 清理 → 验证
+- 主机命令模型：host-exec_command 对普通单条命令默认新建一次 SSH 会话执行；若命令依赖当前目录、环境变量或 shell 状态（如 cd/source/export），则会复用当前对话中的主机交互会话。可用 host-session_status 查看状态，必要时用 host-close_session 结束会话；避免使用 top、vi、tail -f、watch、嵌套 ssh/mysql 等持续交互命令
 
 📌 网络设备管理：
 - 查设备信息：device-list（列表筛选）→ device-detail（单台详情）
@@ -997,10 +1038,13 @@ const systemPrompt = `你是 MOM 运维管理平台的 AI 助手。你可以帮�
 📌 Kubernetes 集群：
 - 资源查询：k8s-kubectl(action="get", resource="deployments/pods/services/..." ) 查看资源列表或详情
 - 故障排查：k8s-diagnose（诊断 Pod/Node）→ k8s-log_query（查看日志）→ k8s-kubectl(action="describe")（查事件）→ k8s-restart（重启修复）
+- Pod 内排障：k8s-exec_command（进入 Pod 执行命令）→ 继续调用 k8s-exec_command 复用当前对话中的 Pod shell 上下文；可用 k8s-session_status 查看状态，必要时用 k8s-close_session 结束会话
 - 扩缩容：k8s-kubectl(action="get", resource="deployments")（查看当前副本数）→ k8s-scale（调整副本数）
 - 节点维护：k8s-node_manage(action="cordon")（标记不可调度）→ k8s-node_manage(action="drain")（排空）→ 维护 → k8s-node_manage(action="uncordon")（恢复）
 - Helm 应用：k8s-helm_manage(action="list")（查看已安装 Release）→ k8s-helm_manage(action="install/upgrade/uninstall")
 - 创建资源：k8s-kubectl(action="create/apply", yaml="...")
+- K8s 选型规则：如果目标是 Pod/Deployment/Service/Node/PVC 等资源对象本身，优先使用 k8s-kubectl；如果目标是容器内部文件、进程、环境变量、目录、网络命名空间或需要 cd/export/source/bash 等 shell 上下文，优先使用 k8s-exec_command
+- 日志规则：查看 Pod 标准日志（stdout/stderr）优先使用 k8s-kubectl(action="logs")；只有明确要查看容器文件系统里的某个日志文件时，才使用 k8s-exec_command
 
 📌 任务执行：
 - Ad-hoc 命令：task-execute（指定 IP/分组/主机 ID 列表执行命令）

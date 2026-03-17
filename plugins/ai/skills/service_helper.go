@@ -15,6 +15,7 @@ import (
 	policyv1 "k8s.io/api/policy/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 
 	"github.com/ydcloud-dy/mom/pkg/security"
@@ -60,6 +61,31 @@ func decryptKubeConfig(ciphertext string) (string, error) {
 	return decryptWithKey(ciphertext, security.MustK8sEncryptionKey())
 }
 
+func normalizeExecCommand(raw string, emptyMessage string) (string, error) {
+	command := strings.TrimSpace(raw)
+	if command == "" {
+		if strings.TrimSpace(emptyMessage) == "" {
+			emptyMessage = "请指定要执行的命令"
+		}
+		return "", fmt.Errorf("%s", emptyMessage)
+	}
+	return command, nil
+}
+
+func buildExecutionModeLabel(sessionMode string, reused bool) string {
+	switch strings.TrimSpace(sessionMode) {
+	case "interactive":
+		if reused {
+			return "interactive（复用已有会话）"
+		}
+		return "interactive（新建会话）"
+	case "oneshot":
+		return "oneshot（单次执行）"
+	default:
+		return strings.TrimSpace(sessionMode)
+	}
+}
+
 // ---------- K8s Helper ----------
 
 // K8sCluster 集群基本信息
@@ -69,8 +95,8 @@ type K8sCluster struct {
 	KubeConfig string `json:"-"`
 }
 
-// GetK8sClientset 根据集群 ID 从数据库获取 kubeconfig 并创建 clientset
-func GetK8sClientset(db *gorm.DB, clusterID uint) (*kubernetes.Clientset, *K8sCluster, error) {
+// GetK8sRESTConfig 根据集群 ID 从数据库获取 kubeconfig 并创建 REST 配置
+func GetK8sRESTConfig(db *gorm.DB, clusterID uint) (*rest.Config, *K8sCluster, error) {
 	var cluster K8sCluster
 	if err := db.Table("k8s_clusters").Select("id, name, kube_config").
 		Where("id = ?", clusterID).First(&cluster).Error; err != nil {
@@ -90,13 +116,22 @@ func GetK8sClientset(db *gorm.DB, clusterID uint) (*kubernetes.Clientset, *K8sCl
 	}
 	restConfig.Timeout = 15 * time.Second
 
+	return restConfig, &cluster, nil
+}
+
+// GetK8sClientset 根据集群 ID 从数据库获取 kubeconfig 并创建 clientset
+func GetK8sClientset(db *gorm.DB, clusterID uint) (*kubernetes.Clientset, *K8sCluster, error) {
+	restConfig, cluster, err := GetK8sRESTConfig(db, clusterID)
+	if err != nil {
+		return nil, nil, err
+	}
 	// 创建 clientset
 	clientset, err := kubernetes.NewForConfig(restConfig)
 	if err != nil {
 		return nil, nil, fmt.Errorf("创建 K8s 客户端失败: %v", err)
 	}
 
-	return clientset, &cluster, nil
+	return clientset, cluster, nil
 }
 
 // FindClusterID 根据参数查找集群 ID
@@ -392,20 +427,10 @@ func createSSHClientFromHost(db *gorm.DB, host *SSHHost) (*sshclient.Client, *SS
 	}
 
 	// 获取凭证
-	var cred struct {
-		Password   string
-		PrivateKey string
-		Passphrase string
+	password, privateKey, passphrase, err := getHostCredentialMaterial(db, host.CredentialID)
+	if err != nil {
+		return nil, nil, err
 	}
-	if err := db.Table("credentials").Select("password, private_key, passphrase").
-		Where("id = ? AND deleted_at IS NULL", host.CredentialID).First(&cred).Error; err != nil {
-		return nil, nil, fmt.Errorf("凭证不存在")
-	}
-
-	// 解密凭证（使用凭证专用密钥）
-	password, _ := decryptCredential(cred.Password)
-	privateKey, _ := decryptCredential(cred.PrivateKey)
-	passphrase, _ := decryptCredential(cred.Passphrase)
 
 	if host.Port == 0 {
 		host.Port = 22
@@ -420,4 +445,21 @@ func createSSHClientFromHost(db *gorm.DB, host *SSHHost) (*sshclient.Client, *SS
 	}
 
 	return client, host, nil
+}
+
+func getHostCredentialMaterial(db *gorm.DB, credentialID uint) (password string, privateKey string, passphrase string, err error) {
+	var cred struct {
+		Password   string
+		PrivateKey string
+		Passphrase string
+	}
+	if err := db.Table("credentials").Select("password, private_key, passphrase").
+		Where("id = ? AND deleted_at IS NULL", credentialID).First(&cred).Error; err != nil {
+		return "", "", "", fmt.Errorf("凭证不存在")
+	}
+
+	password, _ = decryptCredential(cred.Password)
+	privateKey, _ = decryptCredential(cred.PrivateKey)
+	passphrase, _ = decryptCredential(cred.Passphrase)
+	return password, privateKey, passphrase, nil
 }

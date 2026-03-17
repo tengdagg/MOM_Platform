@@ -281,6 +281,7 @@ func newAIDeviceShellSession(key string, chatID uint, device aiDeviceTarget, use
 
 	_, _ = io.WriteString(stdinPipe, "\n")
 	_, _ = session.collectOutput(aiDeviceFirstByteTimeout, 800*time.Millisecond, 10*time.Second)
+	session.disablePaging()
 
 	return session, nil
 }
@@ -312,6 +313,7 @@ func newAITelnetDeviceShellSession(key string, chatID uint, device aiDeviceTarge
 		session.close()
 		return nil, err
 	}
+	session.disablePaging()
 
 	return session, nil
 }
@@ -455,6 +457,33 @@ func (s *aiDeviceShellSession) execute(command string) (string, error) {
 	return cleanupDeviceInteractiveOutput(trimmed, raw), nil
 }
 
+func (s *aiDeviceShellSession) disablePaging() {
+	commands := []string{
+		"terminal length 0",
+		"terminal datadump",
+		"screen-length 0 temporary",
+		"screen-length disable",
+	}
+	for _, command := range commands {
+		_ = s.runSilently(command)
+	}
+}
+
+func (s *aiDeviceShellSession) runSilently(command string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if s.isClosed() {
+		return fmt.Errorf("设备交互会话已关闭")
+	}
+	_, _ = s.collectOutput(100*time.Millisecond, 150*time.Millisecond, 300*time.Millisecond)
+	if err := s.writeInput([]byte(strings.TrimSpace(command) + "\n")); err != nil {
+		return err
+	}
+	_, _ = s.collectOutput(1500*time.Millisecond, 500*time.Millisecond, 2500*time.Millisecond)
+	return nil
+}
+
 func (s *aiDeviceShellSession) writeInput(data []byte) error {
 	if s.protocol == "telnet" {
 		if s.conn == nil {
@@ -589,6 +618,7 @@ func normalizeInteractiveOutput(text string) string {
 	text = strings.ReplaceAll(text, "\r\n", "\n")
 	text = strings.ReplaceAll(text, "\r", "\n")
 	text = ansiEscapePattern.ReplaceAllString(text, "")
+	text = applyBackspaces(text)
 	return text
 }
 
@@ -627,6 +657,25 @@ func cleanupDeviceInteractiveOutput(command string, raw string) string {
 	}
 
 	return strings.TrimSpace(strings.Join(cleaned, "\n"))
+}
+
+func applyBackspaces(text string) string {
+	if text == "" {
+		return text
+	}
+	out := make([]rune, 0, len(text))
+	for _, r := range text {
+		switch r {
+		case '\b':
+			if len(out) > 0 {
+				out = out[:len(out)-1]
+			}
+		case 0:
+		default:
+			out = append(out, r)
+		}
+	}
+	return string(out)
 }
 
 func telnetFixBackspace(data []byte) []byte {
