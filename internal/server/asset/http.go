@@ -169,6 +169,9 @@ func (s *HTTPServer) RegisterRoutes(r *gin.RouterGroup) {
 	// SSH终端 - 终端权限
 	terminal := r.Group("/asset/terminal")
 	{
+		terminal.GET("/:id/check",
+			s.authMiddleware.RequireHostPermission(rbacbiz.PermissionTerminal),
+			s.CheckTerminalPermission)
 		terminal.GET("/:id",
 			s.authMiddleware.RequireHostPermission(rbacbiz.PermissionTerminal),
 			s.HandleSSHConnection)

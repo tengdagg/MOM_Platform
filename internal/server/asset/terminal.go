@@ -411,7 +411,6 @@ func (s *HTTPServer) HandleSSHConnection(c *gin.Context) {
 	conn, err := upgrader.Upgrade(c.Writer, c.Request, nil)
 	if err != nil {
 		appLogger.Error("WebSocket升级失败", zap.Error(err))
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "WebSocket升级失败"})
 		return
 	}
 	defer conn.Close()
@@ -538,6 +537,17 @@ func (s *HTTPServer) HandleSSHConnection(c *gin.Context) {
 
 	wg.Wait()
 	appLogger.Info("终端会话结束", zap.String("sessionID", session.ID))
+}
+
+// CheckTerminalPermission 轻量权限探测接口，避免用 WebSocket 地址做 HTTP 预检查
+func (s *HTTPServer) CheckTerminalPermission(c *gin.Context) {
+	c.JSON(http.StatusOK, gin.H{
+		"code":    200,
+		"message": "权限校验通过",
+		"data": gin.H{
+			"ok": true,
+		},
+	})
 }
 
 // ResizeTerminal 调整终端大小

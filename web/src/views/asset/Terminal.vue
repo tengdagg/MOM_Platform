@@ -113,7 +113,10 @@
           >
             <template #label>
               <span class="tab-label">
-                <svg class="tab-icon" viewBox="0 0 24 24" fill="currentColor">
+                <svg v-if="tab.k8sPod" class="tab-icon k8s-tab-icon" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M12 2 4 6v6c0 5 3.4 9.4 8 10 4.6-.6 8-5 8-10V6l-8-4zm0 2.2 5.8 2.9v4.9c0 3.9-2.5 7.4-5.8 8.1-3.3-.7-5.8-4.2-5.8-8.1V7.1L12 4.2zm-3 4.8h6v2H9V9zm0 4h6v2H9v-2z"/>
+                </svg>
+                <svg v-else class="tab-icon" viewBox="0 0 24 24" fill="currentColor">
                   <path d="M20 18c1.1 0 1.99-.9 1.99-2L22 6c0-1.11-.9-2-2-2H4c-1.11 0-2 .89-2 2v10c0 1.1.89 2 2 2H0v2h24v-2h-4zM4 6h16v10H4V6z"/>
                 </svg>
                 <span class="tab-name">{{ tab.label }}</span>
@@ -124,7 +127,29 @@
             </template>
             <template #default>
               <div class="tab-content">
-                <div v-if="tab.host" class="terminal-connected">
+                <div v-if="tab.k8sPod" class="terminal-connected">
+                  <div class="terminal-body">
+                    <div class="terminal-toolbar k8s-terminal-toolbar">
+                      <div class="k8s-terminal-meta">
+                        <span class="k8s-meta-item">集群 {{ tab.k8sPod.clusterName || `#${tab.k8sPod.clusterId}` }}</span>
+                        <span class="k8s-meta-item">命名空间 {{ tab.k8sPod.namespace }}</span>
+                        <span class="k8s-meta-item">Pod {{ tab.k8sPod.podName }}</span>
+                        <span class="k8s-meta-item">容器 {{ tab.k8sPod.container }}</span>
+                      </div>
+                    </div>
+                    <div class="terminal-viewport">
+                      <K8sPodTerminal
+                        :cluster-id="tab.k8sPod.clusterId"
+                        :namespace="tab.k8sPod.namespace"
+                        :pod-name="tab.k8sPod.podName"
+                        :container="tab.k8sPod.container"
+                        @status-change="(connected) => handleK8sTabStatusChange(tab.id, connected)"
+                        @error="(message) => handleK8sTabError(tab.id, message)"
+                      />
+                    </div>
+                  </div>
+                </div>
+                <div v-else-if="tab.host" class="terminal-connected">
                   <div class="terminal-body">
                     <div v-if="tab.host?.osType === 'windows'" class="terminal-toolbar">
                       <el-button-group>
@@ -152,8 +177,8 @@
                       <path d="M20 18c1.1 0 1.99-.9 1.99-2L22 6c0-1.11-.9-2-2-2H4c-1.11 0-2 .89-2 2v10c0 1.1.89 2 2 2H0v2h24v-2h-4zM4 6h16v10H4V6z"/>
                     </svg>
                   </div>
-                  <div class="empty-text">双击主机打开终端</div>
-                  <div class="empty-hint">在左侧资产分组中选择主机</div>
+                  <div class="empty-text">双击主机或网络设备打开终端</div>
+                  <div class="empty-hint">也支持从 Kubernetes Pod 终端入口直接接入当前页面</div>
                 </div>
               </div>
             </template>
@@ -276,6 +301,7 @@ import { useUserStore } from '@/stores/user'
 import { useRouter, useRoute } from 'vue-router'
 import { UserFilled, ArrowDown, ArrowLeft, User, SwitchButton, UploadFilled, Document } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
+import K8sPodTerminal from '@/components/K8sPodTerminal.vue'
 
 const router = useRouter()
 const route = useRoute()
@@ -344,6 +370,13 @@ interface TerminalTab {
   id: string
   label: string
   host: any
+  k8sPod?: {
+    clusterId: number
+    clusterName?: string
+    namespace: string
+    podName: string
+    container: string
+  } | null
   connected: boolean
   connecting: boolean
 }
@@ -353,10 +386,18 @@ const terminalTabs = ref<TerminalTab[]>([
     id: '1',
     label: '新建终端',
     host: null,
+    k8sPod: null,
     connected: false,
     connecting: false
   }
 ])
+
+const normalizeQueryString = (value: unknown) => {
+  if (Array.isArray(value)) {
+    return String(value[0] || '')
+  }
+  return typeof value === 'string' ? value : ''
+}
 
 // 树形配置
 const treeProps = {
@@ -579,6 +620,7 @@ const openTerminal = async (host: any) => {
     id: tabId,
     label: label,
     host: host,
+    k8sPod: null,
     connected: false,
     connecting: true
   }
@@ -593,6 +635,55 @@ const openTerminal = async (host: any) => {
 
   await nextTick()
   initTerminal(tabId, host)
+}
+
+const openK8sPodTerminal = async (target: {
+  clusterId: number
+  clusterName?: string
+  namespace: string
+  podName: string
+  container: string
+}) => {
+  const tabId = Date.now().toString()
+  const samePodTabs = terminalTabs.value.filter(t =>
+    t.k8sPod &&
+    t.k8sPod.clusterId === target.clusterId &&
+    t.k8sPod.namespace === target.namespace &&
+    t.k8sPod.podName === target.podName &&
+    t.k8sPod.container === target.container
+  )
+
+  let label = `${target.podName}/${target.container}`
+  if (samePodTabs.length > 0) {
+    label = `${label} (${samePodTabs.length + 1})`
+  }
+
+  terminalTabs.value.push({
+    id: tabId,
+    label,
+    host: null,
+    k8sPod: target,
+    connected: false,
+    connecting: true
+  })
+  activeTab.value = tabId
+  await nextTick()
+}
+
+const handleK8sTabStatusChange = (tabId: string, connected: boolean) => {
+  const tab = terminalTabs.value.find(t => t.id === tabId)
+  if (!tab) return
+  tab.connecting = false
+  tab.connected = connected
+}
+
+const handleK8sTabError = (tabId: string, message: string) => {
+  const tab = terminalTabs.value.find(t => t.id === tabId)
+  if (tab) {
+    tab.connecting = false
+    tab.connected = false
+  }
+  ElMessage.error(message)
 }
 
 
@@ -911,7 +1002,7 @@ const checkTerminalPermission = async (host: any): Promise<{ ok: boolean; messag
   const isDev = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
   const backendHost = window.location.hostname
   const backendPort = isDev ? ':9876' : (window.location.port ? ':' + window.location.port : '')
-  const checkUrl = `${window.location.protocol}//${backendHost}${backendPort}/api/v1/asset/terminal/${host.id}?token=${token}`
+  const checkUrl = `${window.location.protocol}//${backendHost}${backendPort}/api/v1/asset/terminal/${host.id}/check?token=${token}`
 
   try {
     const resp = await fetch(checkUrl)
@@ -1509,6 +1600,7 @@ const closeTerminal = (tabId: string) => {
       id: Date.now().toString(),
       label: '新建终端',
       host: null,
+      k8sPod: null,
       connected: false,
       connecting: false
     })
@@ -1540,6 +1632,25 @@ onMounted(async () => {
         await new Promise(resolve => setTimeout(resolve, 200))
         openNetworkDeviceTerminal(device)
       }
+    }
+  }
+
+  if (route.query.type === 'k8s-pod') {
+    const clusterId = Number(normalizeQueryString(route.query.clusterId))
+    const namespace = normalizeQueryString(route.query.namespace)
+    const podName = normalizeQueryString(route.query.podName)
+    const container = normalizeQueryString(route.query.container)
+    const clusterName = normalizeQueryString(route.query.clusterName)
+
+    if (clusterId && namespace && podName && container) {
+      await new Promise(resolve => setTimeout(resolve, 200))
+      await openK8sPodTerminal({
+        clusterId,
+        clusterName,
+        namespace,
+        podName,
+        container
+      })
     }
   }
 
@@ -1934,6 +2045,10 @@ onBeforeUnmount(() => {
   height: 14px;
 }
 
+.k8s-tab-icon {
+  color: #4ec9b0;
+}
+
 .tab-name {
   font-size: 12px;
 }
@@ -2057,8 +2172,15 @@ onBeforeUnmount(() => {
 
 .terminal-viewport {
   flex: 1;
+  min-height: 0;
+  display: flex;
   position: relative;
   overflow: hidden;
+}
+
+.terminal-viewport > * {
+  flex: 1;
+  min-height: 0;
 }
 
 .terminal-toolbar {
@@ -2068,6 +2190,26 @@ onBeforeUnmount(() => {
   display: flex;
   gap: 8px;
   align-items: center;
+}
+
+.k8s-terminal-toolbar {
+  justify-content: flex-start;
+}
+
+.k8s-terminal-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  align-items: center;
+}
+
+.k8s-meta-item {
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(78, 201, 176, 0.12);
+  color: #cbd5e1;
+  font-size: 12px;
+  line-height: 20px;
 }
 
 .terminal-toolbar :deep(.el-button) {

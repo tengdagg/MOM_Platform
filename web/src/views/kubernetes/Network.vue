@@ -111,30 +111,6 @@
       />
     </div>
 
-    <!-- 终端对话框 -->
-    <el-dialog
-      v-model="terminalDialogVisible"
-      :title="`终端 - Pod: ${terminalData.pod} | 容器: ${terminalData.container}`"
-      width="90%"
-      :close-on-click-modal="false"
-      class="terminal-dialog"
-      @close="handleCloseTerminal"
-      @opened="handleTerminalDialogOpened"
-    >
-      <div class="terminal-container">
-        <div v-if="!terminalConnected" class="terminal-loading-overlay">
-          <el-icon class="is-loading"><Loading /></el-icon>
-          <span>正在连接终端...</span>
-        </div>
-        <div class="terminal-wrapper" ref="terminalWrapper"></div>
-      </div>
-      <template #footer>
-        <div class="dialog-footer">
-          <el-button @click="terminalDialogVisible = false">关闭</el-button>
-        </div>
-      </template>
-    </el-dialog>
-
     <!-- 日志对话框 -->
     <el-dialog
       v-model="logsDialogVisible"
@@ -182,8 +158,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, nextTick, onUnmounted, watch } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { ElMessage } from 'element-plus'
+import { useRouter } from 'vue-router'
 import {
   Platform,
   Refresh,
@@ -198,10 +175,6 @@ import {
 } from '@element-plus/icons-vue'
 import { getClusterList, type Cluster } from '@/api/kubernetes'
 import axios from 'axios'
-import { Terminal } from '@xterm/xterm'
-import { FitAddon } from '@xterm/addon-fit'
-import { WebLinksAddon } from '@xterm/addon-web-links'
-import '@xterm/xterm/css/xterm.css'
 import ServiceList from './network-components/ServiceList.vue'
 import IngressList from './network-components/IngressList.vue'
 import NetworkPolicyList from './network-components/NetworkPolicyList.vue'
@@ -211,6 +184,7 @@ import { useKubernetesStore } from '@/stores/kubernetes'
 
 // 使用全局 Kubernetes store
 const kubernetesStore = useKubernetesStore()
+const router = useRouter()
 
 // 网络类型定义
 interface NetworkType {
@@ -342,18 +316,6 @@ const handleEditNetworkPolicyYAML = (policy: any) => {
   ElMessage.info('编辑 NetworkPolicy YAML 功能开发中...')
 }
 
-// 终端相关
-const terminalDialogVisible = ref(false)
-const terminalConnected = ref(false)
-const terminalData = ref({
-  pod: '',
-  container: '',
-  namespace: ''
-})
-const terminalWrapper = ref<HTMLDivElement | null>(null)
-let terminal: Terminal | null = null
-let terminalWebSocket: WebSocket | null = null
-
 // 日志相关
 const logsDialogVisible = ref(false)
 const logsContent = ref('')
@@ -372,6 +334,11 @@ let logsRefreshTimer: number | null = null
 const handleTerminal = async (data: { namespace: string; name: string }) => {
   // 获取Pod详情以获取容器名称
   try {
+    if (!selectedClusterId.value) {
+      ElMessage.error('请先选择集群')
+      return
+    }
+
     const token = localStorage.getItem('token')
     const response = await axios.get(`/api/v1/plugins/kubernetes/resources/pods/${data.namespace}/${data.name}`, {
       params: { clusterId: selectedClusterId.value },
@@ -384,13 +351,19 @@ const handleTerminal = async (data: { namespace: string; name: string }) => {
       return
     }
     // 默认使用第一个容器
-    terminalData.value = {
-      pod: data.name,
-      container: containers[0].name,
-      namespace: data.namespace
-    }
-    terminalConnected.value = false
-    terminalDialogVisible.value = true
+    const currentCluster = clusterList.value.find(cluster => cluster.id === selectedClusterId.value)
+    const url = router.resolve({
+      path: '/terminal',
+      query: {
+        type: 'k8s-pod',
+        clusterId: String(selectedClusterId.value),
+        clusterName: currentCluster?.alias || currentCluster?.name || '',
+        namespace: data.namespace,
+        podName: data.name,
+        container: containers[0].name
+      }
+    }).href
+    window.open(url, '_blank')
   } catch (error) {
     ElMessage.error('获取Pod详情失败')
   }
@@ -424,154 +397,6 @@ const handleLogs = async (data: { namespace: string; name: string }) => {
   }
 }
 
-// 终端对话框打开后的回调
-const handleTerminalDialogOpened = async () => {
-  await nextTick()
-  await initTerminal()
-}
-
-// 初始化终端
-const initTerminal = async () => {
-
-  // 等待 DOM 元素准备好，最多重试 10 次
-  let retries = 0
-  while (!terminalWrapper.value && retries < 10) {
-    await new Promise(resolve => setTimeout(resolve, 100))
-    retries++
-  }
-
-  if (!terminalWrapper.value) {
-    return
-  }
-
-
-  // 清空容器
-  terminalWrapper.value.innerHTML = ''
-
-  // 创建终端实例
-  terminal = new Terminal({
-    cursorBlink: true,
-    fontSize: 14,
-    fontFamily: 'Menlo, Monaco, "Courier New", monospace',
-    theme: {
-      background: '#1e1e1e',
-      foreground: '#d4d4d4',
-      cursor: '#d4d4d4',
-      black: '#000000',
-      red: '#cd3131',
-      green: '#0dbc79',
-      yellow: '#e5e510',
-      blue: '#2472c8',
-      magenta: '#bc3fbc',
-      cyan: '#11a8cd',
-      white: '#e5e5e5',
-      brightBlack: '#666666',
-      brightRed: '#f14c4c',
-      brightGreen: '#23d18b',
-      brightYellow: '#f5f543',
-      brightBlue: '#3b8eea',
-      brightMagenta: '#d670d6',
-      brightCyan: '#29b8db',
-      brightWhite: '#ffffff'
-    }
-  })
-
-  // 加载插件
-  const fitAddon = new FitAddon()
-  const webLinksAddon = new WebLinksAddon()
-  terminal.loadAddon(fitAddon)
-  terminal.loadAddon(webLinksAddon)
-
-  // 打开终端
-  terminal.open(terminalWrapper.value)
-  fitAddon.fit()
-
-  // 欢迎信息
-  terminal.writeln('\x1b[1;32m正在连接到容器...\x1b[0m')
-
-  // 获取token
-  const token = localStorage.getItem('token')
-  const clusterId = selectedClusterId.value
-
-  // 构建WebSocket URL - 在开发环境直接连接后端，生产环境使用当前域名
-  const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
-  const host = window.location.hostname
-  // 开发环境直接连接9876端口，生产环境使用当前端口
-  const isDev = import.meta.env.DEV
-  const port = isDev ? '9876' : (window.location.port || (window.location.protocol === 'https:' ? '443' : '9876'))
-  const wsUrl = `${protocol}//${host}:${port}/api/v1/plugins/kubernetes/shell/pods?` +
-    `clusterId=${clusterId}&` +
-    `namespace=${terminalData.value.namespace}&` +
-    `podName=${terminalData.value.pod}&` +
-    `container=${terminalData.value.container}&` +
-    `token=${token}`
-
-
-  try {
-    // 建立WebSocket连接
-    terminalWebSocket = new WebSocket(wsUrl)
-
-    terminalWebSocket.onopen = () => {
-      terminalConnected.value = true
-      terminal.clear()
-      terminal.writeln('\x1b[1;32m✓ 已连接到容器 ' + terminalData.value.container + '\x1b[0m')
-      terminal.writeln('')
-    }
-
-    terminalWebSocket.onmessage = (event) => {
-      terminal.write(event.data)
-    }
-
-    terminalWebSocket.onerror = (error) => {
-      terminal.writeln('\x1b[1;31m✗ 连接错误\x1b[0m')
-      terminal.writeln('请检查:')
-      terminal.writeln('1. 集群连接是否正常')
-      terminal.writeln('2. Pod是否正在运行')
-      terminal.writeln('3. 浏览器控制台是否有错误信息')
-    }
-
-    terminalWebSocket.onclose = (event) => {
-      terminalConnected.value = false
-      // 安全检查：terminal 可能已经被销毁
-      if (terminal) {
-        try {
-          terminal.writeln('\x1b[1;33m连接已关闭\x1b[0m')
-        } catch (e) {
-        }
-      }
-    }
-
-    // 处理用户输入
-    terminal.onData((data: string) => {
-      if (terminalWebSocket && terminalWebSocket.readyState === WebSocket.OPEN) {
-        terminalWebSocket.send(data)
-      }
-    })
-
-    // 处理窗口大小变化
-    terminal.onResize(({ cols, rows }) => {
-      if (terminalWebSocket && terminalWebSocket.readyState === WebSocket.OPEN) {
-        terminalWebSocket.send(JSON.stringify({ type: 'resize', cols, rows }))
-      }
-    })
-
-  } catch (error: any) {
-    terminal.writeln('\x1b[1;31m✗ 连接失败: ' + error.message + '\x1b[0m')
-  }
-}
-
-// 关闭终端
-const handleCloseTerminal = () => {
-  if (terminalWebSocket) {
-    terminalWebSocket.close()
-    terminalWebSocket = null
-  }
-  if (terminal) {
-    terminal.dispose()
-    terminal = null
-  }
-  terminalConnected.value = false
-}
 
 // 日志对话框打开后的回调
 const handleLogsDialogOpened = async () => {
@@ -656,15 +481,6 @@ onMounted(async () => {
 })
 
 onUnmounted(() => {
-  // 清理终端资源
-  if (terminalWebSocket) {
-    terminalWebSocket.close()
-    terminalWebSocket = null
-  }
-  if (terminal) {
-    terminal.dispose()
-    terminal = null
-  }
   // 清理日志定时器
   if (logsRefreshTimer) {
     clearInterval(logsRefreshTimer)

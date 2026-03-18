@@ -3530,6 +3530,45 @@ func (w *WebSocketWriter) Write(p []byte) (int, error) {
 	return len(p), nil
 }
 
+type podTerminalSizeQueue struct {
+	sizes chan remotecommand.TerminalSize
+}
+
+func newPodTerminalSizeQueue() *podTerminalSizeQueue {
+	return &podTerminalSizeQueue{
+		sizes: make(chan remotecommand.TerminalSize, 8),
+	}
+}
+
+func (q *podTerminalSizeQueue) Next() *remotecommand.TerminalSize {
+	size, ok := <-q.sizes
+	if !ok {
+		return nil
+	}
+	return &size
+}
+
+func (q *podTerminalSizeQueue) Push(cols, rows uint16) {
+	if cols == 0 || rows == 0 {
+		return
+	}
+
+	size := remotecommand.TerminalSize{
+		Width:  cols,
+		Height: rows,
+	}
+
+	select {
+	case q.sizes <- size:
+	default:
+		select {
+		case <-q.sizes:
+		default:
+		}
+		q.sizes <- size
+	}
+}
+
 // waitForPodReady 等待 Pod 准备就绪
 func (h *ResourceHandler) waitForPodReady(ctx context.Context, clientset *kubernetes.Clientset, namespace, podName string, conn *websocket.Conn) error {
 	ticker := time.NewTicker(1 * time.Second)
@@ -9791,6 +9830,8 @@ func (h *ResourceHandler) PodShellWebSocket(c *gin.Context) {
 	namespace := c.Query("namespace")
 	podName := c.Query("podName")
 	containerName := c.Query("container")
+	initialColsStr := c.Query("cols")
+	initialRowsStr := c.Query("rows")
 
 	if clusterIDStr == "" || namespace == "" || podName == "" || containerName == "" {
 		c.JSON(http.StatusBadRequest, gin.H{
@@ -9897,6 +9938,13 @@ func (h *ResourceHandler) PodShellWebSocket(c *gin.Context) {
 		recorder:  recorder,
 		startTime: time.Now(),
 	}
+	sizeQueue := newPodTerminalSizeQueue()
+
+	if initialCols, err := strconv.Atoi(initialColsStr); err == nil {
+		if initialRows, err := strconv.Atoi(initialRowsStr); err == nil {
+			sizeQueue.Push(uint16(initialCols), uint16(initialRows))
+		}
+	}
 
 	// 处理 WebSocket 消息
 	done := make(chan struct{})
@@ -9907,20 +9955,34 @@ func (h *ResourceHandler) PodShellWebSocket(c *gin.Context) {
 		defer close(done)
 		defer cancel() // 当 goroutine 结束时取消 context
 		for {
-			_, message, err := conn.ReadMessage()
+			messageType, message, err := conn.ReadMessage()
 			if err != nil {
 				return
 			}
+
+			if messageType == websocket.TextMessage {
+				var resizeMsg struct {
+					Type string `json:"type"`
+					Cols uint16 `json:"cols"`
+					Rows uint16 `json:"rows"`
+				}
+				if err := json.Unmarshal(message, &resizeMsg); err == nil && resizeMsg.Type == "resize" {
+					sizeQueue.Push(resizeMsg.Cols, resizeMsg.Rows)
+					continue
+				}
+			}
+
 			wsReader.data <- message
 		}
 	}()
 
 	// 流式处理
 	err = executor.StreamWithContext(ctx, remotecommand.StreamOptions{
-		Stdin:  wsReader,
-		Stdout: wsWriter,
-		Stderr: wsWriter,
-		Tty:    true,
+		Stdin:             wsReader,
+		Stdout:            wsWriter,
+		Stderr:            wsWriter,
+		Tty:               true,
+		TerminalSizeQueue: sizeQueue,
 	})
 
 	// 等待读取 goroutine 结束
