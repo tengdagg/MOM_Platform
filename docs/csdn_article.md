@@ -12,7 +12,7 @@
 
 如果你也有这些困扰，那 **MOM Platform** 可能正是你需要的。
 
-> **MOM Platform**（Multi-platform Operations Manager，多元运维管理平台）是一个开源的插件化运维管理平台，采用 Go + Vue 3 前后端分离架构，支持多集群 K8s 管理、资产管理、多云账号、远程连接、AI 智能运维等功能。
+> **MOM Platform**（Multi-platform Operations Manager，多元运维管理平台）是一个开源的插件化运维管理平台，采用 Go + Vue 3 前后端分离架构，支持多集群 K8s 管理、主机与网络设备资产管理、多云账号、统一 Web 终端、AI 智能运维等功能。
 
 **项目地址：** [https://gitee.com/monkey_dat/mom_platform](https://gitee.com/monkey_dat/mom_platform)
 
@@ -33,10 +33,13 @@ MOM Platform 最大的设计特色是**插件化架构**。Kubernetes 管理、�
 这是我认为 MOM 最有竞争力的功能。内置的 AI 助手不是简单的聊天机器人，而是基于 **Agent + Skills** 架构的智能运维引擎：
 
 - **ReAct 推理循环**：AI 自主决策调用合适的 Skill 完成任务
-- **36 个内置 Skills**：覆盖主机管理、网络设备、K8s 操作、任务执行、监控告警、审计分析、云账号、综合报告 8 大领域
+- **43 个内置 Skills**：覆盖主机管理、网络设备、K8s 操作、任务执行、监控告警、审计分析、云账号、综合报告 8 大领域
 - **多模型支持**：OpenAI / DeepSeek / 通义千问 / 豆包 / Google Gemini / Ollama 本地模型
+- **会话型执行能力**：`host.exec_command`、`device.exec_command`、`k8s.exec_command` 会在需要上下文时自动复用当前对话中的 shell 会话，不需要时保持单次执行
+- **K8s 智能分流**：资源对象查询/变更优先走 `k8s.kubectl`，容器内部文件/进程/环境排查优先走 `k8s.exec_command`
 - **高风险操作两步确认**：扩缩容、远程命令执行等操作必须用户确认后才执行
 - **自定义 Skill 扩展**：上传 SKILL.md 规范的 zip 包即可扩展 AI 能力
+- **第三方对话渠道接入**：支持将 AI 助手能力通过企业 IM / 外部渠道对外提供
 
 **实际使用效果：**
 
@@ -66,19 +69,21 @@ AI  ：[调用 analysis.infra_report] 正在生成报告...
 | 网络与服务 | Service、Ingress、NetworkPolicy |
 | 配置与存储 | ConfigMap、Secret、PV/PVC |
 | 集群管理 | 节点列表、资源监控、污点/标签、Cordon/Drain |
-| 高级功能 | CRD 管理、Helm Release、Web Terminal、集群巡检 |
+| 高级功能 | CRD 管理、Helm Release、Web Terminal、集群巡检、应用诊断 |
 
-还支持 **Web Terminal** 终端连接，直接在浏览器里 `kubectl exec` 进容器，支持会话录制与回放。
+还支持 **Web Terminal** 终端连接，直接在浏览器里进入 Pod 容器，支持会话录制与回放；同时在 AI 场景下，查看资源对象优先使用 `k8s.kubectl`，进入容器内部排障优先使用 `k8s.exec_command`。
 
 <!-- 建议插图：K8s 集群管理页面截图 -->
 
-### 🖥️ SSH / RDP 远程连接
+### 🖥️ SSH / RDP / 网络设备远程连接
 
 - **SSH 终端**：密码 + 密钥认证，支持拖拽上传密钥文件
+- **网络设备终端**：支持 SSH / Telnet 连接交换机、路由器等网络设备
 - **Windows RDP**：基于 Apache Guacamole，浏览器直连 Windows 远程桌面
 - **文件管理**：RDP 文件上传/下载，自动清理临时文件
 - **虚拟键盘**：美式键盘布局，解决特殊字符输入问题
 - **全程录制**：SSH 和 RDP 会话全程录制，支持审计回放
+- **统一终端工作台**：主机、网络设备、K8s Pod 终端可在统一 Web Terminal 页面中打开和切换
 
 <!-- 建议插图：SSH 终端页面截图 + RDP 远程桌面截图 -->
 
@@ -117,13 +122,13 @@ AI  ：[调用 analysis.infra_report] 正在生成报告...
 
 ## 二、AI 助手内置技能一览
 
-MOM 的 AI 助手内置了 **36 个 Skills**，按 8 大分类组织：
+MOM 的 AI 助手内置了 **43 个 Skills**，按 8 大分类组织：
 
 | 分类 | Skills | 能力描述 |
 |------|--------|---------|
-| 🖥️ 主机管理 | `host.list` `host.detail` `host.analyze` `host.exec_command` `host.file_manage` 等 | 主机查询、分析、远程命令、文件管理 |
-| 🌐 网络设备 | `device.list` `device.detail` `device.exec_command` 等 | 网络设备管理、远程命令 |
-| ☸️ Kubernetes | `k8s.kubectl` `k8s.scale` `k8s.restart` `k8s.diagnose` `k8s.helm_manage` 等 | 全资源操作、扩缩容、诊断、Helm |
+| 🖥️ 主机管理 | `host.list` `host.detail` `host.analyze` `host.exec_command` `host.session_status` `host.close_session` `host.file_manage` 等 | 主机查询、分析、远程命令、会话管理、文件管理 |
+| 🌐 网络设备 | `device.list` `device.detail` `device.exec_command` `device.session_status` `device.close_session` 等 | 网络设备管理、远程命令、会话管理 |
+| ☸️ Kubernetes | `k8s.kubectl` `k8s.exec_command` `k8s.session_status` `k8s.close_session` `k8s.scale` `k8s.restart` `k8s.diagnose` `k8s.helm_manage` 等 | 资源对象操作、容器内部命令、会话管理、扩缩容、诊断、Helm |
 | 📋 任务中心 | `task.execute` `task.ansible` `task.history` | Ad-hoc 任务、Ansible Playbook |
 | 📡 监控告警 | `monitor.domain_status` `monitor.alert_summary` 等 | 域名监控、告警分析 |
 | 🔍 审计分析 | `audit.operation_summary` `audit.login_analysis` 等 | 操作统计、登录分析 |
@@ -138,7 +143,7 @@ MOM 的 AI 助手内置了 **36 个 Skills**，按 8 大分类组织：
 
 | 层级 | 技术选型 |
 |------|---------|
-| 后端 | Go 1.21+ / Gin / GORM / client-go / WebSocket |
+| 后端 | Go 1.25+ / Gin / GORM / client-go / WebSocket |
 | 前端 | Vue 3.5+ / TypeScript / Element Plus / Vite / xterm.js |
 | 数据库 | MySQL 8.0+（兼容 TiDB 分布式数据库） |
 | 缓存 | Redis 6.0+ |
@@ -258,10 +263,10 @@ helm install mom ./charts -n mom-system --create-namespace
 
 | 插件 | 核心能力 |
 |-----|---------|
-| Kubernetes 管理 | 多集群、工作负载、网络、存储、CRD、Helm、Web Terminal、集群巡检 |
+| Kubernetes 管理 | 多集群、工作负载、网络、存储、CRD、Helm、Web Terminal、集群巡检、应用诊断 |
 | 任务中心 | 脚本执行、模板管理、文件分发、执行历史 |
 | 监控中心 | 域名监控（HTTP/SSL）、告警管理、多渠道通知 |
-| AI 智能助手 | 多模型、36 Skills、自定义扩展、工具可视化、操作审计 |
+| AI 智能助手 | 多模型、43 Skills、自定义扩展、工具可视化、操作审计、会话型执行 |
 | RDP 远程桌面 | Windows 远程连接、文件管理、虚拟键盘、会话录制 |
 
 ---
@@ -271,7 +276,7 @@ helm install mom ./charts -n mom-system --create-namespace
 | 特性 | MOM Platform | JumpServer | 蓝鲸 | KubeSphere |
 |-----|:---:|:---:|:---:|:---:|
 | 插件化架构 | ✅ | ❌ | ✅ | ✅ |
-| AI 运维助手 | ✅ 36 Skills | ❌ | ❌ | ❌ |
+| AI 运维助手 | ✅ 43 Skills | ❌ | ❌ | ❌ |
 | 多集群 K8s | ✅ | ❌ | ✅ | ✅ |
 | SSH 终端 | ✅ | ✅ | ✅ | ✅ |
 | RDP 远程桌面 | ✅ | ✅ | ❌ | ❌ |
@@ -299,7 +304,7 @@ helm install mom ./charts -n mom-system --create-namespace
 MOM Platform 是一个**功能完整、设计现代、开箱即用**的运维管理平台。它最大的特色是：
 
 1. **插件化架构**：按需加载，不臃肿
-2. **AI 智能助手**：36 个内置技能，自然语言驱动运维
+2. **AI 智能助手**：43 个内置技能，自然语言驱动运维，并支持会话型执行
 3. **全栈覆盖**：从主机资产到 K8s 集群，从 SSH 终端到 RDP 桌面
 4. **安全可控**：双重 RBAC + 操作审计 + AI 高风险确认
 5. **开源友好**：MIT 协议，可自由使用和二次开发

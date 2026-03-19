@@ -902,11 +902,14 @@ func trimFeishuTimelineBlocks(blocks []feishuTimelineBlock) []feishuTimelineBloc
 	return trimmed
 }
 
+var feishuThinkBlockRe = regexp.MustCompile(`(?s)<think>.*?</think>\s*`)
+var feishuThinkUnclosedRe = regexp.MustCompile(`(?s)<think>.*$`)
+
 func normalizeFeishuReplyText(text string) string {
 	text = strings.ReplaceAll(text, "\r\n", "\n")
 	text = strings.ReplaceAll(text, "\r", "\n")
-	text = strings.ReplaceAll(text, "<think>", "")
-	text = strings.ReplaceAll(text, "</think>", "")
+	text = feishuThinkBlockRe.ReplaceAllString(text, "")
+	text = feishuThinkUnclosedRe.ReplaceAllString(text, "")
 	text = strings.ReplaceAll(text, "**", "")
 	text = strings.ReplaceAll(text, "__", "")
 	text = strings.ReplaceAll(text, "```bash", "")

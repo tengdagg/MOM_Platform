@@ -114,19 +114,27 @@
           </div>
           <div class="message-content">
             <div class="message-role">{{ msg.role === 'user' ? '你' : 'AI 助手' }}</div>
-            <div v-if="msg.role === 'assistant' && msg.timelineBlocks?.length" class="assistant-timeline">
+            <div v-if="msg.role === 'assistant' && getRenderableTimelineBlocks(msg.timelineBlocks).length" class="assistant-timeline">
               <div
-                v-for="(block, idx) in msg.timelineBlocks"
+                v-for="(block, idx) in getRenderableTimelineBlocks(msg.timelineBlocks)"
                 :key="`${msg.id}-${idx}-${block.type}`"
                 class="timeline-block"
                 :class="`timeline-block-${block.type}`"
               >
                 <div v-if="block.type === 'text'" class="message-body assistant-text-block" v-html="renderMarkdown(block.content)"></div>
+                <details v-else-if="block.type === 'think'" class="timeline-think-card" :open="block.status === 'active'">
+                  <summary class="timeline-think-summary">
+                    <span class="timeline-think-title">{{ block.status === 'active' ? 'Thinking' : 'Explored' }}</span>
+                    <span class="timeline-think-meta">{{ block.status === 'active' ? '实时更新中' : '点击查看思考详情' }}</span>
+                  </summary>
+                  <div class="timeline-think-content">{{ block.content }}</div>
+                </details>
                 <div v-else class="timeline-tool-row">
                   <div class="timeline-rail"></div>
                   <div class="tool-call-card embedded-tool-card" :class="'status-' + block.status">
                     <div class="tool-call-header" @click="block._expanded = !block._expanded">
                       <span class="tool-call-step">{{ block.step }}</span>
+                      <el-icon class="tool-call-skill-icon"><CustomIcons name="skills" /></el-icon>
                       <span class="tool-name">{{ block.toolName }}</span>
                       <el-tag v-if="block.riskLevel === 'high' || block.riskLevel === 'critical'" type="danger" size="small" effect="plain">
                         {{ block.riskLevel === 'critical' ? '危险' : '高风险' }}
@@ -142,7 +150,7 @@
                         <ArrowDown v-if="!block._expanded" /><ArrowUp v-else />
                       </el-icon>
                     </div>
-                    <div v-if="block._expanded" class="tool-call-body">
+                    <div v-if="block._expanded || block.status === 'pending_confirmation'" class="tool-call-body">
                       <div v-if="block.riskHint" class="tool-risk-hint">
                         {{ block.riskHint }}
                       </div>
@@ -154,16 +162,25 @@
                         <div class="tool-section-title">📤 返回结果</div>
                         <pre>{{ formatJSON(block.result) }}</pre>
                       </div>
+                      <div v-if="shouldShowPendingActions(msg, block)" class="tool-confirm-actions">
+                        <el-button class="confirm-allow-btn" size="small" @click="handlePendingAction('确认')">
+                          ✓ 允许执行
+                        </el-button>
+                        <el-button class="confirm-cancel-btn" size="small" @click="handlePendingAction('取消')">
+                          取消
+                        </el-button>
+                      </div>
                     </div>
                   </div>
                 </div>
               </div>
             </div>
-            <div v-else class="message-body" v-html="renderMarkdown(msg.content)"></div>
-            <div v-if="msg.role === 'assistant' && !msg.timelineBlocks?.length && msg.toolCalls && msg.toolCalls.length > 0" class="tool-calls tool-calls-compact">
+            <div v-else class="message-body" v-html="renderMarkdown(stripThinkBlocks(msg.content))"></div>
+            <div v-if="msg.role === 'assistant' && !getRenderableTimelineBlocks(msg.timelineBlocks).length && msg.toolCalls && msg.toolCalls.length > 0" class="tool-calls tool-calls-compact">
               <div v-for="(tc, idx) in msg.toolCalls" :key="idx" class="tool-call-card" :class="'status-' + tc.status">
                 <div class="tool-call-header" @click="tc._expanded = !tc._expanded">
                   <span class="tool-call-step">{{ idx + 1 }}</span>
+                  <el-icon class="tool-call-skill-icon"><CustomIcons name="skills" /></el-icon>
                   <span class="tool-name">{{ tc.toolName }}</span>
                   <el-tag v-if="tc.riskLevel === 'high' || tc.riskLevel === 'critical'" type="danger" size="small" effect="plain">
                     {{ tc.riskLevel === 'critical' ? '危险' : '高风险' }}
@@ -179,7 +196,7 @@
                     <ArrowDown v-if="!tc._expanded" /><ArrowUp v-else />
                   </el-icon>
                 </div>
-                <div v-if="tc._expanded" class="tool-call-body">
+                <div v-if="tc._expanded || tc.status === 'pending_confirmation'" class="tool-call-body">
                   <div v-if="tc.riskHint" class="tool-risk-hint">
                     {{ tc.riskHint }}
                   </div>
@@ -190,6 +207,14 @@
                   <div class="tool-section" v-if="tc.result">
                     <div class="tool-section-title">📤 返回结果</div>
                     <pre>{{ formatJSON(tc.result) }}</pre>
+                  </div>
+                  <div v-if="shouldShowPendingActions(msg, tc)" class="tool-confirm-actions">
+                    <el-button class="confirm-allow-btn" size="small" @click="handlePendingAction('确认')">
+                      ✓ 允许执行
+                    </el-button>
+                    <el-button class="confirm-cancel-btn" size="small" @click="handlePendingAction('取消')">
+                      取消
+                    </el-button>
                   </div>
                 </div>
               </div>
@@ -206,19 +231,27 @@
           </div>
           <div class="message-content">
             <div class="message-role">AI 助手</div>
-            <div v-if="currentTimelineBlocks.length > 0" class="assistant-timeline streaming-timeline">
+            <div v-if="getRenderableStreamingTimelineBlocks(currentTimelineBlocks).length > 0" class="assistant-timeline streaming-timeline">
               <div
-                v-for="(block, idx) in currentTimelineBlocks"
+                v-for="(block, idx) in getRenderableStreamingTimelineBlocks(currentTimelineBlocks)"
                 :key="`stream-${idx}-${block.type}`"
                 class="timeline-block"
                 :class="`timeline-block-${block.type}`"
               >
                 <div v-if="block.type === 'text'" class="message-body assistant-text-block" v-html="renderMarkdown(block.content)"></div>
+                <details v-else-if="block.type === 'think'" class="timeline-think-card" :open="block.status === 'active'">
+                  <summary class="timeline-think-summary">
+                    <span class="timeline-think-title">{{ block.status === 'active' ? 'Thinking' : 'Explored' }}</span>
+                    <span class="timeline-think-meta">{{ block.status === 'active' ? '思考中...' : '点击查看思考详情' }}</span>
+                  </summary>
+                  <div class="timeline-think-content">{{ block.content }}</div>
+                </details>
                 <div v-else class="timeline-tool-row">
                   <div class="timeline-rail"></div>
                   <div class="tool-call-card embedded-tool-card" :class="'status-' + block.status">
                     <div class="tool-call-header" @click="block._expanded = !block._expanded">
                       <span class="tool-call-step">{{ block.step }}</span>
+                      <el-icon class="tool-call-skill-icon"><CustomIcons name="skills" /></el-icon>
                       <span class="tool-name">{{ block.toolName }}</span>
                       <el-tag v-if="block.riskLevel === 'high' || block.riskLevel === 'critical'" type="danger" size="small" effect="plain">
                         {{ block.riskLevel === 'critical' ? '危险' : '高风险' }}
@@ -251,6 +284,14 @@
                       <div class="tool-section" v-if="block.result">
                         <div class="tool-section-title">📤 返回结果</div>
                         <pre>{{ formatJSON(block.result) }}</pre>
+                      </div>
+                      <div v-if="block.status === 'pending_confirmation'" class="tool-confirm-actions">
+                        <el-button class="confirm-allow-btn" size="small" @click="handlePendingAction('确认')">
+                          ✓ 允许执行
+                        </el-button>
+                        <el-button class="confirm-cancel-btn" size="small" @click="handlePendingAction('取消')">
+                          取消
+                        </el-button>
                       </div>
                     </div>
                   </div>
@@ -476,6 +517,147 @@ const filteredQuickCommands = computed(() => {
   const search = input.slice(1).toLowerCase()
   return quickCommands.filter(c => c.command.toLowerCase().includes(search) || c.description.includes(search))
 })
+
+const THINK_TAG_RE = /<\/?think>/g
+const PENDING_CONFIRM_RE = /\n*### 待确认操作[\s\S]*?(?:请回复.*?确认.*?继续执行.*?取消[\s\S]*?。|请确认.*?执行[\s\S]*?取消[\s\S]*?。|$)/g
+
+function normalizeVisibleText(text: string): string {
+  return String(text || '')
+    .replace(PENDING_CONFIRM_RE, '')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim()
+}
+
+function parseThinkSegments(content: string) {
+  const raw = String(content || '')
+  let visibleText = ''
+  let activeReasoning = ''
+  let inThink = false
+  let lastIndex = 0
+
+  for (const match of raw.matchAll(THINK_TAG_RE)) {
+    const token = match[0]
+    const tokenIndex = match.index ?? 0
+    const chunk = raw.slice(lastIndex, tokenIndex)
+
+    if (inThink) {
+      activeReasoning += chunk
+    } else {
+      visibleText += chunk
+    }
+
+    if (token === '<think>') {
+      inThink = true
+      activeReasoning = ''
+    } else {
+      inThink = false
+      activeReasoning = ''
+    }
+
+    lastIndex = tokenIndex + token.length
+  }
+
+  const tail = raw.slice(lastIndex)
+  if (inThink) {
+    activeReasoning += tail
+  } else {
+    visibleText += tail
+  }
+
+  return {
+    visibleText: normalizeVisibleText(visibleText),
+    activeReasoning: activeReasoning.trim(),
+    visible: inThink && !!activeReasoning.trim(),
+  }
+}
+
+function stripThinkBlocks(content: string): string {
+  return parseThinkSegments(content).visibleText
+}
+
+function appendRenderableChunk(renderable: any[], type: 'text' | 'think', chunk: string) {
+  if (!chunk) return
+  const last = renderable[renderable.length - 1]
+  if (last?.type === type) {
+    last.content += chunk
+    return
+  }
+  renderable.push({ type, content: chunk })
+}
+
+function buildRenderableTimelineBlocks(blocks: any[], includeThinking: boolean) {
+  const renderable: any[] = []
+  let inThink = false
+
+  for (const block of blocks || []) {
+    if (!block || typeof block !== 'object') continue
+    if (block.type !== 'text') {
+      renderable.push(block)
+      continue
+    }
+
+    const raw = String(block.content || '')
+    let lastIndex = 0
+
+    for (const match of raw.matchAll(THINK_TAG_RE)) {
+      const token = match[0]
+      const tokenIndex = match.index ?? 0
+      const chunk = raw.slice(lastIndex, tokenIndex)
+
+      if (inThink) {
+        if (includeThinking) {
+          appendRenderableChunk(renderable, 'think', chunk)
+        }
+      } else {
+        appendRenderableChunk(renderable, 'text', chunk)
+      }
+
+      inThink = token === '<think>'
+      lastIndex = tokenIndex + token.length
+    }
+
+    const tail = raw.slice(lastIndex)
+    if (inThink) {
+      if (includeThinking) {
+        appendRenderableChunk(renderable, 'think', tail)
+      }
+    } else {
+      appendRenderableChunk(renderable, 'text', tail)
+    }
+  }
+
+  const activeThinkIndex = includeThinking && inThink
+    ? [...renderable].reverse().findIndex((block: any) => block?.type === 'think')
+    : -1
+
+  return renderable
+    .map((block: any, idx: number, all: any[]) => {
+      if (block.type === 'think') {
+        const content = String(block.content || '').trim()
+        if (!content) return null
+        const reversedIndex = all.length - 1 - idx
+        return {
+          ...block,
+          content,
+          status: reversedIndex === activeThinkIndex ? 'active' : 'done',
+        }
+      }
+      if (block.type === 'text') {
+        const content = normalizeVisibleText(block.content || '')
+        return content ? { ...block, content } : null
+      }
+      return block
+    })
+    .filter(Boolean)
+}
+
+function getRenderableTimelineBlocks(blocks: any[]) {
+  return buildRenderableTimelineBlocks(blocks, true)
+}
+
+function getRenderableStreamingTimelineBlocks(blocks: any[]) {
+  return buildRenderableTimelineBlocks(blocks, true)
+}
 
 function parseToolCalls(raw: any): any[] {
   if (!raw) return []
@@ -937,7 +1119,7 @@ function handleWSEvent(event: any) {
         messages.value.push({
           id: Date.now(),
           role: 'assistant',
-          content: streamingContent.value,
+          content: stripThinkBlocks(streamingContent.value),
           toolCalls: currentToolCalls.value.map(tc => ({ ...tc, _expanded: false })),
           timelineBlocks: cloneTimelineBlocks(currentTimelineBlocks.value),
         })
@@ -992,6 +1174,13 @@ async function sendMessage() {
   const content = inputMessage.value.trim()
   if (!content || isLoading.value) return
 
+  await sendTextMessage(content)
+}
+
+async function sendTextMessage(content: string) {
+  const normalized = String(content || '').trim()
+  if (!normalized || isLoading.value) return
+
   // 如果没有选中会话，先创建一个
   if (!currentSessionId.value) {
     await createNewSession()
@@ -1002,7 +1191,7 @@ async function sendMessage() {
   messages.value.push({
     id: Date.now(),
     role: 'user',
-    content,
+    content: normalized,
   })
   inputMessage.value = ''
   isLoading.value = true
@@ -1018,7 +1207,7 @@ async function sendMessage() {
     ws.send(JSON.stringify({
       type: 'message',
       sessionId: currentSessionId.value,
-      content,
+      content: normalized,
       modelId: selectedModelId.value,
     }))
   } else {
@@ -1026,7 +1215,7 @@ async function sendMessage() {
     try {
       const data = await apiSendMessage({
         sessionId: currentSessionId.value,
-        content,
+        content: normalized,
         modelId: selectedModelId.value,
       })
       messages.value.push({
@@ -1045,6 +1234,22 @@ async function sendMessage() {
   }
 }
 
+function isLatestMessage(msg: any): boolean {
+  return !!msg && messages.value[messages.value.length - 1]?.id === msg.id
+}
+
+function shouldShowPendingActions(msg: any, toolBlock: any): boolean {
+  return !!msg &&
+    msg.role === 'assistant' &&
+    isLatestMessage(msg) &&
+    toolBlock?.status === 'pending_confirmation'
+}
+
+async function handlePendingAction(action: '确认' | '取消') {
+  if (isLoading.value) return
+  await sendTextMessage(action)
+}
+
 // 停止 AI 生成
 function stopGeneration() {
   stoppedByUser.value = true
@@ -1058,7 +1263,7 @@ function stopGeneration() {
     messages.value.push({
       id: Date.now(),
       role: 'assistant',
-      content: streamingContent.value + '\n\n[已停止]',
+      content: `${stripThinkBlocks(streamingContent.value)}\n\n[已停止]`.trim(),
       toolCalls: currentToolCalls.value.map(tc => ({ ...tc, _expanded: false })),
       timelineBlocks: stoppedTimeline,
     })
@@ -1208,6 +1413,12 @@ function scrollToBottom() {
   nextTick(() => {
     if (messagesContainer.value) {
       messagesContainer.value.scrollTop = messagesContainer.value.scrollHeight
+      messagesContainer.value
+        .querySelectorAll('.timeline-think-content')
+        .forEach((node) => {
+          const el = node as HTMLElement
+          el.scrollTop = el.scrollHeight
+        })
     }
   })
 }
@@ -1300,7 +1511,7 @@ function renderPendingConfirmationSheet(content: string): string | null {
   </div>`
 }
 
-// Markdown 渲染（带 HTML 转义和深度思考标签修复）
+// Markdown 渲染（带 HTML 转义）
 function renderMarkdown(content: string): string {
   if (!content) return ''
   const confirmationHtml = renderPendingConfirmationSheet(content)
@@ -1319,18 +1530,7 @@ function renderMarkdown(content: string): string {
              .replace(/</g, '&lt;')
              .replace(/>/g, '&gt;')
 
-  // 2. 处理深度思考标签 (<think> ... </think>)
-  html = html.replace(/&lt;think&gt;/g, '<div class="think-block"><div class="think-title">🤔 思考过程</div><div class="think-content">')
-  html = html.replace(/&lt;\/think&gt;/g, '</div></div>')
-  
-  // 处理流式输出过程中只有头没有尾的情况，自动闭合
-  const thinkOpen = (html.match(/<div class="think-block">/g) || []).length
-  const thinkClose = (html.match(/<\/div><\/div>/g) || []).length
-  if (thinkOpen > thinkClose) {
-    html += '</div></div>'
-  }
-
-  // 3. 代码块
+  // 2. 代码块
   html = html.replace(/```(\w*)\n([\s\S]*?)```/g, '<pre class="code-block"><code class="language-$1">$2</code></pre>')
   // 行内代码
   html = html.replace(/`([^`]+)`/g, '<code class="inline-code">$1</code>')
@@ -1410,32 +1610,87 @@ function getToolStatusLabel(status: string) {
 </script>
 
 <style scoped>
-/* 思考过程块样式 */
-.think-block {
+/* 流式思考时间线块 */
+.timeline-think-card {
   margin: 12px 0;
-  border-left: 3px solid #dcdfe6;
-  background-color: #f8f9fa;
-  border-radius: 4px;
+  border: 1px solid #e4e7ed;
+  border-left: 3px solid #c0c4cc;
+  background: linear-gradient(180deg, rgba(248, 249, 250, 0.96), rgba(245, 247, 250, 0.9));
+  border-radius: 8px;
   overflow: hidden;
+  opacity: 0.82;
+  max-width: 100%;
+  transition: opacity 0.2s ease, border-color 0.2s ease, background 0.2s ease;
 }
 
-.think-title {
+.timeline-think-card:not([open]) {
+  opacity: 0.64;
+}
+
+.timeline-think-card[open] {
+  opacity: 0.88;
+  border-left-color: #909399;
+}
+
+.timeline-think-summary {
+  list-style: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.timeline-think-summary::-webkit-details-marker {
+  display: none;
+}
+
+.timeline-think-title {
   padding: 8px 12px;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 600;
-  color: #606266;
-  background-color: #ebeef5;
-  border-bottom: 1px solid #e4e7ed;
+  color: #909399;
+  background-color: rgba(235, 238, 245, 0.7);
   display: flex;
   align-items: center;
   gap: 6px;
 }
 
-.think-content {
+.timeline-think-meta {
+  padding: 8px 12px;
+  font-size: 12px;
+  color: #a8abb2;
+  white-space: nowrap;
+}
+
+.timeline-think-card[open] .timeline-think-summary {
+  border-bottom: 1px solid #e4e7ed;
+}
+
+.timeline-think-content {
   padding: 12px;
-  font-size: 13px;
+  font-size: 12px;
   color: #909399;
   line-height: 1.6;
+  max-height: 180px;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+  scrollbar-width: thin;
+}
+
+.timeline-think-content::-webkit-scrollbar {
+  width: 6px;
+}
+
+.timeline-think-content::-webkit-scrollbar-thumb {
+  background: rgba(192, 196, 204, 0.85);
+  border-radius: 999px;
+}
+
+.timeline-think-content::-webkit-scrollbar-track {
+  background: transparent;
 }
 
 .ai-chat-container {
@@ -1702,8 +1957,8 @@ function getToolStatusLabel(status: string) {
 }
 
 .message-body {
-  background: #fff;
-  padding: 10px 13px;
+  background: #ffffff;
+  padding: 15px 20px;
   border-radius: 12px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
   line-height: 1.55;
@@ -2042,6 +2297,14 @@ function getToolStatusLabel(status: string) {
   flex-shrink: 0;
 }
 
+.tool-call-skill-icon {
+  margin-left: 2px;
+  margin-right: 2px;
+  font-size: 13px;
+  color: #5e5c5c;
+  flex-shrink: 0;
+}
+
 .tool-call-card.status-success .tool-call-step {
   background: #67c23a;
 }
@@ -2130,6 +2393,43 @@ function getToolStatusLabel(status: string) {
   overflow-y: auto;
   line-height: 1.45;
   margin: 0;
+}
+
+.tool-confirm-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px dashed #e8e8e8;
+  align-items: center;
+}
+.tool-confirm-actions .el-button {
+  padding: 4px 12px;
+  font-size: 12px;
+  height: 26px;
+  border-radius: 4px;
+}
+.tool-confirm-actions .confirm-allow-btn {
+  background-color: #67c23a;
+  border-color: #67c23a;
+  color: #fff;
+}
+.tool-confirm-actions .confirm-allow-btn:hover,
+.tool-confirm-actions .confirm-allow-btn:focus {
+  background-color: #85ce61;
+  border-color: #85ce61;
+  color: #fff;
+}
+.tool-confirm-actions .confirm-cancel-btn {
+  background-color: #fff;
+  border-color: #dcdfe6;
+  color: #606266;
+}
+.tool-confirm-actions .confirm-cancel-btn:hover,
+.tool-confirm-actions .confirm-cancel-btn:focus {
+  background-color: #f5f5f5;
+  border-color: #c0c4cc;
+  color: #606266;
 }
 
 /* 流式工具调用区域特殊样式 */

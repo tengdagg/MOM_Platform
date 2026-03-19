@@ -141,8 +141,31 @@ func (a *ModelAdapter) getBaseURL() string {
 	return baseURL
 }
 
+// ensureReasoningContentFields 确保思考模型的所有带 tool_calls 的 assistant 消息都包含 reasoning_content 字段。
+// DeepSeek R1 等思考模型要求该字段必须存在（即使为空），否则返回 400。
+// 仅在检测到会话中存在 reasoning_content 时才补充，避免影响非思考模型。
+func ensureReasoningContentFields(messages []ChatCompletionMessage) {
+	hasReasoning := false
+	for _, msg := range messages {
+		if msg.ReasoningContent != nil {
+			hasReasoning = true
+			break
+		}
+	}
+	if !hasReasoning {
+		return
+	}
+	empty := ""
+	for i := range messages {
+		if messages[i].Role == "assistant" && len(messages[i].ToolCalls) > 0 && messages[i].ReasoningContent == nil {
+			messages[i].ReasoningContent = &empty
+		}
+	}
+}
+
 // ChatCompletion 非流式对话
 func (a *ModelAdapter) ChatCompletion(ctx context.Context, messages []ChatCompletionMessage, tools []ToolDefinition) (*ChatCompletionResponse, error) {
+	ensureReasoningContentFields(messages)
 	req := ChatCompletionRequest{
 		Model:       a.config.ModelName,
 		Messages:    messages,
@@ -200,6 +223,7 @@ type StreamEvent struct {
 
 // ChatCompletionStream 流式对话
 func (a *ModelAdapter) ChatCompletionStream(ctx context.Context, messages []ChatCompletionMessage, tools []ToolDefinition) (<-chan StreamEvent, error) {
+	ensureReasoningContentFields(messages)
 	req := ChatCompletionRequest{
 		Model:       a.config.ModelName,
 		Messages:    messages,

@@ -693,6 +693,59 @@ func appendTimelineText(timeline *[]map[string]any, content string) int {
 	return len(*timeline) - 1
 }
 
+func buildTimelineTextWithReasoning(content string, reasoning *string) string {
+	content = strings.TrimSpace(content)
+	if reasoning == nil || strings.TrimSpace(*reasoning) == "" {
+		return content
+	}
+	return strings.TrimSpace("<think>\n" + strings.TrimSpace(*reasoning) + "\n</think>\n\n" + content)
+}
+
+func extractReasoningContentFromTimeline(raw string) *string {
+	if strings.TrimSpace(raw) == "" {
+		return nil
+	}
+	var timeline []map[string]any
+	if err := json.Unmarshal([]byte(raw), &timeline); err != nil {
+		return nil
+	}
+	var parts []string
+	for _, block := range timeline {
+		if block == nil {
+			continue
+		}
+		content, _ := block["content"].(string)
+		if content == "" {
+			continue
+		}
+		for {
+			start := strings.Index(content, "<think>")
+			if start < 0 {
+				break
+			}
+			rest := content[start+len("<think>"):]
+			end := strings.Index(rest, "</think>")
+			if end < 0 {
+				thinkText := strings.TrimSpace(rest)
+				if thinkText != "" {
+					parts = append(parts, thinkText)
+				}
+				break
+			}
+			thinkText := strings.TrimSpace(rest[:end])
+			if thinkText != "" {
+				parts = append(parts, thinkText)
+			}
+			content = rest[end+len("</think>"):]
+		}
+	}
+	if len(parts) == 0 {
+		return nil
+	}
+	joined := strings.Join(parts, "\n\n")
+	return &joined
+}
+
 func updateTimelineText(timeline *[]map[string]any, idx int, content string) {
 	content = strings.TrimSpace(content)
 	if idx < 0 || idx >= len(*timeline) || content == "" {
@@ -1120,10 +1173,12 @@ func (a *Agent) buildMessages(sessionID uint, userID uint, username string, user
 					})
 				}
 				if len(tcs) > 0 {
+					reasoningContent := extractReasoningContentFromTimeline(msg.ToolResult)
 					messages = append(messages, ChatCompletionMessage{
-						Role:      "assistant",
-						Content:   msg.Content,
-						ToolCalls: tcs,
+						Role:             "assistant",
+						Content:          msg.Content,
+						ReasoningContent: reasoningContent,
+						ToolCalls:        tcs,
 					})
 					for i, rec := range toolRecords {
 						resultStr, _ := rec["result"].(string)
@@ -1421,7 +1476,7 @@ func (a *Agent) Run(ctx context.Context, adapter *ModelAdapter, sessionID uint, 
 		// 如果没有工具调用，结束循环
 		if len(assistantMsg.ToolCalls) == 0 {
 			finalContent := stripModelArtifacts(assistantMsg.Content)
-			appendTimelineText(&timelineRecords, finalContent)
+			appendTimelineText(&timelineRecords, buildTimelineTextWithReasoning(finalContent, assistantMsg.ReasoningContent))
 			a.saveAssistantMessage(sessionID, finalContent, allToolCallRecords, timelineRecords)
 			eventCh <- AgentEvent{
 				Type: "message_end",
@@ -1441,7 +1496,7 @@ func (a *Agent) Run(ctx context.Context, adapter *ModelAdapter, sessionID uint, 
 			ReasoningContent: assistantMsg.ReasoningContent, // DeepSeek R1 推理内容回传
 			ToolCalls:        assistantMsg.ToolCalls,
 		})
-		textBlockIdx := appendTimelineText(&timelineRecords, stripModelArtifacts(assistantMsg.Content))
+		textBlockIdx := appendTimelineText(&timelineRecords, buildTimelineTextWithReasoning(stripModelArtifacts(assistantMsg.Content), assistantMsg.ReasoningContent))
 
 		for _, tc := range assistantMsg.ToolCalls {
 			llmName := tc.Function.Name
@@ -1530,7 +1585,7 @@ func (a *Agent) Run(ctx context.Context, adapter *ModelAdapter, sessionID uint, 
 					}
 					eventCh <- AgentEvent{Type: "text_delta", Content: delta}
 				}
-				updateTimelineText(&timelineRecords, textBlockIdx, replyText)
+				updateTimelineText(&timelineRecords, textBlockIdx, buildTimelineTextWithReasoning(replyText, assistantMsg.ReasoningContent))
 				a.saveAssistantMessage(sessionID, replyText, allToolCallRecords, timelineRecords)
 				eventCh <- AgentEvent{Type: "message_end"}
 				messageSent = true
@@ -1751,6 +1806,13 @@ func (a *Agent) RunStream(ctx context.Context, adapter *ModelAdapter, sessionID 
 			}
 		}
 
+		// 流式结束后：关闭未闭合的 <think> 标签（模型从 reasoning 直接跳到 tool_call 时）
+		if reasoningStarted && !reasoningEnded {
+			reasoningEnded = true
+			eventCh <- AgentEvent{Type: "text_delta", Content: "\n</think>\n\n"}
+			contentSoFar += "\n</think>\n\n"
+		}
+
 		// 流式结束后：刷出 DSML 缓冲区中未匹配为 DSML 的残留文本
 		if dsmlPendingBuf != "" && !dsmlDetected {
 			contentSoFar += dsmlPendingBuf
@@ -1787,7 +1849,7 @@ func (a *Agent) RunStream(ctx context.Context, adapter *ModelAdapter, sessionID 
 
 		// 如果没有工具调用，结束循环
 		if len(toolCalls) == 0 || finishReason == "stop" {
-			appendTimelineText(&timelineRecords, content)
+			appendTimelineText(&timelineRecords, contentSoFar)
 			a.saveAssistantMessage(sessionID, content, allToolCallRecords, timelineRecords)
 			eventCh <- AgentEvent{Type: "message_end"}
 			messageSent = true
@@ -1805,7 +1867,7 @@ func (a *Agent) RunStream(ctx context.Context, adapter *ModelAdapter, sessionID 
 			assistantMessage.ReasoningContent = &rc
 		}
 		messages = append(messages, assistantMessage)
-		textBlockIdx := appendTimelineText(&timelineRecords, content)
+		textBlockIdx := appendTimelineText(&timelineRecords, contentSoFar)
 
 		for _, tc := range toolCalls {
 			// 工具执行前检查是否已被取消
@@ -1901,7 +1963,12 @@ func (a *Agent) RunStream(ctx context.Context, adapter *ModelAdapter, sessionID 
 					contentSoFar += additional
 					eventCh <- AgentEvent{Type: "text_delta", Content: additional}
 				}
-				updateTimelineText(&timelineRecords, textBlockIdx, replyText)
+				var reasoningPtr *string
+				if reasoningBuilder.Len() > 0 {
+					rc := reasoningBuilder.String()
+					reasoningPtr = &rc
+				}
+				updateTimelineText(&timelineRecords, textBlockIdx, buildTimelineTextWithReasoning(replyText, reasoningPtr))
 				a.saveAssistantMessage(sessionID, replyText, allToolCallRecords, timelineRecords)
 				eventCh <- AgentEvent{Type: "message_end"}
 				messageSent = true

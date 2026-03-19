@@ -35,7 +35,14 @@ func (h *Handler) CreateSession(c *gin.Context) {
 	uid, _ := userID.(uint)
 	uname, _ := username.(string)
 
-	session, err := h.convMgr.CreateSession(uid, uname, req.Title, req.ModelID)
+	resolvedModelID := req.ModelID
+	if resolvedModelID == 0 {
+		if model := h.getModel(0); model != nil {
+			resolvedModelID = model.ID
+		}
+	}
+
+	session, err := h.convMgr.CreateSession(uid, uname, req.Title, resolvedModelID)
 	if err != nil {
 		response.ErrorCode(c, http.StatusInternalServerError, err.Error())
 		return
@@ -108,7 +115,7 @@ func (h *Handler) SendMessage(c *gin.Context) {
 	}
 
 	// 验证会话
-	_, err := h.convMgr.GetSession(req.SessionID, uid)
+	session, err := h.convMgr.GetSession(req.SessionID, uid)
 	if err != nil {
 		response.ErrorCode(c, http.StatusNotFound, "会话不存在")
 		return
@@ -119,6 +126,9 @@ func (h *Handler) SendMessage(c *gin.Context) {
 	if model == nil {
 		response.ErrorCode(c, http.StatusBadRequest, "未配置 AI 模型，请先在模型配置中添加模型")
 		return
+	}
+	if session.ModelID == 0 && model.ID > 0 {
+		h.db.Model(&biz.ChatSession{}).Where("id = ?", req.SessionID).Update("model_id", model.ID)
 	}
 
 	adapter := biz.NewModelAdapter(model)
@@ -268,7 +278,11 @@ func (h *Handler) ChatWebSocket(c *gin.Context) {
 
 			// 如果没有 session，创建一个
 			if req.SessionID == 0 {
-				session, err := h.convMgr.CreateSession(uid, uname, "", req.ModelID)
+				resolvedModelID := req.ModelID
+				if resolvedModelID == 0 {
+					resolvedModelID = model.ID
+				}
+				session, err := h.convMgr.CreateSession(uid, uname, "", resolvedModelID)
 				if err != nil {
 					safeWriteEvent(biz.AgentEvent{Type: "error", Error: "创建会话失败"})
 					continue
@@ -278,6 +292,10 @@ func (h *Handler) ChatWebSocket(c *gin.Context) {
 					"type":    "session_created",
 					"session": session,
 				})
+			} else {
+				if session, err := h.convMgr.GetSession(req.SessionID, uid); err == nil && session.ModelID == 0 && model.ID > 0 {
+					h.db.Model(&biz.ChatSession{}).Where("id = ?", req.SessionID).Update("model_id", model.ID)
+				}
 			}
 
 			// 取消之前的 Agent（如果有）

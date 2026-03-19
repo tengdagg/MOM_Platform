@@ -43,12 +43,13 @@ func (h *Handler) GetModelCallStats(c *gin.Context) {
 	h.db.Raw(`
 		SELECT
 			DATE_FORMAT(m.created_at, '%Y-%m-%d') AS day,
-			COALESCE(s.model_id, 0)               AS model_id,
-			COALESCE(mc.name, '默认模型')          AS model_name,
-			COUNT(*)                               AS count
+			COALESCE(s.model_id, 0)                AS model_id,
+			COALESCE(mc.name, default_mc.name, '未知模型') AS model_name,
+			COUNT(*)                                AS count
 		FROM ai_chat_messages m
 		JOIN ai_chat_sessions s  ON s.id = m.session_id AND s.deleted_at IS NULL
 		LEFT JOIN ai_model_configs mc ON mc.id = s.model_id AND mc.deleted_at IS NULL
+		LEFT JOIN ai_model_configs default_mc ON default_mc.is_default = 1 AND default_mc.status = 1 AND default_mc.deleted_at IS NULL
 		WHERE m.role = 'assistant'
 		  AND m.created_at >= ?
 		GROUP BY day, model_id, model_name

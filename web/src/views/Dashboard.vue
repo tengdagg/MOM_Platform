@@ -290,7 +290,7 @@ const renderOperationTrendChart = () => {
 
   const modelMap = new Map<string, Map<string, number>>()
   for (const row of daily) {
-    const name = row.modelName || '默认模型'
+    const name = row.modelName || (row.modelId ? `模型 #${row.modelId}` : '未知模型')
     if (!modelMap.has(name)) modelMap.set(name, new Map())
     modelMap.get(name)!.set(row.day, row.count)
   }
