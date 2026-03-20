@@ -7306,7 +7306,6 @@ onMounted(() => {
   background: rgba(212, 175, 55, 0.2) !important;
   border-color: #c9a227 !important;
   box-shadow: 0 2px 8px rgba(212, 175, 55, 0.3) !important;
-  transform: translateY(-1px);
 }
 
 .label-key-wrapper:active {

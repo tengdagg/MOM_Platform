@@ -925,14 +925,13 @@ onMounted(() => {
 }
 
 :deep(.detail-dialog .el-dialog__header) {
-  background: #0a466a;
   color: #ffffff;
   border-radius: 0;
   padding: 20px 24px;
 }
 
 :deep(.detail-dialog .el-dialog__title) {
-  color: #ffffff;
+  color: #3e3e3e;
 }
 
 .detail-content {

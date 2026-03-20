@@ -1696,23 +1696,22 @@ onUnmounted(() => {
   align-items: center !important;
   gap: 6px !important;
   padding: 5px 12px !important;
-  background: linear-gradient(135deg, #0a466a 0%, #0d5a87 100%) !important;
+  background: rgba(48, 65, 86, 0.1) !important;
   color: #0f69a6 !important;
   border: 1px solid #0f69a6 !important;
   border-radius: 0 !important;
   font-family: 'Monaco', 'Menlo', monospace !important;
   font-size: 12px !important;
-  font-weight: 500 !important;
+  font-weight: 600 !important;
   cursor: pointer !important;
   transition: all 0.3s !important;
   user-select: none;
 }
 
 .label-key-wrapper:hover {
-  background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%) !important;
-  border-color: #bfa13f !important;
+  background: rgba(212, 175, 55, 0.2) !important;
+  border-color: #c9a227 !important;
   box-shadow: 0 2px 8px rgba(212, 175, 55, 0.3) !important;
-  transform: translateY(-1px);
 }
 
 .label-key-wrapper:active {
@@ -1740,7 +1739,7 @@ onUnmounted(() => {
 .label-value {
   font-family: 'Monaco', 'Menlo', monospace;
   font-size: 13px;
-  color: #606266;
+  color: #666;
   word-break: break-all;
   white-space: pre-wrap;
 }
