@@ -1010,6 +1010,31 @@ type Usage struct {
 	CompletionTokens int `json:"completionTokens"`
 }
 
+func (a *Agent) recordModelCall(sessionID uint, userID uint, adapter *ModelAdapter, usage *Usage) {
+	if a == nil || a.db == nil || adapter == nil || adapter.config == nil {
+		return
+	}
+	modelName := strings.TrimSpace(adapter.config.Name)
+	if modelName == "" {
+		modelName = strings.TrimSpace(adapter.config.ModelName)
+	}
+	entry := &ModelCallLog{
+		SessionID: sessionID,
+		UserID:    userID,
+		ModelID:   adapter.config.ID,
+		ModelName: modelName,
+		Provider:  strings.TrimSpace(adapter.config.Provider),
+	}
+	if usage != nil {
+		entry.PromptTokens = usage.PromptTokens
+		entry.CompletionTokens = usage.CompletionTokens
+		entry.TotalTokens = usage.PromptTokens + usage.CompletionTokens
+	}
+	if err := a.db.Create(entry).Error; err != nil {
+		log.Printf("[agent] 记录模型调用日志失败: %v", err)
+	}
+}
+
 // Agent AI Agent 核心引擎
 type Agent struct {
 	db             *gorm.DB
@@ -1041,6 +1066,19 @@ const systemPrompt = `你是 MOM 运维管理平台的 AI 助手。你可以帮�
 - 优先使用可用的工具来获取准确信息，不要编造数据
 - 回答要清晰、结构化，善用表格和列表
 - 如果工具返回错误，如实告知用户并给出建议
+
+🎯 Skill 选型决策规则（非常重要）：
+在调用任何 Skill 前，先判断"目标对象是谁"以及"操作发生在对象本身还是对象内部"：
+1. 如果目标是平台资源对象本身（主机、设备、Pod、Deployment、Service、Node、PVC、告警、审计记录等），优先选择对应的查询/管理 Skill，不要先用 exec 类 Skill
+2. 如果目标是操作系统、容器文件系统或设备 CLI 内部状态，才使用 exec 类 Skill
+3. 如果只是查询详情/列表/状态，优先用 list/detail/get/describe/logs 等结构化 Skill；只有结构化 Skill 无法覆盖时，再退回 exec_command
+4. 单机精确执行优先 "host.exec_command"；按主机分组批量执行才用 "task.execute"
+5. 网络设备命令优先 "device.exec_command"，不要用主机类 Skill 去模拟网络设备操作
+6. Kubernetes 资源对象操作优先 "k8s.kubectl"；进入 Pod/容器内部排障才用 "k8s.exec_command"
+7. 查看标准输出日志优先 "k8s.kubectl(action=logs)"；只有查看容器文件系统中的日志文件时才用 "k8s.exec_command"
+8. 若用户表达"进入、登录、切到目录、source/export/bash、配置模式继续执行"等上下文依赖动作，优先选择支持会话复用的 exec Skill
+9. 同时存在"先查"和"后改"时，必须先调用查询类 Skill，再决定是否调用变更类 Skill
+10. 不要为了通用性而优先选择更危险的 Skill；能用只读结构化 Skill 解决，就不要先走高风险 exec Skill
 
 ⚠️ 高风险操作确认机制（非常重要）：
 对于高风险操作（扩缩容、重启、远程命令执行、节点管理等），执行流程如下：
@@ -1452,6 +1490,10 @@ func (a *Agent) Run(ctx context.Context, adapter *ModelAdapter, sessionID uint, 
 			eventCh <- AgentEvent{Type: "error", Error: "模型未返回任何响应"}
 			return
 		}
+		a.recordModelCall(sessionID, userID, adapter, &Usage{
+			PromptTokens:     resp.Usage.PromptTokens,
+			CompletionTokens: resp.Usage.CompletionTokens,
+		})
 
 		choice := resp.Choices[0]
 		assistantMsg := choice.Message
@@ -1829,6 +1871,7 @@ func (a *Agent) RunStream(ctx context.Context, adapter *ModelAdapter, sessionID 
 
 		fullRawContent := contentBuilder.String()
 		content := stripModelArtifacts(fullRawContent)
+		a.recordModelCall(sessionID, userID, adapter, nil)
 
 		// forceTextOnly 下 LLM 输出了纯 DSML（无有效文本）→ 生成兜底确认提示
 		if wasForceTextOnly && dsmlDetected && strings.TrimSpace(content) == "" {

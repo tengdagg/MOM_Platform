@@ -61,7 +61,7 @@
         <el-card class="chart-card" shadow="hover">
           <template #header>
             <div class="card-header">
-              <span class="card-title">模型调用次数（最近7天）</span>
+              <span class="card-title">模型请求次数（最近7天）</span>
               <span class="view-all-link" @click="$router.push('/audit/operation-logs')">查看全部</span>
             </div>
           </template>

@@ -83,6 +83,13 @@ parameters:
 - 需要 `cd /app` 之后继续执行多条依赖上下文的命令
 - 明确要排查容器文件系统内部问题，而不是资源对象状态
 
+快速判断：
+
+- 如果用户问的是"这个 Pod / Deployment / Service / Node 现在怎么样"，用 `k8s.kubectl`
+- 如果用户问的是"容器里面有什么文件 / 进程 / 环境变量"，用 `k8s.exec_command`
+- 如果用户说"看日志"，默认理解为标准输出日志，用 `k8s.kubectl(action="logs")`
+- 如果用户说"看容器里的某个日志文件"，例如 `/var/log/app.log`，才改用 `k8s.exec_command`
+
 ## 支持的操作
 
 | 操作 | 说明 | 风险等级 |

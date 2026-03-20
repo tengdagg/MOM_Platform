@@ -64,6 +64,13 @@ parameters:
 - 查看标准容器日志（stdout/stderr）
 - 扩缩容、重启、删除、cordon、drain 等 K8s 资源变更
 
+快速判断：
+
+- 如果用户说"进入 Pod / 进入容器 / 到容器里执行"，直接优先 `k8s.exec_command`
+- 如果用户目标路径是容器内文件，例如 `/app`、`/etc/nginx/nginx.conf`、`/var/log/...`，优先 `k8s.exec_command`
+- 如果用户问的是资源对象状态、事件、YAML、副本数、Service/Ingress 配置，不要先用本 Skill，应切到 `k8s.kubectl`
+- 如果用户只是想看 Pod 标准日志，不要误用本 Skill
+
 ## 执行模型
 
 1. 普通单条命令默认使用一次性 `pods/exec`

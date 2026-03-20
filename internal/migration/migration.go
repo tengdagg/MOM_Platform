@@ -23,6 +23,7 @@ import (
 	"database/sql"
 	"embed"
 	"fmt"
+	"strings"
 
 	"github.com/golang-migrate/migrate/v4"
 	"github.com/golang-migrate/migrate/v4/database/mysql"
@@ -36,6 +37,8 @@ var migrationsFS embed.FS
 // 对于新数据库：运行所有迁移（建表+种子数据）
 // 对于已有数据库：自动 baseline 后只运行增量迁移
 func Run(dsn string) error {
+	dsn = normalizeMigrationDSN(dsn)
+
 	// 打开原生 database/sql 连接（golang-migrate 需要）
 	db, err := sql.Open("mysql", dsn)
 	if err != nil {
@@ -75,6 +78,20 @@ func Run(dsn string) error {
 	fmt.Printf("[迁移] 数据库版本: %d, dirty: %v\n", version, dirty)
 
 	return nil
+}
+
+// normalizeMigrationDSN 为迁移连接补充 TiDB 兼容参数。
+// golang-migrate 的 mysql 驱动在 SetVersion 时会以 SERIALIZABLE 开事务，
+// TiDB 默认会拒绝该隔离级别，因此这里仅对迁移连接追加跳过检查参数。
+func normalizeMigrationDSN(dsn string) string {
+	if strings.Contains(dsn, "tidb_skip_isolation_level_check=") {
+		return dsn
+	}
+	sep := "?"
+	if strings.Contains(dsn, "?") {
+		sep = "&"
+	}
+	return dsn + sep + "tidb_skip_isolation_level_check=1"
 }
 
 // handleBaseline 处理已有数据库的 baseline

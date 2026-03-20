@@ -26,13 +26,13 @@ func (h *Handler) ListTemplates(c *gin.Context) {
 	response.Success(c, templates)
 }
 
-// GetModelCallStats 获取最近 7 天的模型调用统计（按模型分组、按天分组）
+// GetModelCallStats 获取最近 7 天的模型调用统计（基于独立模型调用日志）
 func (h *Handler) GetModelCallStats(c *gin.Context) {
 	now := time.Now()
 	sevenDaysAgo := now.AddDate(0, 0, -6)
 	startOfDay := time.Date(sevenDaysAgo.Year(), sevenDaysAgo.Month(), sevenDaysAgo.Day(), 0, 0, 0, 0, now.Location())
 
-	// 按天 + 模型分组统计 assistant 消息数（每条 assistant 消息 = 一次模型调用）
+	// 按天 + 模型分组统计真实模型调用次数
 	type DayModelCount struct {
 		Day       string `json:"day"`
 		ModelID   uint   `json:"modelId"`
@@ -42,16 +42,12 @@ func (h *Handler) GetModelCallStats(c *gin.Context) {
 	var rows []DayModelCount
 	h.db.Raw(`
 		SELECT
-			DATE_FORMAT(m.created_at, '%Y-%m-%d') AS day,
-			COALESCE(s.model_id, 0)                AS model_id,
-			COALESCE(mc.name, default_mc.name, '未知模型') AS model_name,
-			COUNT(*)                                AS count
-		FROM ai_chat_messages m
-		JOIN ai_chat_sessions s  ON s.id = m.session_id AND s.deleted_at IS NULL
-		LEFT JOIN ai_model_configs mc ON mc.id = s.model_id AND mc.deleted_at IS NULL
-		LEFT JOIN ai_model_configs default_mc ON default_mc.is_default = 1 AND default_mc.status = 1 AND default_mc.deleted_at IS NULL
-		WHERE m.role = 'assistant'
-		  AND m.created_at >= ?
+			DATE_FORMAT(created_at, '%Y-%m-%d') AS day,
+			COALESCE(model_id, 0)               AS model_id,
+			COALESCE(NULLIF(model_name, ''), '未知模型') AS model_name,
+			COUNT(*)                            AS count
+		FROM ai_model_call_logs
+		WHERE created_at >= ?
 		GROUP BY day, model_id, model_name
 		ORDER BY day, model_name
 	`, startOfDay).Scan(&rows)
@@ -60,17 +56,14 @@ func (h *Handler) GetModelCallStats(c *gin.Context) {
 	var todayTotal int64
 	todayStart := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
 	h.db.Raw(`
-		SELECT COUNT(*) FROM ai_chat_messages m
-		JOIN ai_chat_sessions s ON s.id = m.session_id AND s.deleted_at IS NULL
-		WHERE m.role = 'assistant' AND m.created_at >= ?
+		SELECT COUNT(*) FROM ai_model_call_logs
+		WHERE created_at >= ?
 	`, todayStart).Scan(&todayTotal)
 
 	// 总调用量
 	var total int64
 	h.db.Raw(`
-		SELECT COUNT(*) FROM ai_chat_messages m
-		JOIN ai_chat_sessions s ON s.id = m.session_id AND s.deleted_at IS NULL
-		WHERE m.role = 'assistant'
+		SELECT COUNT(*) FROM ai_model_call_logs
 	`).Scan(&total)
 
 	response.Success(c, gin.H{

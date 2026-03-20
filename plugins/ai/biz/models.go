@@ -63,6 +63,24 @@ func (ChatMessage) TableName() string {
 	return "ai_chat_messages"
 }
 
+// ModelCallLog 独立记录每次真实模型调用，避免删除会话后统计数据丢失
+type ModelCallLog struct {
+	ID               uint      `gorm:"primaryKey" json:"id"`
+	SessionID        uint      `gorm:"index" json:"sessionId"`
+	UserID           uint      `gorm:"index" json:"userId"`
+	ModelID          uint      `gorm:"index" json:"modelId"`
+	ModelName        string    `gorm:"size:100;not null" json:"modelName"`
+	Provider         string    `gorm:"size:50" json:"provider"`
+	PromptTokens     int       `gorm:"default:0" json:"promptTokens"`
+	CompletionTokens int       `gorm:"default:0" json:"completionTokens"`
+	TotalTokens      int       `gorm:"default:0" json:"totalTokens"`
+	CreatedAt        time.Time `json:"createdAt"`
+}
+
+func (ModelCallLog) TableName() string {
+	return "ai_model_call_logs"
+}
+
 // SkillDefinition Skill 技能定义
 // 每个 Skill 遵循标准目录结构:
 //

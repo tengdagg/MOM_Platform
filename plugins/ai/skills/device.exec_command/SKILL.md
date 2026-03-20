@@ -44,3 +44,23 @@ parameters:
 - 同一 AI 对话内，对同一设备重复调用时会优先复用交互式 shell 上下文
 - 如果已经进入配置模式，后续命令默认仍在当前模式执行；需要返回上级模式时请显式执行 `end` / `exit`
 - 会话空闲约 10 分钟后会自动关闭，也可以使用 `device.close_session` 主动结束
+
+## 选择规则
+
+优先选择 `device.exec_command` 的场景：
+
+- 用户明确要在交换机、路由器、防火墙等网络设备 CLI 上执行命令
+- 用户要查看 `show` / `display` / `dis` / `ping` / `traceroute` 等设备命令结果
+- 用户要进入配置模式后连续下发多条配置命令
+- 用户的问题依赖设备 CLI 上下文，而不是平台资产元数据
+
+以下场景不要优先选它，应先改用 `device.list` / `device.detail` 等查询类 Skill：
+
+- 用户先问"有哪些设备"、"某设备 ID 是多少"、"某设备详情是什么"
+- 用户目标是资产台账信息、分组、凭证、连通性状态，而不是设备 CLI 输出
+
+快速判断：
+
+- "看设备信息/详情/列表"：先 `device.list` / `device.detail`
+- "在设备上执行 show/display 命令"：用 `device.exec_command`
+- "进入 config 模式继续配 NTP/VLAN/路由"：用 `device.exec_command`，并复用会话上下文
