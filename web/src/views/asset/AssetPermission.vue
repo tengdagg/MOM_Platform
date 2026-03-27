@@ -118,13 +118,13 @@
           class="modern-table"
           :header-cell-style="{ background: '#fafbfc', color: '#606266', fontWeight: '600' }"
         >
-          <el-table-column prop="name" label="规则名称" min-width="160">
+          <el-table-column prop="name" label="规则名称" min-width="130">
             <template #default="{ row }">
               <span class="rule-name">{{ row.name }}</span>
             </template>
           </el-table-column>
 
-          <el-table-column label="授权对象" min-width="200">
+          <el-table-column label="授权对象" min-width="130">
             <template #default="{ row }">
               <div class="auth-targets">
                 <template v-if="row.userNames && row.userNames.length > 0">
@@ -148,7 +148,7 @@
             </template>
           </el-table-column>
 
-          <el-table-column label="资产范围" min-width="180">
+          <el-table-column label="资产范围" min-width="200">
             <template #default="{ row }">
               <div>
                 <el-tag type="info" size="small">{{ row.assetGroupName }}</el-tag>
@@ -825,7 +825,7 @@ onMounted(() => {
   display: flex; align-items: center; justify-content: center;
   color: #fff; font-size: 22px; flex-shrink: 0;
 }
-.page-title { margin: 0; font-size: 20px; font-weight: 600; color: #303133; line-height: 1.3; }
+.page-title { margin: 0; font-size: 20px;  color: #303133; line-height: 1.3; }
 .page-subtitle { margin: 4px 0 0 0; font-size: 13px; color: #909399; }
 
 /* 主体 */
@@ -841,7 +841,7 @@ onMounted(() => {
   padding: 12px 16px; border-bottom: 1px solid #f0f0f0;
   display: flex; justify-content: space-between; align-items: center;
 }
-.tree-title { font-size: 14px; font-weight: 600; color: #303133; }
+.tree-title { font-size: 14px;  color: #303133; }
 .tree-search { padding: 8px 12px; border-bottom: 1px solid #f0f0f0; }
 .tree-search :deep(.el-input__wrapper) { border-radius: 0; }
 .tree-body { flex: 1; overflow-y: auto; padding: 4px 0; }
@@ -854,7 +854,7 @@ onMounted(() => {
 
 :deep(.el-tree-node__content) { height: 32px; padding: 0 8px; }
 :deep(.el-tree-node.is-current > .el-tree-node__content) {
-  background-color: #e6f7ff; color: #0a466a; font-weight: 500;
+  background-color: #e6f7ff; color: #0a466a;
 }
 
 /* 右侧 */
@@ -864,23 +864,29 @@ onMounted(() => {
 }
 
 .selected-hint {
-  padding: 10px 16px; border-bottom: 1px solid #f0f0f0;
+  padding: 10px 20px; border-bottom: 1px solid #f0f0f0;
   display: flex; align-items: center; gap: 10px; background: #fafbfc;
 }
+.selected-hint :deep(.el-tag) {
+  display: inline-flex; align-items: center;
+}
+.hint-tag :deep(.el-tag__content) {
+  display: inline-flex; align-items: center;
+}
 .hint-tag-content {
-  display: inline-flex; align-items: center; gap: 4px;
+  display: inline-flex; align-items: center; gap: 4px; line-height: 1;
 }
 .hint-tag-content .el-icon {
-  font-size: 14px; flex-shrink: 0;
+  font-size: 14px; flex-shrink: 0; display: flex; align-items: center;
 }
 .add-for-selected-btn { font-size: 13px; color: #0a466a; }
 .add-for-selected-btn:hover { color: #1890ff; }
 
-.search-bar { padding: 10px 16px; border-bottom: 1px solid #f0f0f0; }
+.search-bar { padding: 10px 20px; border-bottom: 1px solid #f0f0f0; }
 .search-input { width: 300px; }
 .search-bar :deep(.el-input__wrapper) { border-radius: 0; border: 1px solid #dcdfe6; box-shadow: 0 2px 4px rgba(0,0,0,0.08); }
 
-.rule-name { font-weight: 500; color: #303133; }
+.rule-name {  color: #303133; }
 .auth-targets { display: flex; flex-wrap: wrap; gap: 2px; }
 .scope-text { font-size: 12px; color: #909399; margin-left: 4px; }
 .asset-name-list { margin-top: 4px; }
@@ -902,9 +908,11 @@ onMounted(() => {
 :deep(.auth-dialog .el-dialog__header) { padding: 20px 24px 16px; border-bottom: 1px solid #f0f0f0; }
 :deep(.auth-dialog .el-dialog__body) { padding: 24px; max-height: 70vh; overflow-y: auto; }
 :deep(.auth-dialog .el-dialog__footer) { padding: 16px 24px; border-top: 1px solid #f0f0f0; }
-:deep(.el-divider__text) { font-size: 13px; font-weight: 600; color: #606266; }
-:deep(.el-tag) { border-radius: 0; padding: 4px 10px; font-weight: 500; }
+:deep(.el-divider__text) { font-size: 13px;  color: #606266; }
+:deep(.el-tag) { border-radius: 0; padding: 4px 10px;  }
 .modern-table { width: 100%; flex: 1; }
+:deep(.modern-table .el-table__header th:first-child .cell),
+:deep(.modern-table .el-table__body td:first-child .cell) { padding-left: 32px; }
 
 @media (max-width: 1024px) {
   .main-content { flex-direction: column; }
